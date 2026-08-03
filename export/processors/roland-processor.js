@@ -244,7 +244,7 @@
                         options: Object.entries(this.profiles).map(([id, p]) => ({
                             value: id, label: p.label
                         })),
-                        default: 'mdx50'
+                        default: 'mdx2  0'
                     },
                     {
                         key: 'rolandZMode',
@@ -318,11 +318,11 @@
 
         generateHeader(options) {
             // Load profile from internal profiles, fall back to options
-            this.model = options.rolandModel || 'mdx50';
+            this.model = options.rolandModel || 'mdx20';
             this.profile = this.getProfile(this.model);
 
             // Read machine parameters — profile values are authoritative, options are overrides
-            this.stepsPerMM = options.rolandStepsPerMM || this.profile?.stepsPerMM || 100;
+            this.stepsPerMM = this.profile?.stepsPerMM || options.rolandStepsPerMM || 40;
             this.maxFeedXY = this.profile?.maxFeedXY || options.rolandMaxFeed || 60;
             this.maxFeedZ = this.profile?.maxFeedZ || this.maxFeedXY;
             this.zMode = options.rolandZMode || this.profile?.zMode || '3d';
