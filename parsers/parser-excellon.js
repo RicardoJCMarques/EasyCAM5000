@@ -169,19 +169,22 @@
                 this.options.units = 'mm';
                 this.drillData.units = 'mm';
 
-                // Catch suppression mode
                 if (line.includes('LZ')) this.options.zeroSuppression = 'trailing';
                 else if (line.includes('TZ')) this.options.zeroSuppression = 'leading';
 
-                if (!this.formatExplicitlySet) {
+                const fm = line.match(/(\d+)\.(\d+)/);
+                if (fm) {
+                    this.formatExplicitlySet = true;
+                    this.options.format = { integer: fm[1].length, decimal: fm[2].length };
+                    this.drillData.format = this.options.format;
+                    this.debug(`Format ${fm[1].length}.${fm[2].length} (from METRIC line)`);
+                } else if (!this.formatExplicitlySet) {
                     this.options.format = { integer: 3, decimal: 3 };
                     this.drillData.format = this.options.format;
-                    const warnMsg = "No explicit format found. Defaulting to 3.3 (Metric). If holes/slots are misaligned, the file might use a different format.";
+                    const warnMsg = "No explicit format found. Defaulting to 3.3 (Metric)...";
                     this.warnings.push(warnMsg);
                     console.warn(`[ExcellonParser] Line ${lineNumber}: ${warnMsg}`);
                 }
-
-                this.debug('Units: mm');
                 return;
             } else if (line.startsWith('INCH') || line === 'M72') {
                 this.options.units = 'inch';
@@ -255,20 +258,12 @@
         }
 
         parseFormat(line, lineNumber) {
+            // FMAT especifica la VERSIÓN del formato Excellon (1 o 2), NO el formato de coordenadas.
+            // No tocar this.options.format ni formatExplicitlySet.
             const match = line.match(/FMAT,?(\d)/);
             if (match) {
-                this.formatExplicitlySet = true;
-
-                const code = parseInt(match[1]);
-                if (code === 1) {
-                    this.options.format = { integer: 2, decimal: 3 };
-                } else if (code === 2) {
-                    this.options.format = { integer: 2, decimal: 4 };
-                } else {
-                    this.warnings.push(`Line ${lineNumber}: Unknown FMAT ${code}`);
-                }
-                this.drillData.format = this.options.format;
-                this.debug(`Format: ${this.options.format.integer}.${this.options.format.decimal}`);
+                this.formatVersion = parseInt(match[1]);
+                this.debug(`Excellon format version: ${this.formatVersion}`);
             }
         }
 
