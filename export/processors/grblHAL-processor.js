@@ -3,7 +3,7 @@
  * @description grblHAL post-processing module
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
- * @see         {@link https://github.com/RicardoJCMarques/EasyTrace5000}
+ * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
  *
  * SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
  * SPDX-License-Identifier: AGPL-3.0-or-later
@@ -22,6 +22,20 @@
                 supportsCannedCycles: true,
                 useM6: true,
                 supportsToolLengthComp: false,
+                // 4th axis: grblHAL builds can enable A/B/C. DRAFT -
+                // inverseTime stays false until G93 is confirmed on the target
+                // build. False is the safe direction (feeds pass as G94 mm/min:
+                // honest at the blank surface, fast at depth), so
+                // 'wrapped-linear' leads until verified.
+                rotary: {
+                    routes: ['wrapped-linear', 'a-word'],
+                    axisWords: ['A', 'B'],
+                    inverseTime: false,
+                    continuous: true,
+                    // Starting value for a belt-driven hobby rotary. Machine
+                    // Settings overrides it - this is hardware, not firmware.
+                    indexDwell: 0.3
+                },
                 pauseAfterToolChange: true,
                 arcFormat: 'IJ',
                 coordinateDecimals: 3,

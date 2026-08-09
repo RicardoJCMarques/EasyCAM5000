@@ -3,7 +3,7 @@
  * @description Clipper2 WASM library intermediary
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
- * @see         {@link https://github.com/RicardoJCMarques/EasyTrace5000}
+ * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
  *
  * SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
  * SPDX-License-Identifier: AGPL-3.0-or-later
@@ -12,21 +12,19 @@
 (function() {
     'use strict';
 
-    const C = window.CAMConfig.constants;
-    const D = window.CAMConfig.defaults;
+    const ROOT = (typeof self !== 'undefined') ? self : window;
+    const C = ROOT.CAMConfig.constants;
+    const D = ROOT.CAMConfig.defaults;
     const debugState = D.debug;
 
     class ClipperWrapper {
         constructor(options = {}) {
             this.options = { ...options };
-            this.scale = options.clipper2scale;
+            this.scale = options.clipper2scale; // REVIEW - If this is applied before clipper and reverted after, scaling can be larger?
 
             this.clipper2 = null;
             this.initialized = false;
             this.supportsZ = false;
-
-            // Track allocated WASM objects for cleanup
-            this.allocatedObjects = [];
 
             // Metadata packing configuration - 64-bit Packing: CurveID (24-bit) + SegmentIndex (31-bit) + Clockwise Winding (1-bit) + Unused (8-bit)
             this.metadataPacking = {
@@ -113,6 +111,12 @@
          * Pack a source-shape identity into a Z word for non-arc points.
          * Uses bits 24-55 (32-bit), with bits 0-23 forced to zero so that
          * unpackMetadata sees curveId=0 and knows this is identity, not arc data.
+         *
+         * Bits 24-55, i.e. deliberately OVERLAPPING packMetadata's segmentIndex
+         * field. Safe only because the two are mutually exclusive: a point either
+         * carries a curveId (bits 0-23 non-zero) or a sourceId, never both, and
+         * unpackMetadata dispatches on curveId > 0. Widening sourceId past 31 bits
+         * would collide with the clockwise flag at bit 55.
          */
         // REVIEW - the current system may not need this but stayDown clusters probably need this.
         // Same shapeID if far appart by the offset distance (not just point distance) should be stayDown compatible, it would allow enough precision for more stayDown moves when explicit points are diagonally distant.
@@ -265,7 +269,7 @@
         }
 
         // Convert JS path to Clipper Path64 with metadata packing
-        jsPathToClipper(points) {
+        jsPathToClipper(points, contourSourceId = 0) {
             const { Path64, Point64 } = this.clipper2;
 
             if (!points || points.length < 3) return null;
@@ -273,9 +277,21 @@
             const path = new Path64();
 
             try {
+                // WORKER BLOCKER - read before moving 2D booleans off-thread.
+                // This resolve is why 2D offsetting cannot follow the 3D
+                // pipeline into field-worker.js: the registry is main-thread
+                // singleton state, so in a worker every curveId resolves to
+                // clockwise:false and the packed Z word loses the winding the
+                // arc reconstructor needs. Reconstruction would silently
+                // degrade to polylines - the exact loss the boolean-offset
+                // architecture exists to prevent. Moving 2D to workers means
+                // shipping a serialized registry slice per job AND merging
+                // offset-derived curve registrations back. That's a project.
+                // V-carve/relief/rotary have no arc registry dependency, which
+                // is why they were cheap to move.
                 // Pre-resolve curve windings once per contour instead of one
                 // registry Map lookup per point.
-                const reg = window.globalCurveRegistry;
+                const reg = ROOT.globalCurveRegistry;
                 const windingCache = new Map();
                 const getClockwiseForCurve = (curveId) => {
                     let cw = windingCache.get(curveId);
@@ -308,8 +324,9 @@
                         if (p.curveId !== undefined && p.curveId !== null && p.curveId > 0) {
                             const curveClockwise = getClockwiseForCurve(p.curveId);
                             z = this.packMetadata(p.curveId, p.segmentIndex || 0, curveClockwise, 0);
-                        } else if (p.sourceId > 0) {
-                            z = this.packSourceId(p.sourceId);
+                        } else {
+                            const sid = (p.sourceId > 0) ? p.sourceId : contourSourceId;
+                            if (sid > 0) z = this.packSourceId(sid);
                         }
                     }
 
@@ -447,7 +464,6 @@
 
                 if (curveIds.size > 0) {
                     primitive.curveIds = Array.from(curveIds);
-                    primitive.hasReconstructableCurves = true;
                 }
                 primitives.push(primitive);
             }
@@ -510,5 +526,5 @@
         }
     }
 
-    window.ClipperWrapper = ClipperWrapper;
+    ROOT.ClipperWrapper = ClipperWrapper;
 })();

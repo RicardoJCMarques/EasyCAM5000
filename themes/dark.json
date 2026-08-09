@@ -3,7 +3,7 @@
     "file": "dark.json",
     "description": "Dark Theme",
     "author": "Eltryus - Ricardo Marques",
-    "see": "https://github.com/RicardoJCMarques/EasyTrace5000",
+    "see": "https://github.com/RicardoJCMarques/EasyCAM5000",
     "license": "AGPL-3.0-or-later",
     "copyright": "Copyright (C) 2025-2026 Eltryus - Ricardo Marques"
   },
@@ -39,17 +39,28 @@
       "success": "#22c55e",
       "warning": "#f59e0b",
       "error": "#ef4444",
-      "info": "#06b6d4"
+      "info": "#06b6d4",
+      "scrim": "rgba(0, 0, 0, 0.6)",
+      "scrimStrong": "rgba(0, 0, 0, 0.8)"
     },
+  
     "operations": {
       "isolation": "#ff8844",
       "drill": "#4488ff",
       "clearing": "#44ff88",
       "cutout": "#ff00ff",
       "stencil": "#90177d",
-      "toolpath": "#00ffff"
+      "toolpath": "#00ffff",
+      "profile": "#6dd3a0",
+      "pocket": "#5a8acf",
+      "engrave": "#c794d6",
+      "shapeDrill": "#d8a44a",
+      "vcarve": "#e07a7a",
+      "relief": "#e0a97a",
+      "rotary": "#7ab8e0",
+      "pattern": "#a8b56d"
     },
-    "canvas": {
+    "render2d": {
       "background": "#0f0f0f",
       "grid": "#aaaaaa",
       "origin": "#aaaaaa",
@@ -57,6 +68,16 @@
       "bounds": "#aaaaaa",
       "ruler": "#aaaaaa",
       "rulerText": "#aaaaaa"
+    },
+    "render3d": {
+      "background": "#16181c",
+      "grid": "#2a2e34",
+      "gridCenter": "#3a3f46",
+      "rapid": "#565b63",
+      "cutShallow": "#4fc3f7",
+      "cutDeep": "#e07a7a",
+      "stock": "#8a7a5c",
+      "surface": "#b0a58e"
     },
     "geometry": {
       "source": {
@@ -83,10 +104,10 @@
     "primitives": {
       "offsetInternal": "#00aa00",
       "offsetExternal": "#ff0000",
-      "peckMarkGood": "#16d329ff",
-      "peckMarkWarn": "#d2cb00ff",
+      "peckMarkGood": "#16d329",
+      "peckMarkWarn": "#d2cb00",
       "peckMarkError": "#ff0000",
-      "peckMarkSlow": "#ff5e00ff",
+      "peckMarkSlow": "#ff5e00",
       "reconstructed": "#00ffff",
       "reconstructedPath": "#ffff00",
       "debugContourColors": ["#00ff00", "#ff0000", "#0000ff", "#ffff00", "#ff00ff", "#00ffff"],
@@ -108,12 +129,18 @@
     },
     "pipelines": {
       "cnc": "#ff8844",
-      "laser": "#a855f7"
+      "laser": "#a855f7",
+      "3d": "#22d3ee"
     },
     "interaction": {
-      "sponsorship": "#6366f1", 
+      "sponsorship": "#6366f1",
       "sponsorshipText": "#e9d5ff",
-      "kofi": "#42d6aa" 
+      "kofi": "#42d6aa",
+      "selectionStroke": "#22d3ee",
+      "selectionFill": "#0A3F47",
+      "marqueeStroke": "#3b82f6",
+      "marqueeFill": "#112240",
+      "groupBounds": "#22d3ee"
     }
   }
 }

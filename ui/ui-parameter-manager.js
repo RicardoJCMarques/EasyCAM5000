@@ -3,7 +3,7 @@
  * @description Parameter input management, validation and form rendering.
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
- * @see         {@link https://github.com/RicardoJCMarques/EasyTrace5000}
+ * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
  *
  * SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
  * SPDX-License-Identifier: AGPL-3.0-or-later
@@ -36,6 +36,13 @@
             this.changeListeners = new Set();
 
             this.definitionsSource = 'empty';
+
+            // Capability gates for individual <option>s, keyed by the
+            // `requiresCapability` string a profile option declares.
+            // { 'rotary.indexed': { ok: false, reason: '…' } }
+            // A key with no entry is permissive: an unknown capability must
+            // never silently remove a control.
+            this.optionGates = {};
         }
 
         /**
@@ -120,7 +127,7 @@
                     if (num > def.max) return { success: false, error: `${def.label} must be no more than ${def.max}`, correctedValue: def.max };
                     return { success: true, value: num };
                 };
-            } // Roland without RC: fixed/manual spindle — no validator override needed.
+            } // Roland without RC: fixed/manual spindle - no validator override needed.
             
 
             // Update feed rate constraints from profile max speeds
@@ -148,7 +155,7 @@
                     return { success: true, value: num };
                 };
             } else if (!isRoland) {
-                // Switching away from Roland — restore default validation limits
+                // Switching away from Roland - restore default validation limits
                 this.restoreDefaultValidators(['feedRate', 'plungeRate', 'spindleSpeed']);
             }
 
@@ -195,6 +202,15 @@
                     return { success: true, value: num };
                 };
             }
+        }
+
+        /**
+         * Merges capability gates and returns the new map. Callers own the
+         * key namespace; MachineSettingsUI owns 'rotary.*'.
+         */
+        setOptionGates(gates) {
+            this.optionGates = { ...this.optionGates, ...gates };
+            return this.optionGates;
         }
         
         // Get or create state for an operation
@@ -265,6 +281,10 @@
 
         // Get all parameters for an operation (merged across stages)
         getAllParameters(operationId) {
+            const op = this.core?.getOperation?.(operationId);
+            if (op && !this.operationStates.has(operationId)) {
+                this.loadFromOperation(op);
+            }
             const state = this.getOperationState(operationId);
             const merged = {};
             for (const stageParams of Object.values(state)) {
@@ -275,16 +295,32 @@
 
         // Commit parameters to operation object
         commitToOperation(operation) {
-            const params = this.getAllParameters(operation.id);
+            if (!operation) return;
 
-            // Merge into operation settings
+            if (!operation.userOverrides) {
+                operation.userOverrides = new Set();
+            } else if (Array.isArray(operation.userOverrides)) {
+                operation.userOverrides = new Set(operation.userOverrides);
+            }
+
+            const allLiveParams = this.getAllParameters(operation.id);
             if (!operation.settings) operation.settings = {};
-            Object.assign(operation.settings, params);
 
-            // Clear dirty flag
+            // Persist ONLY parameters explicitly modified by the user
+            for (const [name, value] of Object.entries(allLiveParams)) {
+                if (operation.userOverrides.has(name)) {
+                    operation.settings[name] = value;
+                } else {
+                    // Purge non-overridden keys so stale profile defaults aren't locked in settings
+                    delete operation.settings[name];
+                }
+            }
+
+            // Convert Set to Array for JSON persistence
+            operation.userOverrides = Array.from(operation.userOverrides);
+
             this.dirtyFlags.delete(operation.id);
-
-            this.debug(`Committed ${Object.keys(params).length} parameters to operation ${operation.id}`);
+            this.debug(`Committed explicit overrides (${operation.userOverrides.length}) to operation ${operation.id}`);
         }
 
         /**
@@ -293,54 +329,41 @@
         loadFromOperation(operation) {
             if (!operation) return;
 
-            // Get the settings from the operation.
-            const opSettings = operation.settings || {};
+            // Ensure operation.userOverrides is a Set
+            if (!operation.userOverrides) {
+                operation.userOverrides = new Set();
+            } else if (Array.isArray(operation.userOverrides)) {
+                operation.userOverrides = new Set(operation.userOverrides);
+            }
 
+            const opSettings = operation.settings || {};
             // Get the operation-specific config defaults (e.g., passes for "isolation")
             const defaults = this.getDefaults(operation.type);
 
-            // Get (or create) the manager's internal state record for this op
-            const state = this.getOperationState(operation.id);
+            // Re-build fresh state for this operation
+            const state = {};
+            this.operationStates.set(operation.id, state);
 
-            // Iterate over ALL parameter definitions, not just opSettings
+            // Iterate over ALL parameter definitions
             for (const [name, def] of Object.entries(this.parameterDefinitions)) {
                 if (!def.stage) continue; // Skip non-parameter definitions
+                if (def.operationTypes && !def.operationTypes.includes(operation.type)) continue;
 
                 let value;
 
-                // Ignore parameters that don't belong to this operation type
-                if (def.operationType && def.operationType !== operation.type) continue;
-                if (def.operationTypes && !def.operationTypes.includes(operation.type)) continue;
-
-                // Check for a value in the manager's current "live" state first.
-                // Preserve unsaved changes if switching tabs and coming back.
-                value = state[def.stage]?.[name];
-
-                // If not in live state, check the operation's saved settings.
-                // This is the "load" step. ONLY check for the flat property.
-                if (value === undefined) {
+                // If user explicitly modified this parameter, use saved override
+                if (operation.userOverrides.has(name) && opSettings[name] !== undefined) {
                     value = opSettings[name];
-                }
-
-                // If not in saved settings, check the config defaults for this OpType.
-                if (value === undefined) {
-                    value = defaults[name];
-                }
-
-                // If still not found, check the parameter's hardcoded default.
-                if (value === undefined) {
-                    value = def.default;
+                } else {
+                    // Otherwise dynamically resolve from current defaults -> hardcoded default
+                    value = defaults[name] ?? def.default;
                 }
 
                 // If a value was found (from any source), set it in the manager.
                 // This validates/clamps the value on load.
                 if (value !== undefined) {
-                    // Use setParameter to ensure the loaded value is valid
-                    // Note: Uses the internal state-setting method to avoid marking the operation as "dirty" just from loading it.
-                    const result = this.validators[name] 
-                        ? this.validators[name](value) 
-                        : { success: true, value: value };
-
+                    const validator = this.validators[name];
+                    const result = validator ? validator(value) : { success: true, value };
                     const finalValue = result.correctedValue !== undefined ? result.correctedValue : result.value;
 
                     if (!state[def.stage]) state[def.stage] = {};
@@ -348,13 +371,10 @@
                 }
             }
 
-            // Sync laser spot size from machine settings safely
-            const isLaser = this.core.settings?.laser !== undefined;
-            if (isLaser) {
-                const machineSpotSize = this.core.settings.laser.spotSize;
-                if (machineSpotSize !== undefined && state.geometry) {
-                    state.geometry.laserSpotSize = machineSpotSize;
-                }
+            // Laser spot size synchronization
+            if (this.core.settings?.laser?.spotSize !== undefined) {
+                if (!state.geometry) state.geometry = {};
+                state.geometry.laserSpotSize = this.core.settings.laser.spotSize;
             }
 
             // Clear dirty flag after a fresh load
@@ -374,19 +394,17 @@
             const exportFormat = this.core.settings?.laser?.exportFormat;
 
             for (const [name, def] of Object.entries(this.parameterDefinitions)) {
-                // Stage matching: 'export_summary' has no parameters — it's a display-only stage
+                // Stage matching: 'export_summary' has no parameters - it's a display-only stage
                 if (stage === 'export_summary') continue;
                 if (def.stage !== stage) continue;
 
-                // Single operationType filter
-                if (def.operationType && def.operationType !== operationType) continue;
 
-                // Array operationTypes filter (must be one of listed types)
+                // Operation type filtering
                 if (def.operationTypes && !def.operationTypes.includes(operationType)) continue;
 
                 // Pipeline filtering: laser params only in laser mode, CNC params only in CNC mode.
-                // Stencil params have no pipelineType and operationType === 'stencil', so they pass through regardless of pipeline.
-                const isStencilParam = def.operationType === 'stencil';
+                // Stencil params pass through regardless of pipeline.
+                const isStencilParam = def.operationTypes && def.operationTypes.includes('stencil');
                 if (!isStencilParam) {
                     if (def.pipelineType === 'laser' && !isLaser) continue;
                     if (!def.pipelineType && isLaser) continue;
@@ -409,11 +427,22 @@
         }
 
         /**
-         * Returns the valid stages for a given pipeline type.
+         * Valid stages for a pipeline + operation type.
+         *
+         * The middle stage is DERIVED, never declared: it exists only while
+         * some parameter is filed under it. A 3D operation consumes its whole
+         * set at generation time, so the stage would otherwise render an empty
+         * form behind a second button that computes nothing. File a
+         * strategy-stage parameter against an operation type and the stage
+         * comes back with no code change.
          */
         getStagesForPipeline(pipelineType, operationType) {
             if (pipelineType === 'laser' || operationType === 'stencil') {
                 return ['geometry', 'export_summary'];
+            }
+            if (operationType &&
+                this.getStageParameters('strategy', operationType, pipelineType).length === 0) {
+                return ['geometry', 'machine'];
             }
             // CNC and hybrid use the standard three stages
             return ['geometry', 'strategy', 'machine'];
@@ -462,8 +491,34 @@
             if (this.core.toolLibrary) {
                 const tool = this.core.toolLibrary.getDefaultToolForOperation(operationType);
                 if (tool) {
+                    const toolDiam = this.core.toolLibrary.getToolDiameter(tool.id);
                     defaults.tool = tool.id;
-                    defaults.toolDiameter = this.core.toolLibrary.getToolDiameter(tool.id);
+                    defaults.toolDiameter = toolDiam;
+
+                    // Support custom tool selection keys like engraveTool or vcarveTool
+                    for (const [name, def] of Object.entries(this.parameterDefinitions)) {
+                        if (name.endsWith('Tool') && def.operationTypes && def.operationTypes.includes(operationType)) {
+                            defaults[name] = tool.id;
+                        }
+                    }
+
+                    // Pull tool geometry parameters so specialized operation fields populate
+                    if (tool.geometry) {
+                        if (tool.geometry.tipDiameter !== undefined) {
+                            defaults.vbitTipDiameter = tool.geometry.tipDiameter;
+                        }
+                        if (tool.geometry.angle !== undefined) {
+                            defaults.vbitAngle = tool.geometry.angle;
+                        }
+                        if (tool.geometry.cornerRadius !== undefined) {
+                            defaults.reliefCornerRadius = tool.geometry.cornerRadius;
+                            defaults.rotaryCornerRadius = tool.geometry.cornerRadius;
+                        }
+                        if (tool.geometry.tipType !== undefined) {
+                            defaults.reliefToolShape = tool.geometry.tipType;
+                            defaults.rotaryToolShape = tool.geometry.tipType;
+                        }
+                    }
 
                     // Pull cutting parameters from the tool so form fields populate
                     if (tool.cutting) {
@@ -552,6 +607,9 @@
             field.className = 'property-field';
             field.dataset.param = param.name;
             if (param.conditional) field.dataset.conditional = param.conditional;
+            // Fallback for applyOptionGates when the current selection becomes
+            // unavailable.
+            if (param.default !== undefined) field.dataset.default = String(param.default);
 
             const inputId = `${options.idPrefix || 'op-'}${param.name}`;
 
@@ -613,6 +671,10 @@
                             o.value = opt.value;
                             const optLabel = lang ? lang.get(`dropdowns.${opt.value}`, opt.label) : opt.label;
                             o.textContent = optLabel;
+                            // Machine-capability gate, applied post-render by
+                            // applyOptionGates - the value is unknown at field
+                            // build time and changes with the post-processor.
+                            if (opt.requiresCapability) o.dataset.requires = opt.requiresCapability;
                             if (String(opt.value) === String(value)) o.selected = true;
                             inputEl.appendChild(o);
                         }
@@ -648,7 +710,14 @@
                 }
             }
 
-            if (inputEl && options.onChange) {
+            // A parameter can be present, documented and inert. Declaring
+            // `disabled` in the profile is the honest state for a control
+            // whose logic is unimplemented or unverified.
+            if (param.disabled === true) {
+                field.classList.add('property-field--disabled');
+                field.title = 'Not available yet';
+                if (inputEl) inputEl.disabled = true;
+            } else if (inputEl && options.onChange) {
                 const handleCommit = () => {
                     const val = param.type === 'checkbox' ? inputEl.checked
                         : param.type === 'number' ? (parseFloat(inputEl.value) || 0)
@@ -691,7 +760,7 @@
          * Supports: "paramName" (truthy), "!paramName" (falsy),
          * "paramName:val1,val2" (value match), "a && b" (compound).
          */
-        static evaluateConditionals(container, values) {
+        static evaluateConditionals(container, values, gates = {}) {
             container.querySelectorAll('[data-conditional]').forEach(field => {
                 const cond = field.dataset.conditional;
                 let show = true;
@@ -713,7 +782,52 @@
                 field.style.display = show ? '' : 'none';
             });
 
+            ParameterManager.applyOptionGates(container, gates);
             ParameterManager.updateCannedCycleOptions(container, values);
+        }
+
+        /**
+         * Disables <option>s whose declared `requiresCapability` the current
+         * machine cannot satisfy, and re-selects the field default when the
+         * live selection is one of them.
+         *
+         * The reset dispatches a real 'change', so it commits through
+         * onParameterChange like any user edit - which is what writes the
+         * corrected value into every parameter store and invalidates
+         * generated geometry. A silent DOM-only reset would leave the
+         * unsupported value in state and be restored on the next reload.
+         *
+         * A capability with no gate entry stays enabled.
+         */
+        // REVIEW - This isn't locking the UI options in some conditions, like possibly when loading postprocessor from storage and some UI updates that don't trigger the gate check prior to refreshing html.
+        static applyOptionGates(container, gates) {
+            if (!gates) return;
+
+            container.querySelectorAll('option[data-requires]').forEach(opt => {
+                const gate = gates[opt.dataset.requires];
+                const blocked = gate ? gate.ok === false : false;
+                if (opt.dataset.label === undefined) opt.dataset.label = opt.textContent;
+                opt.disabled = blocked;
+                opt.title = blocked ? (gate.reason || '') : '';
+                opt.textContent = blocked
+                    ? `${opt.dataset.label} (incompatible)`
+                    : opt.dataset.label;
+            });
+
+            container.querySelectorAll('select').forEach(select => {
+                if (!select.querySelector('option[data-requires]')) return;
+                const current = select.selectedOptions[0];
+                if (!current || !current.disabled) return;
+
+                const field = select.closest('.property-field');
+                const fallback = field?.dataset.default;
+                const target = Array.from(select.options).find(o => o.value === fallback && !o.disabled)
+                    || Array.from(select.options).find(o => !o.disabled);
+                if (!target) return;
+
+                select.value = target.value;
+                select.dispatchEvent(new Event('change', { bubbles: true }));
+            });
         }
 
         /**

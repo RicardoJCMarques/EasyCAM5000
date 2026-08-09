@@ -3,7 +3,7 @@
  * @description Contains general auxiliary functions
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
- * @see         {@link https://github.com/RicardoJCMarques/EasyTrace5000}
+ * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
  *
  * SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
  * SPDX-License-Identifier: AGPL-3.0-or-later
@@ -193,6 +193,7 @@
         },
 
         // Converts an obround to a PathPrimitive with arc metadata for the semicircular caps.
+        // TODO [ARC-ENCODING] - cap arcs are SPAN arcs over capSegs points.
         obroundToPath(primitive) {
             const { x, y } = primitive.position;
             const w = primitive.width;
@@ -444,6 +445,121 @@
             );
         },
 
+        /**
+         * Single authority for "is this ring a full circle".
+         *
+         * Provenance (one shared curveId, registry type 'circle') is the primary
+         * evidence - the Clipper Z word exists to carry exactly this. The two
+         * geometric clauses only have to reject a ring the boolean CLIPPED:
+         *   - closedSweep catches a removed wedge whose endpoints stayed coincident
+         *   - endGap catches a removed wedge that left a visible chord
+         * Both tolerances scale off the tessellation step 2*PI*r/N, never off
+         * precision.coordinate - the quantization grid is an order of magnitude
+         * finer than the chord, so a coordinate-scaled bound can never be met.
+         *
+         * Works on an open ring (last point one chord from the first) and on an
+         * explicitly closed one (last point duplicating the first).
+         */
+        analyzeCircleRing(points, opts = {}) {
+            const reject = (reason, extra) => ({ isFullCircle: false, reason, ...extra });
+
+            if (!points || points.length < 3) return reject('too-few-points');
+
+            const registry = window.globalCurveRegistry;
+            if (!registry) return reject('no-registry');
+
+            let curveId = null;
+            for (const pt of points) {
+                const id = pt.curveId;
+                if (!id || id <= 0) return reject('untagged-point');
+                if (curveId === null) curveId = id;
+                else if (id !== curveId) return reject('mixed-curve-ids', { curveId });
+            }
+
+            const curveData = registry.getCurve(curveId);
+            if (!curveData || curveData.type !== 'circle') {
+                return reject('not-a-circle', { curveId });
+            }
+
+            const cx = curveData.center.x;
+            const cy = curveData.center.y;
+            const n = points.length;
+            const TAU = 2 * Math.PI;
+
+            const fold = (d) => (d > Math.PI ? d - TAU : (d < -Math.PI ? d + TAU : d));
+
+            let openSweep = 0;
+            let prevAngle = Math.atan2(points[0].y - cy, points[0].x - cx);
+            const firstAngle = prevAngle;
+            for (let i = 1; i < n; i++) {
+                const a = Math.atan2(points[i].y - cy, points[i].x - cx);
+                openSweep += fold(a - prevAngle);
+                prevAngle = a;
+            }
+            const closedSweep = openSweep + fold(firstAngle - prevAngle);
+
+            const chord = (TAU * curveData.radius) / n;
+            const endGap = Math.hypot(points[n - 1].x - points[0].x, points[n - 1].y - points[0].y);
+
+            const angleTolerance = opts.angleTolerance ?? (TAU / n) * 1.5;
+            const gapTolerance = opts.gapTolerance ?? chord * 1.5;
+
+            const sweepOk = Math.abs(Math.abs(closedSweep) - TAU) <= angleTolerance;
+            const gapOk = endGap <= gapTolerance;
+
+            const result = {
+                isFullCircle: sweepOk && gapOk,
+                reason: sweepOk ? (gapOk ? 'ok' : 'end-gap') : 'sweep',
+                curveId,
+                curveData,
+                center: { x: cx, y: cy },
+                radius: curveData.radius,
+                clockwise: closedSweep < 0,
+                openSweep,
+                closedSweep,
+                chord,
+                endGap
+            };
+            return result;
+        },
+
+        /**
+         * AABB of an array of {x,y} points. Returns null for empty input or
+         * if any coordinate is non-finite (callers treat null as "no bounds").
+         * Main-thread only — worker/field primitives can't reach GeometryUtils.
+         */
+        boundsOfPoints(points) {
+            if (!points || points.length === 0) return null;
+            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+            for (const p of points) {
+                if (!p) continue;
+                if (p.x < minX) minX = p.x;
+                if (p.y < minY) minY = p.y;
+                if (p.x > maxX) maxX = p.x;
+                if (p.y > maxY) maxY = p.y;
+            }
+            return Number.isFinite(minX) && Number.isFinite(maxX) ? { minX, minY, maxX, maxY } : null;
+        },
+
+        /**
+         * Merges an array of AABB objects ({minX,minY,maxX,maxY}), skipping
+         * null/undefined entries. Returns null if nothing merged or the
+         * result is non-finite.
+         */
+        mergeBounds(boundsList) {
+            if (!boundsList || boundsList.length === 0) return null;
+            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+            for (const b of boundsList) {
+                if (!b) continue;
+                if (b.minX < minX) minX = b.minX;
+                if (b.minY < minY) minY = b.minY;
+                if (b.maxX > maxX) maxX = b.maxX;
+                if (b.maxY > maxY) maxY = b.maxY;
+            }
+            return Number.isFinite(minX) && Number.isFinite(maxX)
+                ? { minX, minY, maxX, maxY } : null;
+        },
+
         // Calculate winding (signed area)
         calculateWinding(points) {
             if (!points || points.length < 3) return 0;
@@ -599,7 +715,7 @@
         },
 
         /**
-        * polylineToPolygon has been deprecated in favor of traceToPolygon that generates joint geometry that is easier to process. They will remain until commented out until analytic offset path development is restarted.
+        * polylineToPolygon has been deprecated in favor of traceToPolygon that generates joint geometry that is easier to process. They will remain commented out until analytic offset path development is restarted.
         // Convert polyline to polygon with metadata for end-caps
         polylineToPolygon(points, width, curveIds = []) {
             if (!points || points.length < 2) return [];
@@ -1123,8 +1239,9 @@
             });
         },
 
+        /** generateCompleteRoundedCap, generateJoin and rotatePoint are only called by polylineToPolygon which has been deprecated. This can remain a comment until analytic development is restarted, deployment will remove it.
         // Generate complete rounded cap with boundary points tagged.
-        // Intermediate points snap to the canonical circle grid (k × 2π/N) so that where a cap overlaps a full circle of the same center+radius, tessellation points coincide exactly — preventing zig-zag intersection artifacts that strip Z metadata in Clipper2 booleans.
+        // Intermediate points snap to the canonical circle grid (k x 2π/N) so that where a cap overlaps a full circle of the same center+radius, tessellation points coincide exactly — preventing zig-zag intersection artifacts that strip Z metadata in Clipper2 booleans.
         generateCompleteRoundedCap(center, radialAngle, radius, clockwiseArc, curveId) {
             const points = [];
 
@@ -1254,6 +1371,7 @@
                 y: origin.y + (dx * sin + dy * cos)
             };
         },
+        */
 
         /**
          * This is the central tessellation point for the GeometryProcessor.
@@ -1331,6 +1449,7 @@
                     const points = this.arcToPoints(primitive);
                     if (points.length === 0) return null;
                     // Preserve arc segment metadata
+                    // TODO [ARC-ENCODING] - SPAN arc over the tessellation.
                     return new PathPrimitive([{
                         points: points,
                         isHole: false,
@@ -1386,6 +1505,127 @@
 
                 default:
                     console.warn(`[GeoUtils] primitiveToPath: Unknown type ${primitive.type}`);
+                    return null;
+            }
+        },
+
+        /**
+         * Analytic primitive → PathPrimitive for ON-PATH work (engrave now,
+         * score/drag-knife later). Three contract differences from
+         * primitiveToPath, all load-bearing for a cutter that follows the
+         * line instead of a boundary:
+         *   - stroke width is ignored; primitiveToPath returns the stroke
+         *     OUTLINE for stroked arcs and paths, which is a boundary;
+         *   - `closed` is never fabricated, so open shapes stay open;
+         *   - arcs stay analytic as CHORD arcs (endIndex === startIndex + 1).
+         * Bezier and elliptical arcs have no analytic arc form and come back
+         * as open tessellated polylines.
+         */
+        primitiveToCenterlinePath(primitive) {
+            if (!primitive) return null;
+            const props = primitive.properties || {};
+
+            switch (primitive.type) {
+                case 'path':
+                    return primitive;
+
+                case 'circle': {
+                    const p = {
+                        x: primitive.center.x + primitive.radius,
+                        y: primitive.center.y
+                    };
+                    return new PathPrimitive([{
+                        points: [{ x: p.x, y: p.y }, { x: p.x, y: p.y }],
+                        isFullCircle: true,
+                        isHole: false,
+                        nestingLevel: 0,
+                        parentId: null,
+                        arcSegments: [{
+                            startIndex: 0,
+                            endIndex: 1,
+                            center: { x: primitive.center.x, y: primitive.center.y },
+                            radius: primitive.radius,
+                            startAngle: 0,
+                            endAngle: 0,
+                            sweepAngle: 2 * Math.PI,
+                            clockwise: false
+                        }],
+                        curveIds: []
+                    }], { ...props, originalType: 'circle', closed: true });
+                }
+
+                case 'arc': {
+                    const full = this.isPrimitiveClosed(primitive, PRECISION);
+                    let sweep = primitive.endAngle - primitive.startAngle;
+                    if (full) {
+                        sweep = primitive.clockwise ? -2 * Math.PI : 2 * Math.PI;
+                    } else if (primitive.clockwise && sweep > 0) {
+                        sweep -= 2 * Math.PI;
+                    } else if (!primitive.clockwise && sweep < 0) {
+                        sweep += 2 * Math.PI;
+                    }
+
+                    const contour = {
+                        points: [
+                            { x: primitive.startPoint.x, y: primitive.startPoint.y },
+                            { x: primitive.endPoint.x, y: primitive.endPoint.y }
+                        ],
+                        isHole: false,
+                        nestingLevel: 0,
+                        parentId: null,
+                        arcSegments: [{
+                            startIndex: 0,
+                            endIndex: 1,
+                            center: { x: primitive.center.x, y: primitive.center.y },
+                            radius: primitive.radius,
+                            startAngle: primitive.startAngle,
+                            endAngle: primitive.endAngle,
+                            sweepAngle: sweep,
+                            clockwise: primitive.clockwise
+                        }],
+                        curveIds: []
+                    };
+                    if (full) contour.isFullCircle = true;
+
+                    return new PathPrimitive([contour], {
+                        ...props, originalType: 'arc', closed: full
+                    });
+                }
+
+                case 'rectangle': {
+                    const points = this.rectangleToPoints(primitive, false);
+                    if (points.length === 0) return null;
+                    return new PathPrimitive([{
+                        points: points,
+                        isHole: false,
+                        nestingLevel: 0,
+                        parentId: null,
+                        arcSegments: [],
+                        curveIds: []
+                    }], { ...props, originalType: 'rectangle', closed: true });
+                }
+
+                case 'obround':
+                    return this.obroundToPath(primitive);
+
+                case 'bezier':
+                case 'elliptical_arc': {
+                    const points = (primitive.type === 'bezier')
+                        ? this.bezierToPoints(primitive)
+                        : this.ellipticalArcToPoints(primitive);
+                    if (!points || points.length < 2) return null;
+                    return new PathPrimitive([{
+                        points: points,
+                        isHole: false,
+                        nestingLevel: 0,
+                        parentId: null,
+                        arcSegments: [],
+                        curveIds: []
+                    }], { ...props, originalType: primitive.type, closed: false });
+                }
+
+                default:
+                    console.warn(`[GeoUtils] primitiveToCenterlinePath: unsupported type ${primitive.type}`);
                     return null;
             }
         },
@@ -1512,6 +1752,7 @@
                 return {
                     points: newPoints,
                     isHole: isHole,
+                    isFullCircle: c.isFullCircle,
                     nestingLevel: c.nestingLevel || 0,
                     parentId: c.parentId || null,
                     arcSegments: newArcs,
@@ -1557,6 +1798,12 @@
          * @param {Set} [protectedIndices] - Indices that must survive (e.g. arc endpoints).
          * @returns {Object} { points, indexMap } where indexMap[oldIndex] = newIndex or -1.
          */
+        // REVIEW - Five independent polyline simplifiers ship in this repo:
+        // GeometryUtils.simplifyDouglasPeucker, VCarveGenerator.simplifyRDP/rdpOpen,
+        // FieldPaths.simplify3D, ToolpathOptimizer.simplifyCollinearPoints and
+        // GerberParser.simplifyRDP. Consolidation is blocked on the worker boundary
+        // (vcarve and fieldpaths cannot reach GeometryUtils). Fix all five together
+        // or none.
         simplifyDouglasPeucker(points, sqTolerance, protectedIndices = null) {
             const len = points.length;
             if (len < 3) return { points: points.slice(), indexMap: points.map((_, i) => i) };
@@ -2012,6 +2259,12 @@
          * Returns a new contour with no arc metadata — pure polygon suitable for Clipper2.
          * The original contour is not modified.
          */
+        // TODO [ARC-ENCODING] - contour.arcSegments has two encodings: CHORD
+        // (endIndex === startIndex + 1, no points between) and SPAN (endIndex
+        // beyond that, intermediate points are tessellation the arc replaces).
+        // This function and both renderers accept either; parsers and the
+        // reconstructor emit only chord. Collapse to chord-only once
+        // obroundToPath and primitiveToPath's arc case stop emitting spans.
         contourArcsToPath(contour) {
             if (!contour.arcSegments || contour.arcSegments.length === 0) {
                 return contour;
@@ -2110,9 +2363,17 @@
         },
 
         isPrimitiveClosed(prim, tolerance) {
-            // Inherently closed primitives
+            // Analytic shapes are closed by definition
             if (prim.type === 'circle' || prim.type === 'rectangle' || prim.type === 'obround') return true;
 
+            // Check if an ArcPrimitive is a full 360 degree circle - REVIEW - double check this isn't redundant towards the new logic around single source of truth for circles post boolean.
+            if (prim.type === 'arc') {
+                const dx = prim.startPoint.x - prim.endPoint.x;
+                const dy = prim.startPoint.y - prim.endPoint.y;
+                return (dx * dx + dy * dy) < tolerance * tolerance;
+            }
+
+            // Check standard PathPrimitives
             if (!prim.contours || prim.contours.length === 0) return false;
             const pts = prim.contours[0].points;
             if (!pts || pts.length < 3) return false;
@@ -2384,16 +2645,32 @@
                     rep = mid;
                 }
 
-                return { loop, originalIdx: idx, absArea, rep, parentIdx: null, depth: 0 };
+                // Bounding box for the containment prefilter below.
+                let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+                for (const p of pts) {
+                    if (p.x < minX) minX = p.x; if (p.x > maxX) maxX = p.x;
+                    if (p.y < minY) minY = p.y; if (p.y > maxY) maxY = p.y;
+                }
+                return { loop, originalIdx: idx, absArea, rep, parentIdx: null, depth: 0,
+                         bb: { minX, minY, maxX, maxY } };
             });
 
             // Sort by area descending — entries[j] (j < i) is always >= entries[i]
             entries.sort((a, b) => b.absArea - a.absArea);
 
-            // Find innermost containing parent for each loop
+            // Find innermost containing parent for each loop.
+            // BBox prefilter: a parent's bbox must contain the child's
+            // representative point. For scattered loops (dense text: thousands
+            // of glyphs, none nested) this rejects ~every pair with 4 float
+            // compares instead of an O(V) pointInPolygon — the difference
+            // between milliseconds and a multi-minute main-thread hang.
             for (let i = 1; i < entries.length; i++) {
+                const rep = entries[i].rep;
                 for (let j = i - 1; j >= 0; j--) {
-                    if (this.pointInPolygon(entries[i].rep, entries[j].loop.contours[0].points)) {
+                    const bb = entries[j].bb;
+                    if (rep.x < bb.minX || rep.x > bb.maxX ||
+                        rep.y < bb.minY || rep.y > bb.maxY) continue;
+                    if (this.pointInPolygon(rep, entries[j].loop.contours[0].points)) {
                         entries[i].parentIdx = entries[j].originalIdx;
                         entries[i].depth = entries[j].depth + 1;
                         break;

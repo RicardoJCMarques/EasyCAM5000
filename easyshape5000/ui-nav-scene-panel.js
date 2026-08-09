@@ -6,7 +6,7 @@
  *              Does NOT mutate scene state — the controller decides.
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
- * @see         {@link https://github.com/RicardoJCMarques/EasyTrace5000}
+ * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
  *
  * SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
  * SPDX-License-Identifier: AGPL-3.0-or-later
@@ -100,26 +100,6 @@
             }
 
             this.setupTreeToolbar();
-
-            // Inject selection highlight styles
-            // TODO: Move these rules to layout-easyshape5000.css and remove this block
-            // REVIEW - Previous accet color was explicit #22d3ee
-            if (!document.getElementById('nav-scene-panel-styles')) {
-                const style = document.createElement('style');
-                style.id = 'nav-scene-panel-styles';
-                style.textContent = `
-                    .path-row.selected,
-                    .group-row.selected {
-                        background: var(--color-bg-active);
-                        border-left: 2px solid var(--color-accent-primary);
-                    }
-                    .path-row.selected .path-name,
-                    .group-row.selected .group-name {
-                        color: var(--color-accent-primary);
-                    }
-                `;
-                document.head.appendChild(style);
-            }
 
             this.initialized = true;
         }

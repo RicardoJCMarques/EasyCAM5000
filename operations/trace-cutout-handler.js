@@ -3,7 +3,7 @@
  * @description Board cutout - offset with cutSide control, closure detection, and tab orchestration
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
- * @see         {@link https://github.com/RicardoJCMarques/EasyTrace5000}
+ * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
  *
  * SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
  * SPDX-License-Identifier: AGPL-3.0-or-later
@@ -74,9 +74,9 @@
         }
 
         async orchestrateGeneration(operation, params, core, options = {}) {
-            // Tier 1 only - cutout's classifyPrimitives already handles
-            // inter-primitive topology (loop extraction + stitching).
-            operation.primitives = this.resolveContourTopology(operation.primitives);
+            // Tier 1 & 2 - Ensure newly closed orphans from the closure prompt are topologically merged
+            // so they are correctly classified as internal holes rather than independent board outlines.
+            operation.primitives = this.resolveContourTopology(operation.primitives, { mergeNesting: true });
 
             const result = await super.orchestrateGeneration(operation, params, core, options);
             // Override CNC message for cutout

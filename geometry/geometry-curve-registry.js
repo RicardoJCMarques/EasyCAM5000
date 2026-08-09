@@ -3,7 +3,7 @@
  * @description Curve Registry required for arc-reconstruction
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
- * @see         {@link https://github.com/RicardoJCMarques/EasyTrace5000}
+ * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
  *
  * SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
  * SPDX-License-Identifier: AGPL-3.0-or-later
@@ -13,13 +13,35 @@
     'use strict';
 
     const C = window.CAMConfig.constants;
-    const D = window.CAMConfig.defaults;
 
+    /**
+     * Session-lifetime store, and it stays that way. clear() has no call site
+     * BY DESIGN - this is a settled decision, not an oversight.
+     *
+     * Why not clear it: every curveId in the registry is a LIVE REFERENCE held
+     * by already-generated geometry - operation.offsets[].primitives[]
+     * .contours[].points[].curveId, and every arcSegment.curveId. In EasyShape
+     * each bucket holds its own offsets but they all point at this one map.
+     * Clearing while any bucket still has geometry makes getCurve() return
+     * undefined, analyzeCircleRing report 'not-a-circle', and every circle in
+     * that geometry silently degrade to a polyline on the next preview,
+     * re-render or export. Wiring clear() to regeneration or scene-clear
+     * re-creates exactly the class of bug the arc-reconstruction rework fixed.
+     *
+     * Why growth is not a problem: identical geometry dedupes through hashToId,
+     * so replays cost nothing. Only genuinely new curves (new radius from a
+     * tool or stepover change, a moved or scaled shape) allocate. Ids are
+     * 24-bit in the Clipper Z word - 16.7M before collision, which a few
+     * hundred new curves per generation will not approach in any real session.
+     *
+     * The ONLY safe call site is a true project reset that discards every
+     * operation and all of its offsets in the same action. There is no such
+     * entry point today. Do not add the call anywhere else.
+     */
     class GlobalCurveRegistry {
         constructor() {
             this.registry = new Map();
             this.hashToId = new Map();
-            this.primitiveIdToCurves = new Map();
             this.offsetCurveMap = new Map();
             this.nextId = 1;
 
@@ -34,7 +56,7 @@
         }
 
         generateHash(metadata) {
-            const hashPrecision = C.geometry.curveRegistry.hashPrecision
+            const hashPrecision = C.geometry.curveRegistry.hashPrecision;
             const roundedCenter = {
                 x: Math.round(metadata.center.x * hashPrecision) / hashPrecision,
                 y: Math.round(metadata.center.y * hashPrecision) / hashPrecision
@@ -89,13 +111,6 @@
             this.registry.set(id, curveData);
             this.hashToId.set(hash, id);
 
-            if (metadata.primitiveId) {
-                if (!this.primitiveIdToCurves.has(metadata.primitiveId)) {
-                    this.primitiveIdToCurves.set(metadata.primitiveId, []);
-                }
-                this.primitiveIdToCurves.get(metadata.primitiveId).push(id);
-            }
-
             // Track offset-derived curves
             if (metadata.isOffsetDerived) {
                 this.offsetCurveMap.set(id, {
@@ -117,22 +132,26 @@
             return this.registry.get(id);
         }
 
-        getCurvesForPrimitive(primitiveId) {
-            return this.primitiveIdToCurves.get(primitiveId) || [];
-        }
-
-        isOffsetDerived(curveId) {
-            return this.offsetCurveMap.has(curveId);
+        /**
+         * Records offset provenance WITHOUT touching the hashed record.
+         * generateHash() folds isOffsetDerived into the key, so mutating a
+         * stored curve after register() desynchronises hashToId permanently.
+         */
+        noteOffsetDerived(curveId, sourceCurveId, offsetDistance) {
+            if (!curveId || !this.registry.has(curveId)) return;
+            if (this.offsetCurveMap.has(curveId)) return;
+            this.offsetCurveMap.set(curveId, { sourceId: sourceCurveId, offsetDistance });
+            this.stats.offsetDerived++;
         }
 
         getOffsetInfo(curveId) {
             return this.offsetCurveMap.get(curveId);
         }
 
+        /*
         clear() {
             this.registry.clear();
             this.hashToId.clear();
-            this.primitiveIdToCurves.clear();
             this.offsetCurveMap.clear();
             this.nextId = 1;
             this.stats = {
@@ -142,24 +161,6 @@
                 endCaps: 0,
                 offsetDerived: 0
             };
-        }
-
-        // REVIEW - Dead code?
-        /* 
-        clearOffsetCurves() {
-            const offsetIds = Array.from(this.offsetCurveMap.keys());
-            offsetIds.forEach(id => {
-                const curve = this.registry.get(id);
-                if (curve) {
-                    const hash = this.generateHash(curve);
-                    this.hashToId.delete(hash);
-                }
-                this.registry.delete(id);
-                this.offsetCurveMap.delete(id);
-            });
-
-            this.stats.registered -= offsetIds.length;
-            this.stats.offsetDerived = 0;
         }
         */
 

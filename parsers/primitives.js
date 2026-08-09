@@ -3,7 +3,7 @@
  * @description Defines geometric primitive data structures
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
- * @see         {@link https://github.com/RicardoJCMarques/EasyTrace5000}
+ * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
  *
  * SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
  * SPDX-License-Identifier: AGPL-3.0-or-later
@@ -75,8 +75,6 @@
             } else {
                 this.contours = [];
             }
-
-            this.id = `path_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         }
 
         /**
@@ -119,14 +117,13 @@
             this.contours.forEach(contour => {
                 // Calculate bounds from outer contours only (skip holes)
                 if (!contour.isHole && contour.points) {
-                    contour.points.forEach(point => {
-                        if (point !== null && point !== undefined) {
-                            minX = Math.min(minX, point.x);
-                            minY = Math.min(minY, point.y);
-                            maxX = Math.max(maxX, point.x);
-                            maxY = Math.max(maxY, point.y);
-                        }
-                    });
+                    const b = GeometryUtils.boundsOfPoints(contour.points);
+                    if (b) {
+                        if (b.minX < minX) minX = b.minX;
+                        if (b.minY < minY) minY = b.minY;
+                        if (b.maxX > maxX) maxX = b.maxX;
+                        if (b.maxY > maxY) maxY = b.maxY;
+                    }
                 }
 
                 // Expand bounds for arc segments
@@ -468,6 +465,122 @@
         }
     }
 
+    /**
+     * Polyline3DPrimitive - packed 3D toolpath chain (V-Carve, Relief).
+     *
+     * Stores one open polyline as xyz triplets in a single Float32Array:
+     *   [x0,y0,z0, x1,y1,z1, ...]
+     *
+     * Why packed: a relief finishing pass can carry 10^5..10^6 points.
+     * Object points cost ~50-80 bytes each and hammer the GC; triplets
+     * cost 12 and the array uploads to the 3D renderer as a
+     * BufferGeometry position attribute with zero conversion.
+     *
+     * Contract:
+     *   - type === 'path3d' (routing), properties.is3DContour === true
+     *     (kept so all existing property-based dispatch still works).
+     *   - Always open, never a hole, no arcSegments - toolpath output,
+     *     not boolean-pipeline geometry. canOffsetAnalytically() = false.
+     *   - Consumers should read positions directly (translator delegate,
+     *     renderers). toContourView() exists as a legacy escape hatch
+     *     but materializes object points - avoid it in hot paths.
+     */
+    class Polyline3DPrimitive extends RenderPrimitive {
+        constructor(positions, properties = {}) {
+            super('path3d', {
+                stroke: true,
+                fill: false,
+                strokeWidth: 0,
+                is3DContour: true,
+                ...properties
+            });
+            this.positions = (positions instanceof Float32Array)
+                ? positions
+                : new Float32Array(positions || []);
+            this.bounds3D = null;
+        }
+
+        /** Packs an array of {x, y, z} points. z defaults to 0. */
+        static fromPoints(points, properties = {}) {
+            const arr = new Float32Array(points.length * 3);
+            let badZ = 0;
+            for (let i = 0; i < points.length; i++) {
+                const p = points[i];
+                arr[i * 3] = p.x;
+                arr[i * 3 + 1] = p.y;
+                // Never coerce silently: non-finite Z here means an upstream
+                // generator bug (a `p.z || 0` masked the relief NaN pipeline
+                // once - flatlined output with zero console evidence).
+                if (Number.isFinite(p.z)) {
+                    arr[i * 3 + 2] = p.z;
+                } else {
+                    arr[i * 3 + 2] = 0;
+                    badZ++;
+                }
+            }
+            if (badZ > 0) {
+                console.warn(`[Polyline3DPrimitive] ${badZ}/${points.length} point(s) had non-finite Z (coerced to 0) - upstream generator bug`);
+            }
+            return new Polyline3DPrimitive(arr, properties);
+        }
+
+        get pointCount() {
+            return (this.positions.length / 3) | 0;
+        }
+
+        /** Reads point i. Pass an out-object in loops to avoid allocation. */
+        getPoint(i, out) {
+            const b = i * 3, p = this.positions;
+            if (out) { out.x = p[b]; out.y = p[b + 1]; out.z = p[b + 2]; return out; }
+            return { x: p[b], y: p[b + 1], z: p[b + 2] };
+        }
+
+        calculateBounds() {
+            const p = this.positions;
+            if (p.length < 3) {
+                this.bounds = { minX: 0, minY: 0, maxX: 0, maxY: 0 };
+                this.bounds3D = { minX: 0, minY: 0, minZ: 0, maxX: 0, maxY: 0, maxZ: 0 };
+                return;
+            }
+            let minX = Infinity, minY = Infinity, minZ = Infinity;
+            let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+            for (let i = 0; i < p.length; i += 3) {
+                const x = p[i], y = p[i + 1], z = p[i + 2];
+                if (x < minX) minX = x; if (x > maxX) maxX = x;
+                if (y < minY) minY = y; if (y > maxY) maxY = y;
+                if (z < minZ) minZ = z; if (z > maxZ) maxZ = z;
+            }
+            this.bounds = { minX, minY, maxX, maxY };
+            this.bounds3D = { minX, minY, minZ, maxX, maxY, maxZ };
+        }
+
+        getBounds3D() {
+            if (!this.bounds3D) this.calculateBounds();
+            return this.bounds3D;
+        }
+
+        canOffsetAnalytically() {
+            return false;
+        }
+
+        /**
+         * Legacy escape hatch: materializes a contour-shaped object with
+         * {x,y,z} points for code that only speaks PathPrimitive contours.
+         * O(n) allocation - do NOT call per frame or per generation.
+         */
+        toContourView() {
+            const n = this.pointCount;
+            const points = new Array(n);
+            for (let i = 0; i < n; i++) points[i] = this.getPoint(i);
+            return {
+                points, closed: false, isHole: false,
+                nestingLevel: 0, parentId: null,
+                arcSegments: [], curveIds: []
+            };
+        }
+    }
+
+    window.Polyline3DPrimitive = Polyline3DPrimitive;
     window.RenderPrimitive = RenderPrimitive;
     window.PathPrimitive = PathPrimitive;
     window.CirclePrimitive = CirclePrimitive;

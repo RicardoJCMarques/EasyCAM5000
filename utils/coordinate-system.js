@@ -14,7 +14,7 @@
  *
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
- * @see         {@link https://github.com/RicardoJCMarques/EasyTrace5000}
+ * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
  *
  * SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
  * SPDX-License-Identifier: AGPL-3.0-or-later
@@ -552,7 +552,7 @@
             this.nodeIndex.clear();
             this.selection.clear();
             idCounter = 1;
-            // Reset to default 100×100 canvas so the renderer always has
+            // Reset to default 100x100 canvas so the renderer always has
             // something to fit on.
             this.initializeEmptyBoardBounds();
         }
@@ -890,7 +890,7 @@
             this.notifyTransformChange('setBoardBounds');
         }
 
-        /** Used when no real geometry is loaded - default 100×100 canvas. */
+        /** Used when no real geometry is loaded - default 100x100 canvas. */
         initializeEmptyBoardBounds() {
             this.setBoardBounds({ minX: 0, minY: 0, maxX: 100, maxY: 100 });
         }

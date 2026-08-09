@@ -3,7 +3,7 @@
  * @description Roland RML-1 post-processing module
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
- * @see         {@link https://github.com/RicardoJCMarques/EasyTrace5000}
+ * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
  *
  * SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
  * SPDX-License-Identifier: AGPL-3.0-or-later
@@ -16,7 +16,7 @@
      * Roland RML-1 Post-Processor
      * 
      * Implements the same interface as BasePostProcessor for use by GCodeGenerator.
-     * Does NOT extend BasePostProcessor — RML is a completely different command language.
+     * Does NOT extend BasePostProcessor - RML is a completely different command language.
      * 
      * TWO COMMAND MODELS:
      * 
@@ -25,19 +25,19 @@
      *   No PU/PD/VS used.
      * 
      * 2.5D Mode (PU/PD):
-     *   PU x,y; — rapid move to (x,y) at !PZ z2 height
-     *   PD x,y; — cut move to (x,y) at !PZ z1 depth, speed VS
-     *   !PZ z1,z2; — set depth register (z1=PD depth, z2=PU height)
-     *   VS speed; — set XY cutting velocity (mm/sec)
-     *   !VZ speed; — set Z/plunge velocity (mm/sec)
+     *   PU x,y; - rapid move to (x,y) at !PZ z2 height
+     *   PD x,y; - cut move to (x,y) at !PZ z1 depth, speed VS
+     *   !PZ z1,z2; - set depth register (z1=PD depth, z2=PU height)
+     *   VS speed; - set XY cutting velocity (mm/sec)
+     *   !VZ speed; - set Z/plunge velocity (mm/sec)
      * 
      * Common commands:
-     *   PA; — Plot Absolute mode
-     *   !MC 0|1; — Motor Control off/on
-     *   !RC value; — Rotation Control (RPM or index 1-15)
-     *   !DW ms; — Dwell in milliseconds
+     *   PA; - Plot Absolute mode
+     *   !MC 0|1; - Motor Control off/on
+     *   !RC value; - Rotation Control (RPM or index 1-15)
+     *   !DW ms; - Dwell in milliseconds
      * 
-     * Coordinates are integer "steps" (mm × stepsPerMM).
+     * Coordinates are integer "steps" (mm x stepsPerMM).
      */
     class RolandPostProcessor {
         constructor(processorConfig = {}) {
@@ -106,7 +106,7 @@
                     supportsRC: false,
                     supportsDwell: true,
                     workArea: { x: 86, y: 55, z: 26 },
-                    warnings: ['Low rigidity — use conservative feed rates for PCB']
+                    warnings: ['Low rigidity - use conservative feed rates for PCB']
                 },
                 'srm20': {
                     label: 'SRM-20 (monoFab)',
@@ -124,7 +124,7 @@
                     supportsDwell: true,
                     workArea: { x: 203, y: 152, z: 60.5 },
                     warnings: [
-                        'Output must be clean RML — VPanel rejects files with syntax errors',
+                        'Output must be clean RML - VPanel rejects files with syntax errors',
                         'RML mode has 0.01mm resolution; NC Code mode offers 0.001mm for ultra-fine work'
                     ]
                 },
@@ -195,7 +195,7 @@
                     supportsRC: true,
                     supportsDwell: true,
                     workArea: { x: 305, y: 216, z: 40 },
-                    warnings: ['High spindle speed — excellent for PCB isolation with V-bits']
+                    warnings: ['High spindle speed - excellent for PCB isolation with V-bits']
                 },
                 'custom': {
                     label: 'Custom Machine',
@@ -212,7 +212,7 @@
                     supportsRC: true,
                     supportsDwell: true,
                     workArea: { x: 999, y: 999, z: 999 },
-                    warnings: ['Custom configuration — verify all parameters against your machine manual']
+                    warnings: ['Custom configuration - verify all parameters against your machine manual']
                 }
             };
 
@@ -303,8 +303,8 @@
 
             // Machine parameters (set from options in generateHeader)
             this.stepsPerMM = 100;
-            this.maxFeedXY = 60;        // mm/sec — machine maximum for XY
-            this.maxFeedZ = 60;         // mm/sec — machine maximum for Z
+            this.maxFeedXY = 60;        // mm/sec - machine maximum for XY
+            this.maxFeedZ = 60;         // mm/sec - machine maximum for Z
             this.zMode = '3d';
             this.spindleMode = 'direct';
             this.travelZ = 3.0;
@@ -321,7 +321,7 @@
             this.model = options.rolandModel || 'mdx50';
             this.profile = this.getProfile(this.model);
 
-            // Read machine parameters — profile values are authoritative, options are overrides
+            // Read machine parameters - profile values are authoritative, options are overrides
             this.stepsPerMM = options.rolandStepsPerMM || this.profile?.stepsPerMM || 100;
             this.maxFeedXY = this.profile?.maxFeedXY || options.rolandMaxFeed || 60;
             this.maxFeedZ = this.profile?.maxFeedZ || this.maxFeedXY;
@@ -333,20 +333,20 @@
 
             const lines = [];
 
-            // 1. User start code (includes machine init ;;^IN/;;^DF + PA; by default)
-            //    RML has no comment syntax — semicolons are command terminators.
-            //    Never inject "; text" lines — they produce junk commands / 1025 errors.
+            // User start code (includes machine init ;;^IN/;;^DF + PA; by default)
+            // RML has no comment syntax - semicolons are command terminators.
+            // Never inject "; text" lines - they produce junk commands / 1025 errors.
             if (options.startCode) {
                 lines.push(options.startCode);
             }
 
-            // 2. Velocity setup — differs by Z mode and protocol
+            // Velocity setup - differs by Z mode and protocol
             const firstPlan = options.firstPlan;
             const velCmd = this.useLegacyVelocity ? 'V' : '!VZ';
 
             if (this.zMode === '3d') {
                 // 3D mode: Z command uses V/!VZ speed for ALL axes.
-                // VS is irrelevant — never set it. Only V/!VZ matters.
+                // VS is irrelevant - never set it. Only V/!VZ matters.
                 const cutFeed = (firstPlan && firstPlan.metadata) ? firstPlan.metadata.feedRate : 150;
                 lines.push(`${velCmd}${this.mmMinToVS(cutFeed)};`);
                 this.currentVZ = cutFeed;
@@ -362,12 +362,12 @@
                 this.currentVZ = plungeRate;
             }
 
-            // 3. Z parameters — safety registers (used as fallback in both modes)
+            // Z parameters - safety registers (used as fallback in both modes)
             this.pzDownMM = 0;
             this.pzUpMM = this.travelZ;
             lines.push(`!PZ${this.fmtCoord(this.pzDownMM)},${this.fmtCoord(this.pzUpMM)};`);
 
-            // 4. Spindle — after all setup params are established
+            // Spindle - after all setup params are established
             if (firstPlan && firstPlan.metadata && firstPlan.metadata.spindleSpeed > 0) {
                 const speed = firstPlan.metadata.spindleSpeed;
 
@@ -375,7 +375,7 @@
                 if (this.spindleMode === 'direct') {
                     lines.push(`!RC${Math.round(speed)};`);
                 }
-                // 'manual': skip !RC entirely — user controls spindle physically
+                // 'manual': skip !RC entirely - user controls spindle physically
 
                 lines.push('!MC1;');
 
@@ -437,7 +437,7 @@
         }
 
         /**
-         * Main dispatch — routes to the correct command model.
+         * Main dispatch - routes to the correct command model.
          */
         processCommand(cmd) {
             return this.zMode === '3d' ? this.process3D(cmd) : this.process25D(cmd);
@@ -535,7 +535,7 @@
 
                 case 'ARC_CW':
                 case 'ARC_CCW': {
-                    console.warn('[RolandProcessor] Arc command reached processor — should have been linearized');
+                    console.warn('[RolandProcessor] Arc command reached processor - should have been linearized');
                     if (cmd.f != null) {
                         if (this.currentVZ === null || Math.abs(cmd.f - this.currentVZ) > 0.1) {
                             lines.push(`${velCmd}${this.mmMinToVS(cmd.f)};`);
@@ -562,11 +562,11 @@
          * 2.5D Mode: PU/PD with !PZ register management.
          * 
          * Command model:
-         *   - PU x,y; — pen up, move XY at PU height (z2). Speed is max.
-         *   - PD x,y; — pen down to PD depth (z1), then move XY. Speed is VS.
-         *   - !PZ z1,z2; — set the depth (z1) and clearance (z2) registers
-         *   - VS speed; — set XY cutting speed for PD moves
-         *   - !VZ speed; — set plunge speed (Z-axis movement in PD)
+         *   - PU x,y; - pen up, move XY at PU height (z2). Speed is max.
+         *   - PD x,y; - pen down to PD depth (z1), then move XY. Speed is VS.
+         *   - !PZ z1,z2; - set the depth (z1) and clearance (z2) registers
+         *   - VS speed; - set XY cutting speed for PD moves
+         *   - !VZ speed; - set plunge speed (Z-axis movement in PD)
          * 
          * Z position is implicit: after PU it's z2, after PD it's z1.
          * No simultaneous XYZ motion is possible.
@@ -662,8 +662,8 @@
 
                 case 'ARC_CW':
                 case 'ARC_CCW': {
-                    // Should never reach here — fallback to linear
-                    console.warn('[RolandProcessor] Arc command reached 2.5D processor — should have been linearized');
+                    // Should never reach here - fallback to linear
+                    console.warn('[RolandProcessor] Arc command reached 2.5D processor - should have been linearized');
                     if (zChanged) {
                         const pz = this.emitPZIfChanged(targetZ, this.pzUpMM);
                         if (pz) lines.push(pz);
@@ -688,8 +688,9 @@
          * Emits !PZ command only if register values actually changed.
          */
         emitPZIfChanged(newDownMM, newUpMM) {
-            const downChanged = Math.abs(newDownMM - this.pzDownMM) > 1e-9; // REVIEW - change to config constant epsilon?
-            const upChanged = Math.abs(newUpMM - this.pzUpMM) > 1e-9; // REVIEW - change to config constant epsilon?
+            const EPSILON = window.CAMConfig.constants.precision.coordinate;
+            const downChanged = Math.abs(newDownMM - this.pzDownMM) > EPSILON;
+            const upChanged = Math.abs(newUpMM - this.pzUpMM) > EPSILON;
 
             if (downChanged || upChanged) {
                 this.pzDownMM = newDownMM;

@@ -1,6 +1,6 @@
 Contributing to EasyCAM5000
 
-I'm not actively seeking external contributions at this time, but [bug reports](https://github.com/RicardoJCMarques/EasyTrace5000/issues) are very welcome.
+I'm not actively seeking external contributions at this time, but [bug reports](https://github.com/RicardoJCMarques/EasyCAM5000/issues) are very welcome.
 
 Post-processor and laser profile feedback is also helpfull. I have to assume that what people don't complain about is working so confirmation that it is (beyon what is reported as having issues) will allow removing the "experimental" tags around.
 

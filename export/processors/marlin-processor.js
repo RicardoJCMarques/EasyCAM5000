@@ -3,7 +3,7 @@
  * @description Marlin post-processing module
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
- * @see         {@link https://github.com/RicardoJCMarques/EasyTrace5000}
+ * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
  *
  * SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
  * SPDX-License-Identifier: AGPL-3.0-or-later
@@ -21,6 +21,15 @@
                 supportsToolChange: false,
                 supportsArcCommands: true,
                 supportsCannedCycles: false,
+                // 4th axis: Marlin has no G93 and its extra-axis support is
+                // build-dependent. Axis replacement (rotary on the Y driver,
+                // steps/mm calibrated) is the only route worth declaring.
+                rotary: {
+                    routes: ['wrapped-linear'],
+                    axisWords: [],
+                    inverseTime: false,
+                    continuous: true
+                },
                 arcFormat: 'IJ',
                 coordinateDecimals: 3,
                 feedDecimals: 0,
@@ -64,7 +73,7 @@
             return Math.round(seconds * 1000);
         }
 
-        // REVIEW - Useless?
+        // REVIEW - Useless? Do Marlin CNCs support tool changing?
         /*
         generateToolChange(tool, options) {
             const lines = [];

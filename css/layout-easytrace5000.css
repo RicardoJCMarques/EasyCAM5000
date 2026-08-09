@@ -1,13 +1,29 @@
 /*!
  * @file        css/layout-easytrace5000.css
- * @description EasyTrace5000-specific layout — operation tree, file/geometry, nodes, upload zones, section highlights.
+ * @description EasyTrace5000-specific layout - operation tree, file/geometry, nodes, upload zones, section highlights.
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
- * @see         {@link https://github.com/RicardoJCMarques/EasyTrace5000}
+ * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
  *
  * SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
+
+ /* ============================================================================
+   EASYTRACE OPERATION MAP
+   Maps this app's operation TYPE strings to palette entries. The palette lives
+   in theme.css; nothing here invents a colour. JS reads the same names through
+   BaseAppUI.resolveOperationColor.
+   ============================================================================ */
+
+/* REVIEW - fix --op-color vs --color-operation mismatching once and for all. */
+:root {
+    --op-color-isolation: var(--color-operation-isolation);
+    --op-color-clearing:  var(--color-operation-clearing);
+    --op-color-cutout:    var(--color-operation-cutout);
+    --op-color-drill:     var(--color-operation-drill);
+    --op-color-stencil:   var(--color-operation-stencil);
+}
 
 /* ============================================================================
    TREE VIEW PADDING OVERRIDE
@@ -311,7 +327,7 @@
 .zone-status.error   { color: var(--color-error); }
 
 /* ============================================================================
-   RESPONSIVE — EASYTRACE-SPECIFIC
+   RESPONSIVE - EASYTRACE-SPECIFIC
    ============================================================================ */
 
 @media (max-width: 1000px) {

@@ -3,7 +3,7 @@
  * @description Theme loading and switching utility
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
- * @see         {@link https://github.com/RicardoJCMarques/EasyTrace5000}
+ * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
  *
  * SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
  * SPDX-License-Identifier: AGPL-3.0-or-later
@@ -30,24 +30,18 @@
         async init(defaultTheme = 'dark') {
             if (this.initialized) return true;
 
-            const savedTheme = localStorage.getItem(this.storageKey);
+            const savedTheme = localStorage.getItem(this.storageKey) || defaultTheme;
 
-            // If the user wants the default theme, do nothing because theme.css should be synced to dark.json
-            if (!savedTheme || savedTheme === defaultTheme) {
-                this.currentTheme = defaultTheme;
-                // Ensure the attribute matches for icon logic (sun/moon)
-                document.documentElement.setAttribute('data-theme', defaultTheme);
-                this.initialized = true;
-                return true;
-            }
-
-            // User wants a different theme (e.g., light). Load and apply it.
+            // The JSON is applied for EVERY theme, including the default
+            // Note theme.css is synced from dark.json with an external script.
+            document.documentElement.setAttribute('data-theme', savedTheme);
             try {
                 await this.applyTheme(savedTheme);
                 this.initialized = true;
                 return true;
             } catch (error) {
-                console.error('Theme initialization failed, falling back to default CSS:', error);
+                console.error('Theme initialization failed, falling back to static CSS:', error);
+                this.currentTheme = savedTheme;
                 return false;
             }
         }
@@ -92,8 +86,53 @@
             const response = await fetch(url);
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             const themeData = await response.json();
+            this.normalizeColors(id, themeData.colors);
             this.themes.set(id, themeData);
             return themeData;
+        }
+
+        /**
+         * One validation pass at load instead of per-consumer repair.
+         *
+         * A malformed value fails differently at every consumer: canvas
+         * silently ignores an invalid strokeStyle, CSS drops the declaration,
+         * the SVG exporter had grown its own stripAlpha. Themes are becoming
+         * user-supplied, so they get checked once, here, loudly.
+         *
+         * Repairs: bare 6/8-digit hex missing '#', 8-digit hex trimmed to 6
+         * (the palette is deliberately opaque - overlapping transparency is
+         * unmanageable). Anything else is reported and left alone.
+         */
+        // REVIEW - This is a band-aid, everything should just be setup correctly from the start.
+        normalizeColors(themeId, colors, path = '') {
+            if (!colors || typeof colors !== 'object') return;
+
+            for (const [key, value] of Object.entries(colors)) {
+                const where = path ? `${path}.${key}` : key;
+
+                if (value !== null && typeof value === 'object') {
+                    this.normalizeColors(themeId, value, where);
+                    continue;
+                }
+                if (typeof value !== 'string') continue;
+
+                let v = value.trim();
+
+                if (/^[0-9a-fA-F]{6}$/.test(v) || /^[0-9a-fA-F]{8}$/.test(v)) {
+                    console.warn(`[Theme:${themeId}] ${where} "${v}" is missing '#' - repaired.`);
+                    v = `#${v}`;
+                }
+                if (/^#[0-9a-fA-F]{8}$/.test(v)) {
+                    console.warn(`[Theme:${themeId}] ${where} "${v}" carries alpha - trimmed to 6 digits.`);
+                    v = v.slice(0, 7);
+                }
+                if (!/^#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$/.test(v) &&
+                    !/^(rgb|hsl)a?\(/.test(v) && !CSS.supports('color', v)) {
+                    console.error(`[Theme:${themeId}] ${where} "${v}" is not a valid CSS color.`);
+                }
+
+                colors[key] = v;
+            }
         }
 
         applyColorVariables(colors) {
@@ -113,18 +152,23 @@
                 });
             };
 
+            // Palette groups only. Application-level mappings (which operation
+            // type uses which palette entry) live in each app's layout CSS as
+            // --op-color-<type> and are never emitted from here.
             if (colors.background) flatten('color-bg', colors.background);
             if (colors.text) flatten('color-text', colors.text);
             if (colors.border) flatten('color-border', colors.border);
             if (colors.accent) flatten('color-accent', colors.accent);
             if (colors.semantic) flatten('color', colors.semantic);
             if (colors.operations) flatten('color-operation', colors.operations);
-            if (colors.canvas) flatten('color-canvas', colors.canvas);
+            if (colors.render2d) flatten('color-render2d', colors.render2d);
+            if (colors.render3d) flatten('color-render3d', colors.render3d);
             if (colors.debug) flatten('color-debug', colors.debug);
             if (colors.geometry) flatten('color-geometry', colors.geometry);
             if (colors.primitives) flatten('color-primitive', colors.primitives);
             if (colors.bw) flatten('color-bw', colors.bw);
             if (colors.pipelines) flatten('color-pipeline', colors.pipelines);
+            if (colors.render3d) flatten('color-render3d', colors.render3d);
             if (colors.interaction) flatten('color-interaction', colors.interaction);
         }
 

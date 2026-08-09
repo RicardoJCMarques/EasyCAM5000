@@ -3,7 +3,7 @@
  * @description Core engine - state, parsing, shared infrastructure, pipeline execution
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
- * @see         {@link https://github.com/RicardoJCMarques/EasyTrace5000}
+ * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
  *
  * SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
  * SPDX-License-Identifier: AGPL-3.0-or-later
@@ -79,7 +79,7 @@
             // Core methods use this instead of reaching to window globals.
             this.pipelineType = 'cnc';
 
-            // Initialise scene with an empty 100×100 board so the renderer
+            // Initialise scene with an empty 100x100 board so the renderer
             // has something to fit on before any geometry loads.
             if (this.scene) this.scene.initializeEmptyBoardBounds();
 
@@ -272,21 +272,6 @@
             this.debug(`Pipeline type set: ${type}`);
         }
 
-        // REVIEW - This seems redundant? Processor is/should always initialize and if it doesn't it'll crash something else?
-        async ensureProcessorReady() {
-            if (!this.processorInitialized && this.initializationPromise) {
-                // REVIEW - logging?.wasmOperations doesn't exist?
-                if (debugState.logging?.wasmOperations) {
-                    console.log('Waiting for Clipper2...');
-                }
-                await this.initializationPromise;
-            }
-
-            if (!this.processorInitialized) {
-                throw new Error('Geometry processor not initialized');
-            }
-        }
-
         /**
          * Settings
          */
@@ -351,10 +336,43 @@
             }
         }
 
+        /**
+         * Merges a settings category and persists.
+         *
+         * Post-processor changes invalidate INDEXED rotary operations only.
+         * Nothing else under machine/gcode feeds EasyShape geometry - surfaceZ,
+         * depthLevels, feeds and clearances are all re-derived in
+         * buildToolpathContext at export - but indexed generation reads the
+         * post's rotary capability at GENERATION time (postCapabilityWarning)
+         * and MachineProcessor.insertIndexMoves drops the plans outright when
+         * the new post declares no 'a-word' route. Invalidating everything
+         * instead would force a multi-minute relief re-slice on a stock
+         * thickness tweak that cannot move a single coordinate.
+         */
         updateSettings(category, settings) {
-            if (this.settings[category]) {
-                Object.assign(this.settings[category], settings);
-                this.saveSettings();
+            if (!this.settings[category]) return;
+
+            const postChanged = category === 'gcode' &&
+                settings.postProcessor !== undefined &&
+                settings.postProcessor !== this.settings.gcode.postProcessor;
+
+            Object.assign(this.settings[category], settings);
+            this.saveSettings();
+
+            if (postChanged) this.invalidateIndexedOperations(settings.postProcessor);
+        }
+
+        /** Marks generated indexed 3+1 operations stale after a post change. */
+        invalidateIndexedOperations(postProcessor) {
+            for (const op of this.operations) {
+                if (!op.offsets?.length) continue;
+                if (op.offsets[0].metadata?.indexed !== true) continue;
+                if (op.isInvalidated) continue;
+                this.invalidateOperationState(op.id);
+                op.isInvalidated = true;
+                op.invalidatedReason =
+                    `Post-processor changed to '${postProcessor}'. Indexed 3+1 needs ` +
+                    `the a-word route - regenerate to re-check it.`;
             }
         }
 
@@ -806,8 +824,6 @@
         async compositeByPolarity(primitives) {
             if (!primitives || primitives.length === 0) return [];
 
-            await this.ensureProcessorReady();
-
             this.debug(`[Compositing] === SEQUENTIAL COMPOSITING START ===`);
             this.debug(`[Compositing] Input: ${primitives.length} primitives`);
 
@@ -946,19 +962,8 @@
             if (!primitives || primitives.length === 0) {
                 return { minX: 0, minY: 0, maxX: 0, maxY: 0 };
             }
-
-            let minX = Infinity, minY = Infinity;
-            let maxX = -Infinity, maxY = -Infinity;
-
-            primitives.forEach(primitive => {
-                const bounds = primitive.getBounds();
-                minX = Math.min(minX, bounds.minX);
-                minY = Math.min(minY, bounds.minY);
-                maxX = Math.max(maxX, bounds.maxX);
-                maxY = Math.max(maxY, bounds.maxY);
-            });
-
-            return { minX, minY, maxX, maxY };
+            const merged = GeometryUtils.mergeBounds(primitives.map(p => p.getBounds()));
+            return merged || { minX: 0, minY: 0, maxX: 0, maxY: 0 };
         }
 
         /*
@@ -986,6 +991,8 @@
 
             const optimize = options.optimize !== false;
             const allMachineReadyPlans = [];
+
+            const pipelineWarnings = [];
 
             if (!operationContextPairs || operationContextPairs.length === 0) {
                 return { plans: allMachineReadyPlans, endPos: { x: 0, y: 0, z: 0 } };
@@ -1022,11 +1029,25 @@
                 // Machine processing
                 this.debug('Adding machine operations...');
 
-                const { plans: machineReadyPlans, endPos } = this.machineProcessor.processPlans(
-                    plansToProcess,
-                    context,
-                    currentMachinePos
-                );
+                const { plans: machineReadyPlans, endPos, droppedDeveloped, droppedIndexed } =
+                    this.machineProcessor.processPlans(
+                        plansToProcess,
+                        context,
+                        currentMachinePos,
+                        { convertRotary: options.convertRotary !== false }
+                    );
+                if (droppedDeveloped > 0) {
+                    pipelineWarnings.push(`${operation.type} '${operation.id}': ` +
+                        `${droppedDeveloped} rotary plan(s) skipped - the selected ` +
+                        `post cannot emit this operation's rotary route.`);
+                }
+                if (droppedIndexed) {
+                    pipelineWarnings.push(`${operation.type} '${operation.id}': ` +
+                        `indexed 3+1 plans skipped - the selected post declares no ` +
+                        `A/B rotary word, or the machine's rotary route is set to ` +
+                        `axis replacement, which cannot position a rotary axis. ` +
+                        `Choose a compatible post and set the route to 'a-word'.`);
+                }
 
                 allMachineReadyPlans.push(...machineReadyPlans);
                 currentMachinePos = endPos;
@@ -1035,7 +1056,7 @@
             }
 
             this.debug(`Pipeline complete: ${allMachineReadyPlans.length} machine-ready plans`);
-            return { plans: allMachineReadyPlans, endPos: currentMachinePos };
+            return { plans: allMachineReadyPlans, endPos: currentMachinePos, warnings: pipelineWarnings };
         }
 
         /**
@@ -1102,6 +1123,7 @@
             let combineOffsets = false;
 
             switch (operation.type) {
+                // Shared operation types
                 case 'drill':
                     passes = 1;
                     cutSide = isLaser ? (params.laserCutSide || 'inside') : 'inside';
@@ -1139,13 +1161,14 @@
                     passes = 500;
                     break;
 
-                case 'engrave': // Not wired
+                case 'engrave':
                     passes = 1;
                     cutSide = 'on';
                     break;
 
-                case 'vcarve': // Not wired
-                case 'relief': // Not wired
+                case 'vcarve':
+                case 'relief':
+                case 'rotary':
                     // Depth comes from the generated 3D geometry, not pass distances. No cutSide, no stepOver, single logical pass.
                     passes = 1;
                     combineOffsets = false;
@@ -1217,7 +1240,7 @@
             // separately because GraphicsExporter composes origin itself.
             const wsMatrix = TransformMath.clone(this.scene.getWorkspaceMatrix());
 
-            // The machine matrix: T(−origin) x workspace. The only transform
+            // The machine matrix: T(-origin) x workspace. The only transform
             // the toolpath pipeline applies, once, in GeometryTranslator.
             // GCodeGenerator no longer subtracts origin.
             const machineMatrix = TransformMath.multiply(
@@ -1258,12 +1281,11 @@
             const params = parameterManager.getAllParameters(operationId);
 
             // Drill milling aliases - JSON can't have duplicate keys with different
-            // conditionals, so EasyShape's profile uses prefixed names (drillMultiDepth,
-            // drillDepthPerPass, drillEntryType) for drill-specific depth params that
-            // share names with profile/pocket params. Map them to the standard names
-            // the pipeline expects. EasyTrace's profile doesn't need this (its drill
-            // params use unique categories, not duplicate keys).
+            // conditionals, so both apps' profiles uses prefixed names (drillMultiDepth,
+            // drillDepthPerPass, drillEntryType) for operation-specific params that
+            // share names. Map them to the standard names the pipeline expects.
             // REVIEW - Review if there's a better approach to this - there's already a new per app/operation input defaults override?
+            // More Operations have unique parameter modifiers, might as well just review everything for consistency and keep the system but improve implementation.
             const isDrill = operation.type === 'drill';
             const mappedMultiDepth = isDrill && params.drillMultiDepth !== undefined ? params.drillMultiDepth : params.multiDepth;
             const mappedDepthPerPass = isDrill && params.drillDepthPerPass !== undefined ? params.drillDepthPerPass : params.depthPerPass;
@@ -1276,6 +1298,36 @@
 
             const processorInfo = this.gcodeGenerator?.getProcessorInfo(gcode.postProcessor);
 
+            // Rotary 4th-axis export route. The post declares which routes it
+            // can emit (descriptor.capabilities.rotary.routes, preference
+            // order); gcode.rotaryRoute is the user's pick from the
+            // machine-settings dropdown. '' or an undeclared value = auto
+            // (first declared route). No declared routes = 'off', and any
+            // developed plan is dropped downstream with a pipeline warning.
+            const rotaryCaps = processorInfo?.capabilities?.rotary
+                || { routes: [], axisWords: [], inverseTime: false, maxInverseTime: 0 };
+            // Indexed 3+1 needs a REAL rotary word: there is no arc to
+            // substitute, so 'wrapped-linear' is not a valid encoding for it.
+            // Several posts list wrapped-linear first for good reason (safe
+            // feeds without confirmed G93 on CONTINUOUS rotary), which made
+            // auto-resolution hand indexed jobs a route they cannot use -
+            // insertIndexMoves then patched it after the fact with a warning.
+            // Resolve it correctly the first time; an explicit user pick is
+            // still honoured, and the downstream check still catches it.
+            // REVIEW - this sounds like an overcomplication?
+            const isIndexedOp = operation.offsets?.[0]?.metadata?.indexed === true;
+            const preferred = (isIndexedOp && rotaryCaps.routes.includes('a-word'))
+                ? 'a-word'
+                : (rotaryCaps.routes[0] || 'off');
+            const wantRoute = gcode.rotaryRoute || '';
+            const rotaryRoute = rotaryCaps.routes.includes(wantRoute)
+                ? wantRoute
+                : preferred;
+            if (wantRoute && wantRoute !== rotaryRoute) {
+                console.warn(`[Core] Post '${gcode.postProcessor}' does not declare ` +
+                    `rotary route '${wantRoute}' - using '${rotaryRoute}'.`);
+            }
+
             // Compute derived values
             const offsetDistances = (operation.offsets || []).map(o => o.distance);
 
@@ -1284,15 +1336,15 @@
 
             const stock = this.settings.machine.stock || {};
             const isBedZero = stock.zeroReference && stock.zeroReference !== 'material';
-            const surfaceZ = isBedZero ? (stock.thickness || 0) : 0;
+            // 4th-axis rotary (continuous AND indexed share operation.type
+            // 'rotary') owns its own Z0 - centerline or blank-face-top -
+            // protected downstream by Toolpath3DTranslator's machineFrame
+            // gate.
+            const surfaceZ = (isBedZero && operation.type !== 'rotary')
+                ? (stock.thickness || 0) : 0;
 
             const depthLevels = this.calculateDepthLevels(
-                params.cutDepth,
-                params.depthPerPass,
-                params.multiDepth,
-                surfaceZ,
-                PRECISION
-            );
+                params.cutDepth, mappedDepthPerPass, mappedMultiDepth, surfaceZ);
 
             // Laser context (null for CNC pipeline)
             let laserContext = null;
@@ -1331,9 +1383,8 @@
                     safeZ: machine.heights.safeZ + surfaceZ,
                     travelZ: machine.heights.travelZ + surfaceZ,
                     feedHeight: machine.heights.feedHeight + surfaceZ,
-                    rapidFeedRate: machine.speeds.rapidFeedRate,
-                    maxFeedRate: machine.speeds.maxFeedRate,
-                    spindleSpeed: machine.speeds.spindleSpeed,
+                    rapidFeedRate: machine.speeds.rapidFeed,
+                    maxFeedRate: machine.speeds.maxFeed,
                 },
                 // Processor-specific settings (Roland, Makera, etc.)
                 gcode: { ...gcode,
@@ -1399,6 +1450,7 @@
                 // REVIEW - Are these still relevant? Do they still need to be linked like this?
                 config: {
                     entry: D.toolpath.generation.entry,
+                    drilling: D.toolpath.generation.drilling,
                     tabs: D.toolpath.tabs,
                     optimization: D.gcode.optimization,
                     precision: PRECISION,
@@ -1406,7 +1458,35 @@
                 },
 
                 // Laser-specific (only populated in laser/hybrid pipeline)
-                laser: laserContext
+                laser: laserContext,
+
+                // Rotary 4th-axis export routing.
+                export: {
+                    rotaryRoute,
+                    // The user's PINNED machine-settings pick, unresolved.
+                    // '' = auto. insertIndexMoves needs to tell "auto landed
+                    // on wrapped-linear" (promotable to a-word) from "the user
+                    // says this machine IS axis replacement" (not promotable).
+                    requestedRoute: wantRoute,
+                    // [INDEXED] Full declared list, not just the resolved
+                    // pick: indexed 3+1 requires 'a-word' specifically and
+                    // auto-switches to it (with a warning) when the post
+                    // declares it but auto-resolution preferred another
+                    // route. See MachineProcessor.insertIndexMoves.
+                    routes: rotaryCaps.routes,
+                    axisWords: rotaryCaps.axisWords,
+                    inverseTime: rotaryCaps.inverseTime === true,
+                    maxInverseTime: rotaryCaps.maxInverseTime,
+                    // Machine setting wins; blank falls back to the post's
+                    // declared default. This is a property of the rotary
+                    // HARDWARE (belt vs geared/servo with a brake), so it
+                    // cannot live in the post alone - one controller drives
+                    // both kinds.
+                    indexDwell: (gcode.indexDwell === '' || gcode.indexDwell == null)
+                        ? (rotaryCaps.indexDwell || 0)
+                        : Math.max(0, Number(gcode.indexDwell) || 0),
+                    continuous: rotaryCaps.continuous !== false
+                }
             };
 
             if (this.settings.gcode.postProcessor === 'roland') {
@@ -1416,6 +1496,10 @@
             // Prevent accidental mutation by downstream pipeline stages.
             // TODO [METADATA-BLOAT] - Deep-freeze nested objects or replace
             // plan.metadata.context references with explicit field copies.
+            // Contract: after translate, ctx may be read ONLY via
+            // plan.metadata.transforms (stamped by the translators) and - until
+            // migrated - MachineProcessor's determineWinding. No other stage
+            // may retain or read ctx. Freeze is the tamper canary for that.
             Object.freeze(context);
 
             return context;
@@ -1487,19 +1571,9 @@
          */
         updateBoardBounds() {
             if (!this.scene) return;
-            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-            let hasData = false;
-            for (const op of this.operations) {
-                if (op.bounds) {
-                    if (op.bounds.minX < minX) minX = op.bounds.minX;
-                    if (op.bounds.minY < minY) minY = op.bounds.minY;
-                    if (op.bounds.maxX > maxX) maxX = op.bounds.maxX;
-                    if (op.bounds.maxY > maxY) maxY = op.bounds.maxY;
-                    hasData = true;
-                }
-            }
-            if (hasData) {
-                this.scene.setBoardBounds({ minX, minY, maxX, maxY });
+            const merged = GeometryUtils.mergeBounds(this.operations.map(op => op.bounds));
+            if (merged) {
+                this.scene.setBoardBounds(merged);
             } else {
                 this.scene.initializeEmptyBoardBounds();
             }
@@ -1546,13 +1620,7 @@
          */
 
         async fuseAllPrimitives(options = {}) {
-            await this.ensureProcessorReady();
-
             this.debug('fuseAllPrimitives() - Entered fuseAllPrimitives. Received options:', options);
-
-            if (!this.geometryProcessor) {
-                throw new Error('Geometry processor not available');
-            }
 
             const fusedResults = [];
 
@@ -1629,6 +1697,14 @@
             const processorSettings = this.settings.processorSettings || {};
             const rolandSettings = processorSettings.roland || {};
 
+            // Resolve declared customParameters against the saved settings
+            // first, falling back to each parameter's own default.
+            const customPostParams = {};
+            for (const p of (this.gcodeGenerator
+                    .getProcessorInfo(gcodeConfig.postProcessor)?.customParameters || [])) {
+                customPostParams[p.key] = gcodeConfig[p.key] ?? p.default;
+            }
+
             const genOptions = {
                 postProcessor: gcodeConfig.postProcessor,
                 includeComments: intent.includeComments,
@@ -1637,17 +1713,18 @@
                 userStartCode: gcodeConfig.userStartCode,
                 userEndCode: gcodeConfig.userEndCode,
                 units: gcodeConfig.units,
+                ...customPostParams,
                 safeZ: this.settings.machine.heights.safeZ,
                 travelZ: this.settings.machine.heights.travelZ,
                 maxSafeDepth: this.settings.machine.heights.maxSafeDepth,
-                maxFeed: this.settings.machine.speeds.maxFeedRate,
+                maxFeed: this.settings.machine.speeds.maxFeed,
                 coolant: this.settings.machine.coolant,
                 vacuum: this.settings.machine.vacuum,
                 rolandModel: rolandSettings.rolandModel,
                 rolandStepsPerMM: rolandSettings.rolandStepsPerMM,
                 rolandMaxFeed: rolandSettings.rolandMaxFeed,
                 rolandZMode: rolandSettings.rolandZMode,
-                rolandSpindleMode: rolandSettings.rolandSpindleMode,
+                rolandSpindleMode: rolandSettings.rolandSpindleMode
             };
 
             const results = {};
@@ -1708,42 +1785,60 @@
         }
 
         /**
-         * Internal: buildContext → executePipeline → generate G-code → metrics.
+         * Assembles { operation, context } pairs for the toolpath pipeline.
+         * @param {string[]|null} operationIds  null = every export-ready op
+         * @param {ParameterManager} parameterManager
+         * @param {{warnLabel?:string}} [options]
          */
-        async runCNCPipeline(operationIds, optimize, genOptions, parameterManager) {
-            const operationContextPairs = [];
-
-            for (const opId of operationIds) {
+        buildOperationContextPairs(operationIds, parameterManager, options = {}) {
+            const ids = operationIds
+                || this.operations.filter(op => this.isExportReady(op)).map(op => op.id);
+            const label = options.warnLabel || 'pipeline';
+            const pairs = [];
+            for (const opId of ids) {
                 try {
                     const operation = this.getOperation(opId);
-                    if (!operation) throw new Error(`Operation ${opId} not found.`);
-
+                    if (!operation) continue;
                     if (parameterManager.hasUnsavedChanges(opId)) {
                         parameterManager.commitToOperation(operation);
                     }
-
-                    const ctx = this.buildToolpathContext(opId, parameterManager);
-                    operationContextPairs.push({ operation, context: ctx });
-                } catch (error) {
-                    console.warn(`Skipping operation ${opId}: ${error.message}`);
+                    const context = this.buildToolpathContext(opId, parameterManager);
+                    pairs.push({ operation, context });
+                } catch (err) {
+                    console.warn(`[${label}] skipping operation ${opId}: ${err.message}`);
                 }
             }
+            return pairs;
+        }
+
+        /**
+         * Internal: buildContext → executePipeline → generate G-code → metrics.
+         */
+        async runCNCPipeline(operationIds, optimize, genOptions, parameterManager) {
+            const operationContextPairs =
+                this.buildOperationContextPairs(operationIds, parameterManager, { warnLabel: 'CNC' });
 
             if (operationContextPairs.length === 0) {
                 return { gcode: '; No valid operations to process', lineCount: 1, planCount: 0, estimatedTime: 0, totalDistance: 0 };
             }
 
-            const { plans } = await this.executePipeline(operationContextPairs, { optimize });
+            const { plans, warnings } = await this.executePipeline(operationContextPairs, { optimize });
+            if (warnings?.length) {
+                // executePipeline collects these (dropped rotary plans, etc.)
+                console.warn(`[Core] Pipeline warnings:\n  ${warnings.join('\n  ')}`);
+            }
             const gcode = this.gcodeGenerator.generate(plans, genOptions);
             const firstContext = operationContextPairs[0].context;
+            const lineCount = (typeof gcode === 'string' && gcode.length > 0)
+                ? gcode.trim().split('\n').length
+                : 0;
+
             const { estimatedTime, totalDistance } = this.machineProcessor.calculatePathMetrics(plans, firstContext);
 
             return {
-                gcode,
-                lineCount: gcode.split('\n').length,
-                planCount: plans.length,
-                estimatedTime,
-                totalDistance
+                gcode, lineCount, planCount: plans.length,
+                estimatedTime, totalDistance,
+                warnings: warnings || []
             };
         }
 
@@ -2014,12 +2109,13 @@
                 includeComments: exportOverrides.includeComments
             };
 
+            // REVIEW - This should pull comments from the Language file. It should also be moved into the laser export file...
             if (exportOverrides.includeComments) {
                 commonOptions.commentBlock = commonOptions.commentBlock || [];
                 const appName = this.appProfile.meta.app;
                 commonOptions.commentBlock.push(`${appName} SVG Export`);
                 commonOptions.commentBlock.push(`Date: ${new Date().toLocaleString()}`);
-                commonOptions.commentBlock.push(`Operations (${operations.length}):`);
+                commonOptions.commentBlock.push(`Operations ${operations.length}:`);
                 operations.forEach(op => {
                     commonOptions.commentBlock.push(`  - ${op.type}: ${op.file.name}`);
                 });

@@ -1,10 +1,10 @@
 /*!
  * @file        ui/ui-machine-settings.js
- * @description Shared machine configuration UI — post-processor selection,
+ * @description Shared machine configuration UI - post-processor selection,
  *              Roland profiles, laser settings, and global CNC parameters.
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
- * @see         {@link https://github.com/RicardoJCMarques/EasyTrace5000}
+ * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
  *
  * SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
  * SPDX-License-Identifier: AGPL-3.0-or-later
@@ -75,13 +75,24 @@
 
                     this.ui.ctrl.modalManager.clearExportPreview();
 
-                    const isRoland = newProcessor === 'roland';
-                    if (isRoland) {
-                        const currentModel = rolandSettings.rolandModel || 'mdx50';
-                        const currentProfile = ROLAND_PROFILES[currentModel];
-                        opPanel.parameterManager.updateMachineConstraints(currentProfile, 'roland');
-                    } else {
-                        opPanel.parameterManager.updateMachineConstraints({}, newProcessor);
+                    // core.updateSettings has just marked indexed operations
+                    // stale; the tree and the canvas both read isInvalidated,
+                    // so they have to be told. Guarded - EasyTrace has neither.
+                    for (const b of (this.ui.opsPanel?.getAllBuckets?.() || [])) {
+                        this.ui.opsPanel.updateBucketDOM(b, this.ui.core);
+                    }
+                    this.ui.rebuildLayers?.();
+
+                    const paramMgr = this.ui.parameterManager || opPanel?.parameterManager;
+                    if (paramMgr) {
+                        const isRoland = newProcessor === 'roland';
+                        if (isRoland) {
+                            const currentModel = rolandSettings.rolandModel || 'mdx50';
+                            const currentProfile = ROLAND_PROFILES[currentModel];
+                            paramMgr.updateMachineConstraints(currentProfile, 'roland');
+                        } else {
+                            paramMgr.updateMachineConstraints({}, newProcessor);
+                        }
                     }
                     
 
@@ -478,6 +489,215 @@
             machineControls.querySelectorAll('[data-processor-group="roland"]').forEach(el => {
                 el.style.display = isRoland ? '' : 'none';
             });
+
+            this.updateRotaryRouteField(processorName);
+            this.updateProcessorCustomParameters(processorName);
+        }
+
+        /**
+         * 4th-axis route picker. Populated from the selected post's declared
+         * routes; hidden entirely on 3-axis posts. '' = auto (the post's
+         * first/preferred route), which is what most users want - the control
+         * exists for machines that support more than one encoding.
+         */
+        updateRotaryRouteField(processorName) {
+            const section = document.getElementById('rotary-section');
+            const field = document.getElementById('rotary-route-field');
+            const select = document.getElementById('rotary-route');
+            const dwellField = document.getElementById('index-dwell-field');
+            const dwellInput = document.getElementById('index-dwell');
+            if (!section || !field || !select) return;
+
+            // This function is the SOLE owner of the rotary section's
+            // visibility. updateProcessorFieldVisibility runs its
+            // gcode/roland group pass first and would otherwise re-show the
+            // section on a Roland job that happens to declare a route.
+            if (processorName === 'roland') {
+                section.style.display = 'none';
+                this.publishRotaryGates(null);
+                return;
+            }
+
+            const generator = this.ui.ctrl?.gcodeGenerator;
+            const caps = generator?.getProcessorInfo(processorName)?.capabilities?.rotary;
+            const routes = caps?.routes || [];
+
+            if (routes.length === 0) {
+                section.style.display = 'none';
+                this.publishRotaryGates(caps);
+                return;
+            }
+            section.style.display = '';
+            field.style.display = '';
+
+            // Index settle dwell. Only meaningful when an A/B word can be
+            // emitted (indexed 3+1); wrapped-linear-only posts never index.
+            // Blank = use the post's declared default, which is a starting
+            // guess about the rotary HARDWARE, not the controller.
+            if (dwellField && dwellInput) {
+                const canIndex = routes.includes('a-word') && (caps.axisWords || []).length > 0;
+                dwellField.style.display = canIndex ? '' : 'none';
+                if (canIndex) {
+                    dwellInput.placeholder = `Auto (${caps.indexDwell ?? 0}s)`;
+                    const savedDwell = this.ui.core.settings.gcode.indexDwell;
+                    dwellInput.value = (savedDwell === '' || savedDwell == null) ? '' : savedDwell;
+                    if (!dwellInput.dataset.bound) {
+                        dwellInput.dataset.bound = '1';
+                        dwellInput.addEventListener('change', (e) => {
+                            const v = e.target.value.trim();
+                            this.ui.core.updateSettings('gcode',
+                                { indexDwell: v === '' ? '' : Math.max(0, parseFloat(v) || 0) });
+                        });
+                    }
+                }
+            }
+
+            const LABELS = {
+                'a-word':         'Rotary word (A/B in degrees)',
+                'wrapped-linear': 'Axis replacement (Y carries arc length)',
+                'a-linear':       'Rotary word (A/B in arc mm)'
+                // 'cyl-interp':     'Controller cylindrical interpolation' - Planned, not implemented
+            };
+
+            select.innerHTML = '';
+            routes.forEach(r => {
+                const o = document.createElement('option');
+                o.value = r;
+                o.textContent = LABELS[r] || r;
+                select.appendChild(o);
+            });
+
+            const saved = this.ui.core.settings.gcode.rotaryRoute || '';
+            const declared = routes.includes(saved);
+            select.value = declared ? saved : routes[0];
+
+            // One route = no decision to make so lock it
+            select.disabled = routes.length === 1;
+
+            // REVIEW - I don't like this data flow design, there has to be a better strategy than an empty ''.
+            // '' means "never chosen" and must survive: buildToolpathContext
+            // reads it as auto, and auto is what promotes indexed 3+1 to
+            // 'a-word' on a post that lists wrapped-linear first. Only a value
+            // this post cannot emit is overwritten.
+            if (saved && !declared) {
+                this.ui.core.updateSettings('gcode', { rotaryRoute: routes[0] });
+            }
+
+            this.publishRotaryGates(caps);
+
+            if (!select.dataset.bound) {
+                select.dataset.bound = '1';
+                select.addEventListener('change', (e) => {
+                    this.ui.core.updateSettings('gcode', { rotaryRoute: e.target.value });
+                    this.publishRotaryGates(caps);
+                    this.ui.ctrl.modalManager?.clearExportPreview?.();
+                });
+            }
+        }
+
+        /**
+         * Publishes the 4th-axis capability gate to the parameter layer.
+         *
+         * Indexed 3+1 positions a real A/B word in absolute degrees. Axis
+         * replacement repurposes the Y word as arc length, and indexed Y is
+         * real cross-axis position - the two cannot coexist on one machine.
+         *
+         * Keyed on the user's PINNED route, not the resolved one: '' is auto,
+         * and buildToolpathContext already promotes auto to 'a-word' for an
+         * indexed op. Gating on the resolved route would disable indexed on
+         * every post that lists wrapped-linear first (grblHAL, Makera, and
+         * Fanuc list it for continuous-rotary feed safety, not because they
+         * lack an A word).
+         */
+        publishRotaryGates(caps) {
+            const opPanel = this.ui.traceOperationPanel || this.ui.shapeOperationPanel;
+            const paramMgr = this.ui.parameterManager || opPanel?.parameterManager;
+            if (!paramMgr) return;
+
+            const routes = caps?.routes || [];
+            const axisWords = caps?.axisWords || [];
+            const post = this.ui.core.settings.gcode.postProcessor;
+            const pinned = this.ui.core.settings.gcode.rotaryRoute || '';
+
+            const declaresAWord = routes.includes('a-word') && axisWords.length > 0;
+            const pinnedElsewhere = pinned !== '' && pinned !== 'a-word';
+
+            paramMgr.setOptionGates({
+                'rotary.indexed': {
+                    ok: declaresAWord && !pinnedElsewhere,
+                    reason: !declaresAWord
+                        ? `'${post}' declares no A/B rotary word - it can only drive a 4th axis by axis replacement.`
+                        : 'Machine rotary route is set to axis replacement, which carries arc length on the Y word.'
+                }
+            });
+
+            opPanel?.refresh?.();
+        }
+
+        /**
+         * Renders a post's declared customParameters into the machine section.
+         * Fanuc (O-number, work offset, rotary unwind) and Makera (tool-change
+         * mode) both declare these and neither had a renderer, so every value
+         * sat at its `||` fallback. Values live under settings.gcode.processorParams
+         * keyed by parameter id and are spread flat into the export options.
+         */
+        updateProcessorCustomParameters(processorName) {
+            const host = document.getElementById('processor-custom-params');
+            if (!host) return;
+            host.innerHTML = '';
+
+            const generator = this.ui.ctrl?.gcodeGenerator;
+            const params = generator?.getProcessorInfo(processorName)?.customParameters || [];
+            if (params.length === 0) { host.style.display = 'none'; return; }
+            host.style.display = '';
+
+            // FLAT on settings.gcode, not a nested bag: generateCNCResults
+            // spreads them straight into genOptions and the posts read them
+            // off `options` (options.fanucWorkOffset, options.makeraToolChangeMode).
+            // A nested store would need unwrapping in two more places.
+            const store = this.ui.core.settings.gcode;
+            const commit = (key, value) => {
+                this.ui.core.updateSettings('gcode', { [key]: value });
+            };
+
+            for (const p of params) {
+                const wrap = document.createElement('div');
+                wrap.className = 'property-field';
+
+                const label = document.createElement('label');
+                label.setAttribute('for', `pp-${p.key}`);
+                label.textContent = p.label || p.key;
+                wrap.appendChild(label);
+
+                const current = store[p.key] ?? p.default;
+                let input;
+                if (p.type === 'select') {
+                    input = document.createElement('select');
+                    for (const o of (p.options || [])) {
+                        const opt = document.createElement('option');
+                        opt.value = o.value;
+                        opt.textContent = o.label;
+                        input.appendChild(opt);
+                    }
+                    input.value = current;
+                    input.addEventListener('change', (e) => commit(p.key, e.target.value));
+                } else {
+                    input = document.createElement('input');
+                    input.type = (p.type === 'number') ? 'number' : 'text';
+                    if (p.type === 'number') {
+                        if (p.min != null)  input.min = p.min;
+                        if (p.max != null)  input.max = p.max;
+                        if (p.step != null) input.step = p.step;
+                    }
+                    input.value = current ?? '';
+                    input.addEventListener('change', (e) => commit(p.key,
+                        p.type === 'number' ? (parseFloat(e.target.value) || p.default)
+                                            : e.target.value));
+                }
+                input.id = `pp-${p.key}`;
+                wrap.appendChild(input);
+                host.appendChild(wrap);
+            }
         }
 
         updatePipelineFieldVisibility() {

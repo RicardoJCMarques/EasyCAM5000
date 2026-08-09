@@ -3,7 +3,7 @@
  * @description Manages canvas layers
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
- * @see         {@link https://github.com/RicardoJCMarques/EasyTrace5000}
+ * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
  *
  * SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
  * SPDX-License-Identifier: AGPL-3.0-or-later
@@ -227,8 +227,18 @@
             for (const layer of orderedLayers) {
                 if (!layer.visible) continue;
 
-                // Centralized layer-level culling (always world space) // REVIEW - Double check this is the best way to do this
+                // Non-finite guard: one NaN primitive poisons layer bounds and
+                // every downstream fit/cull. Skip the layer loudly instead of
+                // drawing nothing.
                 const layerBounds = layer.bounds;
+                if (layerBounds && !(Number.isFinite(layerBounds.minX) && Number.isFinite(layerBounds.maxX) &&
+                                     Number.isFinite(layerBounds.minY) && Number.isFinite(layerBounds.maxY))) {
+                    console.warn(`[Render] Skipped layer "${layer.name || layer.type}" - non-finite geometry bounds.`);
+                    this.core.renderStats.skippedPrimitives += layer.primitives.length;
+                    continue;
+                }
+
+                // Centralized layer-level culling (always world space) // REVIEW - Double check this is the best way to do this
                 if (layerBounds && !this.core.boundsIntersect(layerBounds, worldViewBounds)) {
                     this.core.renderStats.primitives += layer.primitives.length;
                     this.core.renderStats.skippedPrimitives += layer.primitives.length;
@@ -239,9 +249,9 @@
                 const isStencilSource = isStencil && !layer.isOffset && !layer.isPreview && layer.type !== 'offset' && layer.type !== 'preview';
                 const isStencilGenerated = isStencil && !isStencilSource;
 
-                // EasyShape5000: per-layer world transform. EasyTrace5000
-                // layers have no transform so this branch is skipped entirely
-                // (no save/restore cost).
+                // EasyShape5000: per-layer world transform.
+                // EasyTrace5000: layers have no transform so this branch
+                // is skipped entirely (no save/restore cost).
                 const hasLayerTransform = !!layer.transform;
                 if (hasLayerTransform) {
                     this.ctx.save();
@@ -249,8 +259,7 @@
                     this.ctx.transform(m.a, m.b, m.c, m.d, m.e, m.f);
 
                     // Transform view bounds into this layer's local frame so
-                    // viewport culling works. EasyTrace5000 never reaches
-                    // this branch because hasLayerTransform is false there.
+                    // viewport culling works.
                     const inv = TransformMath.invert(m);
                     if (inv) {
                         this.core.frameCache.viewBounds =
@@ -505,7 +514,8 @@
             const viewBounds = this.core.frameCache.viewBounds;
 
             // Resolve colors from theme with fallback
-            const fillColor = this.core.colors.geometry?.laser?.filled || this.core.colors.geometry.preview;
+            const fillColor = this.core.colors.geometry.laser.filled ||
+                              this.core.colors.geometry.preview;
             const minWidth = this.core.frameCache.minWorldWidth;
             const outlineWidth = Math.max(1.0 * this.core.frameCache.invScale, minWidth);
 
@@ -810,7 +820,7 @@
                     } else {
                         // Default to fill
                         if (layer.isPreprocessed && prim.properties?.polarity === 'clear') {
-                            this.ctx.fillStyle = this.core.colors.canvas?.background;
+                            this.ctx.fillStyle = this.core.colors.render2d.background;
                             this.ctx.fill('evenodd');
                             this.ctx.fillStyle = layerColor; // Restore
                         } else {
@@ -1086,6 +1096,10 @@
         destroy() {
             if (this.renderHandle) {
                 cancelAnimationFrame(this.renderHandle);
+            }
+            if (this.core?._onThemeChange) {
+                window.removeEventListener('themechange', this.core._onThemeChange);
+                this.core._onThemeChange = null;
             }
         }
     }

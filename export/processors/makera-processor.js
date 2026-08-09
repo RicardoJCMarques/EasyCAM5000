@@ -3,7 +3,7 @@
  * @description Makera (Carvera) post-processing module
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
- * @see         {@link https://github.com/RicardoJCMarques/EasyTrace5000}
+ * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
  *
  * SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
  * SPDX-License-Identifier: AGPL-3.0-or-later
@@ -22,8 +22,9 @@
      *   - Requires explicit M6 before first motion (firmware ignores TLO without it)
      *   - ATC: T{n} M6 triggers full drop→grab→probe cycle internally
      *   - MTC: Proprietary M-code sequence for manual collet swap + auto-probe
-     *   - Auto-vacuum: M331 (on) / M332 (off) — not standard M10/M11
+     *   - Auto-vacuum: M331 (on) / M332 (off) - not standard M10/M11
      *   - Program end: G28 parks at clearance position (important for ATC magazine)
+     *   REVIEW - No Line Numbers, no inches either? Double check/test?
      */
     class MakeraPostProcessor extends BasePostProcessor {
         constructor() {
@@ -33,6 +34,17 @@
                 supportsToolChange: true,
                 supportsArcCommands: true,
                 supportsCannedCycles: false,
+                // 4th axis: the Carvera rotary (A) exists, but its firmware's
+                // feed handling for mixed X/A moves is UNVERIFIED and no G93 is
+                // documented - inverseTime stays false and 'wrapped-linear'
+                // leads. Confirm against the machine before promoting a-word.
+                rotary: {
+                    routes: ['wrapped-linear', 'a-word'],
+                    axisWords: ['A'],
+                    inverseTime: false,
+                    continuous: true,
+                    indexDwell: 0.3   // belt rotary; overridden in Machine Settings
+                },
                 arcFormat: 'IJ',
                 coordinateDecimals: 3,
                 feedDecimals: 1,
@@ -41,7 +53,7 @@
                 maxSpindleSpeed: 24000,
                 maxRapidRate: 3000,
                 defaults: {
-                    // Initial tool assignment — Makera firmware requires M6 before first motion
+                    // Initial tool assignment - Makera firmware requires M6 before first motion
                     startCode: 'M6 T1',
                     // generateFooter() emits the full M5 → retract → G28 park → M30
                     // sequence itself. A default endCode here would run AFTER G28 and
@@ -114,7 +126,7 @@
             const safeZ = this.formatCoordinate(options.safeZ || this.config.safetyHeight);
             lines.push(this.appendComment(`G0 Z${safeZ}`, c.retractSafeZ, options));
 
-            // Park at clearance position — critical for ATC magazine access
+            // Park at clearance position - critical for ATC magazine access
             lines.push(this.appendComment('G28', c.parkClearance, options));
 
             // User end code (extras from settings textarea)
@@ -155,16 +167,16 @@
             const isManualChange = options.makeraToolChangeMode === 'manual';
 
             if (!isManualChange) {
-                // ATC — Carvera handles drop, grab, and probe internally on M6
+                // ATC - Carvera handles drop, grab, and probe internally on M6
                 lines.push(this.appendComment(`T${targetTool} M6`, c.makera?.autoToolChange || 'Auto tool change', options));
             } else {
-                // MTC — Proprietary Makera sequence for manual collet swap with automatic tool length probing.
-                // M27      — Move to park/tool-change position
-                // M600     — Pause execution, wait for user
-                // M490.2   — Open collet (pneumatic release)
-                // M490.1   — Close collet (pneumatic grip)
-                // M493.2   — Set internal calibration state flag
-                // M491     — Execute automatic tool length measurement
+                // MTC - Proprietary Makera sequence for manual collet swap with automatic tool length probing.
+                // M27      - Move to park/tool-change position
+                // M600     - Pause execution, wait for user
+                // M490.2   - Open collet (pneumatic release)
+                // M490.1   - Close collet (pneumatic grip)
+                // M493.2   - Set internal calibration state flag
+                // M491     - Execute automatic tool length measurement
                 lines.push(this.appendComment('G28', c.makera?.mtcClearance || 'Move to tool change clearance', options));
                 lines.push('M27');
                 lines.push(this.appendComment('M600', c.makera?.mtcRelease || 'Paused. Press Play to release collet.', options));

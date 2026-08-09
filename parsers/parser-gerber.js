@@ -3,7 +3,7 @@
  * @description Gerber parsing module (RS-274X)
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
- * @see         {@link https://github.com/RicardoJCMarques/EasyTrace5000}
+ * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
  *
  * SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
  * SPDX-License-Identifier: AGPL-3.0-or-later
@@ -270,7 +270,7 @@
                 return { type: 'SET_POLARITY', params: { polarity: block.includes('D') ? 'dark' : 'clear' }, line: lineNumber };
             }
 
-            // Gerber X2 object attributes — %TO.field,value*%
+            // Gerber X2 object attributes - %TO.field,value*%
             // TO.N = net name, TO.C = component refdes, TO.P = pin
             // Track TO.N (net name) to annotate subsequent primitives.
             // This gives free net identification for copper pour detection
@@ -282,7 +282,7 @@
                     const value = toMatch[2] ? toMatch[2].replace(/\*$/, '') : '';
 
                     if (field === 'N') {
-                        // Net name attribute — applies to all subsequent objects until cleared by %TO*% or changed by another %TO.N,...*%
+                        // Net name attribute - applies to all subsequent objects until cleared by %TO*% or changed by another %TO.N,...*%
                         this.state.currentNetName = value || null;
                         this.debug(`Net attribute set: ${value || '(cleared)'}`);
                     }
@@ -1113,7 +1113,7 @@
             // ── Pass 3: Ramer-Douglas-Peucker simplification ──
             // Collapses near-collinear vertex runs and over-tessellated curve approximations that the spike detector doesn't catch (forward-progressing zigzags where dot > 0). This is the industry-standard algorithm for polyline simplification in GIS/CNC/CAD.
             // Tolerance rationale: the smallest meaningful PCB feature (trace-to-trace clearance) is typically ≥ 0.1mm.
-            // A simplification tolerance of 0.005–0.01mm is invisible on copper but eliminates thousands of noise vertices that otherwise get amplified into sawtooth artifacts by the Clipper offset pipeline.
+            // A simplification tolerance of 0.005-0.01mm is invisible on copper but eliminates thousands of noise vertices that otherwise get amplified into sawtooth artifacts by the Clipper offset pipeline.
             const rdpTolerance = C.precision.rdpSimplification;
 
             const simplified = this.simplifyRDP(cleaned, rdpTolerance);
@@ -1186,12 +1186,19 @@
 
         /**
          * Ramer-Douglas-Peucker polyline simplification.
-         * Iterative (stack-based) implementation to avoid call-stack overflow on KiCad pour polygons that routinely have 10k–50k+ vertices.
+         * Iterative (stack-based) implementation to avoid call-stack overflow on KiCad pour polygons that routinely have 10k-50k+ vertices.
          * The algorithm recursively finds the vertex farthest from the line between the endpoints of each segment. If that distance exceeds `tolerance`, the vertex is kept and the segment is subdivided; otherwise the entire run is collapsed to a straight line.
          * @param {Array<{x:number, y:number}>} points - Input polyline.
          * @param {number} tolerance - Max perpendicular deviation in mm.
          * @returns {Array<{x:number, y:number}>} Simplified polyline.
          */
+        // REVIEW - Five independent polyline simplifiers ship in this repo:
+        // GeometryUtils.simplifyDouglasPeucker, VCarveGenerator.simplifyRDP/rdpOpen,
+        // FieldPaths.simplify3D, ToolpathOptimizer.simplifyCollinearPoints and
+        // GerberParser.simplifyRDP. Consolidation is blocked on the worker boundary
+        // (vcarve and fieldpaths cannot reach GeometryUtils). Fix all five together
+        // or none.
+        // This should be the lowest priority simplifyer. It was vital for analytic internal offsets to minimize self collapsing artifacts but Clipper2 does the heavy lifting during boolean operations.
         simplifyRDP(points, tolerance) {
             const n = points.length;
             if (n <= 3) return points;
@@ -1251,7 +1258,7 @@
 
                 if (maxDistSq > tolSq) {
                     keep[maxIdx] = 1;
-                    // Subdivide — push longer segment first for better cache locality
+                    // Subdivide - push longer segment first for better cache locality
                     if (maxIdx - start > end - maxIdx) {
                         stack.push([start, maxIdx]);
                         stack.push([maxIdx, end]);
@@ -1260,7 +1267,7 @@
                         stack.push([start, maxIdx]);
                     }
                 }
-                // else: all interior points within tolerance — discard them
+                // else: all interior points within tolerance - discard them
             }
 
             // Collect kept vertices
@@ -1276,9 +1283,9 @@
          * Iteratively removes spike vertices from a polygon.
          *
          * A spike at vertex B (in sequence A→B→C) is detected when BOTH:
-         *   1. dot(AB, BC) < 0 — the path reverses direction at B
+         *   1. dot(AB, BC) < 0 - the path reverses direction at B
          *      (the angle between consecutive edge vectors exceeds 90°)
-         *   2. perpDistance(B, line AC) < tolerance — the reversal's deviation
+         *   2. perpDistance(B, line AC) < tolerance - the reversal's deviation
          *      is below the precision-derived threshold
          *
          * Condition 1 guarantees that smooth curves, gentle corners, and pad clearance boundaries (which all have dot ≥ 0) are never touched.
@@ -1296,7 +1303,7 @@
             let current = points;
             let removedTotal = 0;
 
-            // Cap iterations to guarantee termination. In practice converges in 1-3 passes — each pass can only expose spikes that were previously shielded by an adjacent spike.
+            // Cap iterations to guarantee termination. In practice converges in 1-3 passes - each pass can only expose spikes that were previously shielded by an adjacent spike.
             const maxPasses = 8;
 
             for (let pass = 0; pass < maxPasses; pass++) {
@@ -1319,20 +1326,20 @@
                     const abx = B.x - A.x, aby = B.y - A.y;
                     const bcx = C.x - B.x, bcy = C.y - B.y;
 
-                    // Test 1: Direction reversal — dot(AB, BC) < 0 means the angle between consecutive edges exceeds 90°.
+                    // Test 1: Direction reversal - dot(AB, BC) < 0 means the angle between consecutive edges exceeds 90°.
                     // Smooth curves and legitimate corners have dot ≥ 0.
                     const dot = abx * bcx + aby * bcy;
 
                     if (dot < 0) {
                         // Test 2: Perpendicular deviation of B from line AC.
-                        // Uses the cross product formula: height = |AC × AB| / |AC|
+                        // Uses the cross product formula: height = |AC x AB| / |AC|
                         // Squared comparison avoids sqrt.
                         const acx = C.x - A.x, acy = C.y - A.y;
                         const acLenSq = acx * acx + acy * acy;
 
                         let deviationSq;
                         if (acLenSq < 1e-20) {
-                            // A and C essentially coincide — full spike
+                            // A and C essentially coincide - full spike
                             deviationSq = abx * abx + aby * aby;
                         } else {
                             const cross = acx * aby - acy * abx;

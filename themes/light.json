@@ -3,7 +3,7 @@
     "file": "light.json",
     "description": "Light Theme",
     "author": "Eltryus - Ricardo Marques",
-    "see": "https://github.com/RicardoJCMarques/EasyTrace5000",
+    "see": "https://github.com/RicardoJCMarques/EasyCAM5000",
     "license": "AGPL-3.0-or-later",
     "copyright": "Copyright (C) 2025-2026 Eltryus - Ricardo Marques"
   },
@@ -39,24 +39,45 @@
       "success": "#22c55e",
       "warning": "#f59e0b",
       "error": "#ef4444",
-      "info": "#06b6d4"
+      "info": "#06b6d4",
+      "scrim": "rgba(15, 15, 15, 0.45)",
+      "scrimStrong": "rgba(15, 15, 15, 0.65)"
     },
+
     "operations": {
       "isolation": "#cc6600",
       "drill": "#0066cc",
       "clearing": "#008844",
       "cutout": "#ff00ff",
       "stencil": "#90177d",
-      "toolpath": "#ff8844"
+      "toolpath": "#ff8844",
+      "profile": "#6dd3a0",
+      "pocket": "#5a8acf",
+      "engrave": "#c794d6",
+      "shapeDrill": "#d8a44a",
+      "vcarve": "#e07a7a",
+      "relief": "#e0a97a",
+      "rotary": "#7ab8e0",
+      "pattern": "#a8b56d"
     },
-    "canvas": {
+    "render2d": {
       "background": "#cdcdcd",
       "grid": "#909090",
       "origin": "#909090",
       "originOutline": "#ffffff",
       "bounds": "#909090",
-      "ruler": "909090",
+      "ruler": "#909090",
       "rulerText": "#909090"
+    },
+    "render3d": {
+      "background": "#e8eaed",
+      "grid": "#c4c8cd",
+      "gridCenter": "#a8adb4",
+      "rapid": "#8b9199",
+      "cutShallow": "#0284c7",
+      "cutDeep": "#b45309",
+      "stock": "#b9a77f",
+      "surface": "#8a8168"
     },
     "geometry": {
       "source": {
@@ -83,11 +104,10 @@
     "primitives": {
       "offsetInternal": "#00aa00",
       "offsetExternal": "#ff0000",
-      "peckMarkGood": "#16d329ff",
-      "peckMarkWarn": "#d2cb00ff",
+      "peckMarkGood": "#16d329",
+      "peckMarkWarn": "#d2cb00",
       "peckMarkError": "#ff0000",
-      "peckMarkSlow": "#ff5e00ff",
-      "reconstructed": "#00ffff",
+      "peckMarkSlow": "#ff5e00",
       "reconstructedPath": "#ffff00",
       "debugContourColors": ["#00ff00", "#ff0000", "#0000ff", "#ffff00", "#ff00ff", "#00ffff"],
       "debugCurveColors": ["#ff0000", "#00ff00", "#0000ff", "#ffff00", "#ff00ff", "#00ffff"],
@@ -107,13 +127,19 @@
       "white": "#ffffff"
     },
     "pipelines": {
-      "cnc": "#cc6600",
-      "laser": "#9333ea"
+    "cnc": "#cc6600",
+    "laser": "#9333ea",
+    "3d": "#0e7490"
     },
     "interaction": {
       "sponsorship": "#4f46e5",
       "sponsorshipText": "#5b21b6",
-      "kofi": "#0d9488"
+      "kofi": "#0d9488",
+      "selectionStroke": "#0891b2",
+      "selectionFill": "#cffafe",
+      "marqueeStroke": "#2563eb",
+      "marqueeFill": "#dbeafe",
+      "groupBounds": "#0891b2"
     }
   }
 }

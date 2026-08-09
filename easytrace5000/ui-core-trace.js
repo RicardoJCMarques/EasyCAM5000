@@ -5,7 +5,7 @@
  *              Adds Trace-specific panels, fusion, board transforms, tooltips.
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
- * @see         {@link https://github.com/RicardoJCMarques/EasyTrace5000}
+ * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
  *
  * SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
  * SPDX-License-Identifier: AGPL-3.0-or-later
@@ -33,9 +33,10 @@
 
         async init() {
             try {
-                // Shorthand refs — used heavily by board transform controls.
+                // Shorthand refs - used heavily by board transform controls.
                 // core.scene is the canonical owner; these avoid ~30 long-form lookups.
-                // REVIEW - EasyShape has these in it's controller file, not ui-core, needs alignment.
+                // REVIEW: EasyShape keeps transform setup in its controller; EasyTrace keeps it here.
+                // Target convention: transform wiring lives in ui-core-*, controllers own lifecycle only.
                 this.scene = this.core.scene;
                 this.sceneInteraction = this.core.sceneInteraction;
 
@@ -265,14 +266,14 @@
             if (!this.scene) return;
             const applied = this.scene.centerOriginOnBoard();
             this.updateOriginDisplay();
-            this.setStatus(applied ? 'Preview: Origin at board center (not saved)' : 'Cannot center — no board bounds yet', applied ? 'info' : 'error');
+            this.setStatus(applied ? 'Preview: Origin at board center (not saved)' : 'Cannot center - no board bounds yet', applied ? 'info' : 'error');
         }
 
         bottomLeftOrigin() {
             if (!this.scene) return;
             const applied = this.scene.setOriginToBottomLeft();
             this.updateOriginDisplay();
-            this.setStatus(applied ? 'Preview: Origin at board bottom-left (not saved)' : 'Cannot set bottom-left — no board bounds yet', applied ? 'info' : 'error');
+            this.setStatus(applied ? 'Preview: Origin at board bottom-left (not saved)' : 'Cannot set bottom-left - no board bounds yet', applied ? 'info' : 'error');
         }
 
         applyOffsetAndSetOrigin() {
@@ -341,15 +342,11 @@
         }
 
         async performFusion() {
-            if (this.core.geometryProcessor) this.core.geometryProcessor.clearProcessorCache();
+            if (this.core.geometryProcessor) this.core.geometryProcessor.clearCachedStates();
             const fusionOptions = { enableArcReconstruction: this.renderer.options.enableArcReconstruction };
             this.debug('performFusion()', fusionOptions);
             try {
                 const fused = await this.core.fuseAllPrimitives(fusionOptions);
-                if (this.renderer.options.enableArcReconstruction && this.core.geometryProcessor) {
-                    const arcStats = this.core.geometryProcessor.getArcReconstructionStats();
-                    if (this.controls?.updateArcReconstructionStats) this.controls.updateArcReconstructionStats(arcStats);
-                }
                 if (this.renderer.options.showPreprocessed) this.addPreprocessedLayer();
                 else this.addFusedLayer(fused);
                 this.addNonFusableLayers();

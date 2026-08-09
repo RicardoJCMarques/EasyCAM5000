@@ -1,9 +1,9 @@
 /*!
- * @file        ui/ui-status-manager.js
- * @description Manages the status bar and log panel
+ * @file        ui/ui-state-manager.js
+ * @description Manages the status bar, log panel and spinner heartbeats.
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
- * @see         {@link https://github.com/RicardoJCMarques/EasyTrace5000}
+ * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
  *
  * SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
  * SPDX-License-Identifier: AGPL-3.0-or-later
@@ -18,13 +18,105 @@
     const textConfig = C.ui.text;
     const debugState = D.debug;
 
-    class StatusManager {
+    /**
+     * ProgressManager - single owner of long-task progress state and its
+     * two views: the canvas overlay (#canvas-loading-overlay) and the
+     * footer progress bar (#status-progress / #progress-bar).
+     *
+     * Contract:
+     *   const id = sm.beginTask('V-Carve');   // replaces any current task
+     *   sm.tick(id, { frac: 0.4, label: 'V-Carve 12/30 shapes' });
+     *   sm.endTask(id);                        // idempotent; stale ids no-op
+     *
+     * Ticks are STRUCTURED ({frac, label}); frac == null renders as
+     * indeterminate (spinner only, no bar). Formatting to a display string
+     * happens in exactly ONE place (formatLabel). Rendering is coalesced
+     * to at most one DOM write per animation frame, except beginTask,
+     * which renders synchronously so the overlay is up before any
+     * blocking work that follows.
+     */
+    class ProgressManager {
+        constructor() {
+            this._task = null;   // { id, label, frac, startedAt }
+            this._taskSeq = 0;
+            this._rafId = null;
+            this.overlayEl = document.getElementById('canvas-loading-overlay');
+            this.overlayMsgEl = document.getElementById('canvas-loading-message');
+            this.progressContainerEl = document.getElementById('status-progress');
+            this.progressBarEl = document.getElementById('progress-bar');
+        }
+
+        beginTask(label, opts = {}) {
+            const id = ++this._taskSeq;
+            this._task = { id, label: label || 'Working',
+                           frac: opts.frac ?? null,
+                           startedAt: performance.now() };
+            this.onTaskEvent({ phase: 'begin', id, label: this._task.label });
+            this.render(); // sync: visible before blocking work starts
+            return id;
+        }
+
+        tick(id, p) {
+            if (!this._task || id !== this._task.id) return; // stale/superseded
+            if (typeof p === 'string') p = { label: p };     // tolerate legacy
+            if (p.label != null) this._task.label = p.label;
+            if (p.frac != null) this._task.frac = p.frac;
+            this._schedule();
+        }
+
+        endTask(id) {
+            if (!this._task || id !== this._task.id) return; // idempotent
+            const ms = performance.now() - this._task.startedAt;
+            this.onTaskEvent({ phase: 'end', id, label: this._task.label, ms });
+            this._task = null;
+            if (this._rafId !== null) { cancelAnimationFrame(this._rafId); this._rafId = null; }
+            this.render();
+        }
+
+        isBusy() { return this._task !== null; }
+
+        /** THE one formatter - nothing else stringifies progress. */
+        formatLabel(t) {
+            const pct = (t.frac != null) ? ` ${Math.round(t.frac * 100)}%` : '';
+            return `${t.label}…${pct}`;
+        }
+
+        _schedule() {
+            if (this._rafId !== null) return;
+            this._rafId = requestAnimationFrame(() => {
+                this._rafId = null;
+                this.render();
+            });
+        }
+
+        render() {
+            const t = this._task;
+            if (this.overlayEl) {
+                this.overlayEl.classList.toggle('hidden', !t);
+                if (t && this.overlayMsgEl) {
+                    this.overlayMsgEl.textContent = this.formatLabel(t);
+                }
+            }
+            if (this.progressContainerEl) {
+                const determinate = !!t && t.frac != null;
+                this.progressContainerEl.classList.toggle('hidden', !determinate);
+                if (determinate && this.progressBarEl) {
+                    const w = Math.round(Math.min(1, Math.max(0, t.frac)) * 100);
+                    this.progressBarEl.style.width = `${w}%`;
+                    this.progressContainerEl.setAttribute('aria-valuenow', String(w));
+                }
+            }
+        }
+
+    }
+
+    class StatusManager extends ProgressManager {
         constructor(ui) {
+            super();
             this.ui = ui;
             this.lang = ui.lang;
             this.currentStatus = null;
             this.statusTimeout = null;
-            this.progressVisible = false;
 
             this.logHistory = [];
             this.isExpanded = false;
@@ -64,8 +156,6 @@
             this.addLogEntry(textConfig.logHintViz, 'info');
 
             this.statusTextEl = document.getElementById('status-text');
-            this.progressBarEl = document.getElementById('progress-bar');
-            this.progressContainerEl = document.getElementById('status-progress');
         }
 
         setDebugVisibility(isVisible) {
@@ -212,6 +302,11 @@
             this.addLogEntry(message, 'debug');
         }
 
+        onTaskEvent(evt) {
+            if (evt.phase === 'begin') this.debugLog(`Task started: ${evt.label}`);
+            else this.debugLog(`Task done: ${evt.label} (${evt.ms.toFixed(0)}ms)`);
+        }
+
         debug(message, data = null) {
             if (this.ui.debug) {
                 this.ui.debug(`[StatusManager] ${message}`, data);
@@ -219,5 +314,6 @@
         }
     }
 
+    window.ProgressManager = ProgressManager;
     window.StatusManager = StatusManager;
 })();

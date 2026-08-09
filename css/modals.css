@@ -3,7 +3,7 @@
  * @description Modal system - base structure and specific modal layouts
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
- * @see         {@link https://github.com/RicardoJCMarques/EasyTrace5000}
+ * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
  *
  * SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
  * SPDX-License-Identifier: AGPL-3.0-or-later
@@ -17,7 +17,7 @@
     display: none;
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.6);
+    background: var(--color-scrim, rgba(0, 0, 0, 0.6));
     z-index: var(--z-modal);
     align-items: center;
     justify-content: center;
@@ -152,7 +152,12 @@
     margin-bottom: var(--modal-gap);
 }
 
+/* Identity rides --pipeline-accent, set per card from data-pipeline.
+   The --active / --dev modifiers carry STATE only (solid vs dashed,
+   normal vs muted) so a new pipeline needs one accent line, not a
+   parallel set of colour rules. */
 .pipeline-card {
+    --pipeline-accent: var(--color-accent-primary);
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -166,6 +171,10 @@
     box-sizing: border-box;
 }
 
+.pipeline-card[data-pipeline="cnc"]   { --pipeline-accent: var(--color-pipeline-cnc); }
+.pipeline-card[data-pipeline="laser"] { --pipeline-accent: var(--color-pipeline-laser); }
+.pipeline-card[data-pipeline="3d"]    { --pipeline-accent: var(--color-pipeline-3d); }
+
 .pipeline-card.is-locked {
     opacity: 0.5;
     pointer-events: none;
@@ -178,11 +187,12 @@
 }
 
 .pipeline-card--active .pipeline-icon {
-    color: var(--color-pipeline-cnc);
+    color: var(--pipeline-accent);
 }
 
-.pipeline-card--active:hover {
-    border-color: var(--color-pipeline-cnc);
+.pipeline-card--active:hover,
+.pipeline-card--active:focus-visible {
+    border-color: var(--pipeline-accent);
 }
 
 .pipeline-card--dev {
@@ -202,13 +212,15 @@
     color: var(--color-text-disabled);
 }
 
-.pipeline-card--dev:hover {
+.pipeline-card--dev:hover,
+.pipeline-card--dev:focus-visible {
     border-style: dashed;
-    border-color: var(--color-pipeline-laser);
+    border-color: var(--pipeline-accent);
 }
 
-.pipeline-card--dev:hover .pipeline-icon {
-    color: var(--color-pipeline-laser);
+.pipeline-card--dev:hover .pipeline-icon,
+.pipeline-card--dev:focus-visible .pipeline-icon {
+    color: var(--pipeline-accent);
 }
 
 .pipeline-icon {
@@ -235,15 +247,15 @@
 }
 
 .pipeline-badge--stable {
-    background: rgba(34, 197, 94, 0.1);
+    background: color-mix(in srgb, var(--color-success) 10%, transparent);
     color: var(--color-success);
-    border: 1px solid rgba(34, 197, 94, 0.2);
+    border: 1px solid color-mix(in srgb, var(--color-success) 20%, transparent);
 }
 
 .pipeline-badge--dev {
-    background: rgba(245, 158, 11, 0.1);
+    background: color-mix(in srgb, var(--color-warning) 10%, transparent);
     color: var(--color-warning);
-    border: 1px solid rgba(245, 158, 11, 0.2);
+    border: 1px solid color-mix(in srgb, var(--color-warning) 20%, transparent);
 }
 
 .pipeline-desc {
@@ -268,10 +280,11 @@
     border: 1px solid var(--color-border-secondary);
 }
 
-.pipeline-card--active:hover .pipeline-action {
-    background: var(--color-pipeline-cnc);
-    border-color: var(--color-pipeline-cnc);
-    color: #fff;
+.pipeline-card--active:hover .pipeline-action,
+.pipeline-card--active:focus-visible .pipeline-action {
+    background: var(--pipeline-accent);
+    border-color: var(--pipeline-accent);
+    color: var(--color-bw-white, #fff);
 }
 
 .pipeline-card--dev .pipeline-action {
@@ -280,9 +293,10 @@
     border: 1px solid transparent;
 }
 
-.pipeline-card--dev:hover .pipeline-action {
-    color: var(--color-pipeline-laser);
-    border-color: var(--color-pipeline-laser);
+.pipeline-card--dev:hover .pipeline-action,
+.pipeline-card--dev:focus-visible .pipeline-action {
+    color: var(--pipeline-accent);
+    border-color: var(--pipeline-accent);
 }
 
 /* Welcome Footer */
@@ -338,7 +352,7 @@
     gap: 4px;
 }
 
-/* Readable sizes — deliberately NOT the xs/sm used by the mobile viewport warnings */
+/* Readable sizes - deliberately NOT the xs/sm used by the mobile viewport warnings */
 .modal-notice-content strong {
     font-size: var(--font-size-lg);   /* 15px */
 }
@@ -741,7 +755,7 @@
     margin-top: auto;
     background: var(--color-interaction-kofi);
     border: 1px solid var(--color-interaction-kofi);
-    color: #000;
+    color: var(--color-bw-black);
     font-weight: 600;
     justify-content: center;
 }
@@ -1081,7 +1095,7 @@
     pointer-events: none;
 }
 
-/* Hidden state — applied by showExportManagerHandler() based on job contents */
+/* Hidden state - applied by showExportManagerHandler() based on job contents */
 .modal--exporter .is-hidden {
     display: none !important;
 }
@@ -1095,15 +1109,15 @@
 }
 
 .exporter-route-badge--laser {
-    color: #ff6b6b;
+    color: var(--color-pipeline-laser);
 }
 
 .exporter-route-badge--cnc {
-    color: #4ecdc4;
+    color: var(--color-pipeline-cnc);
 }
 
 .exporter-route-badge--stencil {
-    color: #860694;
+    color: var(--color-operation-stencil);
 }
 
 .exporter-op-item {

@@ -3,7 +3,7 @@
  * @description Analytic offsetting code
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
- * @see         {@link https://github.com/RicardoJCMarques/EasyTrace5000}
+ * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
  *
  * SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
  * SPDX-License-Identifier: AGPL-3.0-or-later
@@ -22,16 +22,16 @@
      * Analytic contour offsetter for mixed line + arc geometry.
      *
      * Algorithm (4-phase):
-     *   Phase 1 — Build offset entities: each contour edge becomes a parallel
+     *   Phase 1 - Build offset entities: each contour edge becomes a parallel
      *             line (shifted by the normal) or a concentric arc (radius ±
      *             offset). Collapsed arcs (radius < PRECISION) are removed.
-     *   Phase 2 — Compute joints: adjacent entity pairs are classified as
+     *   Phase 2 - Compute joints: adjacent entity pairs are classified as
      *             trim (converging) or fillet (diverging). Trim joints use
      *             analytic line–line, line–circle, or circle–circle
      *             intersection. Fillet joints generate round arcs.
-     *   Phase 3 — Assemble the final contour with dense arc tessellation so
+     *   Phase 3 - Assemble the final contour with dense arc tessellation so
      *             downstream consumers (Clipper2, renderers) see smooth curves.
-     *   Phase 4 — Deduplicate adjacent coincident points and close the path.
+     *   Phase 4 - Deduplicate adjacent coincident points and close the path.
      *
      * Dependencies:
      *   - GeometryMath   (intersection routines, round-joint generation)
@@ -272,7 +272,7 @@
                 const jointPoints = this.createMiterBevelJoint(seg1, seg2, miterLimit);
 
                 if (jointPoints.length === 2) {
-                    // Bevel — check gap distance
+                    // Bevel - check gap distance
                     const gapDist = Math.hypot(jointPoints[0].x - jointPoints[1].x, jointPoints[0].y - jointPoints[1].y);
                     bevelCount++;
                     if (gapDist > offsetDist * 0.1) {
@@ -339,7 +339,7 @@
                 return [intersection];
             }
         } else {
-            // Parallel — this is fine for nearly-collinear segments
+            // Parallel - this is fine for nearly-collinear segments
             return [seg1.p2];
         }
     }
@@ -398,7 +398,7 @@
                     const newRadius = arc.radius + (normalDirection * offsetDist);
 
                     if (newRadius < PRECISION) {
-                        // Arc collapsed — mark gap, neighbors will extend to meet
+                        // Arc collapsed - mark gap, neighbors will extend to meet
                         entities.push({
                             type: 'collapsed',
                             originalVertex: points[endIndex]
@@ -504,7 +504,7 @@
                 }
                 const isCollinear = dot > C.precision.collinearDot;
 
-                // Joint classifier: same-sign cross×normal → trim, opposite → fillet
+                // Joint classifier: same-sign cross x normal → trim, opposite → fillet
                 let needsTrim = (crossProduct * normalDirection >= 0);
                 if (isCollinear) needsTrim = true;
 
@@ -718,7 +718,7 @@
             // Line–Line
             if (ent1.type === 'line' && ent2.type === 'line') {
                 const ix = GeometryMath.lineLineIntersection(ent1.p1, ent1.p2, ent2.p1, ent2.p2);
-                if (!ix) return null; // Parallel — bevel is fine
+                if (!ix) return null; // Parallel - bevel is fine
 
                 const miterDist = Math.hypot(ix.x - ent1.naturalEnd.x, ix.y - ent1.naturalEnd.y);
                 if (miterDist > miterLimit) return null; // Miter limit exceeded → bevel

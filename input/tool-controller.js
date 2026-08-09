@@ -3,7 +3,7 @@
  * @description Tool state machine. Routes normalized input from InputManager
  *              to the currently active tool, with an "override tool" slot
  *              that takes priority while held (used for middle/right-drag
- *              pan in EasyShape — EasyTrace doesn't push overrides).
+ *              pan in EasyShape - EasyTrace doesn't push overrides).
  *
  *              Exposes getOverlayState() so the renderer can paint transient
  *              UI (marquee box, selection bounds, drag handles) without
@@ -11,7 +11,7 @@
  *
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
- * @see         {@link https://github.com/RicardoJCMarques/EasyTrace5000}
+ * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
  *
  * SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
  * SPDX-License-Identifier: AGPL-3.0-or-later
@@ -80,7 +80,7 @@
          *   If the context exposes a createPanZoomTool() factory AND a
          *   middle/right pointerdown arrives without an existing override,
          *   create and push a PanZoomTool. EasyTrace doesn't define the
-         *   factory, so it never enters override mode — its default tool
+         *   factory, so it never enters override mode - its default tool
          *   handles every button.
          *
          * Override exit policy:

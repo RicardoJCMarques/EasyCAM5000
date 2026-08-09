@@ -1,13 +1,13 @@
 /*!
  * @file        cam-controller.js
- * @description Shared controller base class for EasyTrace5000 and EasyShape5000.
+ * @description Shared controller base class.
  *              Owns core initialization, profile loading, pipeline management,
  *              WASM loading, UI boilerplate wiring, export coordination, and
  *              debug utilities. Subclasses override initialize() and call
  *              shared steps in their own order.
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
- * @see         {@link https://github.com/RicardoJCMarques/EasyTrace5000}
+ * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
  *
  * SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
  * SPDX-License-Identifier: AGPL-3.0-or-later
@@ -54,9 +54,6 @@
             try {
                 // Core
                 this.initCore();
-                if (debugState.enabled && typeof TransformMath !== 'undefined') {
-                    TransformMath.selfTest();
-                }
                 this.onCoreReady();
 
                 // Profile & Data
@@ -137,9 +134,6 @@
 
         /** Extra core setup after initCore (scene refs, history, stock) */
         onCoreReady() {}
-
-        /** Apply non-settings profile data after the profile loads (e.g. stock) */
-        onProfileLoaded(profileData) {}
 
         /** After WASM loads (e.g. laser visibility) */
         onPostWASM() {}
@@ -382,9 +376,7 @@
 
         hideLoadingOverlay(delay = 300) {
             const overlay = document.getElementById('loading-overlay');
-            if (!overlay) return;
-            overlay.classList.add('hidden');
-            setTimeout(() => { overlay.style.display = 'none'; }, delay);
+            if (overlay) setTimeout(() => overlay.classList.add('is-hidden'), delay);
         }
 
         initializeTheme() {
@@ -461,6 +453,53 @@
                 r.onerror = () => reject(new Error('FileReader error'));
                 r.readAsArrayBuffer(file);
             });
+        }
+
+        /**
+         * Builds { operation, context } pairs for the toolpath pipeline.
+         * @param {Array<string>} [operationIds] - defaults to every export-ready op
+         */
+        // REVIEW - this seems redundant? Look for all links to controller buildOperationContextPairs and just point to core buildOperationContextPairs?
+        buildOperationContextPairs(operationIds = null) {
+            return this.core.buildOperationContextPairs(
+                operationIds, this.parameterManager, { warnLabel: '3D preview' });
+        }
+
+        // Lazy 3D mount: nothing loads until requested. Data (stock, 2D
+        // geometry, relief meshes, machine-ready plans) flows in through
+        // refresh3D() / refresh3DPlans() so the view can never go stale.
+        async open3DPreview(container) {
+            if (!window.Renderer3D) {
+                await import('../renderer3d/renderer3d-core.js');
+            }
+            if (!this.renderer3D) {
+                this.renderer3D = await window.Renderer3D.mount(
+                    container, this.buildRenderer3DOptions());
+                await this.renderer3D.attachOrbitTool({
+                    onPick: (hit) => this.on3DPick?.(hit)
+                });
+            }
+            return this.renderer3D;
+        }
+
+        /**
+         * 3D palette from the theme. Read once at mount - the view has no
+         * re-theme path yet, so a toggle while it is open keeps the old colours
+         * until it is disposed.
+         */
+        // REVIEW - This needs to be implemented in the same way 2d rendering does it.
+        buildRenderer3DOptions() {
+            const v = (name, fallback) => this.ui.readCSSVar(name, fallback);
+            return {
+                background: v('--color-render3d-background', '#16181c'),
+                gridColor: v('--color-render3d-grid', '#2a2e34'),
+                gridCenterColor: v('--color-render3d-grid-center', '#3a3f46'),
+                rapidColor: v('--color-render3d-rapid', '#565b63'),
+                cutColorShallow: v('--color-render3d-cut-shallow', '#4fc3f7'),
+                cutColorDeep: v('--color-render3d-cut-deep', '#e07a7a'),
+                stockColor: v('--color-render3d-stock', '#8a7a5c'),
+                surfaceColor: v('--color-render3d-surface', '#b0a58e')
+            };
         }
 
         // ════════════════════════════════════════════════════════════════

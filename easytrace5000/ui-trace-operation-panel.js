@@ -3,7 +3,7 @@
  * @description Parameter input builder (right sidebar)
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
- * @see         {@link https://github.com/RicardoJCMarques/EasyTrace5000}
+ * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
  *
  * SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
  * SPDX-License-Identifier: AGPL-3.0-or-later
@@ -50,9 +50,21 @@
                 const fileNode = this.ui.navTreePanel.getNodeByOperationId(operation.id);
                 if (fileNode) this.ui.navTreePanel.updateFileGeometries(fileNode.id, operation);
             }
-            this.ui.setStatus('Parameters changed — regenerate paths before exporting.', 'warning');
+            this.ui.setStatus('Parameters changed - regenerate paths before exporting.', 'warning');
         }
 
+        // REVIEW - EasyShape5000 deals with this differently, especially now that it's taking cues from the post-processors directly. Update here.
+        /**
+        onMillHolesToggle(value) {
+            const container = this.getFormContainer();
+            if (container) {
+                const values = this.parameterManager.getAllParameters(this.currentOperationId);
+                ParameterManager.evaluateConditionals(container, values,
+                    this.parameterManager.optionGates);
+            }
+            this.ui.setStatus(`Switched to ${value ? 'milling' : 'pecking'} mode`, 'info');
+        }
+         */
         async onMillHolesToggle(value) {
             if (this.currentOperationId) {
                 this.core.resetOperationState(this.currentOperationId);
@@ -121,7 +133,7 @@
             if (titleEl) {
                 // Capitalize operation type (e.g. "Isolation: filename.gbr")
                 const capType = operation.type.charAt(0).toUpperCase() + operation.type.slice(1);
-                titleEl.textContent = `${capType} — ${operation.file.name}`;
+                titleEl.textContent = `${capType} - ${operation.file.name}`;
             }
 
             // Invalidation warning
@@ -143,7 +155,11 @@
             }
 
             // Parameter form
-            const values = this.parameterManager.getParameters(operation.id, stage);
+            // Conditionals cross stages: drill's strategy controls are gated on
+            // millHoles, which lives in the geometry bag. A stage-scoped read
+            // resolves the gate to undefined and hides every dependent field.
+            // Use getAllParameters so cross-stage conditionals (e.g. millHoles gating drillMultiDepth) evaluate correctly
+            const values = this.parameterManager.getAllParameters(operation.id);
             this.renderParameterForm(container, operation.type, stage, values);
 
             // Add action button
@@ -258,7 +274,7 @@
         // ═══════════════════════════════════════════════════════════════
 
         getActionButtonText(stage, operationType) {
-            // Stencil — always 2-stage regardless of pipeline
+            // Stencil - always 2-stage regardless of pipeline
             if (operationType === 'stencil') {
                 if (stage === 'geometry') return 'Generate Stencil';
                 if (stage === 'export_summary') return 'Export Manager';
@@ -371,14 +387,14 @@
                 if (ds.holes.length > 0) {
                     const holesLine = document.createElement('div');
                     holesLine.className = 'summary-line';
-                    holesLine.innerHTML = `<strong>Holes:</strong> ${ds.holes.map(h => `⌀${h.diameter.toFixed(3)}mm × ${h.count}`).join(', ')}`;
+                    holesLine.innerHTML = `<strong>Holes:</strong> ${ds.holes.map(h => `⌀${h.diameter.toFixed(3)}mm x ${h.count}`).join(', ')}`;
                     info.appendChild(holesLine);
                 }
 
                 if (ds.slots.length > 0) {
                     const slotsLine = document.createElement('div');
                     slotsLine.className = 'summary-line';
-                    slotsLine.innerHTML = `<strong>Slots:</strong> ${ds.slots.map(s => `${s.width.toFixed(3)}×${s.length.toFixed(3)}mm × ${s.count}`).join(', ')}`;
+                    slotsLine.innerHTML = `<strong>Slots:</strong> ${ds.slots.map(s => `${s.width.toFixed(3)}x${s.length.toFixed(3)}mm x ${s.count}`).join(', ')}`;
                     info.appendChild(slotsLine);
                 }
 
@@ -477,7 +493,8 @@
             h3.textContent = isStencil ? 'Stencil Export Summary' : 'Laser Export Summary';
             section.appendChild(h3);
 
-            const strategy = isStencil ? 'stencil' : (operation.settings?.laserClearStrategy || 'offset');
+            const params = this.parameterManager.getAllParameters(operation.id) || {};
+            const strategy = isStencil ? 'stencil' : (params.laserClearStrategy || 'offset');
             const offsetCount = operation.offsets?.length || 0;
             const primCount = operation.offsets?.reduce((sum, o) => sum + (o.primitives?.length || 0), 0) || 0;
 

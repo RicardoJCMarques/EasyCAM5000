@@ -3,7 +3,7 @@
  * @description Solder stencil aperture generation with drill pad exclusion
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
- * @see         {@link https://github.com/RicardoJCMarques/EasyTrace5000}
+ * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
  *
  * SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
  * SPDX-License-Identifier: AGPL-3.0-or-later
@@ -17,12 +17,15 @@
     class TraceStencilHandler extends BaseOperationHandler {
 
         async orchestrateGeneration(operation, params, core, options = {}) {
-            // Wipe all previous generation state
-            core.resetOperationState(operation.id);
+            const token = this.beginRun(operation, options, core);
 
             // Compile parameters
             const opParams = core.compileOperationParams(operation, params);
             await this.generateGeometry(operation, { ...params, ...opParams });
+
+            if (this.isStale(operation, token)) {
+                return { success: false, message: 'Generation superseded by a newer request', status: 'warning' };
+            }
 
             const count = operation.offsets?.[0]?.primitives?.length || 0;
             const skipped = operation.offsets?.[0]?.metadata?.skippedPads || operation.stencilMetadata?.skippedPads || 0;
@@ -52,7 +55,6 @@
             settings = { ...settings };
 
             this.debug('=== STENCIL GEOMETRY GENERATION ===');
-            await this.core.ensureProcessorReady();
 
             if (!operation.primitives || operation.primitives.length === 0) {
                 return [];
@@ -148,7 +150,21 @@
             if (Math.abs(offsetDist) > PRECISION && this.core.geometryOffsetter) {
                 this.debug(`Applying stencil offset: ${offsetDist.toFixed(3)}mm`);
 
+                const onProgress = operation._onProgress || null;
+                const padCount = primitivesToProcess.length;
+                let padIdx = 0;
+
                 for (const prim of primitivesToProcess) {
+                    if (onProgress && padIdx > 0 && padIdx % 32 === 0) {
+                        onProgress({ frac: padIdx / padCount, label: `Stencil ${padIdx}/${padCount} apertures` });
+                        await new Promise(resolve => {
+                            const ch = new MessageChannel();
+                            ch.port1.onmessage = () => resolve();
+                            ch.port2.postMessage(null);
+                        });
+                    }
+                    padIdx++;
+
                     const offsetResult = await this.core.geometryOffsetter.offsetBoundary(prim, offsetDist);
                     if (offsetResult) {
                         if (Array.isArray(offsetResult)) {
@@ -181,7 +197,7 @@
 
             // Add registration holes
             if (settings.stencilAddRegHoles) {
-                const bounds = this.core.coordinateSystem?.boardBounds || operation.bounds;
+                const bounds = this.core.scene?.getBoardBounds?.() || operation.bounds;
                 if (bounds && isFinite(bounds.minX)) {
                     const margin = settings.stencilRegMargin || 5.0;
                     const radius = (settings.stencilRegDiameter || 3.0) / 2;

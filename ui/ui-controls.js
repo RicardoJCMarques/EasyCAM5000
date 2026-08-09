@@ -1,12 +1,12 @@
 /*!
  * @file        ui/ui-controls.js
- * @description Shared UI controls for EasyTrace5000 and EasyShape5000.
+ * @description Shared UI controls.
  *              Static methods: pure DOM utilities (focus zones, collapsibles,
  *              sidebar nav, section expand/collapse).
  *              Instance methods: renderer-aware controls (viz toggles, theme).
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
- * @see         {@link https://github.com/RicardoJCMarques/EasyTrace5000}
+ * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
  *
  * SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
  * SPDX-License-Identifier: AGPL-3.0-or-later
@@ -58,7 +58,7 @@
         }
 
         // ═══════════════════════════════════════════════════════════════
-        // Instance Init — called by both apps after renderer is ready
+        // Instance Init - called by both apps after renderer is ready
         // ═══════════════════════════════════════════════════════════════
 
         init(renderer) {
@@ -69,7 +69,7 @@
         }
 
         // ═══════════════════════════════════════════════════════════════
-        // Visualization Toggles (instance — needs renderer + ui)
+        // Visualization Toggles (instance - needs renderer + ui)
         // ═══════════════════════════════════════════════════════════════
 
         setupVisualizationToggles() {
@@ -145,7 +145,6 @@
                         if (option) this.renderer.core.setOptions({ [option]: isChecked });
                         // Special logic for fusion/arc changes
                         if (option === 'fuseGeometry' && !isChecked) this.resetFusionStates();
-                        if (option === 'enableArcReconstruction') this.updateArcReconstructionStats();
                         if (option === 'fuseGeometry' || option === 'enableArcReconstruction') {
                             this.ui.core.geometryProcessor.clearCachedStates?.();
                         }
@@ -165,7 +164,7 @@
         }
 
         // ═══════════════════════════════════════════════════════════════
-        // Theme Toggle (instance — needs renderer)
+        // Theme Toggle (instance - needs renderer)
         // ═══════════════════════════════════════════════════════════════
 
         setupThemeToggle() {
@@ -204,7 +203,7 @@
         }
 
         // ═══════════════════════════════════════════════════════════════
-        // Fusion / Arc Helpers (instance — needs renderer)
+        // Fusion / Arc Helpers (instance - needs renderer)
         // ═══════════════════════════════════════════════════════════════
 
         resetFusionStates() {
@@ -214,29 +213,6 @@
             const arc = document.getElementById('enable-arc-reconstruction');
             if (prep) prep.checked = false;
             if (arc) arc.checked = false;
-
-            // Clear stats by calling with empty data
-            this.updateArcReconstructionStats({ curvesRegistered: 0 });
-        }
-
-        updateArcReconstructionStats(stats = null) {
-            const container = document.getElementById('arc-reconstruction-stats');
-            if (!container) return;
-            const currentStats = stats || this.ui.core.geometryProcessor.getArcReconstructionStats?.() || {};
-            const isEnabled = this.renderer.options?.enableArcReconstruction;
-            if (isEnabled && currentStats.curvesRegistered > 0) {
-                container.classList.remove('hidden');
-                const rate = ((currentStats.curvesReconstructed / currentStats.curvesRegistered) * 100).toFixed(1);
-                container.innerHTML = `
-                    <div class="stats-display">
-                        <div class="stat-item"><span class="stat-label">Registered:</span><span class="stat-value">${currentStats.curvesRegistered}</span></div>
-                        <div class="stat-item"><span class="stat-label">Reconstructed:</span><span class="stat-value">${currentStats.curvesReconstructed}</span></div>
-                        <div class="stat-item"><span class="stat-label">Lost:</span><span class="stat-value">${currentStats.curvesLost}</span></div>
-                        <div class="stat-item"><span class="stat-label">Success Rate:</span><span class="stat-value">${rate}%</span></div>
-                    </div>`;
-            } else {
-                container.classList.add('hidden');
-            }
         }
 
         // ═══════════════════════════════════════════════════════════════
@@ -252,7 +228,7 @@
         }
 
         // ═══════════════════════════════════════════════════════════════
-        // Static Methods — Pure DOM, no instance state required
+        // Static Methods - Pure DOM, no instance state required
         // ═══════════════════════════════════════════════════════════════
 
         /**
@@ -509,18 +485,6 @@
                     }
                 }
             });
-        }
-
-        static showCanvasSpinner(message = 'Processing...') {
-            const overlay = document.getElementById('canvas-loading-overlay');
-            const msgEl = document.getElementById('canvas-loading-message');
-            if (msgEl) msgEl.textContent = message;
-            if (overlay) overlay.classList.remove('hidden');
-        }
-
-        static hideCanvasSpinner() {
-            const overlay = document.getElementById('canvas-loading-overlay');
-            if (overlay) overlay.classList.add('hidden');
         }
 
         /**

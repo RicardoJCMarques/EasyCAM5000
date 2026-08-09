@@ -1,14 +1,13 @@
 {
   "_projectInfo": {
     "file": "tool-library.json",
-    "description": "EasyTrace5000 tool library",
+    "description": "EasyCAM5000 shared tool library",
     "author": "Eltryus - Ricardo Marques",
-    "see": "https://github.com/RicardoJCMarques/EasyTrace5000",
+    "see": "https://github.com/RicardoJCMarques/EasyCAM5000",
     "license": "AGPL-3.0-or-later",
     "copyright": "Copyright (C) 2025-2026 Eltryus - Ricardo Marques"
   },
-
-  "version": "0.21",
+  "version": "0.3",
   "tools": [
     {
       "id": "em_0.1mm_flat",
@@ -30,7 +29,7 @@
         "maxDepthPerPass": 0.03,
         "stepOver": 50
       },
-      "operations": ["isolation", "clearing"],
+      "operations": ["isolation", "clearing", "profile", "pocket"],
       "material": "carbide"
     },
     {
@@ -53,7 +52,7 @@
         "maxDepthPerPass": 0.04,
         "stepOver": 50
       },
-      "operations": ["isolation", "clearing"],
+      "operations": ["isolation", "clearing", "profile", "pocket"],
       "material": "carbide"
     },
     {
@@ -76,7 +75,7 @@
         "maxDepthPerPass": 0.05,
         "stepOver": 50
       },
-      "operations": ["isolation", "clearing"],
+      "operations": ["isolation", "clearing", "profile", "pocket"],
       "material": "carbide"
     },
     {
@@ -99,7 +98,7 @@
         "maxDepthPerPass": 0.08,
         "stepOver": 50
       },
-      "operations": ["isolation", "clearing"],
+      "operations": ["isolation", "clearing", "profile", "pocket"],
       "material": "carbide"
     },
     {
@@ -122,7 +121,7 @@
         "maxDepthPerPass": 0.1,
         "stepOver": 50
       },
-      "operations": ["isolation", "clearing", "drill"],
+      "operations": ["isolation", "clearing", "drill", "profile", "pocket"],
       "material": "carbide"
     },
     {
@@ -145,7 +144,7 @@
         "maxDepthPerPass": 0.1,
         "stepOver": 50
       },
-      "operations": ["isolation", "clearing", "cutout", "drill"],
+      "operations": ["isolation", "clearing", "cutout", "drill", "profile", "pocket"],
       "material": "carbide"
     },
     {
@@ -168,7 +167,7 @@
         "maxDepthPerPass": 0.12,
         "stepOver": 55
       },
-      "operations": ["clearing", "cutout", "drill"],
+      "operations": [ "clearing", "cutout", "drill", "profile", "pocket"],
       "material": "carbide"
     },
     {
@@ -191,7 +190,7 @@
         "maxDepthPerPass": 0.15,
         "stepOver": 60
       },
-      "operations": ["clearing", "cutout", "drill"],
+      "operations": [ "clearing", "cutout", "drill", "profile", "pocket"],
       "material": "carbide"
     },
     {
@@ -214,7 +213,7 @@
         "maxDepthPerPass": 0.2,
         "stepOver": 60
       },
-      "operations": ["clearing", "cutout", "drill"],
+      "operations": ["clearing", "cutout", "drill", "profile", "pocket", "relief", "rotary"],
       "material": "carbide"
     },
     {
@@ -237,7 +236,7 @@
         "maxDepthPerPass": 0.25,
         "stepOver": 60
       },
-      "operations": ["clearing", "cutout", "drill"],
+      "operations": ["clearing", "cutout", "drill", "profile", "pocket", "relief", "rotary"],
       "material": "carbide"
     },
     {
@@ -260,7 +259,7 @@
         "maxDepthPerPass": 0.3,
         "stepOver": 60
       },
-      "operations": ["clearing", "cutout", "drill"],
+      "operations": ["clearing", "cutout", "drill", "profile", "pocket", "relief", "rotary"],
       "material": "carbide"
     },
     {
@@ -283,7 +282,7 @@
         "maxDepthPerPass": 0.4,
         "stepOver": 60
       },
-      "operations": ["clearing", "cutout", "drill"],
+      "operations": ["clearing", "cutout", "drill", "profile", "pocket", "relief", "rotary"],
       "material": "carbide"
     },
     {
@@ -306,7 +305,7 @@
         "maxDepthPerPass": 0.5,
         "stepOver": 60
       },
-      "operations": ["clearing", "cutout"],
+      "operations": ["clearing", "cutout", "profile", "pocket", "relief", "rotary"],
       "material": "carbide"
     },
     {
@@ -329,7 +328,7 @@
         "maxDepthPerPass": 0.6,
         "stepOver": 60
       },
-      "operations": ["clearing", "cutout"],
+      "operations": ["clearing", "cutout", "profile", "pocket", "relief", "rotary"],
       "material": "carbide"
     },
     {
@@ -352,7 +351,7 @@
         "maxDepthPerPass": 0.6,
         "stepOver": 60
       },
-      "operations": ["clearing", "cutout"],
+      "operations": ["clearing", "cutout", "profile", "pocket", "relief", "rotary"],
       "material": "carbide"
     },
     {
@@ -375,7 +374,7 @@
         "maxDepthPerPass": 0.02,
         "stepOver": 30
       },
-      "operations": ["isolation"],
+      "operations": ["isolation", "engrave", "vcarve"],
       "material": "carbide"
     },
     {
@@ -398,7 +397,7 @@
         "maxDepthPerPass": 0.03,
         "stepOver": 35
       },
-      "operations": ["isolation"],
+      "operations": ["isolation", "engrave", "vcarve"],
       "material": "carbide"
     },
     {
@@ -421,7 +420,7 @@
         "maxDepthPerPass": 0.05,
         "stepOver": 40
       },
-      "operations": ["isolation"],
+      "operations": ["isolation", "engrave", "vcarve"],
       "material": "carbide"
     },
     {
@@ -444,7 +443,7 @@
         "maxDepthPerPass": 0.08,
         "stepOver": 40
       },
-      "operations": ["isolation"],
+      "operations": ["isolation", "engrave", "vcarve"],
       "material": "carbide"
     },
     {
@@ -467,7 +466,7 @@
         "maxDepthPerPass": 0.1,
         "stepOver": 40
       },
-      "operations": ["isolation"],
+      "operations": ["isolation", "engrave", "vcarve"],
       "material": "carbide"
     },
     {
@@ -490,7 +489,7 @@
         "maxDepthPerPass": 0.15,
         "stepOver": 45
       },
-      "operations": ["isolation", "clearing"],
+      "operations": ["isolation", "clearing", "engrave", "vcarve"],
       "material": "carbide"
     },
     {
@@ -931,6 +930,371 @@
         "stepOver": 50
       },
       "operations": ["cutout"],
+      "material": "carbide"
+    },
+    {
+      "id": "em_1.0mm_ball",
+      "name": "1.0mm Ball Nose End Mill",
+      "type": "end_mill",
+      "category": "sculpting",
+      "geometry": {
+        "diameter": 1.0,
+        "tipType": "ball",
+        "flutes": 2,
+        "cuttingLength": 12,
+        "shankDiameter": 3.175,
+        "totalLength": 38
+      },
+      "cutting": {
+        "feedRate": 350,
+        "plungeRate": 120,
+        "spindleSpeed": 8000
+      },
+      "operations": ["relief", "rotary"],
+      "material": "carbide"
+    },
+    {
+      "id": "em_1.5mm_ball",
+      "name": "1.5mm Ball Nose End Mill",
+      "type": "end_mill",
+      "category": "sculpting",
+      "geometry": {
+        "diameter": 1.5,
+        "tipType": "ball",
+        "flutes": 2,
+        "cuttingLength": 15,
+        "shankDiameter": 3.175,
+        "totalLength": 38
+      },
+      "cutting": {
+        "feedRate": 400,
+        "plungeRate": 140,
+        "spindleSpeed": 7000
+      },
+      "operations": ["relief", "rotary"],
+      "material": "carbide"
+    },
+    {
+      "id": "em_2.0mm_ball",
+      "name": "2.0mm Ball Nose End Mill",
+      "type": "end_mill",
+      "category": "sculpting",
+      "geometry": {
+        "diameter": 2.0,
+        "tipType": "ball",
+        "flutes": 2,
+        "cuttingLength": 15,
+        "shankDiameter": 3.175,
+        "totalLength": 38
+      },
+      "cutting": {
+        "feedRate": 450,
+        "plungeRate": 150,
+        "spindleSpeed": 6000
+      },
+      "operations": ["relief", "rotary"],
+      "material": "carbide"
+    },
+    {
+      "id": "em_3.0mm_ball",
+      "name": "3.0mm Ball Nose End Mill",
+      "type": "end_mill",
+      "category": "sculpting",
+      "geometry": {
+        "diameter": 3.0,
+        "tipType": "ball",
+        "flutes": 2,
+        "cuttingLength": 18,
+        "shankDiameter": 3.175,
+        "totalLength": 45
+      },
+      "cutting": {
+        "feedRate": 500,
+        "plungeRate": 180,
+        "spindleSpeed": 5000
+      },
+      "operations": ["relief", "rotary"],
+      "material": "carbide"
+    },
+    {
+      "id": "em_3.175mm_ball",
+      "name": "3.175mm (1/8\") Ball Nose End Mill",
+      "type": "end_mill",
+      "category": "sculpting",
+      "geometry": {
+        "diameter": 3.175,
+        "tipType": "ball",
+        "flutes": 2,
+        "cuttingLength": 20,
+        "shankDiameter": 3.175,
+        "totalLength": 45
+      },
+      "cutting": {
+        "feedRate": 520,
+        "plungeRate": 180,
+        "spindleSpeed": 5000
+      },
+      "operations": ["relief", "rotary"],
+      "material": "carbide"
+    },
+    {
+      "id": "em_4.0mm_ball",
+      "name": "4.0mm Ball Nose End Mill",
+      "type": "end_mill",
+      "category": "sculpting",
+      "geometry": {
+        "diameter": 4.0,
+        "tipType": "ball",
+        "flutes": 2,
+        "cuttingLength": 22,
+        "shankDiameter": 6.0,
+        "totalLength": 50
+      },
+      "cutting": {
+        "feedRate": 550,
+        "plungeRate": 190,
+        "spindleSpeed": 4500
+      },
+      "operations": ["relief", "rotary"],
+      "material": "carbide"
+    },
+    {
+      "id": "em_6.0mm_ball",
+      "name": "6.0mm Ball Nose End Mill",
+      "type": "end_mill",
+      "category": "sculpting",
+      "geometry": {
+        "diameter": 6.0,
+        "tipType": "ball",
+        "flutes": 2,
+        "cuttingLength": 28,
+        "shankDiameter": 6.0,
+        "totalLength": 55
+      },
+      "cutting": {
+        "feedRate": 650,
+        "plungeRate": 220,
+        "spindleSpeed": 3500
+      },
+      "operations": ["relief", "rotary"],
+      "material": "carbide"
+    },
+    {
+      "id": "em_8.0mm_ball",
+      "name": "8.0mm Ball Nose End Mill",
+      "type": "end_mill",
+      "category": "sculpting",
+      "geometry": {
+        "diameter": 8.0,
+        "tipType": "ball",
+        "flutes": 2,
+        "cuttingLength": 32,
+        "shankDiameter": 6.0,
+        "totalLength": 60
+      },
+      "cutting": {
+        "feedRate": 750,
+        "plungeRate": 250,
+        "spindleSpeed": 2800
+      },
+      "operations": ["relief", "rotary"],
+      "material": "carbide"
+    },
+    {
+      "id": "em_3.175mm_bull",
+      "name": "3.175mm (1/8\") Bull Nose End Mill (R0.5mm)",
+      "type": "end_mill",
+      "category": "sculpting",
+      "geometry": {
+        "diameter": 3.175,
+        "tipType": "bull",
+        "flutes": 2,
+        "cuttingLength": 20,
+        "shankDiameter": 3.175,
+        "totalLength": 45,
+        "cornerRadius": 0.5
+      },
+      "cutting": {
+        "feedRate": 520,
+        "plungeRate": 180,
+        "spindleSpeed": 5000
+      },
+      "operations": ["relief", "rotary"],
+      "material": "carbide"
+    },
+    {
+      "id": "em_4.0mm_bull",
+      "name": "4.0mm Bull Nose End Mill (R0.5mm)",
+      "type": "end_mill",
+      "category": "sculpting",
+      "geometry": {
+        "diameter": 4.0,
+        "tipType": "bull",
+        "flutes": 2,
+        "cuttingLength": 22,
+        "shankDiameter": 6.0,
+        "totalLength": 50,
+        "cornerRadius": 0.5
+      },
+      "cutting": {
+        "feedRate": 550,
+        "plungeRate": 190,
+        "spindleSpeed": 4500
+      },
+      "operations": ["relief", "rotary"],
+      "material": "carbide"
+    },
+    {
+      "id": "em_6.0mm_bull",
+      "name": "6.0mm Bull Nose End Mill (R1.0mm)",
+      "type": "end_mill",
+      "category": "sculpting",
+      "geometry": {
+        "diameter": 6.0,
+        "tipType": "bull",
+        "flutes": 2,
+        "cuttingLength": 28,
+        "shankDiameter": 6.0,
+        "totalLength": 55,
+        "cornerRadius": 1.0
+      },
+      "cutting": {
+        "feedRate": 650,
+        "plungeRate": 220,
+        "spindleSpeed": 3500
+      },
+      "operations": ["relief", "rotary"],
+      "material": "carbide"
+    },
+    {
+      "id": "em_8.0mm_bull",
+      "name": "8.0mm Bull Nose End Mill (R1.5mm)",
+      "type": "end_mill",
+      "category": "sculpting",
+      "geometry": {
+        "diameter": 8.0,
+        "tipType": "bull",
+        "flutes": 2,
+        "cuttingLength": 32,
+        "shankDiameter": 8.0,
+        "totalLength": 60,
+        "cornerRadius": 1.5
+      },
+      "cutting": {
+        "feedRate": 750,
+        "plungeRate": 250,
+        "spindleSpeed": 2800
+      },
+      "operations": ["relief", "rotary"],
+      "material": "carbide"
+    },
+    {
+      "id": "em_10.0mm_bull",
+      "name": "10.0mm Bull Nose End Mill (R2.0mm)",
+      "type": "end_mill",
+      "category": "sculpting",
+      "geometry": {
+        "diameter": 10.0,
+        "tipType": "bull",
+        "flutes": 2,
+        "cuttingLength": 35,
+        "shankDiameter": 10.0,
+        "totalLength": 65,
+        "cornerRadius": 2.0
+      },
+      "cutting": {
+        "feedRate": 850,
+        "plungeRate": 280,
+        "spindleSpeed": 2200
+      },
+      "operations": ["relief", "rotary"],
+      "material": "carbide"
+    },
+    {
+      "id": "tb_0.5mm_10deg",
+      "name": "0.5mm Tapered Ball (10°/side)",
+      "type": "tapered_ball",
+      "category": "sculpting",
+      "geometry": {
+        "tipDiameter": 0.5,
+        "angleDeg": 10,
+        "maxDiameter": 3.175,
+        "cuttingLength": 8,
+        "shankDiameter": 3.175,
+        "totalLength": 41
+      },
+      "cutting": {
+        "feedRate": 150,
+        "plungeRate": 50,
+        "spindleSpeed": 12000
+      },
+      "operations": [],
+      "material": "carbide"
+    },
+    {
+      "id": "tb_1.0mm_10deg",
+      "name": "1.0mm Tapered Ball (10°/side)",
+      "type": "tapered_ball",
+      "category": "sculpting",
+      "geometry": {
+        "tipDiameter": 1.0,
+        "angleDeg": 10,
+        "maxDiameter": 3.175,
+        "cuttingLength": 10,
+        "shankDiameter": 3.175,
+        "totalLength": 42
+      },
+      "cutting": {
+        "feedRate": 180,
+        "plungeRate": 60,
+        "spindleSpeed": 10000
+      },
+      "operations": [],
+      "material": "carbide"
+    },
+    {
+      "id": "tb_1.0mm_15deg",
+      "name": "1.0mm Tapered Ball (15°/side)",
+      "type": "tapered_ball",
+      "category": "sculpting",
+      "geometry": {
+        "tipDiameter": 1.0,
+        "angleDeg": 15,
+        "maxDiameter": 3.175,
+        "cuttingLength": 10,
+        "shankDiameter": 3.175,
+        "totalLength": 42
+      },
+      "cutting": {
+        "feedRate": 200,
+        "plungeRate": 65,
+        "spindleSpeed": 9500
+      },
+      "operations": [],
+      "material": "carbide"
+    },
+    {
+      "id": "em_3.175mm_ball_h",
+      "name": "3.175mm Ball Nose + ER11 Holder (collision test)",
+      "type": "end_mill",
+      "category": "sculpting",
+      "geometry": {
+        "diameter": 3.175,
+        "tipType": "ball",
+        "flutes": 2,
+        "cuttingLength": 20,
+        "shankDiameter": 3.175,
+        "totalLength": 45,
+        "holderDiameter": 16.0,
+        "holderStickout": 30.0,
+        "_comment_REVIEW" : "Should toolholder be it's own category? ER11, ER16, etc.? For collision detection"
+      },
+      "cutting": {
+        "feedRate": 520,
+        "plungeRate": 180,
+        "spindleSpeed": 5000
+      },
+      "operations": ["relief", "rotary"],
       "material": "carbide"
     }
   ]

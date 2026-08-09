@@ -1,4 +1,12 @@
 {
+  "_projectInfo": {
+    "file": "profile-shape.json",
+    "description": "EasyShape5000 profile",
+    "author": "Eltryus - Ricardo Marques",
+    "see": "https://github.com/RicardoJCMarques/EasyCAM5000",
+    "license": "AGPL-3.0-or-later",
+    "copyright": "Copyright (C) 2025-2026 Eltryus - Ricardo Marques"
+  },
   "meta": {
     "app": "EasyShape5000",
     "version": "1.0"
@@ -8,8 +16,10 @@
     "profile": "em_3.175mm_flat",
     "pocket": "em_3.175mm_flat",
     "drill": "drill_3.175mm",
-    "engrave": "vbit_90deg_0.3mm",
-    "vcarve": "vbit_90deg_0.3mm"
+    "engrave": "vbit_10deg_0.1mm",
+    "vcarve": "vbit_90deg_0.3mm",
+    "relief": "em_3.175mm_ball",
+    "rotary": "em_3.175mm_ball"
   },
   "fileTypes": {
     "profile": {"extensions": [".svg"] },
@@ -17,12 +27,36 @@
     "drill": {"extensions": [".svg"] },
     "engrave": {"extensions": [".svg"] },
     "vcarve": {"extensions": [".svg"] },
-    "unassigned": {"extensions": [".svg"] }
+    "relief": {"extensions": [".stl"] },
+    "rotary": {"extensions": [".stl"] },
+    "unassigned": {"extensions": [".svg", ".stl"] }
   },
   "examples": {
     "mesa": {
-      "name": "mesa",
-      "files": { "svg": "../examples/mesa/mesa.svg" }
+      "name": "Flatpack Coffee Table",
+      "files": { "svg": "../examples/temp/mesa.svg" }
+    },
+    "vcarve-sign": {
+      "name": "V-carve - Leaf Heart",
+      "files": { "svg": "../examples/temp/leafheart.svg" }
+    },
+    "relief-tile": {
+      "name": "Flat relief - Setúbal Peninsula",
+      "files": { "stl": "../examples/temp/setubal.stl" }
+    },
+    "rotary-pawn": {
+      "name": "Round relief - Viking By Printical (mod)",
+      "files": { "stl": "../examples/temp/viking.stl" }
+    }
+  },
+  "operationDefaults": {
+    "engrave": {
+      "toolDiameter": 0.1,
+      "cutDepth": 0.1,
+      "multiDepth": false
+    },
+    "vcarve": {
+      "toolDiameter": 3
     }
   },
   "ui": {
@@ -30,6 +64,11 @@
       "tool": "Tool Selection",
       "offset": "Cut Settings",
       "depth": "Depth & Passes",
+      "blank": "Blank & Axis",
+      "bounds": "Model Bounds",
+      "holding": "Workholding & Ends",
+      "passes": "Passes & Stepover",
+      "quality": "Resolution & Finish",
       "tabs": "Holding Tabs",
       "drill": "Drill Strategy",
       "feeds": "Feeds & Speeds",
@@ -68,7 +107,7 @@
       "height": 400,
       "thickness": 18,
       "material": "plywood",
-      "zeroReference": "bottom-left"
+      "zeroReference": "bed"
     },
     "heights": {
       "safeZ": 25.0,
@@ -91,21 +130,7 @@
       "label": "Tool",
       "stage": "geometry",
       "category": "tool",
-      "operationTypes": ["profile", "pocket", "drill"]
-    },
-    "engraveTool": {
-      "type": "select",
-      "label": "Tool",
-      "stage": "geometry",
-      "category": "tool",
-      "operationType": "engrave"
-    },
-    "vcarveTool": {
-      "type": "select",
-      "label": "V-Bit",
-      "stage": "geometry",
-      "category": "tool",
-      "operationType": "vcarve"
+      "operationTypes": ["profile", "pocket", "drill", "engrave", "vcarve", "relief", "rotary"]
     },
     "toolDiameter": {
       "type": "number",
@@ -113,7 +138,7 @@
       "unit": "mm",
       "stage": "geometry",
       "category": "tool",
-      "operationTypes": ["profile", "pocket", "drill", "engrave", "vcarve"],
+      "operationTypes": ["profile", "pocket", "drill", "engrave", "vcarve", "relief", "rotary"],
       "min": 0.01,
       "max": 25.4,
       "step": 0.01
@@ -126,7 +151,7 @@
       "label": "Detect Nested Holes",
       "stage": "geometry",
       "category": "offset",
-      "operationTypes": ["profile", "pocket", "engrave"],
+      "operationTypes": ["profile", "pocket"],
       "default": false
     },
 
@@ -135,7 +160,7 @@
       "label": "Cut Side",
       "stage": "geometry",
       "category": "offset",
-      "operationType": "profile",
+      "operationTypes": "profile",
       "default": "outside",
       "options": [
         { "value": "outside", "label": "Outside" },
@@ -151,7 +176,7 @@
       "label": "Clearing Strategy",
       "stage": "geometry",
       "category": "offset",
-      "operationType": "pocket",
+      "operationTypes": "pocket",
       "default": "offset",
       "options": [
         { "value": "offset", "label": "Concentric Offsets" },
@@ -164,7 +189,7 @@
       "unit": "%",
       "stage": "geometry",
       "category": "offset",
-      "operationType": "pocket",
+      "operationTypes": "pocket",
       "default": 40,
       "min": 1,
       "max": 95,
@@ -176,7 +201,7 @@
       "unit": "°",
       "stage": "geometry",
       "category": "offset",
-      "operationType": "pocket",
+      "operationTypes": "pocket",
       "default": 45,
       "min": 0,
       "max": 180,
@@ -188,7 +213,7 @@
       "label": "Bidirectional Cuts",
       "stage": "geometry",
       "category": "offset",
-      "operationType": "pocket",
+      "operationTypes": "pocket",
       "default": true,
       "conditional": "pocketStrategy:raster"
     },
@@ -200,7 +225,7 @@
       "label": "Mill Oversize Holes",
       "stage": "geometry",
       "category": "drill",
-      "operationType": "drill",
+      "operationTypes": "drill",
       "default": true
     },
     "drillStepOver": {
@@ -209,7 +234,7 @@
       "unit": "%",
       "stage": "geometry",
       "category": "drill",
-      "operationType": "drill",
+      "operationTypes": "drill",
       "default": 50,
       "min": 10,
       "max": 90,
@@ -224,7 +249,7 @@
       "label": "Multi-depth Milling",
       "stage": "strategy",
       "category": "depth",
-      "operationType": "drill",
+      "operationTypes": "drill",
       "default": true,
       "conditional": "millHoles"
     },
@@ -234,7 +259,7 @@
       "unit": "mm",
       "stage": "strategy",
       "category": "depth",
-      "operationType": "drill",
+      "operationTypes": "drill",
       "default": 2,
       "min": 0.1,
       "max": 50,
@@ -246,7 +271,7 @@
       "label": "Entry Method",
       "stage": "strategy",
       "category": "depth",
-      "operationType": "drill",
+      "operationTypes": "drill",
       "default": "helix",
       "conditional": "millHoles",
       "options": [
@@ -257,20 +282,6 @@
 
     "_comment_engrave_geo": "═══ ENGRAVE GEOMETRY ═══",
 
-    "engraveOffsetMode": {
-      "type": "select",
-      "label": "Path Mode",
-      "stage": "geometry",
-      "category": "offset",
-      "operationType": "engrave",
-      "default": "on",
-      "options": [
-        { "value": "on", "label": "On Path (Centerline)" },
-        { "value": "inside", "label": "Inside (Tool compensated)" },
-        { "value": "outside", "label": "Outside (Tool compensated)" }
-      ]
-    },
-
     "_comment_vcarve_geo": "═══ V-CARVE GEOMETRY ═══",
 
     "vbitAngle": {
@@ -279,39 +290,805 @@
       "unit": "°",
       "stage": "geometry",
       "category": "tool",
-      "operationType": "vcarve",
+      "operationTypes": "vcarve",
       "default": 90,
       "min": 10,
       "max": 180,
       "step": 5
+    },
+    "vbitTipDiameter": {
+      "type": "number",
+      "label": "Tip Flat Diameter",
+      "unit": "mm",
+      "stage": "geometry",
+      "category": "tool",
+      "operationTypes": "vcarve",
+      "default": 0,
+      "min": 0,
+      "max": 5,
+      "step": 0.05
+    },
+
+    "vcarveStartDepth": {
+      "type": "number",
+      "label": "Start Depth",
+      "unit": "mm",
+      "stage": "geometry",
+      "category": "depth",
+      "operationTypes": "vcarve",
+      "default": 0,
+      "min": 0,
+      "max": 20,
+      "step": 0.1
+    },
+    "vcarveMaxDepth": {
+      "type": "number",
+      "label": "Max Depth",
+      "unit": "mm",
+      "stage": "geometry",
+      "category": "depth",
+      "operationTypes": "vcarve",
+      "default": 3,
+      "min": 0.1,
+      "max": 20,
+      "step": 0.1
     },
     "vcarveFlatDepth": {
       "type": "number",
       "label": "Flat Area Depth",
       "unit": "mm",
       "stage": "geometry",
-      "category": "offset",
-      "operationType": "vcarve",
+      "category": "depth",
+      "operationTypes": "vcarve",
       "default": 0,
       "min": 0,
       "max": 10,
       "step": 0.1
     },
+
     "useVcarveClearingTool": {
       "type": "checkbox",
       "label": "Use Clearing Tool for Flats",
       "stage": "geometry",
-      "category": "offset",
-      "operationType": "vcarve",
+      "category": "passes",
+      "operationTypes": "vcarve",
       "default": false
     },
     "vcarveClearingTool": {
       "type": "select",
       "label": "Clearing Tool",
       "stage": "geometry",
-      "category": "offset",
-      "operationType": "vcarve",
+      "category": "passes",
+      "operationTypes": "vcarve",
       "conditional": "useVcarveClearingTool"
+    },
+
+    "vcarveSimplifyTolerance": {
+      "type": "number",
+      "label": "Curve Simplification",
+      "unit": "mm",
+      "stage": "geometry",
+      "category": "quality",
+      "operationTypes": "vcarve",
+      "default": 0,
+      "min": 0,
+      "max": 0.001,
+      "step": 0.001
+    },
+    "vcarveMinChainLength": {
+      "type": "number",
+      "label": "Min Path Length",
+      "unit": "mm",
+      "stage": "geometry",
+      "category": "quality",
+      "operationTypes": "vcarve",
+      "default": 0,
+      "min": 0,
+      "max": 5,
+      "step": 0.1
+    },
+    "vcarveCornerAngle": {
+      "type": "number",
+      "label": "Corner Threshold",
+      "unit": "°",
+      "stage": "geometry",
+      "category": "quality",
+      "operationTypes": "vcarve",
+      "default": 30,
+      "min": 5,
+      "max": 90,
+      "step": 5
+    },
+
+    "_comment_relief_geo": "═══ RELIEF GEOMETRY ═══",
+
+    "reliefToolShape": {
+      "type": "select",
+      "label": "Tool Tip Shape",
+      "stage": "geometry",
+      "category": "tool",
+      "operationTypes": "relief",
+      "default": "ball",
+      "options": [
+        { "value": "ball", "label": "Ball Nose" },
+        { "value": "flat", "label": "Flat Endmill" },
+        { "value": "bull", "label": "Bull Nose (corner radius)" }
+      ]
+    },
+    "reliefCornerRadius": {
+      "type": "number",
+      "label": "Corner Radius (bull nose)",
+      "unit": "mm",
+      "stage": "geometry",
+      "category": "tool",
+      "operationTypes": "relief",
+      "conditional": "reliefToolShape:bull",
+      "default": 0.5,
+      "min": 0,
+      "max": 10,
+      "step": 0.1
+    },
+
+    "reliefDepthMapping": {
+      "type": "select",
+      "label": "Depth Mapping",
+      "stage": "geometry",
+      "category": "depth",
+      "operationTypes": "relief",
+      "default": "scaled",
+      "options": [
+        { "value": "scaled", "label": "Scaled to Depth (artistic relief)" },
+        { "value": "literal", "label": "Literal Model Height (dimensioned part)" }
+      ]
+    },
+    "reliefDepth": {
+      "type": "number",
+      "label": "Carve Depth (0 = model height)",
+      "unit": "mm",
+      "stage": "geometry",
+      "category": "depth",
+      "operationTypes": "relief",
+      "default": 0,
+      "min": 0,
+      "max": 100,
+      "step": 0.5
+    },
+    "reliefStartDepth": {
+      "type": "number",
+      "label": "Start Depth",
+      "unit": "mm",
+      "stage": "geometry",
+      "category": "depth",
+      "operationTypes": "relief",
+      "default": 0,
+      "min": 0,
+      "max": 20,
+      "step": 0.1
+    },
+    "reliefInvert": {
+      "type": "checkbox",
+      "label": "Invert (Mold Mode)",
+      "stage": "geometry",
+      "category": "depth",
+      "operationTypes": "relief",
+      "default": false
+    },
+
+    "reliefBoundaryMode": {
+      "type": "select",
+      "label": "Silhouette Boundary",
+      "stage": "geometry",
+      "category": "bounds",
+      "operationTypes": "relief",
+      "default": "stop",
+      "options": [
+        { "value": "stop", "label": "Stop at Model Edge" },
+        { "value": "rollover", "label": "Roll Over Edge (form boundary wall)" },
+        { "value": "extend", "label": "Extend Beyond Edge (+mm)" }
+      ]
+    },
+    "reliefBoundaryMm": {
+      "type": "number",
+      "label": "Boundary Extension",
+      "unit": "mm",
+      "stage": "geometry",
+      "category": "bounds",
+      "operationTypes": "relief",
+      "conditional": "reliefBoundaryMode:rollover,extend",
+      "default": 0,
+      "min": 0,
+      "max": 20,
+      "step": 0.1
+    },
+    "reliefMaskUncovered": {
+      "type": "checkbox",
+      "label": "Limit to Model Footprint",
+      "stage": "geometry",
+      "category": "bounds",
+      "operationTypes": "relief",
+      "default": false
+    },
+
+    "reliefMode": {
+      "type": "select",
+      "label": "Pass",
+      "stage": "geometry",
+      "category": "passes",
+      "operationTypes": "relief",
+      "default": "roughing",
+      "options": [
+        { "value": "roughing", "label": "Roughing" },
+        { "value": "finishing", "label": "Finishing" },
+        { "value": "both", "label": "Both (single tool)" }
+      ]
+    },
+    "reliefRoughStepdown": {
+      "type": "number",
+      "label": "Roughing Stepdown",
+      "unit": "mm",
+      "stage": "geometry",
+      "category": "passes",
+      "operationTypes": "relief",
+      "conditional": "reliefMode:roughing,both",
+      "default": 1.5,
+      "min": 0.2,
+      "max": 10,
+      "step": 0.1
+    },
+    "reliefRoughStepoverPct": {
+      "type": "number",
+      "label": "Roughing Stepover",
+      "unit": "%",
+      "stage": "geometry",
+      "category": "passes",
+      "operationTypes": "relief",
+      "conditional": "reliefMode:roughing,both",
+      "default": 45,
+      "min": 10,
+      "max": 90,
+      "step": 5
+    },
+    "reliefRoughStock": {
+      "type": "number",
+      "label": "Finishing Allowance",
+      "unit": "mm",
+      "stage": "geometry",
+      "category": "passes",
+      "operationTypes": "relief",
+      "conditional": "reliefMode:roughing,both",
+      "default": 0.3,
+      "min": 0,
+      "max": 2,
+      "step": 0.05
+    },
+    "reliefFinishStepoverPct": {
+      "type": "number",
+      "label": "Finishing Stepover",
+      "unit": "%",
+      "stage": "geometry",
+      "category": "passes",
+      "operationTypes": "relief",
+      "default": 10,
+      "min": 2,
+      "max": 50,
+      "step": 1
+    },
+    "reliefRasterAxis": {
+      "type": "select",
+      "label": "Raster Direction",
+      "stage": "geometry",
+      "category": "passes",
+      "operationTypes": "relief",
+      "default": "x",
+      "options": [
+        { "value": "x", "label": "Along X" },
+        { "value": "y", "label": "Along Y" }
+      ]
+    },
+    "reliefCrossFinish": {
+      "type": "checkbox",
+      "label": "Cross Finishing Pass (90°)",
+      "stage": "geometry",
+      "category": "passes",
+      "operationTypes": "relief",
+      "conditional": "reliefMode:finishing,both",
+      "default": false
+    },
+    "reliefSkipFloor": {
+      "type": "checkbox",
+      "label": "Skip Flat Floor (roughing end-mills it)",
+      "stage": "geometry",
+      "category": "passes",
+      "operationTypes": "relief",
+      "default": false
+    },
+
+    "reliefCellSize": {
+      "type": "number",
+      "label": "Grid Cell Size (0 = auto)",
+      "unit": "mm",
+      "stage": "geometry",
+      "category": "quality",
+      "operationTypes": "relief",
+      "default": 0,
+      "min": 0,
+      "max": 1,
+      "step": 0.01
+    },
+    "reliefGridMaxDim": {
+      "type": "number",
+      "label": "Auto Grid Resolution",
+      "unit": "cells",
+      "stage": "geometry",
+      "category": "quality",
+      "operationTypes": "relief",
+      "default": 1024,
+      "min": 128,
+      "max": 4096,
+      "step": 128
+    },
+    "reliefSimplifyTolerance": {
+      "type": "number",
+      "label": "Path Simplification",
+      "unit": "mm",
+      "stage": "geometry",
+      "category": "quality",
+      "operationTypes": "relief",
+      "conditional": "reliefMode:finishing,both",
+      "default": 0.01,
+      "min": 0,
+      "max": 0.1,
+      "step": 0.005
+    },
+    "reliefMinSegmentLength": {
+      "type": "number",
+      "label": "Min Roughing Segment",
+      "unit": "mm",
+      "stage": "geometry",
+      "category": "quality",
+      "operationTypes": "relief",
+      "conditional": "reliefMode:roughing,both",
+      "default": 0.2,
+      "min": 0,
+      "max": 5,
+      "step": 0.1
+    },
+
+    "_comment_rotary_geo": "── Rotary (4th-axis). SPLIT RULE: a key gets its own indexed* entry only when the QUANTITY DIFFERS IN KIND - rotaryRoughStepdown is radius-per-layer, indexedRoughStepdown is Z-per-layer. Stepover %, stock, resolution, tool shape, pass mode, axis offsets AND the workholding set (rotaryHoldingMode, rotaryChuck/TailEnd*, rotaryMinRadius) mean the same thing in both engines and stay SHARED on the rotary* key - both handlers read them through ShapeRotaryHandler.resolveWorkholding, the single interpretation point. Chuck = LOW end of the rotary axis, tail = HIGH end, both kinematics. Direction keys are semantic ('axial'/'cross'), resolved per machine axis in ShapeIndexedHandler.axialGridAxis. indexedAngles (custom list) still waits on a text-input field type. evaluateConditionals only sets display:none - a hidden parameter keeps its value and still reaches the handler through the merged bag; the pair that must never be confused is rotaryRoughStepdown (radial, radius) vs indexedRoughStepdown (indexed, Z). indexedCollisionGuard needs settings.tool, which only exists once a rotary tool select is added.",
+
+    "rotaryToolShape": {
+      "type": "select",
+      "label": "Tool Tip Shape",
+      "stage": "geometry",
+      "category": "tool",
+      "operationTypes": "rotary",
+      "default": "ball",
+      "options": [
+        { "value": "ball", "label": "Ball Nose" },
+        { "value": "flat", "label": "Flat Endmill" },
+        { "value": "bull", "label": "Bull Nose (corner radius)" }
+      ]
+    },
+    "rotaryCornerRadius": {
+      "type": "number",
+      "label": "Corner Radius (bull nose)",
+      "unit": "mm",
+      "stage": "geometry",
+      "category": "tool",
+      "operationTypes": "rotary",
+      "conditional": "rotaryToolShape:bull",
+      "default": 0.5,
+      "min": 0,
+      "max": 10,
+      "step": 0.1
+    },
+    "indexedCollisionGuard": {
+      "type": "checkbox",
+      "label": "Collision guard (holder)",
+      "stage": "geometry",
+      "category": "tool",
+      "operationTypes": "rotary",
+      "conditional": "rotaryKinematics:indexed",
+      "disabled": true,
+      "default": false
+    },
+
+    "rotaryKinematics": {
+      "type": "select",
+      "label": "Rotary Kinematics",
+      "stage": "geometry",
+      "category": "blank",
+      "operationTypes": "rotary",
+      "default": "radial",
+      "options": [
+        { "value": "radial",  "label": "Radial (continuous surfacing)" },
+        { "value": "indexed", "label": "Indexed 3+1 (flat faces at fixed angles)",
+          "requiresCapability": "rotary.indexed" }
+      ]
+    },
+    "rotaryAxis": {
+      "type": "select",
+      "label": "Machine Rotary Axis",
+      "stage": "geometry",
+      "category": "blank",
+      "operationTypes": "rotary",
+      "default": "x",
+      "options": [
+        { "value": "x", "label": "A - along workspace X" },
+        { "value": "y", "label": "B - along workspace Y" }
+      ]
+    },
+    "rotaryModelUp": {
+      "type": "select",
+      "label": "Model Orientation",
+      "stage": "geometry",
+      "category": "blank",
+      "operationTypes": "rotary",
+      "default": "upright",
+      "options": [
+        { "value": "along", "label": "Lying along the rotary axis" },
+        { "value": "upright", "label": "Standing upright (Z) - will be laid down" }
+      ]
+    },
+    "rotaryAxisOffsetB": {
+      "type": "number",
+      "label": "Axis Offset (cross dim 1)",
+      "unit": "mm",
+      "stage": "geometry",
+      "category": "blank",
+      "operationTypes": "rotary",
+      "default": 0,
+      "min": -50,
+      "max": 50,
+      "step": 0.5
+    },
+    "rotaryAxisOffsetC": {
+      "type": "number",
+      "label": "Axis Offset (cross dim 2)",
+      "unit": "mm",
+      "stage": "geometry",
+      "category": "blank",
+      "operationTypes": "rotary",
+      "default": 0,
+      "min": -50,
+      "max": 50,
+      "step": 0.5
+    },
+    "rotaryStockShape": {
+      "type": "select",
+      "label": "Stock Cross-Section",
+      "stage": "geometry",
+      "category": "blank",
+      "operationTypes": "rotary",
+      "conditional": "rotaryKinematics:radial",
+      "default": "round",
+      "options": [
+        { "value": "round", "label": "Round (blank diameter)" },
+        { "value": "square", "label": "Square (side = blank diameter)" }
+      ]
+    },
+    "rotaryBlankDiameter": {
+      "type": "number",
+      "label": "Blank Diameter (0 = auto fit)",
+      "unit": "mm",
+      "stage": "geometry",
+      "category": "blank",
+      "operationTypes": "rotary",
+      "conditional": "rotaryKinematics:radial",
+      "default": 0,
+      "min": 0,
+      "max": 300,
+      "step": 0.5
+    },
+    "indexedFaceCount": {
+      "type": "select",
+      "label": "Faces",
+      "stage": "geometry",
+      "category": "blank",
+      "operationTypes": "rotary",
+      "conditional": "rotaryKinematics:indexed",
+      "default": "4",
+      "options": [
+        { "value": "2", "label": "2 (front / back)" },
+        { "value": "3", "label": "3 (triangular prism)" },
+        { "value": "4", "label": "4 (square blank)" },
+        { "value": "6", "label": "6 (hex blank)" },
+        { "value": "8", "label": "8 (octagonal blank)" }
+      ]
+    },
+    "indexedStartAngle": {
+      "type": "number",
+      "label": "Start Angle (offsets the whole face set)",
+      "unit": "°",
+      "stage": "geometry",
+      "category": "blank",
+      "operationTypes": "rotary",
+      "conditional": "rotaryKinematics:indexed",
+      "default": 0,
+      "min": -360,
+      "max": 360,
+      "step": 15
+    },
+    "indexedBlankWidth": {
+      "type": "number",
+      "label": "Blank Width, across flats (0 = derive from model)",
+      "unit": "mm",
+      "stage": "geometry",
+      "category": "blank",
+      "operationTypes": "rotary",
+      "conditional": "rotaryKinematics:indexed",
+      "default": 0,
+      "min": 0,
+      "max": 300,
+      "step": 0.5
+    },
+
+    "rotaryDepth": {
+      "type": "number",
+      "label": "Carve Depth (0 = auto to core - slow near the axis)",
+      "unit": "mm",
+      "stage": "geometry",
+      "category": "depth",
+      "operationTypes": "rotary",
+      "conditional": "rotaryKinematics:radial",
+      "default": 0,
+      "min": 0,
+      "max": 150,
+      "step": 0.5
+    },
+    "indexedDepth": {
+      "type": "number",
+      "label": "Carve Depth below face top (0 = auto - full cross-section)",
+      "unit": "mm",
+      "stage": "geometry",
+      "category": "depth",
+      "operationTypes": "rotary",
+      "conditional": "rotaryKinematics:indexed",
+      "default": 0,
+      "min": 0,
+      "max": 150,
+      "step": 0.5
+    },
+    "indexedAxisOvercut": {
+      "type": "number",
+      "label": "Axis Over-Cut (0 = auto: tool radius when no drive stub)",
+      "unit": "mm",
+      "stage": "geometry",
+      "category": "depth",
+      "operationTypes": "rotary",
+      "conditional": "rotaryKinematics:indexed",
+      "default": 0,
+      "min": 0,
+      "max": 10,
+      "step": 0.25
+    },
+    "rotaryMinRadius": {
+      "type": "number",
+      "label": "Drive Stub Radius (RADIUS - Taper target & between-centers core; Roll Over ends form no stub)",
+      "unit": "mm",
+      "stage": "geometry",
+      "category": "depth",
+      "operationTypes": "rotary",
+      "default": 2,
+      "min": 0,
+      "max": 50,
+      "step": 0.25
+    },
+
+    "rotaryHoldingMode": {
+      "type": "select",
+      "label": "Workholding",
+      "stage": "geometry",
+      "category": "holding",
+      "operationTypes": "rotary",
+      "default": "between_centers",
+      "options": [
+        { "value": "between_centers", "label": "Between Centers (tailstock supported)" },
+        { "value": "chuck_only", "label": "Chuck Only (cantilevered)" }
+      ]
+    },
+    "rotaryChuckEndMode": {
+      "type": "select",
+      "label": "Chuck-End Boundary (low-axis end)",
+      "stage": "geometry",
+      "category": "holding",
+      "operationTypes": "rotary",
+      "default": "stop",
+      "options": [
+        { "value": "stop",     "label": "Stop at geometry (turned to the core)" },
+        { "value": "rollover", "label": "Roll Over - lip (needs a flat end)" },
+        { "value": "taper",    "label": "Taper - cone down to the drive stub" }
+      ]
+    },
+    "rotaryChuckEndMm": {
+      "type": "number",
+      "label": "Chuck-End Amount (Roll Over: lip depth below the edge; Taper: cone length; Stop: negative trims inward)",
+      "unit": "mm",
+      "stage": "geometry",
+      "category": "holding",
+      "operationTypes": "rotary",
+      "default": 0,
+      "min": -25,
+      "max": 60,
+      "step": 0.5
+    },
+    "rotaryTailEndMode": {
+      "type": "select",
+      "label": "Tail-End Boundary (high-axis end)",
+      "stage": "geometry",
+      "category": "holding",
+      "operationTypes": "rotary",
+      "default": "stop",
+      "options": [
+        { "value": "stop",     "label": "Stop at geometry (turned to the core)" },
+        { "value": "rollover", "label": "Roll Over - lip (needs a flat end)" },
+        { "value": "taper",    "label": "Taper - cone down to the drive stub" }
+      ]
+    },
+    "rotaryTailEndMm": {
+      "type": "number",
+      "label": "Tail-End Amount (Roll Over: lip depth; Taper: cone length - tailstock bearing; Stop: negative trims inward)",
+      "unit": "mm",
+      "stage": "geometry",
+      "category": "holding",
+      "operationTypes": "rotary",
+      "default": 0,
+      "min": -25,
+      "max": 60,
+      "step": 0.5
+    },
+
+    "rotaryMode": {
+      "type": "select",
+      "label": "Pass",
+      "stage": "geometry",
+      "category": "passes",
+      "operationTypes": "rotary",
+      "default": "finishing",
+      "options": [
+        { "value": "roughing", "label": "Roughing" },
+        { "value": "finishing", "label": "Finishing" },
+        { "value": "both", "label": "Both (single tool)" }
+      ]
+    },
+    "rotaryRoughStepdown": {
+      "type": "number",
+      "label": "Roughing Stepdown (radius per layer)",
+      "unit": "mm",
+      "stage": "geometry",
+      "category": "passes",
+      "operationTypes": "rotary",
+      "conditional": "rotaryKinematics:radial && rotaryMode:roughing,both",
+      "default": 1.5,
+      "min": 0.1,
+      "max": 10,
+      "step": 0.1
+    },
+    "indexedRoughStepdown": {
+      "type": "number",
+      "label": "Roughing Stepdown (Z per layer)",
+      "unit": "mm",
+      "stage": "geometry",
+      "category": "passes",
+      "operationTypes": "rotary",
+      "conditional": "rotaryKinematics:indexed && rotaryMode:roughing,both",
+      "default": 1.5,
+      "min": 0.1,
+      "max": 10,
+      "step": 0.1
+    },
+    "rotaryRoughStepoverPct": {
+      "type": "number",
+      "label": "Roughing Stepover",
+      "unit": "%",
+      "stage": "geometry",
+      "category": "passes",
+      "operationTypes": "rotary",
+      "conditional": "rotaryMode:roughing,both",
+      "default": 45,
+      "min": 5,
+      "max": 90,
+      "step": 5
+    },
+    "rotaryRoughStock": {
+      "type": "number",
+      "label": "Finishing Stock",
+      "unit": "mm",
+      "stage": "geometry",
+      "category": "passes",
+      "operationTypes": "rotary",
+      "conditional": "rotaryMode:roughing,both",
+      "default": 0.3,
+      "min": 0,
+      "max": 5,
+      "step": 0.1
+    },
+    "rotaryFinishStepoverPct": {
+      "type": "number",
+      "label": "Finishing Stepover",
+      "unit": "%",
+      "stage": "geometry",
+      "category": "passes",
+      "operationTypes": "rotary",
+      "conditional": "rotaryMode:finishing,both",
+      "default": 10,
+      "min": 1,
+      "max": 50,
+      "step": 1
+    },
+    "rotaryRoughAxis": {
+      "type": "select",
+      "label": "Roughing Direction",
+      "stage": "geometry",
+      "category": "passes",
+      "operationTypes": "rotary",
+      "conditional": "rotaryKinematics:radial",
+      "default": "x",
+      "options": [
+        { "value": "x", "label": "Along the axis" },
+        { "value": "y", "label": "Around the circumference" }
+      ]
+    },
+    "rotaryFinishPattern": {
+      "type": "select",
+      "label": "Finishing Pattern",
+      "stage": "geometry",
+      "category": "passes",
+      "operationTypes": "rotary",
+      "conditional": "rotaryKinematics:radial",
+      "default": "spiral",
+      "options": [
+        { "value": "spiral", "label": "Spiral (continuous helix)" },
+        { "value": "along", "label": "Along the axis" },
+        { "value": "around", "label": "Around (rings)" }
+      ]
+    },
+    "indexedRasterAxis": {
+      "type": "select",
+      "label": "Raster Direction",
+      "stage": "geometry",
+      "category": "passes",
+      "operationTypes": "rotary",
+      "conditional": "rotaryKinematics:indexed",
+      "default": "axial",
+      "options": [
+        { "value": "axial", "label": "Along the rotary axis" },
+        { "value": "cross", "label": "Across the face" }
+      ]
+    },
+    "indexedCrossFinish": {
+      "type": "checkbox",
+      "label": "Cross Finishing Pass (90°)",
+      "stage": "geometry",
+      "category": "passes",
+      "operationTypes": "rotary",
+      "conditional": "rotaryKinematics:indexed && rotaryMode:finishing,both",
+      "default": false
+    },
+
+    "rotaryCellSize": {
+      "type": "number",
+      "label": "Grid Cell Size (0 = auto)",
+      "unit": "mm",
+      "stage": "geometry",
+      "category": "quality",
+      "operationTypes": "rotary",
+      "default": 0,
+      "min": 0,
+      "max": 1,
+      "step": 0.01
+    },
+    "rotaryGridMaxDim": {
+      "type": "number",
+      "label": "Auto Grid Resolution",
+      "unit": "cells",
+      "stage": "geometry",
+      "category": "quality",
+      "operationTypes": "rotary",
+      "default": 1024,
+      "min": 128,
+      "max": 4096,
+      "step": 128
     },
 
     "_comment_pattern_geo": "═══ PATTERN GEOMETRY (geometry-only, no strategy/machine) ═══",
@@ -321,7 +1098,7 @@
       "label": "Pattern Type",
       "stage": "geometry",
       "category": "pattern",
-      "operationType": "pattern",
+      "operationTypes": "pattern",
       "default": "grid",
       "options": [
         { "value": "grid", "label": "Rectangular Grid" },
@@ -335,7 +1112,7 @@
       "label": "Rows",
       "stage": "geometry",
       "category": "pattern",
-      "operationType": "pattern",
+      "operationTypes": "pattern",
       "default": 3,
       "min": 1,
       "max": 100,
@@ -347,7 +1124,7 @@
       "label": "Columns",
       "stage": "geometry",
       "category": "pattern",
-      "operationType": "pattern",
+      "operationTypes": "pattern",
       "default": 3,
       "min": 1,
       "max": 100,
@@ -360,7 +1137,7 @@
       "unit": "mm",
       "stage": "geometry",
       "category": "pattern",
-      "operationType": "pattern",
+      "operationTypes": "pattern",
       "default": 20,
       "min": 0.1,
       "max": 500,
@@ -373,7 +1150,7 @@
       "unit": "mm",
       "stage": "geometry",
       "category": "pattern",
-      "operationType": "pattern",
+      "operationTypes": "pattern",
       "default": 20,
       "min": 0.1,
       "max": 500,
@@ -385,7 +1162,7 @@
       "label": "Count",
       "stage": "geometry",
       "category": "pattern",
-      "operationType": "pattern",
+      "operationTypes": "pattern",
       "default": 6,
       "min": 1,
       "max": 100,
@@ -398,7 +1175,7 @@
       "unit": "mm",
       "stage": "geometry",
       "category": "pattern",
-      "operationType": "pattern",
+      "operationTypes": "pattern",
       "default": 50,
       "min": 1,
       "max": 500,
@@ -411,7 +1188,7 @@
       "unit": "°",
       "stage": "geometry",
       "category": "pattern",
-      "operationType": "pattern",
+      "operationTypes": "pattern",
       "default": 0,
       "min": 0,
       "max": 360,
@@ -424,7 +1201,7 @@
       "unit": "°",
       "stage": "geometry",
       "category": "pattern",
-      "operationType": "pattern",
+      "operationTypes": "pattern",
       "default": 360,
       "min": 0,
       "max": 360,
@@ -436,7 +1213,7 @@
       "label": "Rotate Instances to Face Outward",
       "stage": "geometry",
       "category": "pattern",
-      "operationType": "pattern",
+      "operationTypes": "pattern",
       "default": true,
       "conditional": "patternType:radial"
     },
@@ -446,7 +1223,7 @@
       "unit": "°",
       "stage": "geometry",
       "category": "pattern",
-      "operationType": "pattern",
+      "operationTypes": "pattern",
       "default": 0,
       "min": 0,
       "max": 360,
@@ -458,7 +1235,7 @@
       "label": "Mirror",
       "stage": "geometry",
       "category": "pattern",
-      "operationType": "pattern",
+      "operationTypes": "pattern",
       "default": "none",
       "options": [
         { "value": "none", "label": "None" },
@@ -476,30 +1253,18 @@
       "unit": "mm",
       "stage": "strategy",
       "category": "depth",
-      "operationTypes": ["profile", "pocket", "drill"],
+      "operationTypes": ["profile", "pocket", "drill", "engrave"],
       "default": 18,
       "min": 0.1,
       "max": 100,
       "step": 0.5
-    },
-    "engraveDepth": {
-      "type": "number",
-      "label": "Depth",
-      "unit": "mm",
-      "stage": "strategy",
-      "category": "depth",
-      "operationType": "engrave",
-      "default": 0.5,
-      "min": 0.05,
-      "max": 5,
-      "step": 0.05
     },
     "multiDepth": {
       "type": "checkbox",
       "label": "Multi-depth Cutting",
       "stage": "strategy",
       "category": "depth",
-      "operationTypes": ["profile", "pocket"],
+      "operationTypes": ["profile", "pocket", "engrave"],
       "default": true
     },
     "depthPerPass": {
@@ -508,7 +1273,7 @@
       "unit": "mm",
       "stage": "strategy",
       "category": "depth",
-      "operationTypes": ["profile", "pocket"],
+      "operationTypes": ["profile", "pocket", "engrave"],
       "default": 3,
       "min": 0.1,
       "max": 50,
@@ -531,7 +1296,7 @@
       "label": "Finishing Pass",
       "stage": "strategy",
       "category": "depth",
-      "operationType": "pocket",
+      "operationTypes": "pocket",
       "default": false
     },
     "finishStepover": {
@@ -540,62 +1305,12 @@
       "unit": "%",
       "stage": "strategy",
       "category": "depth",
-      "operationType": "pocket",
+      "operationTypes": "pocket",
       "default": 10,
       "min": 1,
       "max": 50,
       "step": 1,
       "conditional": "finishingPass"
-    },
-
-    "_comment_vcarve_strat": "═══ V-CARVE STRATEGY ═══",
-
-    "vcarveMaxDepth": {
-      "type": "number",
-      "label": "Max Depth",
-      "unit": "mm",
-      "stage": "strategy",
-      "category": "depth",
-      "operationType": "vcarve",
-      "default": 3,
-      "min": 0.1,
-      "max": 20,
-      "step": 0.1
-    },
-    "vcarveStartDepth": {
-      "type": "number",
-      "label": "Start Depth",
-      "unit": "mm",
-      "stage": "strategy",
-      "category": "depth",
-      "operationType": "vcarve",
-      "default": 0,
-      "min": 0,
-      "max": 20,
-      "step": 0.1
-    },
-
-    "_comment_engrave_strat": "═══ ENGRAVE STRATEGY ═══",
-
-    "engraveMultiPass": {
-      "type": "checkbox",
-      "label": "Multi-Pass",
-      "stage": "strategy",
-      "category": "depth",
-      "operationType": "engrave",
-      "default": false
-    },
-    "engravePassCount": {
-      "type": "number",
-      "label": "Number of Passes",
-      "stage": "strategy",
-      "category": "depth",
-      "operationType": "engrave",
-      "default": 2,
-      "min": 1,
-      "max": 10,
-      "step": 1,
-      "conditional": "engraveMultiPass"
     },
 
     "_comment_drill_strat": "═══ DRILL STRATEGY ═══",
@@ -606,7 +1321,7 @@
       "unit": "mm",
       "stage": "strategy",
       "category": "drill",
-      "operationType": "drill",
+      "operationTypes": "drill",
       "default": 2,
       "min": 0,
       "max": 50,
@@ -618,7 +1333,7 @@
       "unit": "s",
       "stage": "strategy",
       "category": "drill",
-      "operationType": "drill",
+      "operationTypes": "drill",
       "default": 0,
       "min": 0,
       "max": 10,
@@ -630,7 +1345,7 @@
       "unit": "mm",
       "stage": "strategy",
       "category": "drill",
-      "operationType": "drill",
+      "operationTypes": "drill",
       "default": 2.0,
       "min": 0.1,
       "max": 20,
@@ -641,7 +1356,7 @@
       "label": "Canned Cycle",
       "stage": "strategy",
       "category": "drill",
-      "operationType": "drill",
+      "operationTypes": "drill",
       "default": "none",
       "options": [
         { "value": "none", "label": "None (G0 + G1)" },
@@ -656,7 +1371,7 @@
       "label": "Spot Drill First",
       "stage": "strategy",
       "category": "drill",
-      "operationType": "drill",
+      "operationTypes": "drill",
       "default": false
     },
     "spotDepth": {
@@ -665,7 +1380,7 @@
       "unit": "mm",
       "stage": "strategy",
       "category": "drill",
-      "operationType": "drill",
+      "operationTypes": "drill",
       "default": 1.0,
       "min": 0.1,
       "max": 5,
@@ -680,7 +1395,7 @@
       "label": "Number of Tabs",
       "stage": "strategy",
       "category": "tabs",
-      "operationType": "profile",
+      "operationTypes": "profile",
       "default": 4,
       "min": 0,
       "max": 20,
@@ -692,7 +1407,7 @@
       "unit": "mm",
       "stage": "strategy",
       "category": "tabs",
-      "operationType": "profile",
+      "operationTypes": "profile",
       "default": 6,
       "min": 1,
       "max": 20,
@@ -704,7 +1419,7 @@
       "unit": "mm",
       "stage": "strategy",
       "category": "tabs",
-      "operationType": "profile",
+      "operationTypes": "profile",
       "default": 3,
       "min": 0.5,
       "max": 10,
@@ -719,7 +1434,7 @@
       "unit": "mm/min",
       "stage": "machine",
       "category": "feeds",
-      "operationTypes": ["profile", "pocket", "drill", "engrave", "vcarve"],
+      "operationTypes": ["profile", "pocket", "drill", "engrave", "vcarve", "relief", "rotary"],
       "min": 10,
       "max": 10000,
       "step": 100
@@ -730,7 +1445,7 @@
       "unit": "mm/min",
       "stage": "machine",
       "category": "feeds",
-      "operationTypes": ["profile", "pocket", "drill", "engrave", "vcarve"],
+      "operationTypes": ["profile", "pocket", "drill", "engrave", "vcarve", "relief", "rotary"],
       "min": 10,
       "max": 5000,
       "step": 50
@@ -741,7 +1456,7 @@
       "unit": "RPM",
       "stage": "machine",
       "category": "feeds",
-      "operationTypes": ["profile", "pocket", "drill", "engrave", "vcarve"],
+      "operationTypes": ["profile", "pocket", "drill", "engrave", "vcarve", "relief", "rotary"],
       "min": 1000,
       "max": 60000,
       "step": 500
@@ -752,7 +1467,7 @@
       "unit": "s",
       "stage": "machine",
       "category": "feeds",
-      "operationTypes": ["profile", "pocket", "drill", "engrave", "vcarve"],
+      "operationTypes": ["profile", "pocket", "drill", "engrave", "vcarve", "relief", "rotary"],
       "default": 1,
       "min": 0,
       "max": 30,

@@ -3,7 +3,7 @@
  * @description Processes geometric boolean operations
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
- * @see         {@link https://github.com/RicardoJCMarques/EasyTrace5000}
+ * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
  *
  * SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
  * SPDX-License-Identifier: AGPL-3.0-or-later
@@ -27,15 +27,11 @@
             this.clipper = new ClipperWrapper({ clipper2scale: this.options.clipper2scale });
             this.arcReconstructor = new ArcReconstructor();
 
-            // Optional external resolver — set via setSelfIntersectionResolver()
-            this.selfIntersectionResolver = null;
-
             // State caching
             this.cachedStates = {
                 originalPrimitives: null,
                 preprocessedGeometry: null,
-                fusedGeometry: null,
-                registeredCurves: null
+                fusedGeometry: null
             };
 
             // Statistics
@@ -52,11 +48,6 @@
 
             // Initialize promise
             this.initPromise = this.initialize();
-        }
-
-        setSelfIntersectionResolver(resolver) {
-            this.selfIntersectionResolver = resolver;
-            this.debug('SelfIntersectionResolver linked to GeometryProcessor');
         }
 
         async initialize() {
@@ -110,7 +101,7 @@
                 this.cachedStates.originalPrimitives
             );
 
-            // REVIEW? Replace — previous preprocessed state is stale once new
+            // REVIEW? Replace - previous preprocessed state is stale once new
             // primitives are fused. Prevents unbounded accumulation.
             this.cachedStates.preprocessedGeometry = preprocessed;
 
@@ -140,7 +131,7 @@
                 // The reconstructor is now the single source of truth for the final geometry.
                 finalGeometry = this.arcReconstructor.processForReconstruction(fused);
 
-                const stats = this.arcReconstructor.getStats();
+                const stats = this.arcReconstructor.stats;
                 this.stats.curvesReconstructed = stats.reconstructed;
 
                 this.debug(`Reconstruction complete:`);
@@ -183,6 +174,9 @@
             this.debug(`Input: ${primitives.length} primitives`);
 
             // Ensure all primitives have dark polarity for union
+            // NOTE: this mutates the caller's primitives. Every current caller
+            // passes derived geometry (offset results, stroke polygons), so
+            // nothing source-level is touched - keep it that way, or clone here.
             for (const p of primitives) {
                 if (!p.properties) p.properties = {};
                 p.properties.polarity = 'dark';
@@ -501,34 +495,30 @@
             return true;
         }
 
-        createPathPrimitive(contours, properties = {}) {
-            if (typeof PathPrimitive !== 'undefined' && PathPrimitive) {
-                const primitive = new PathPrimitive(contours, properties);
-
-                if (properties.hasReconstructableCurves) { 
-                    primitive.hasReconstructableCurves = true; 
-                }
-
-                if (!primitive.contours || primitive.contours.length === 0) {
-                    this.debug(`PathPrimitive created with no contours`);
-                }
-
-                return primitive;
-            }
-        }
+        // REVIEW - Dead code?
+        // createPathPrimitive(contours, properties = {}) {
+        //     if (typeof PathPrimitive !== 'undefined' && PathPrimitive) {
+        //         const primitive = new PathPrimitive(contours, properties);
+        // 
+        //         if (properties.hasReconstructableCurves) { 
+        //             primitive.hasReconstructableCurves = true; 
+        //         }
+        // 
+        //         if (!primitive.contours || primitive.contours.length === 0) {
+        //             this.debug(`PathPrimitive created with no contours`);
+        //         }
+        // 
+        //         return primitive;
+        //     }
+        // }
 
         // State management
         clearCachedStates() {
             this.cachedStates = {
                 originalPrimitives: null,
                 preprocessedGeometry: null,
-                fusedGeometry: null,
-                registeredCurves: null
+                fusedGeometry: null
             };
-        }
-
-        clearProcessorCache() {
-            this.clearCachedStates();
         }
 
         getCachedState(stateName) {
@@ -548,12 +538,8 @@
             return {
                 ...this.stats,
                 clipper: this.clipper.getCapabilities(),
-                arcReconstruction: this.arcReconstructor.getStats()
+                arcReconstruction: { ...this.arcReconstructor.stats }
             };
-        }
-
-        getArcReconstructionStats() {
-            return this.arcReconstructor.getStats();
         }
 
         debug(message, data = null) {

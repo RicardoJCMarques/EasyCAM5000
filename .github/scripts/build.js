@@ -3,7 +3,7 @@
  * @description Production build script - CSS inlining, JSON embedding, JS bundling
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
- * @see         {@link https://github.com/RicardoJCMarques/EasyTrace5000}
+ * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
  *
  * SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
  * SPDX-License-Identifier: AGPL-3.0-or-later
@@ -71,9 +71,23 @@ const CONFIG = {
         'unit-converter.js'
     ],
 
+    // ESM 3D preview stack. esbuild bundles the entry point plus every
+    // renderer3d-* sibling AND the vendored three files into one module at
+    // the SAME path, so the dynamic import specifier never changes and the
+    // importmap becomes unnecessary in dist.
+    renderer3d: {
+        dir: 'renderer3d',
+        entry: 'renderer3d/renderer3d-core.js',
+        alias: {
+            'three': 'renderer3d/three.core.min.js',
+            'three/webgpu': 'renderer3d/three.webgpu.min.js',
+            'three/tsl': 'renderer3d/three.tsl.min.js'
+        }
+    },
+
     // Files to explicitly protect from deletion (used by unbundled docs, etc)
     preserveFiles: [
-        'themes/theme-loader.js'
+        'themes/theme-loader.js',
     ],
 
     // Embedded assets
@@ -92,12 +106,17 @@ const CONFIG = {
 // ============================================================================
 
 function stripComments(content, fileType) {
+    // Remove comment new lines
+    content = content.replace(/\r\n?/g, '\n');
+
     // Remove block comments (/* ... */) - works for both JS and CSS
     content = content.replace(/\/\*[\s\S]*?\*\//g, '');
 
-    // Remove single-line comments (// ...) - JS only
+    // Remove single-line comments (// ...) - JS only // REVIEW - I don't think this is working? At least for config.js comments like:
+    // epsilon: 1e-9,              // Floating-point near-zero. Guard divisions, cross-product zero checks.
+    // collinear: 1e-12,           // Stricter near-zero for geometric collinearity where even tiny deviations matter.
     if (fileType === 'js') {
-        content = content.replace(/^\s*\/\/.*$/gm, '');
+        content = content.replace(/^[ \t]*\/\/.*$/gm, '');
     }
 
     // Remove excessive blank lines (more than 2 consecutive)
@@ -164,7 +183,7 @@ function deleteDir(dirpath) {
 function buildHeader(title, subtitle, format = 'js') {
     const YEARS  = '2025-2026';
     const HOLDER = 'Eltryus - Ricardo Marques';
-    const REPO   = 'https://github.com/RicardoJCMarques/EasyTrace5000';
+    const REPO   = 'https://github.com/RicardoJCMarques/EasyCAM5000';
 
     const heading = subtitle ? `${title} - ${subtitle}` : title;
     const timestamp = new Date().toISOString();
@@ -207,14 +226,14 @@ class Builder {
         this.cleanDist();
         this.copySource();
 
-        // Embed assets
+        // Assests to Embed
         this.embedLanguageJSON();
         this.embedToolsJSON();
         this.embedAppProfiles();
         this.embedIconSprite();
-
-        // Process apps and docs
         this.processApps();
+        this.bundleFieldWorker();
+        this.bundleRenderer3D();
         this.processDocPages();
 
         this.cleanup();
@@ -465,6 +484,37 @@ class Builder {
         log(`  Embedded ${symbols.length} icons as inline sprite`);
     }
 
+    /**
+     * Concatenate the field worker's importScripts dependencies into a
+     * single self-contained dist/geometry/field-worker.js.
+     */
+    bundleFieldWorker() {
+        const workerPath = path.join(this.distDir, 'geometry/field-worker.js');
+        if (!fs.existsSync(workerPath)) return;
+
+        let worker = readFile(workerPath);
+        const m = worker.match(/importScripts\(([\s\S]*?)\);/);
+        if (!m) return;
+
+        const deps = [...m[1].matchAll(/['"]([^'"]+)['"]/g)].map(x => x[1]);
+        let bundle = buildHeader('Field Worker', 'Bundled', 'js');
+        for (const dep of deps) {
+            const p = path.join(this.distDir, 'geometry', dep);
+            if (!fs.existsSync(p)) {
+                throw new Error(`field-worker importScripts dep not found in dist: ${dep}`);
+            }
+            bundle += `\n// --- ${dep} ---\n${stripComments(readFile(p), 'js')}\n`;
+        }
+        worker = worker.replace(m[0], '// importScripts inlined by build');
+        writeFile(workerPath, bundle + '\n' + stripComments(worker, 'js'));
+        // Inlining succeeded - the standalone dep copies are now dead weight
+        for (const dep of deps) {
+            const p = path.join(this.distDir, 'geometry', path.basename(dep));
+            if (fs.existsSync(p)) fs.unlinkSync(p);
+        }
+        log(`  Bundled field worker (${deps.length} deps inlined)`);
+    }
+
     processApps() {
         log('Processing application entry points...');
         for (const app of CONFIG.apps) {
@@ -494,11 +544,12 @@ class Builder {
 
             let cssContents = buildHeader(app.name, 'Bundled Styles', 'css');
             for (const item of deps.css) {
-                if (fs.existsSync(item.absPath)) {
-                    cssContents += `/* ${item.relPath} */\n${stripComments(readFile(item.absPath), 'css')}\n\n`;
-                    this.processedFiles.add(item.absPath);
-                    htmlContent = htmlContent.split(item.tag).join('');
+                if (!fs.existsSync(item.absPath)) {
+                    throw new Error(`${app.html}: <link> ${item.relPath} not found in dist`);
                 }
+                cssContents += `/* ${item.relPath} */\n${stripComments(readFile(item.absPath), 'css')}\n\n`;
+                this.processedFiles.add(item.absPath);
+                htmlContent = htmlContent.split(item.tag).join('');
             }
             this.stats.css += cssContents.length;
             const styleTag = `\n    <style>\n${cssContents}    </style>\n`;
@@ -507,15 +558,16 @@ class Builder {
             // REVIEW - Not very important but while this logic removes the comments, it doesn't remove the "new lines" where comments existed. (Everything is still handled by the deployment minifier)
             let jsContents = buildHeader(app.name, 'Bundled Logic', 'js');
             for (const item of deps.js) {
-                if (fs.existsSync(item.absPath)) {
-                    let content = stripComments(readFile(item.absPath), 'js');
-                    if (item.relPath.includes('clipper2z')) {
-                        content = content.replace(/["'](\.?\/)?(geometry\/)?clipper2z\.wasm["']/g, '"../geometry/clipper2z.wasm"');
-                    }
-                    jsContents += `\n// --- ${item.relPath} ---\n${content}\n`;
-                    this.processedFiles.add(item.absPath);
-                    htmlContent = htmlContent.split(item.tag).join('');
+                if (!fs.existsSync(item.absPath)) {
+                    throw new Error(`${app.html}: <script> ${item.relPath} not found in dist`);
                 }
+                let content = stripComments(readFile(item.absPath), 'js');
+                if (item.relPath.includes('clipper2z')) {
+                    content = content.replace(/["'](\.?\/)?(geometry\/)?clipper2z\.wasm["']/g, '"../geometry/clipper2z.wasm"');
+                }
+                jsContents += `\n// --- ${item.relPath} ---\n${content}\n`;
+                this.processedFiles.add(item.absPath);
+                htmlContent = htmlContent.split(item.tag).join('');
             }
             this.stats.js += jsContents.length;
 
@@ -544,8 +596,8 @@ class Builder {
             let htmlContent = readFile(pagePath).replace(/\0/g, ''); 
 
             // Strip the original headers
-            htmlContent = htmlContent.replace(/[\r\n]*/, '');
-            htmlContent = htmlContent.replace(/[\r\n]*/i, '');
+            htmlContent = htmlContent.replace(/\s*<!--![\s\S]*?-->/g, '');
+            htmlContent = htmlContent.replace(/\s*<!--\s*Easy(?:Trace|Shape)5000[\s\S]*?-->/g, '');
 
             // Inject the new compact deployment header
             const htmlHeader = buildHeader('Documentation', 'Manual', 'html');
@@ -573,6 +625,68 @@ class Builder {
                 log(`  Inlined CSS for ${page}`);
             }
         }
+    }
+
+    /**
+     * One ESM file at the entry point's own path. Runs in BOTH dist states
+     * so plain dist and minified dist have the same module graph - the three
+     * states rule.
+     */
+    bundleRenderer3D() {
+        const cfg = CONFIG.renderer3d;
+        const dir = path.join(this.distDir, cfg.dir);
+        if (!fs.existsSync(dir)) {
+            log('  renderer3d/ not found, skipping 3D bundle');
+            return;
+        }
+
+        let esbuild;
+        try {
+            esbuild = require('esbuild');
+        } catch {
+            throw new Error('renderer3d bundling needs esbuild:\n' +
+                '  npm install esbuild --no-save');
+        }
+
+        const entry = path.join(this.distDir, cfg.entry);
+        if (!fs.existsSync(entry)) throw new Error(`bundleRenderer3D: ${cfg.entry} not found in dist`);
+
+        const alias = {};
+        for (const [spec, rel] of Object.entries(cfg.alias)) {
+            const target = path.join(this.distDir, rel);
+            if (!fs.existsSync(target)) throw new Error(`bundleRenderer3D: alias target ${rel} not found in dist`);
+            alias[spec] = target;
+        }
+
+        const result = esbuild.buildSync({
+            entryPoints: [entry],
+            bundle: true,
+            format: 'esm',
+            platform: 'browser',
+            alias,
+            legalComments: 'inline',
+            write: false
+        });
+
+        const code = result.outputFiles[0].text;
+
+        // Delete every other file in the directory BEFORE writing, so the bundle cannot be deleted by its own sweep.
+        for (const f of fs.readdirSync(dir)) {
+            const p = path.join(dir, f);
+            if (p !== entry) deleteFile(p);
+        }
+        writeFile(entry, code);
+
+        // The importmap only existed to resolve three/*; three is inlined now.
+        for (const app of CONFIG.apps) {
+            const htmlPath = path.join(this.distDir, app.html);
+            if (!fs.existsSync(htmlPath)) continue;
+            let html = readFile(htmlPath);
+            html = html.replace(/[ \t]*<script type="importmap">[\s\S]*?<\/script>\r?\n?/g, '');
+            writeFile(htmlPath, html);
+        }
+
+        log(`  Bundled renderer3d → ${cfg.entry} (${(code.length / 1024).toFixed(0)}KB)`);
     }
 
     cleanup() {
@@ -615,6 +729,73 @@ class Builder {
         if (fs.existsSync(langDir) && fs.readdirSync(langDir).length === 0) deleteDir(langDir);
     }
 
+    /**
+     * Optional local minification (--minify).
+     * It lives here so the deployment artifact can be reproduced and
+     * tested locally.
+     * Requires: npm install terser html-minifier-terser --no-save
+     */
+    async minify() {
+        log('Minifying...');
+        let terser, htmlMin;
+        try {
+            terser = require('terser');
+            htmlMin = require('html-minifier-terser');
+        } catch {
+            throw new Error('--minify needs terser and html-minifier-terser:\n' +
+                '  npm install terser html-minifier-terser --no-save');
+        }
+
+        // /^!/ is what preserves the AGPL banner buildHeader injected.
+        const jsOpts = { compress: true, mangle: true, format: { comments: /^!/ } };
+
+        const jsTargets = [
+            ...CONFIG.apps.map(a => a.jsBundle),
+            'themes/theme-loader.js',
+            'geometry/field-worker.js'
+        ];
+
+        // renderer3d is one ESM bundle by now; it still needs module:true.
+        if (fs.existsSync(path.join(this.distDir, CONFIG.renderer3d.entry))) {
+            jsTargets.push(CONFIG.renderer3d.entry);
+        }
+
+        for (const rel of jsTargets) {
+            const p = path.join(this.distDir, rel);
+            if (!fs.existsSync(p)) throw new Error(`minify: ${rel} not found in dist`);
+            const out = await terser.minify(readFile(p), {
+                ...jsOpts, module: rel.startsWith('renderer3d/')
+            });
+            writeFile(p, out.code);
+        }
+        log(`  Minified ${jsTargets.length} JS file(s)`);
+
+        const walk = (dir, out = []) => {
+            for (const item of fs.readdirSync(dir)) {
+                const p = path.join(dir, item);
+                if (fs.statSync(p).isDirectory()) walk(p, out);
+                else out.push(p);
+            }
+            return out;
+        };
+        const all = walk(this.distDir);
+
+        const jsonFiles = all.filter(f => f.endsWith('.json'));
+        for (const p of jsonFiles) writeFile(p, JSON.stringify(JSON.parse(readFile(p))));
+        log(`  Minified ${jsonFiles.length} JSON file(s)`);
+
+        const htmlOpts = {
+            collapseWhitespace: true,
+            removeComments: true,
+            ignoreCustomComments: [/^!/],
+            minifyCSS: true,
+            minifyJS: true
+        };
+        const htmlFiles = all.filter(f => f.endsWith('.html'));
+        for (const p of htmlFiles) writeFile(p, await htmlMin.minify(readFile(p), htmlOpts));
+        log(`  Minified ${htmlFiles.length} HTML file(s)`);
+    }
+
     printStats() {
         log('');
         log('Build complete!');
@@ -628,16 +809,18 @@ class Builder {
 // CLI ENTRY POINT
 // ============================================================================
 
-function main() {
+async function main() {
     const args = process.argv.slice(2);
 
     // Parse arguments
     let srcDir = '.';
     let distDir = './dist';
+    let doMinify = false;
 
     for (let i = 0; i < args.length; i++) {
         if (args[i] === '--src' && args[i + 1]) srcDir = args[++i];
         else if (args[i] === '--dist' && args[i + 1]) distDir = args[++i];
+        else if (args[i] === '--minify') doMinify = true;
         else if (args[i] === '--help' || args[i] === '-h') {
             console.log(`
 EasyTrace5000 Build Script
@@ -645,14 +828,16 @@ EasyTrace5000 Build Script
 Usage: node build.js [options]
 
 Options:
-  --src <dir>    Source directory (default: current directory)
-  --dist <dir>   Output directory (default: ./dist)
-  --help, -h     Show this help
+    --src <dir>     Source directory (default: current directory)
+    --dist <dir>    Output directory (default: ./dist)
+    --minify        Minify JS/JSON/HTML in place (same as deployment).
+                    Needs: npm install terser html-minifier-terser --no-save
+    --help, -h      Show this help
 
 Examples:
-  node build.js                      # Build from . to ./dist
-  node build.js --dist ./build       # Build from . to ./build
-  node build.js --src ../src --dist ./dist
+    node build.js                      # Build from . to ./dist
+    node build.js --dist ./build       # Build from . to ./build
+    node build.js --src ../src --dist ./dist
 `);
             process.exit(0);
         }
@@ -667,6 +852,10 @@ Examples:
     // Run build
     const builder = new Builder(srcDir, distDir);
     builder.run();
+    if (doMinify) await builder.minify();
 }
 
-main();
+main().catch(err => {
+    console.error(`[build] ${err.message}`);
+    process.exit(1);
+});

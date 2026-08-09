@@ -1,9 +1,9 @@
 /*!
  * @file        css/layout-shared.css
- * @description Shared layout structure — toolbar, workspace grid, sidebars, footer, status bar, inspector, modals infrastructure.
+ * @description Shared layout structure - toolbar, workspace grid, sidebars, footer, status bar, inspector, modals infrastructure.
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
- * @see         {@link https://github.com/RicardoJCMarques/EasyTrace5000}
+ * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
  *
  * SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
  * SPDX-License-Identifier: AGPL-3.0-or-later
@@ -234,6 +234,10 @@
     font-size: var(--font-size-sm);
     color: var(--color-text-secondary);
     margin-bottom: var(--spacing-xs);
+}
+
+.property-field--disabled label {
+    opacity: 0.55;
 }
 
 .property-actions {
@@ -487,10 +491,13 @@
     align-items: center;
     justify-content: center;
     z-index: calc(var(--z-modal) + 1); /* Raises it just above standard modals */
+    transition: opacity 0.2s ease, visibility 0.2s ease;
 }
 
-.loading-overlay.hidden {
+/* Not `.hidden`: base.css sets that to display:none !important, which kills the fade and outranks any inline style set later. */
+.loading-overlay.is-hidden {
     opacity: 0;
+    visibility: hidden;
     pointer-events: none;
 }
 
@@ -587,7 +594,7 @@
     right: 0;
     z-index: var(--z-sticky);
     background: var(--color-warning);
-    color: #000;
+    color: var(--color-bw-black);
     padding: var(--spacing-sm) var(--spacing-md);
     font-size: var(--font-size-sm);
     font-weight: 500;
@@ -599,7 +606,7 @@
 
 .workspace-viewport-bar-icon {
     flex-shrink: 0;
-    stroke: #000;
+    stroke: var(--color-bw-black);
 }
 
 .workspace-viewport-bar span {
@@ -612,7 +619,7 @@
     justify-content: center;
     background: transparent;
     border: none;
-    color: #000;
+    color: var(--color-bw-black);
     cursor: pointer;
     padding: var(--spacing-xs);
     flex-shrink: 0;
@@ -623,7 +630,7 @@
 }
 
 .workspace-viewport-bar-dismiss svg {
-    stroke: #000;
+    stroke: var(--color-bw-black);
 }
 
 .workspace-viewport-bar.dismissed {

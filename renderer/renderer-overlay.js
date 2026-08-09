@@ -3,7 +3,7 @@
  * @description Handles grid, rulers, origin, scale indicator, and other UI overlays
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
- * @see         {@link https://github.com/RicardoJCMarques/EasyTrace5000}
+ * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
  *
  * SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
  * SPDX-License-Identifier: AGPL-3.0-or-later
@@ -31,7 +31,7 @@
         renderGrid() {
             if (!this.core.options.showGrid) return;
 
-            const colors = this.core.colors.canvas;
+            const colors = this.core.colors.render2d;
             if (!colors) return;
 
             const uiScale = this.core.devicePixelRatio || 1;
@@ -74,7 +74,7 @@
         renderOrigin() {
             if (!this.core.options.showOrigin) return;
 
-            const colors = this.core.colors.canvas;
+            const colors = this.core.colors.render2d;
             if (!colors) return;
 
             const fc = this.core.frameCache; 
@@ -133,7 +133,7 @@
         renderBounds() {
             if (!this.core.options.showBounds || !this.core.overallBounds) return;
 
-            const colors = this.core.colors.canvas;
+            const colors = this.core.colors.render2d;
             if (!colors) return;
 
             const bounds = this.core.overallBounds;
@@ -180,7 +180,7 @@
             // Use Core to reset transform (Screen Space)
             this.core.resetTransform();
 
-            const colors = this.core.colors.canvas;
+            const colors = this.core.colors.render2d;
             if (!colors) return;
 
             // Setup Scaling & Font
@@ -202,10 +202,16 @@
             this.ctx.textAlign = 'center';
 
             // Draw Backgrounds & Borders
-            const rulerAlpha = 'CC'; 
-            this.ctx.fillStyle = colors.background + rulerAlpha;
+            // Hex-only concatenation broke on any non-hex palette value, and
+            // the palette already carries rgba() for the scrims. Composition
+            // alpha belongs on the context, not glued onto a colour string.
+            // REVIEW - is this commentary necessary? Only stencil geometry fill has inherent transparancy.
+            this.ctx.save();
+            this.ctx.globalAlpha = parseInt(overlayConfig.rulerAlpha ?? 'CC', 16) / 255;
+            this.ctx.fillStyle = colors.background;
             this.ctx.fillRect(0, 0, this.canvas.width, rulerSize);
             this.ctx.fillRect(0, 0, rulerSize, this.canvas.height);
+            this.ctx.restore();
 
             // Setup Lines
             this.ctx.strokeStyle = colors.ruler;
@@ -323,7 +329,7 @@
             this.ctx.save();
             this.ctx.setTransform(1, 0, 0, 1, 0, 0);
 
-            const colors = this.core.colors.canvas;
+            const colors = this.core.colors.render2d;
             if (!colors) {
                 this.ctx.restore();
                 return;
@@ -439,7 +445,7 @@
             this.ctx.save();
             this.ctx.setTransform(1, 0, 0, 1, 0, 0);
 
-            const colors = this.core.colors.canvas;
+            const colors = this.core.colors.render2d;
             if (!colors) {
                 this.ctx.restore();
                 return;

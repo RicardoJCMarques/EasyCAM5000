@@ -3,7 +3,7 @@
  * @description Dedicated geometry object definitions
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
- * @see         {@link https://github.com/RicardoJCMarques/EasyTrace5000}
+ * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
  *
  * SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
  * SPDX-License-Identifier: AGPL-3.0-or-later
@@ -124,6 +124,26 @@
             const fc = this.core.frameCache;
             const lineWidth = Math.max(this.cfg.stroke.offset * fc.invScale, fc.minWorldWidth);
             const markSize = this.cfg.mark.drillSize;
+
+            // 3D toolpath chains (V-Carve / Relief): packed xyz triplets.
+            // The 2D preview strokes the XY projection only; depth
+            // visualization is renderer3d territory.
+            if (primitive.type === 'path3d') {
+                const pos = primitive.positions;
+                if (!pos || pos.length < 6) return;
+                this.ctx.strokeStyle = color;
+                this.ctx.lineWidth = lineWidth;
+                this.ctx.lineCap = 'round';
+                this.ctx.lineJoin = 'round';
+                this.ctx.setLineDash([]);
+                this.ctx.beginPath();
+                this.ctx.moveTo(pos[0], pos[1]);
+                for (let i = 3; i < pos.length; i += 3) {
+                    this.ctx.lineTo(pos[i], pos[i + 1]);
+                }
+                this.ctx.stroke();
+                return;
+            }
 
             // Centerline Slot Path
             if (primitive.properties?.isCenterlinePath) {
@@ -325,7 +345,7 @@
                 this.ctx.stroke();
 
                 const markSize = Math.min(0.5, radius * 0.4);
-                this.renderCenterMarks(center, markSize, '#FFFFFF');
+                this.renderCenterMarks(center, markSize, this.core.colors.bw.white);
 
                 if (reducedPlunge) {
                     this.ctx.strokeStyle = this.core.colors.primitives.peckMarkSlow;
@@ -394,13 +414,13 @@
             this.ctx.stroke();
 
             const markSize = Math.min(0.5, radius * 0.5);
-            this.renderCenterMarks(p1, markSize, '#FFFFFF');
-            this.renderCenterMarks(p2, markSize, '#FFFFFF');
+            this.renderCenterMarks(p1, markSize, this.core.colors.bw.white);
+            this.renderCenterMarks(p2, markSize, this.core.colors.bw.white);
 
             this.ctx.beginPath();
             this.ctx.moveTo(p1.x, p1.y);
             this.ctx.lineTo(p2.x, p2.y);
-            this.ctx.strokeStyle = '#FFFFFF';
+            this.ctx.strokeStyle = this.core.colors.bw.white;
             this.ctx.lineWidth = strokeWidth;
             this.ctx.stroke();
 
@@ -413,12 +433,11 @@
 
         getStatusColor(toolRelation, defaultColor) {
             const primColors = this.core.colors.primitives;
-            switch (toolRelation) {
-                case 'oversized': return primColors.peckMarkError;
-                case 'undersized': return primColors.peckMarkWarn;
-                case 'exact': return primColors.peckMarkGood;
-                default: return defaultColor;
-            }
+            return window.resolveToolRelationColor(toolRelation, {
+                error: primColors.peckMarkError,
+                warn: primColors.peckMarkWarn,
+                good: primColors.peckMarkGood
+            }, defaultColor);
         }
 
         renderCenterMarks(center, markSize, color) {
@@ -508,6 +527,18 @@
 
         drawPrimitivePath(primitive) {
             this.ctx.beginPath();
+
+            // Packed 3D chains: build the XY projection path.
+            if (primitive.type === 'path3d') {
+                const pos = primitive.positions || [];
+                if (pos.length >= 6) {
+                    this.ctx.moveTo(pos[0], pos[1]);
+                    for (let i = 3; i < pos.length; i += 3) {
+                        this.ctx.lineTo(pos[i], pos[i + 1]);
+                    }
+                }
+                return;
+            }
 
             if (primitive.type === 'path') {
                 if (primitive.contours && primitive.contours.length > 0) {
@@ -673,7 +704,7 @@
 
             if (shouldFill) {
                 if (isPreprocessed && primitive.properties?.polarity === 'clear') {
-                    this.ctx.fillStyle = this.core.colors.canvas?.background;
+                    this.ctx.fillStyle = this.core.colors.render2d.background;
                 } else {
                     this.ctx.fillStyle = fillColor;
                 }
@@ -832,6 +863,23 @@
                  : console.log(`[PrimitiveRenderer] ${message}`);
         }
     }
+
+    /**
+     * Tool-relation → status color. Single source for the 2D renderer and
+     * the SVG canvas exporter (was duplicated in both).
+     * @param {string} toolRelation - 'oversized' | 'undersized' | 'exact'
+     * @param {{error,warn,good}} palette
+     * @param {string} [fallback] - returned for unknown relations (renderer
+     *        passes the primitive's own color; exporter omits → good).
+     */
+    window.resolveToolRelationColor = function(toolRelation, palette, fallback) {
+        switch (toolRelation) {
+            case 'oversized':  return palette.error;
+            case 'undersized': return palette.warn;
+            case 'exact':      return palette.good;
+            default:           return fallback !== undefined ? fallback : palette.good;
+        }
+    };
 
     window.PrimitiveRenderer = PrimitiveRenderer;
 })();

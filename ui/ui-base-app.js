@@ -1,9 +1,9 @@
 /*!
  * @file        ui/ui-base-app.js
- * @description Shared base UI core class for EasyTrace5000 and EasyShape5000.
+ * @description Shared base UI core class.
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
- * @see         {@link https://github.com/RicardoJCMarques/EasyTrace5000}
+ * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
  *
  * SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
  * SPDX-License-Identifier: AGPL-3.0-or-later
@@ -26,9 +26,15 @@
             this.statusManager = null;
             this.controls = null;
             this.machineSettings = null;
+            this.canvasExporter = null;
 
-            // Cached DOM refs (avoid repeated getElementById)
-            this._dom = {};
+            this._legacyTaskId = null; // REVIEW - This looks like a fallback?
+
+            // Resolved custom properties, cleared whenever the theme changes.
+            // getComputedStyle forces a style recalc and resolveLayerColor runs
+            // once per layer per rebuildLayers.
+            this._cssVarCache = new Map();
+            window.addEventListener('themechange', () => this._cssVarCache.clear());
         }
 
         // Shared init sequence
@@ -48,33 +54,22 @@
         // Renderer
 
         initRenderer() {
-            const canvasId = 'preview-canvas';
-            if (typeof LayerRenderer === 'undefined') return;
-
-            this.renderer = new LayerRenderer(canvasId, this.core);
+            this.renderer = new LayerRenderer('preview-canvas', this.core);
 
             const theme = document.documentElement.getAttribute('data-theme') || 'dark';
-            const opts = this.getDefaultRendererOptions(theme);
-            this.renderer.setOptions(opts);
-
+            this.renderer.setOptions(this.getDefaultRendererOptions(theme));
             this.renderer.onRenderOverlay = (ctx, core) => this.renderOverlay(ctx, core);
 
-            if (window.ResizeObserver) {
-                const parent = this.renderer.canvas.parentElement;
-                if (parent) {
-                    new ResizeObserver(() => {
-                        this.renderer.core.resizeCanvas();
-                        this.renderer.render();
-                    }).observe(parent);
-                }
+            const parent = this.renderer.canvas.parentElement;
+            if (parent) {
+                new ResizeObserver(() => {
+                    this.renderer.core.resizeCanvas();
+                    this.renderer.render();
+                }).observe(parent);
             }
 
             this.renderer.render();
-
-            // Initialize Canvas Exporter after the renderer is created
-            if (typeof CanvasExporter !== 'undefined') {
-                this.canvasExporter = new CanvasExporter(this.renderer);
-            }
+            this.canvasExporter = new CanvasExporter(this.renderer);
         }
 
         /**
@@ -105,16 +100,10 @@
             const canvas = document.getElementById('preview-canvas');
             if (!canvas || !this.renderer) return;
 
-            if (typeof CanvasReadout !== 'undefined') {
-                this.canvasReadout = new CanvasReadout(this.renderer.core);
-            }
-
-            if (typeof InputManager === 'undefined' || typeof ToolController === 'undefined') return;
-
+            this.canvasReadout = new CanvasReadout(this.renderer.core);
             this.input = new InputManager(canvas, { readout: this.canvasReadout });
 
-            const toolContext = this.buildToolContext(canvas);
-            this.toolController = new ToolController(toolContext);
+            this.toolController = new ToolController(this.buildToolContext(canvas));
             this.toolController.setInputManager(this.input);
             this.toolController.setDefaultTool(this.createDefaultTool());
             this.input.attach(this.toolController);
@@ -138,32 +127,22 @@
         }
 
         createDefaultTool() {
-            if (typeof PanZoomTool !== 'undefined') {
-                return new PanZoomTool({ allowedButtons: [0, 1, 2] });
-            }
-            return null;
+            return new PanZoomTool({ allowedButtons: [0, 1, 2] });
         }
 
         // Status, Controls, Machine, Focus, Theme, Resize
-
         initStatusManager() {
-            if (typeof StatusManager !== 'undefined') {
-                this.statusManager = new StatusManager(this);
-            }
+            this.statusManager = new StatusManager(this);
         }
 
         initControls() {
-            if (typeof UIControls !== 'undefined') {
-                this.controls = new UIControls(this);
-                this.controls.init(this.renderer);
-            }
+            this.controls = new UIControls(this);
+            this.controls.init(this.renderer);
         }
 
         initMachineSettings() {
-            if (typeof MachineSettingsUI !== 'undefined') {
-                this.machineSettings = new MachineSettingsUI(this);
-                this.machineSettings.setup();
-            }
+            this.machineSettings = new MachineSettingsUI(this);
+            this.machineSettings.setup();
         }
 
         // REVIEW - This name is outdated? Rename to something more descriptive?
@@ -225,21 +204,53 @@
 
         // Canvas Spinner
 
-        showCanvasSpinner(message) { UIControls.showCanvasSpinner(message); }
-        hideCanvasSpinner() { UIControls.hideCanvasSpinner(); }
+        /**
+         * Spinner shim over the StatusManager task API. Owns the task id for
+         * callers that only have a message, so repeated show calls relabel the
+         * live task instead of stacking. Callers that own their own task
+         * (runGeneration) go straight to beginTask/endTask.
+         */
+        showCanvasSpinner(message) {
+            const sm = this.statusManager;
+            if (sm.isBusy() && this._legacyTaskId != null) {
+                sm.tick(this._legacyTaskId, { label: message });
+            } else {
+                this._legacyTaskId = sm.beginTask(message);
+            }
+        }
+
+        hideCanvasSpinner() {
+            this.statusManager.endTask(this._legacyTaskId);
+            this._legacyTaskId = null;
+        }
 
         // Layer color/z-index resolution
 
         /**
-         * Reads a CSS variable with fallback. Currently calls getComputedStyle
-         * per invocation. This is fine — resolveLayerColor runs per rebuildLayers
-         * (structural changes), not per paint frame. When the theme system is
-         * reworked, consider batch-reading operation colors into a cache on theme
-         * change, matching RendererCore.updateThemeColors().
+         * Reads a custom property, memoised until the next 'themechange'.
+         * Returns `fallback` when the property is undeclared, so callers can
+         * pass null to test for declaration.
          */
         readCSSVar(varName, fallback) {
-            const rootStyle = getComputedStyle(document.documentElement);
-            return rootStyle.getPropertyValue(varName).trim() || fallback;
+            let value = this._cssVarCache.get(varName);
+            if (value === undefined) {
+                value = getComputedStyle(document.documentElement)
+                    .getPropertyValue(varName).trim();
+                this._cssVarCache.set(varName, value);
+            }
+            return value || fallback;
+        }
+
+        /**
+         * Colour for an operation TYPE, via the app's CSS operation map
+         * (--op-color-<type>, declared in that app's layout stylesheet).
+         * Returns null when the app has not mapped that type, so callers can
+         * fall through to a role colour. No app operation list lives in JS.
+         * REVIEW - Fix --op-color vs --color-operation mismatches
+         */
+        resolveOperationColor(opType) {
+            if (!opType) return null;
+            return this.readCSSVar(`--op-color-${opType}`, null);
         }
 
         resolveLayerColor(layer) {

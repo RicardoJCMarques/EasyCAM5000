@@ -1,13 +1,13 @@
 /*!
  * @file        easyshape5000/ui-shape-buckets-panel.js
- * @description Operation buckets panel - EasyShape5000 only.
+ * @description Operation buckets panel
  *              Manages the operation list below the scene tree.
  *              Each bucket represents one CAM operation with three
  *              stage nodes: Geometry, Offsets, Preview.
  *              Emits events - the controller decides what to execute.
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
- * @see         {@link https://github.com/RicardoJCMarques/EasyTrace5000}
+ * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
  *
  * SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
  * SPDX-License-Identifier: AGPL-3.0-or-later
@@ -27,6 +27,8 @@
             this.label = label;
             this.shapeRefs = Array.isArray(shapeRefs) ? [...shapeRefs] : [shapeRefs];
             this.settings = {};
+            this.cachedHasOffsets = false;
+            this.cachedHasPreview = false;
         }
 
         /**
@@ -37,16 +39,35 @@
             if (!operation) return;
 
             operation.primitives = [];
-            operation.shapeKeyToNodeId = new Map();   // dense sourceId → scene node id (UI / debug / future reorder)
+            operation.sourceMesh = null;
+            operation.shapeKeyToNodeId = new Map();   // dense sourceId → scene node id
             let shapeKeySeq = 0;
             const bounds = { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity };
+
+            const growBounds = (b) => {
+                if (!b) return;
+                if (b.minX < bounds.minX) bounds.minX = b.minX;
+                if (b.minY < bounds.minY) bounds.minY = b.minY;
+                if (b.maxX > bounds.maxX) bounds.maxX = b.maxX;
+                if (b.maxY > bounds.maxY) bounds.maxY = b.maxY;
+            };
 
             for (const sid of this.shapeRefs) {
                 const shape = scene.findShape(sid);
                 if (!shape?.primitive) continue;
 
-                // Transform primitive to world space so offsets render correctly
                 const m = shape.getWorldMatrix();
+
+                // Relief mesh shapes: hand the (XY-transformed) triangle
+                // soup to the operation - the 2D footprint rect is a
+                // placeholder, not machinable geometry. ShapeReliefHandler
+                // slices operation.sourceMesh into a heightmap on demand.
+                if (shape.reliefMesh?.triangles?.length) {
+                    operation.sourceMesh = this.transformReliefMesh(shape.reliefMesh, m);
+                    growBounds(TransformMath.transformBounds(m, shape.getLocalBounds()));
+                    continue;
+                }
+
                 const transformed = GeometryUtils.transformPrimitive(shape.primitive, m);
                 if (!transformed) continue;
 
@@ -56,7 +77,6 @@
                 operation.shapeKeyToNodeId.set(sourceId, sid);
 
                 // Stamp non-arc points so the Z channel carries identity through Clipper booleans.
-                // Only full circles don't have non-arc points.
                 if (transformed.contours) {
                     for (const c of transformed.contours) {
                         if (!c.points) continue;
@@ -67,18 +87,56 @@
                 }
 
                 operation.primitives.push(transformed);
-
-                // Bounds from the already-transformed primitive
-                const b = transformed.getBounds();
-                if (b) {
-                    if (b.minX < bounds.minX) bounds.minX = b.minX;
-                    if (b.minY < bounds.minY) bounds.minY = b.minY;
-                    if (b.maxX > bounds.maxX) bounds.maxX = b.maxX;
-                    if (b.maxY > bounds.maxY) bounds.maxY = b.maxY;
-                }
+                growBounds(transformed.getBounds());
             }
 
             operation.bounds = isFinite(bounds.minX) ? bounds : { minX: 0, minY: 0, maxX: 0, maxY: 0 };
+        }
+
+        /**
+         * XY-transforms a relief mesh by the shape's world matrix so a
+         * dragged/rotated footprint carves where it sits. Z passes through
+         * untouched (heightmap normalizes it anyway). Identity matrix →
+         * zero-copy passthrough.
+         */
+        // REVIEW - Why is this here? Feels like there are more suited places to leave this? Geometry Utils? 3d-math?
+        transformReliefMesh(mesh, m) {
+            if (TransformMath.isIdentity(m)) return mesh;
+
+            // XY-ONLY, Z passes through. Correct for a flat relief footprint,
+            // WRONG for any 3D body: a scaled shape gets two of its three
+            // dimensions scaled and the third left alone, so a rotary blank
+            // comes out with an elliptical cross-section (model lying along
+            // the axis) or a correct cross-section on an unscaled axial length
+            // (upright model, laid down by getVisualOrient). indexedBlankWidth
+            // and the apothem both derive from those distorted bounds.
+            // Similarity matrix ⇒ uniform scale = hypot(a, b).
+            // TODO(mesh-3d) - promote mesh shapes to a real 3D TRS on the
+            // scene node (Transform3D already has the algebra) so scale and
+            // rotation apply to Z, and delete this warning.
+            const sc = Math.hypot(m.a, m.b);
+            if (Math.abs(sc - 1) > 1e-6) {
+                console.warn(`[OperationBucket] Mesh shape has a ${sc.toFixed(3)}× ` +
+                    'scale - only X and Y are scaled, mesh Z passes through ' +
+                    'unscaled. 3D/rotary results from this shape will be distorted.');
+            }
+
+            const src = mesh.triangles;
+            const out = new Float32Array(src.length);
+            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+            for (let i = 0; i < src.length; i += 3) {
+                const x = src[i], y = src[i + 1];
+                const tx = m.a * x + m.c * y + m.e;
+                const ty = m.b * x + m.d * y + m.f;
+                out[i] = tx; out[i + 1] = ty; out[i + 2] = src[i + 2];
+                if (tx < minX) minX = tx; if (tx > maxX) maxX = tx;
+                if (ty < minY) minY = ty; if (ty > maxY) maxY = ty;
+            }
+            return {
+                ...mesh,
+                triangles: out,
+                bounds3D: { ...mesh.bounds3D, minX, minY, maxX, maxY }
+            };
         }
 
         /**
@@ -88,14 +146,20 @@
             return core.operations.find(op => op.id === this.id) || null;
         }
 
-        get hasOffsets() {
-            // Caller must pass core or this must be checked via getOperation
-            // For DOM state checks, NavOperationsPanel passes core through
-            return this.cachedHasOffsets || false;
-        }
+        get hasOffsets() { return this.cachedHasOffsets; }
 
-        get hasPreview() {
-            return this.cachedHasPreview || false;
+        get hasPreview() { return this.cachedHasPreview; }
+
+        /**
+         * Refreshes cached flags from the real operation. Invalidation is NOT
+         * mirrored here - it lives on the operation, and resetOperationState
+         * clears it at the start of every generation.
+         */
+        syncStateFromOperation(core) {
+            const op = this.getOperation(core);
+            if (!op) return;
+            this.cachedHasOffsets = op.offsets && op.offsets.length > 0;
+            this.cachedHasPreview = op.preview?.ready === true;
         }
 
         /**
@@ -139,6 +203,14 @@
 
         setSceneResolver(fn) {
             this._resolveScene = fn;
+        }
+
+        /**
+         * (opType) => string[] - the operation's parameter stage list. The
+         * tree draws one node per stage after 'geometry'.
+         */
+        setStageResolver(fn) {
+            this._resolveStages = fn;
         }
 
         // Bucket CRUD
@@ -216,28 +288,18 @@
                 }
             }
 
-            // Re-sync operation primitives with updated refs
             if (core) bucket.syncPrimitives(core, scene);
-
-            if (bucket.hasOffsets) {
-                bucket.isInvalidated = true;
-                bucket.invalidatedReason = 'Source geometry changed. Regenerate offsets.';
-            }
-
-            this.updateBucketDOM(bucket);
+            this.invalidateBucket(bucketId, 'Source geometry changed. Regenerate offsets.', core);
+            this.updateBucketDOM(bucket, core);
         }
 
-        removeShapeFromBucket(bucketId, shapeId) {
+        removeShapeFromBucket(bucketId, shapeId, core) {
             const bucket = this.buckets.get(bucketId);
             if (!bucket) return;
             bucket.shapeRefs = bucket.shapeRefs.filter(id => id !== shapeId);
 
-            if (bucket.hasOffsets) {
-                bucket.isInvalidated = true;
-                bucket.invalidatedReason = 'Source geometry changed. Regenerate offsets.';
-            }
-
-            this.updateBucketDOM(bucket);
+            this.invalidateBucket(bucketId, 'Source geometry changed. Regenerate offsets.', core);
+            this.updateBucketDOM(bucket, core);
         }
 
         // Generation State Updates
@@ -250,7 +312,25 @@
             const bucket = this.buckets.get(bucketId);
             if (!bucket) return;
             bucket.syncStateFromOperation(core);
-            this.updateBucketDOM(bucket);
+            this.updateBucketDOM(bucket, core);
+        }
+
+        /**
+         * Invalidation lives on the OPERATION. buildStages, addBucketLayers and
+         * isExportReady all read it there, so a flag written on the bucket is
+         * write-only: stale offsets kept rendering and stayed exportable after
+         * their source shape moved.
+         */
+        invalidateBucket(bucketId, reason, core) {
+            const bucket = this.buckets.get(bucketId);
+            if (!bucket || !core || !bucket.hasOffsets) return;
+
+            const op = bucket.getOperation(core);
+            if (!op || op.isInvalidated) return;
+
+            core.invalidateOperationState(bucketId);
+            op.isInvalidated = true;
+            op.invalidatedReason = reason;
         }
 
         /**
@@ -268,9 +348,13 @@
                 op.preview = null;
                 op.exportReady = false;
             } else if (stage === 'offsets') {
+                // preview.primitives ARE the offset primitives, tagged in
+                // place - keeping the preview after the offsets go leaves an
+                // operation with zero paths that isExportReady answers true
+                // for, and refresh3DPlans then builds a context for it.
                 op.offsets = [];
-                op.exportReady = false;   // no offsets → not exportable, even if a stale preview remains 
-                // REVIEW - just because offsets were deleted it technically doesn't mean the offsets are stale? Offssets can never be readed to a given bucket so the preview object is always updated.
+                op.preview = null;
+                op.exportReady = false;
             }
 
             bucket.syncStateFromOperation(core);
@@ -316,7 +400,14 @@
         // DOM Rendering
         buildStages(bucket, container, core) {
             container.innerHTML = '';
-            const intrinsicStages = ['offsets', 'preview'];
+            const stages = this._resolveStages?.(bucket.type)
+                || ['geometry', 'strategy', 'machine'];
+            // One node per stage after 'geometry'. A 3D operation has two
+            // stages, so it gets one node and no separate preview step - its
+            // preview artifact is built during generation.
+            const intrinsicStages = stages.includes('strategy')
+                ? ['offsets', 'preview']
+                : ['offsets'];
 
             for (const stage of intrinsicStages) {
                 const hasData = (stage === 'offsets' && bucket.hasOffsets) ||

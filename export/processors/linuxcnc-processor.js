@@ -3,7 +3,7 @@
  * @description LinuxCNC post-processing module
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
- * @see         {@link https://github.com/RicardoJCMarques/EasyTrace5000}
+ * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
  *
  * SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
  * SPDX-License-Identifier: AGPL-3.0-or-later
@@ -22,6 +22,20 @@
                 supportsCannedCycles: true,
                 useM6: true,
                 supportsToolLengthComp: true,
+                // 4th-axis: LinuxCNC handles both CAM-side substitution
+                // (A in degrees) and a linearly-calibrated axis replacement.
+                // G93 inverse time is native, and trajectory planning has no
+                // rotary travel limit - accumulated A never needs a rewind.
+                rotary: {
+                    routes: ['a-word', 'wrapped-linear'],
+                    axisWords: ['A', 'B'],
+                    inverseTime: true,
+                    maxInverseTime: 9999.99,
+                    continuous: true,
+                    // 0: LinuxCNC installs are typically servo/geared with
+                    // exact-stop. Raise in Machine Settings for a belt rotary.
+                    indexDwell: 0
+                },
                 pauseAfterToolChange: false,
                 arcFormat: 'IJ',
                 coordinateDecimals: 4,

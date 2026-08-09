@@ -3,7 +3,7 @@
  * @description Calculates tab positions for cutout polygons
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
- * @see         {@link https://github.com/RicardoJCMarques/EasyTrace5000}
+ * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
  *
  * SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
  * SPDX-License-Identifier: AGPL-3.0-or-later
@@ -224,44 +224,30 @@
         // Geometric Utility Methods
 
         getArcData(startPoint, endPoint, arc) {
-             const center = { x: arc.center.x, y: arc.center.y };
-             const radius = Math.hypot(startPoint.x - center.x, startPoint.y - center.y);
-             const startAngle = Math.atan2(startPoint.y - center.y, startPoint.x - center.x);
-             const endAngle = Math.atan2(endPoint.y - center.y, endPoint.x - center.x);
+            const center = { x: arc.center.x, y: arc.center.y };
+            const radius = Math.hypot(startPoint.x - center.x, startPoint.y - center.y); // REVIEW - Math.hypot are expensive, is this necessary? Not that this is called frequently
+            const startAngle = Math.atan2(startPoint.y - center.y, startPoint.x - center.x);
+            const endAngle = Math.atan2(endPoint.y - center.y, endPoint.x - center.x);
 
-             // Prefer pre-computed sweep from arc reconstruction if available
-             let sweep = arc.sweepAngle;
-
-             if (sweep === undefined || sweep === null) {
-                 sweep = endAngle - startAngle;
-                 if (arc.clockwise) {
-                     if (sweep > PRECISION) sweep -= 2 * Math.PI;
-                 } else {
-                     if (sweep < -PRECISION) sweep += 2 * Math.PI;
-                 }
-
-                // Full circle: start ≈ end produces sweep ≈ 0, force full revolution.
-                 // Guard against Clipper2 micro-arcs: only promote to a full circle
-                 // when the chord is ALSO collapsed. A tiny sweep with a real chord
-                 // is a fragmented micro-arc and must stay a micro-arc.
-                 if (Math.abs(sweep) < PRECISION) {
-                     const cdx = endPoint.x - startPoint.x;
-                     const cdy = endPoint.y - startPoint.y;
-                     if ((cdx * cdx + cdy * cdy) < PRECISION * PRECISION) {
-                         sweep = arc.clockwise ? -2 * Math.PI : 2 * Math.PI;
-                     }
-                 }
-             }
-
-             return {
-                 center,
+            const sweep = ToolpathPlan.normalizeArcSweep({
+                 sweepAngle: arc.sweepAngle,
+                 startAngle, endAngle,
+                 clockwise: arc.clockwise,
+                 chord: Math.hypot(endPoint.x - startPoint.x, endPoint.y - startPoint.y), // REVIEW - Math.hypot are expensive, is this necessary? Not that this is called frequently
                  radius,
-                 startAngle,
-                 endAngle,
-                 sweep,
-                 length: Math.abs(sweep * radius),
-                 clockwise: arc.clockwise
-             };
+                 eps: PRECISION,
+                 chordEps: PRECISION
+             });
+
+            return {
+                center,
+                radius,
+                startAngle,
+                endAngle,
+                sweep,
+                length: Math.abs(sweep * radius),
+                clockwise: arc.clockwise
+            };
         }
 
         getPointAlongSegment(startPoint, endPoint, arc, segData, distanceAlong) {

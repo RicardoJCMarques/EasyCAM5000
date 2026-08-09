@@ -2,7 +2,7 @@
  * @file        input/tools-common.js
  * @description Cross-app tools. Currently:
  *
- *              PanZoomTool — pans on mouse drag (configurable buttons),
+ *              PanZoomTool - pans on mouse drag (configurable buttons),
  *                zooms on wheel, pinch-zooms on two-pointer touch.
  *
  *                EasyTrace uses it as the DEFAULT tool with allowedButtons
@@ -11,12 +11,12 @@
  *                EasyShape uses it as an OVERRIDE tool with allowedButtons
  *                = [1, 2], pushed on middle/right pointerdown and popped on
  *                pointerup. EasyShape's SelectMoveTool owns left-click and
- *                wheel zoom from idle — PanZoomTool's onWheel still runs
+ *                wheel zoom from idle - PanZoomTool's onWheel still runs
  *                only when the tool is the active one.
  *
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
- * @see         {@link https://github.com/RicardoJCMarques/EasyTrace5000}
+ * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
  *
  * SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
  * SPDX-License-Identifier: AGPL-3.0-or-later
@@ -26,7 +26,7 @@
     'use strict';
 
     const DEFAULT_WHEEL_ZOOM_SPEED = 0.002;
-    // Minimum pinch ratio change before applying — filters tremor.
+    // Minimum pinch ratio change before applying - filters tremor.
     const PINCH_DEADBAND = 0.005;
 
     class PanZoomTool extends BaseTool {
@@ -58,13 +58,11 @@
         }
 
         onActivate(ctx) {
-            // EasyShape's override pushes us — show a grab cursor. EasyTrace
-            // uses us as default so we don't want to clobber the cursor.
+            // EasyShape's override - show a grab cursor. EasyTrace uses this as default so avoid clobbering the cursor.
             if (this.cursorActive && ctx.canvas) {
                 ctx.canvas.style.cursor = this.cursorActive;
             }
-            // EasyShape sets the global panning flag here; EasyTrace doesn't
-            // need it — pass cursor=null and we leave the class alone.
+            // EasyShape sets the global panning flag here; EasyTrace doesn't need it - pass cursor=null and leave the class alone.
             if (this.cursorActive) {
                 document.documentElement.classList.add('is-panning');
             }
@@ -87,7 +85,7 @@
         onPointerDown(data, ctx) {
             // Touch / pen primary press always reports button 0. For the
             // EasyTrace [0,1,2] case this is fine. For the EasyShape [1,2]
-            // case, touch never enters PanZoomTool through this path —
+            // case, touch never enters PanZoomTool through this path -
             // single-touch falls to SelectMoveTool. Pinch on EasyShape is a
             // known gap (flagged in the action plan).
             const active = ctx.input ? ctx.input.activePointers.size : 1;
@@ -140,7 +138,7 @@
                     this.pinchLastMid = null;
                     return true;
                 }
-                // Fully released — clear everything.
+                // Fully released - clear everything.
                 this.pinchActive = false;
                 this.pinchLastDistance = 0;
                 this.pinchLastMid = null;
@@ -155,9 +153,6 @@
             const zoomFactor = Math.exp(-data.deltaY * this.wheelZoomSpeed);
             ctx.renderer.core.zoomToPoint(data.canvasX, data.canvasY, zoomFactor);
             ctx.renderer.render();
-            // The InputManager pings the readout for us when we consume,
-            // but tools that don't return true wouldn't trigger that — we
-            // do, so the chip updates either way.
             return true;
         }
 

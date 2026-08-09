@@ -8,7 +8,7 @@
  *              Currently only concentric offset pocketing is implemented.
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
- * @see         {@link https://github.com/RicardoJCMarques/EasyTrace5000}
+ * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
  *
  * SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
  * SPDX-License-Identifier: AGPL-3.0-or-later
@@ -44,7 +44,7 @@
         // Orchestration
 
         async orchestrateGeneration(operation, params, core, options = {}) {
-            core.resetOperationState(operation.id);
+            const token = this.beginRun(operation, options, core);
 
             // Validate: pocket requires closed geometry
             const openCount = this.countOpenPaths(operation);
@@ -81,6 +81,10 @@
                 ...opParams,
                 combineOffsets: true
             });
+
+            if (this.isStale(operation, token)) {
+                return { success: false, message: 'Generation superseded by a newer request', status: 'warning' };
+            }
 
             const total = operation.offsets?.reduce(
                 (s, o) => s + (o.primitives?.length || 0), 0

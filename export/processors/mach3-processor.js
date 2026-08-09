@@ -3,7 +3,7 @@
  * @description Mach3 post-processing module
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
- * @see         {@link https://github.com/RicardoJCMarques/EasyTrace5000}
+ * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
  *
  * SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
  * SPDX-License-Identifier: AGPL-3.0-or-later
@@ -22,6 +22,18 @@
                 supportsCannedCycles: true,
                 useM6: true,
                 supportsToolLengthComp: true,
+                // 4th axis: drives A/B/C and supports G93 inverse time. DRAFT -
+                // verify G93 on your build, and confirm the axis is configured
+                // ROTATIONAL (degrees) rather than linear, or 'a-word' degrees
+                // will be read as millimetres.
+                rotary: {
+                    routes: ['a-word', 'wrapped-linear'],
+                    axisWords: ['A', 'B'],
+                    inverseTime: true,
+                    maxInverseTime: 9999.99,
+                    continuous: true,
+                    indexDwell: 0.3   // drives anything; overridden in Machine Settings
+                },
                 pauseAfterToolChange: true,
                 arcFormat: 'IJ',
                 coordinateDecimals: 4,

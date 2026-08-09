@@ -4,7 +4,7 @@
  *              mutations, modals, and keyboard. Delegates all UI to EasyShapeUI.
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
- * @see         {@link https://github.com/RicardoJCMarques/EasyTrace5000}
+ * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
  *
  * SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
  * SPDX-License-Identifier: AGPL-3.0-or-later
@@ -26,10 +26,11 @@
             this.sceneInteraction = null;
             this.history = null;
 
-            this.defaultStock = {
-                width: 600, height: 400, thickness: 18,
-                material: 'plywood', zeroReference: 'bottom-left'
-            };
+            this.renderer3D = null;
+            this._renderMode = '2d';
+            this._modeSwitching = false;
+            this._plansRefreshing = false;
+            this._plansQueued = false;
         }
 
         // ════════════════════════════════════════════════════════════════
@@ -49,10 +50,11 @@
             this.history = new CommandManager(this);
         }
 
-        onProfileLoaded(profileData) {
-            if (profileData.machineDefaults?.stock) {
-                this.core.stock = { ...profileData.machineDefaults.stock };
-            }
+        /**
+         * Factory stock straight from the app profile
+         */
+        getStockDefaults() {
+            return { ...(this.appProfile?.machineDefaults?.stock || {}) };
         }
 
         createUI() {
@@ -61,24 +63,29 @@
 
         registerHandlers() {
             // Parsers
-            if (typeof SVGParser !== 'undefined') this.core.registerParser('.svg', new SVGParser());
-            if (typeof STLParser !== 'undefined') this.core.registerParser('.stl', new STLParser());
+            this.core.registerParser('.svg', new SVGParser());
+            this.core.registerParser('.stl', new STLParser());
 
             // Handlers
-            if (typeof ShapeProfileHandler !== 'undefined')
-                this.core.registerHandler('profile', new ShapeProfileHandler(this.core));
-            if (typeof ShapePocketHandler !== 'undefined')
-                this.core.registerHandler('pocket', new ShapePocketHandler(this.core));
-            if (typeof ShapeDrillHandler !== 'undefined')
-                this.core.registerHandler('drill', new ShapeDrillHandler(this.core));
-            if (typeof ShapeVCarveHandler !== 'undefined')
-                this.core.registerHandler('vcarve', new ShapeVCarveHandler(this.core));
-            if (typeof ShapeReliefHandler !== 'undefined')
-                this.core.registerHandler('relief', new ShapeReliefHandler(this.core));
-            if (typeof ShapeEngraveHandler !== 'undefined')
-                this.core.registerHandler('engrave', new ShapeEngraveHandler(this.core));
+            this.core.registerHandler('profile', new ShapeProfileHandler(this.core));
+            this.core.registerHandler('pocket', new ShapePocketHandler(this.core));
+            this.core.registerHandler('drill', new ShapeDrillHandler(this.core));
+            this.core.registerHandler('vcarve', new ShapeVCarveHandler(this.core));
+            this.core.registerHandler('relief', new ShapeReliefHandler(this.core));
+            this.core.registerHandler('rotary', new ShapeRotaryHandler(this.core));
+            this.core.registerHandler('rotary-indexed', new ShapeIndexedHandler(this.core));
+            this.core.registerHandler('engrave', new ShapeEngraveHandler(this.core));
             if (typeof ShapePatternHandler !== 'undefined')
                 this.core.registerHandler('pattern', new ShapePatternHandler(this.core));
+
+            // Spin the field worker pool up during idle so the first
+            // relief/rotary/vcarve generation doesn't pay importScripts
+            // cold-start. Safe if the pool fails - sync paths take over.
+            if (window.requestIdleCallback) {
+                requestIdleCallback(() => window.FieldWorkerClient?.warmUp());
+            } else {
+                setTimeout(() => window.FieldWorkerClient?.warmUp(), 2000);
+            }
         }
 
         registerAppShortcuts() {
@@ -101,6 +108,8 @@
                 if (this.selection.size() > 0) this.deleteShapes(Array.from(this.selection.toSet()));
             });
             sm.register('i', () => document.getElementById('toolbar-import-svg')?.click());
+
+            sm.register('F2', () => this.toggle3DMode());
         }
 
         onBindEvents() {
@@ -118,8 +127,357 @@
             window.easyshape = this;
         }
 
+        /**
+         * Welcome-modal card → app action. EasyShape is CNC-only; the 3D card
+         * selects the workspace, not a pipeline.
+         */
+        onPipelineSelected(pipelineId) {
+            this.setPipeline('cnc');
+            if (pipelineId === '3d') queueMicrotask(() => this.toggle3DMode());
+            return 'quickstart';
+        }
+
+        /** EasyShape wires its own single drop target in setupWelcomeFlow. */
+        getQuickstartOpTypes() { return ['unassigned']; }
+
+        getTreeFocusSelector() { return '#scene-tree-list [tabindex="0"]'; }
+
         handleEscapeKey(e) {
             if (this.selection.size() > 0) this.selection.clear();
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        // Render Mode (2D canvas ↔ 3D preview)
+        // ════════════════════════════════════════════════════════════════
+
+        get renderMode() { return this._renderMode; }
+
+        async enter3DMode() {
+            const container = document.getElementById('viewport-3d');
+            const shell = document.querySelector('.canvas-container');
+            if (!container || !shell) {
+                this.ui.setStatus('3D viewport container missing from page', 'error');
+                return;
+            }
+
+            shell.dataset.renderMode = '3d';
+            container.hidden = false;
+            this._renderMode = '3d';
+
+            try {
+                const view = await this.open3DPreview(container);  // mount + input stack only
+                this.refresh3D();            // stock + relief mesh + 2D geometry mirror
+                await this.refresh3DPlans(); // machine-ready toolpath plans
+                view.fitToContent();         // frame ONCE, on entry only
+                container.focus();
+
+                // Update button active class and switch icon to 2D
+                const btn3D = document.getElementById('btn-toggle-3d');
+                if (btn3D) {
+                    btn3D.classList.add('active');
+                    btn3D.querySelector('use')?.setAttribute('href', '#icon-view-2d');
+                }
+
+                this.ui.setStatus('3D preview active. F2 returns to 2D.', 'info');
+            } catch (err) {
+                console.error('3D preview failed:', err);
+                this.ui.setStatus('3D preview failed: ' + err.message, 'error');
+                this.exit3DMode();
+            }
+        }
+
+        /**
+         * Re-derives everything the 3D view mirrors from app state: stock
+         * box (size, Z-zero reference, workspace origin), the model, and
+         * every visible 2D layer. Called from rebuildLayers() - the funnel
+         * every 2D mutation already flows through - so the 3D view cannot
+         * go stale. Deliberately never touches the camera.
+         */
+        refresh3D() {
+            if (this._renderMode !== '3d' || !this.renderer3D) return;
+            const view = this.renderer3D;
+
+            // World → machine, taken from the SAME matrix GeometryTranslator
+            // stamps into every plan. Scene.worldToWorkspace is the INVERSE
+            // map (canvas pixel → file coordinate) and agrees with it only
+            // while the workspace matrix is its own inverse, so a workspace
+            // rotation drew the stock, the model and the 2D mirror at -angle
+            // while the plans sat at +angle. Hoisted: w2m runs per vertex.
+            const machineMatrix = this.core.getTransforms().machineMatrix;
+            const w2m = (p) => TransformMath.applyToPoint(machineMatrix, p);
+
+            // ── Stock: re-read settings on every refresh ──
+            const stock = this.core.stock;
+            let topZ = 0;
+            if (stock?.width > 0 && stock?.height > 0) {
+                const isBedZero = stock.zeroReference && stock.zeroReference !== 'material';
+                topZ = isBedZero ? (stock.thickness || 0) : 0;
+
+                const corners = [
+                    w2m({ x: 0, y: 0 }),
+                    w2m({ x: stock.width, y: 0 }),
+                    w2m({ x: stock.width, y: stock.height }),
+                    w2m({ x: 0, y: stock.height })
+                ];
+                view.setStock({
+                    minX: Math.min(...corners.map(c => c.x)),
+                    minY: Math.min(...corners.map(c => c.y)),
+                    maxX: Math.max(...corners.map(c => c.x)),
+                    maxY: Math.max(...corners.map(c => c.y)),
+                    thickness: stock.thickness || 0,
+                    topZ
+                });
+            }
+
+            // ── Model + frame: ONE operation owns both ──
+            // Resolving the mesh by scanning the SCENE while the blank and the
+            // orient came from whichever operation matched first let a
+            // two-model scene draw one shape's mesh inside another shape's
+            // blank, tagged with the wrong nodeId - which then mis-routed 3D
+            // picks back onto the other shape.
+            const meshOp = this.core.operations.find(op =>
+                op.sourceMesh?.triangles?.length &&
+                op.offsets?.[0]?.metadata?.is3DToolpath) || null;
+            const meta = meshOp?.offsets?.[0]?.metadata || null;
+
+            let meshTris = null;
+            let meshNodeId = null;
+            let orient = null;
+            let offsetX = 0, offsetY = 0, offsetZ = 0;
+
+            if (meshOp) {
+                meshTris = meshOp.sourceMesh.triangles;
+                meshNodeId = this.ui.opsPanel?.getBucket(meshOp.id)?.shapeRefs
+                    .find(id => this.scene.findShape(id)?.reliefMesh) || null;
+            }
+
+            if (meshOp && meta.developedSpace && meta.refRadius > 0 && meta.axisCenter) {
+                // Rotary: display the MACHINE frame. The mesh is the
+                // operation's (already XY-transformed) copy, rotated by the
+                // VISUAL orient only - the slicer's internal axis mapping is
+                // not a physical rotation of the part and must not reach the
+                // renderer. The metadata axis line is published in world
+                // coordinates, so XY offsets are 0.
+                orient = meta.rotaryFrame?.orient || null;
+                // Grounded rotary frame: blank rests ON the grid, axis line at
+                // Z = refRadius. Stock-top has no meaning here.
+                const rotaryAxisZ = meta.refRadius;
+                offsetZ = rotaryAxisZ - meta.axisCenter.c;
+
+                const len = meta.gridCols * meta.cellSize;
+                const along = (meta.originX ?? 0) + len / 2;
+                view.stock.setRotaryBlank({
+                    refRadius: meta.refRadius,
+                    length: len,
+                    axis: meta.rotaryAxis,
+                    center: meta.rotaryAxis === 'y'
+                        ? { x: meta.axisCenter.b, y: along, z: rotaryAxisZ }
+                        : { x: along, y: meta.axisCenter.b, z: rotaryAxisZ }
+                });
+                view.stock.removeStock(); // the rectangular slab is meaningless here
+
+            } else if (meshOp && meta.indexedFrame) {
+                // [INDEXED] Match the frame the toolpaths are wrapped in
+                // (walkPlans + GeometryLayer3D): rotation axis line at
+                // Z = baseZ - apothem, cross axis at 0. Slicing subtracts
+                // Cvis, so exported paths are axis-centered - translate the
+                // mesh by -axisCenter.b on the CROSS axis and leave the AXIAL
+                // one at 0 (slicing preserves it).
+                const f = meta.indexedFrame;
+                orient = f.orient || null;
+                if (f.machineAxis === 'y') {        // B about Y: axial = Y
+                    offsetX = -f.axisCenter.b;
+                    offsetY = 0;
+                } else {                            // A about X: axial = X
+                    offsetX = 0;
+                    offsetY = -f.axisCenter.b;
+                }
+                offsetZ = (topZ - f.apothem) - f.axisCenter.c;
+
+                // Indexed blank: an N-gon prism about the axis, drawn from the
+                // SAME clearRadius insertIndexMoves lifts its rotation moves
+                // above, so a bad apothem or a blank the tool would hit is
+                // visible before the cut. All inputs come from indexedFrame -
+                // one object, so a half-populated frame draws nothing instead
+                // of drawing a wrong prism.
+                const ixLen = (f.gridCols || 0) * (f.cellSize || 0);
+                const ixAlong = (f.originX ?? 0) + ixLen / 2;
+                const ixAxisZ = topZ - f.apothem;
+                view.stock.removeStock();
+                view.stock.setIndexedBlank({
+                    clearRadius: f.clearRadius,
+                    length: ixLen,
+                    axis: f.machineAxis,
+                    faces: f.faceCount,
+                    startAngleDeg: f.startAngle,
+                    // Cross coordinate 0, NOT axisCenter.b. Slicing subtracts
+                    // Cvis outright, so the plans are axis-centered and
+                    // walkPlans wraps them about cross 0 - and the mesh above
+                    // is translated by -axisCenter.b to match. Placing the
+                    // prism at the world axis instead put the blank beside its
+                    // own toolpaths on every model not centred on the axis.
+                    center: f.machineAxis === 'y'
+                        ? { x: 0, y: ixAlong, z: ixAxisZ }
+                        : { x: ixAlong, y: 0, z: ixAxisZ }
+                });
+
+            } else if (meshOp) {
+                // Flat relief. sourceMesh already carries the shape's world
+                // TRS (syncPrimitives baked it), so only the machine map is
+                // left, and setTriangleMesh takes a rotation plus an offset -
+                // which expresses translation and rotation exactly. The
+                // workspace matrix carries no scale, so det is +-1; det < 0 is
+                // a mirror and is not a rotation.
+                view.stock.removeRotaryBlank();
+                const m = machineMatrix;
+                const det = m.a * m.d - m.b * m.c;
+                offsetX = m.e;
+                offsetY = m.f;
+                offsetZ = topZ - meshOp.sourceMesh.bounds3D.maxZ;
+                if (det > 0) {
+                    orient = [m.a, m.c, 0,
+                              m.b, m.d, 0,
+                              0,   0,   1];
+                } else {
+                    console.warn('[EasyShape] Workspace mirror is not applied to the 3D model - ' +
+                        'the toolpaths are mirrored, the displayed mesh is not.');
+                }
+
+            } else {
+                // Nothing generated yet - show the imported model so it can be
+                // placed. Translation only: without a sourceMesh there is no
+                // copy carrying the node's rotation and scale to draw instead.
+                view.stock.removeRotaryBlank();
+                for (const sid of this.scene.collectShapeIds(this.scene.root)) {
+                    const s = this.scene.findShape(sid);
+                    if (!s?.reliefMesh?.triangles?.length) continue;
+                    const wm = s.getWorldMatrix();
+                    const off = w2m({ x: wm.e, y: wm.f });
+                    meshTris = s.reliefMesh.triangles;
+                    meshNodeId = s.id;
+                    offsetX = off.x;
+                    offsetY = off.y;
+                    offsetZ = topZ - s.reliefMesh.bounds3D.maxZ;
+                    break;
+                }
+            }
+
+            if (meshTris) {
+                view.stock.setTriangleMesh(meshTris, {
+                    offsetX, offsetY, offsetZ, orient, nodeId: meshNodeId
+                });
+            } else {
+                view.stock.removeTriangleMesh();
+            }
+
+            // 2D layer mirror: the exact snapshot the canvas paints
+            const defs = [];
+            for (const [name, layer] of this.ui.renderer.layers) {
+                if (layer.visible === false || layer.isStock) continue;
+                if (!layer.primitives || layer.primitives.length === 0) continue;
+                defs.push({
+                    name,
+                    primitives: layer.primitives,
+                    transform: layer.transform || null,
+                    zIndex: layer.zIndex || 0,
+                    color: this.ui.resolveLayerColor(layer)
+                });
+            }
+
+            view.geometry.setLayers(defs, {
+                baseZ: topZ,
+                worldToMachine: w2m,
+                // Grounded frame; undefined = legacy. Same operation as the
+                // mesh above, so the strip and the blank cannot disagree.
+                rotaryAxisZ: meta?.developedSpace ? meta.refRadius : undefined
+            });
+        }
+
+        /**
+         * Rebuilds machine-ready plans and pushes them to the 3D toolpath
+         * layer. Uses the SAME pair assembly as export (params committed →
+         * buildToolpathContext → executePipeline), so what renders IS what
+         * exports. Reentrancy-guarded: a refresh requested mid-run
+         * coalesces into one rerun. Never touches the camera.
+         */
+        async refresh3DPlans() {
+            if (this._renderMode !== '3d' || !this.renderer3D) return;
+            if (this._plansRefreshing) { this._plansQueued = true; return; }
+            this._plansRefreshing = true;
+            try {
+                const readyOps = this.core.operations.filter(op => this.core.isExportReady(op));
+                this.ensureBucketParamsLoaded(readyOps);
+                const pairs = this.buildOperationContextPairs(readyOps.map(op => op.id));
+                const { plans } = await this.core.executePipeline(pairs, { convertRotary: false });
+                // Developed (rotary) plans carry y = θ·refR - drawing them
+                // as machine XYZ paints the flat strip through the scene.
+                // The wrapped preview lives in GeometryLayer3D; plans join
+                // once the θ→A machine pass exists.
+                const displayable = plans.filter(p => !p.metadata?.developedSpace);
+                if (displayable.length < plans.length) {
+                    console.info('[EasyShape] 3D plans preview: ' +
+                        `${plans.length - displayable.length} rotary plan(s) hidden ` +
+                        '(developed space, θ→A stage pending).');
+                }
+                this.renderer3D?.setPlans(displayable);   // no fit - camera stays put
+            } catch (err) {
+                console.warn('3D plan refresh failed:', err.message);
+            } finally {
+                this._plansRefreshing = false;
+                if (this._plansQueued) { this._plansQueued = false; this.refresh3DPlans(); }
+            }
+        }
+
+        /**
+         * Maps a 3D raycast hit back to a scene node and drives the SAME
+         * selection set the tree and 2D tools use, so the parameter panel
+         * reacts identically. Batched layers aren't node-addressable and
+         * are ignored; per-shape layers (shape_<id>) and tagged meshes work.
+         */
+        on3DPick(hit) {
+            let nodeId = hit.nodeId;
+            if (!nodeId && hit.layerName?.startsWith('shape_')) {
+                nodeId = hit.layerName.slice('shape_'.length);
+            }
+            if (!nodeId || !this.scene.findNode(nodeId)) return;
+            this.scene.selection.replace([nodeId]);
+            this.ui.renderAll();
+        }
+
+        exit3DMode() {
+            this.renderer3D?.simulator?.stop();
+            const container = document.getElementById('viewport-3d');
+            const shell = document.querySelector('.canvas-container');
+            if (container) container.hidden = true;
+            if (shell) delete shell.dataset.renderMode;
+            this._renderMode = '2d';
+
+            // Remove active class and reset icon back to 3D
+            const btn3D = document.getElementById('btn-toggle-3d');
+            if (btn3D) {
+                btn3D.classList.remove('active');
+                btn3D.querySelector('use')?.setAttribute('href', '#icon-view-3d');
+            }
+
+            this.ui.renderAll();
+            document.getElementById('preview-canvas')?.focus();
+        }
+
+        /**
+         * Guarded because enter3DMode awaits a dynamic import: a second
+         * toggle mid-load would exit while the first entry is still in
+         * flight, leaving refresh3D/refresh3DPlans skipped and the status
+         * line claiming 3D over a 2D canvas.
+         */
+        async toggle3DMode() {
+            if (this._modeSwitching) return;
+            this._modeSwitching = true;
+            try {
+                if (this.renderMode === '3d') this.exit3DMode();
+                else await this.enter3DMode();
+            } finally {
+                this._modeSwitching = false;
+            }
         }
 
         // ════════════════════════════════════════════════════════════════
@@ -132,11 +490,20 @@
             if (!example) { this.ui.setStatus(`Example not found: ${exampleId}`, 'error'); return; }
             this.ui.setStatus(`Loading example: ${example.name}...`, 'info');
             try {
-                const file = example.files?.svg || Object.values(example.files)[0];
-                const resp = await fetch(file);
+                // Route by file type
+                const path = example.files?.svg || example.files?.stl
+                    || Object.values(example.files || {})[0];
+                if (!path) throw new Error('example has no files');
+
+                const resp = await fetch(path);
                 if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-                const content = await resp.text();
-                await this.importSVG(new File([content], file.split('/').pop(), { type: 'image/svg+xml' }));
+
+                const name = path.split('/').pop();
+                const ext = name.toLowerCase().split('.').pop();
+                const body = (ext === 'stl') ? await resp.arrayBuffer() : await resp.text();
+                const mime = (ext === 'stl') ? 'model/stl' : 'image/svg+xml';
+
+                await this.processFile(new File([body], name, { type: mime }));
             } catch (e) { this.ui.setStatus(`Failed to load example: ${e.message}`, 'error'); }
         }
 
@@ -158,12 +525,15 @@
         }
 
         /**
-         * Imports an STL as a relief operation. Bypasses ParserPlotter
-         * and the scene shape tree entirely - the mesh attaches to the
-         * operation, and ShapeReliefHandler slices it into a heightmap
-         * on demand (so resolution params always take effect).
+         * Imports an STL as a first-class scene object: a ShapeNode whose
+         * primitive is the mesh's XY footprint (selectable in tree/canvas,
+         * draggable, bucket-assignable) carrying the triangle soup on
+         * node.reliefMesh. The relief OPERATION is created later through
+         * the normal bucket flow - OperationBucket.syncPrimitives hands
+         * the mesh to operation.sourceMesh, and ShapeReliefHandler slices
+         * it into a heightmap on demand. File Z is pipeline-irrelevant
+         * (heightmap normalizes; carve depth = relief params).
          */
-        // Not Wired yet
         async importSTL(file) {
             if (!file) return;
             this.ui.setStatus(`Loading ${file.name}…`);
@@ -179,25 +549,37 @@
                 return;
             }
 
-            const operation = this.core.createOperation('relief', { label: file.name });
-            operation.reliefMesh = {
-                triangles: parseResult.triangles,
-                triangleCount: parseResult.triangleCount,
-                bounds3D: parseResult.bounds3D
-            };
-            operation.bounds = parseResult.bounds;
-            operation.primitives = [];
-            operation.processed = true;
-            if (parseResult.warnings?.length) operation.warnings = [...parseResult.warnings];
+            const b3 = parseResult.bounds3D;
+            const footprint = new RectanglePrimitive(
+                { x: b3.minX, y: b3.minY },
+                b3.maxX - b3.minX,
+                b3.maxY - b3.minY,
+                { role: 'relief_mesh', fill: false, stroke: true, strokeWidth: 0 }
+            );
 
-            this.core.updateStatistics();
-            this.ui.renderAll?.();
+            this.scene.addShapesFromPlot([footprint], file.name);
+            const fileGroup = this.scene.fileRoots.get(file.name);
+            const node = fileGroup?.children?.[fileGroup.children.length - 1];
+            if (node) {
+                node.label = file.name.replace(/\.stl$/i, '') + ' (mesh)';
+                // REVIEW - scene-node mesh, separate from operation.sourceMesh?
+                node.reliefMesh = {
+                    triangles: parseResult.triangles,
+                    triangleCount: parseResult.triangleCount,
+                    bounds3D: b3
+                };
+            }
+
+            this.history.clear();
+            this.scene.recomputeBoardBoundsFromShapes();
+            this.ui.renderAll();
+            this.ui.zoomFit();
             this.ui.setStatus(
                 `Loaded ${file.name}: ${parseResult.triangleCount} triangles, ` +
-                `${(parseResult.bounds3D.maxZ - parseResult.bounds3D.minZ).toFixed(2)}mm model height`,
+                `${(b3.maxZ - b3.minZ).toFixed(2)}mm model height`,
                 'success'
             );
-            return operation;
+            return node;
         }
 
         async importSVG(file) {
@@ -218,6 +600,18 @@
 
             const beforeCount = this.scene.shapeCount();
             this.scene.addShapesFromPlot(plotResult.primitives, file.name);
+
+            // Collapse imported groups
+            // REVIEW - it works a bit too well, the UI hides it a bit too much, should the first added object get automatically selected? That UX could be relevant for EasyTrace5000 too?
+            // const fileGroup = this.scene.fileRoots?.get(file.name);
+            // if (fileGroup) {
+            //     const collapseAll = (node) => {
+            //         if (node.kind === 'group') node.collapsed = true;
+            //         if (node.children) node.children.forEach(collapseAll);
+            //     };
+            //     collapseAll(fileGroup);
+            // }
+
             const added = this.scene.shapeCount() - beforeCount;
 
             this.history.clear();
@@ -416,9 +810,9 @@
                 if (bucket.shapeRefs.length === 0) {
                     bucketsToRemove.push(bucket.id);
                 } else if (bucket.shapeRefs.length !== prevCount) {
-                    // Some refs died but bucket survives — update count + invalidate
-                    bucket.isInvalidated = true;
-                    bucket.invalidatedReason = 'Source shape(s) deleted. Regenerate offsets.';
+                    // Some refs died but bucket survives - update count + invalidate
+                    this.ui.opsPanel.invalidateBucket(
+                        bucket.id, 'Source shape(s) deleted. Regenerate offsets.', this.core);
                     this.ui.opsPanel.updateBucketDOM(bucket, this.core);
                 }
             }
@@ -446,8 +840,8 @@
                     // Only invalidate if this bucket references an affected shape
                     const isAffected = bucket.shapeRefs.some(ref => changedShapeIds.has(ref));
                     if (!isAffected) continue;
-                    bucket.isInvalidated = true;
-                    bucket.invalidatedReason = 'Source geometry changed. Regenerate offsets.';
+                    this.ui.opsPanel.invalidateBucket(
+                        bucket.id, 'Source geometry changed. Regenerate offsets.', this.core);
                     this.ui.opsPanel.updateBucketDOM(bucket, this.core);
                 }
             }
@@ -465,9 +859,7 @@
             const anchorId = this.selection.anchor();
             const anchor = anchorId ? this.scene.findShape(anchorId) : null;
             if (container && anchor?.operation && this.ui.shapeOperationPanel) {
-                this.ui.shapeOperationPanel.showOperationProperties(
-                    container, anchor, this.ui.shapeOperationPanel.getCurrentStage()
-                );
+                this.ui.shapeOperationPanel.showOperationProperties(container, anchor);
             }
         }
 
@@ -505,8 +897,8 @@
             const hidden = document.getElementById('file-input-hidden');
             if (importBtn && hidden) {
                 importBtn.addEventListener('click', () => {
-                    hidden.accept = '.svg';
-                    hidden.onchange = async (e) => { const f = e.target.files?.[0]; if (f) await this.importSVG(f); hidden.value = ''; };
+                    hidden.accept = '.svg,.stl';
+                    hidden.onchange = async (e) => { const f = e.target.files?.[0]; if (f) await this.processFile(f); hidden.value = ''; };
                     hidden.click();
                     this.closeDropdown();
                 });
@@ -520,7 +912,7 @@
                     if (document.querySelector('.modal.active')) return;
                     e.preventDefault();
                     const f = e.dataTransfer.files?.[0];
-                    if (f && /\.svg$/i.test(f.name)) this.importSVG(f);
+                    if (f && /\.(svg|stl)$/i.test(f.name)) this.processFile(f);
                     else if (f) this.ui.setStatus(`Unsupported file: ${f.name}`, 'warning');
                 });
             }
@@ -549,6 +941,9 @@
 
             document.getElementById('btn-undo')?.addEventListener('click', () => { const lbl = this.history.getTopUndoLabel(); if (this.history.undo()) this.ui.setStatus(`Undo: ${lbl}`); });
             document.getElementById('btn-redo')?.addEventListener('click', () => { if (this.history.redo()) this.ui.setStatus(`Redo: ${this.history.getTopUndoLabel() || ''}`); });
+            
+            document.getElementById('btn-toggle-3d')?.addEventListener('click', () => this.toggle3DMode());
+
             document.getElementById('toolbar-export-gcode')?.addEventListener('click', () => {
                 const readyOps = this.core.operations.filter(op => this.core.isExportReady(op));
                 if (readyOps.length === 0) { this.ui.setStatus('No operations ready for export. Generate previews first.', 'warning'); return; }
@@ -578,17 +973,6 @@
             ['sponsor-slot-1', 'sponsor-slot-2', 'sponsor-slot-3', 'sponsor-contact-cta'].forEach(id => {
                 document.getElementById(id)?.addEventListener('click', (e) => { e.preventDefault(); this.modalManager.showModal('support'); });
             });
-
-            const dropZone = document.getElementById('qs-drop-zone');
-            const qsInput = document.getElementById('qs-file-input');
-            if (dropZone && qsInput) {
-                dropZone.addEventListener('click', () => qsInput.click());
-                dropZone.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); qsInput.click(); } });
-                ['dragover', 'dragenter'].forEach(ev => dropZone.addEventListener(ev, e => { e.preventDefault(); dropZone.classList.add('dragging'); }));
-                ['dragleave', 'drop'].forEach(ev => dropZone.addEventListener(ev, e => { e.preventDefault(); dropZone.classList.remove('dragging'); }));
-                dropZone.addEventListener('drop', e => { const f = e.dataTransfer.files?.[0]; if (f) { this.modalManager.closeModal(); this.importSVG(f); } });
-                qsInput.addEventListener('change', e => { const f = e.target.files?.[0]; if (f) { this.modalManager.closeModal(); this.importSVG(f); } qsInput.value = ''; });
-            }
         }
 
         setupStockAndMachine() {
@@ -639,7 +1023,7 @@
                 const w = parseFloat(document.getElementById('stock-width')?.value);
                 const h = parseFloat(document.getElementById('stock-height')?.value);
                 const t = parseFloat(document.getElementById('stock-thickness')?.value);
-                if (!this.core.stock) this.core.stock = { ...this.defaultStock };
+                if (!this.core.stock) this.core.stock = this.getStockDefaults();
                 if (Number.isFinite(w) && w > 0) this.core.stock.width = w;
                 if (Number.isFinite(h) && h > 0) this.core.stock.height = h;
                 if (Number.isFinite(t) && t > 0) this.core.stock.thickness = t;
@@ -658,18 +1042,21 @@
             };
 
             const resetStock = () => {
-                this.core.stock = { ...this.defaultStock };
+                const defaults = this.getStockDefaults();
+                this.core.stock = { ...defaults };
                 this.core.saveSettings();
+
                 const stockW = document.getElementById('stock-width');
                 const stockH = document.getElementById('stock-height');
                 const stockT = document.getElementById('stock-thickness');
                 const stockM = document.getElementById('stock-material');
                 const zEl = document.getElementById('z-zero');
-                if (stockW) stockW.value = this.defaultStock.width;
-                if (stockH) stockH.value = this.defaultStock.height;
-                if (stockT) stockT.value = this.defaultStock.thickness;
-                if (stockM) stockM.value = this.defaultStock.material;
-                if (zEl) zEl.value = 'material';
+                if (stockW) stockW.value = defaults.width;
+                if (stockH) stockH.value = defaults.height;
+                if (stockT) stockT.value = defaults.thickness;
+                if (stockM) stockM.value = defaults.material;
+                if (zEl) zEl.value = defaults.zeroReference;
+
                 if (this.scene) this.scene.setOrigin(this.committedOrigin.x, this.committedOrigin.y);
                 if (xInput) xInput.value = (0).toFixed(decimals);
                 if (yInput) yInput.value = (0).toFixed(decimals);
@@ -677,7 +1064,68 @@
                 this.ui.setStatus('Stock reset to defaults');
             };
 
-            document.getElementById('apply-stock')?.addEventListener('click', applyStock);
+            document.getElementById('fit-stock-btn')?.addEventListener('click', () => {
+                // Selected nodes first (groups expand to shapes); all content otherwise
+                const sel = this.scene.selection;
+                let ids = [];
+                if (sel && sel.size() > 0) {
+                    for (const id of sel.toSet()) {
+                        const node = this.scene.findNode(id);
+                        if (node) ids.push(...this.scene.collectShapeIds(node));
+                    }
+                } else {
+                    ids = this.scene.collectShapeIds(this.scene.root);
+                }
+                if (ids.length === 0) { this.ui.setStatus('Nothing to fit stock to', 'warning'); return; }
+
+                let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+                let meshSpanZ = 0;
+                for (const id of ids) {
+                    const s = this.scene.findShape(id);
+                    if (!s) continue;
+                    const b = this.scene.getShapeWorldBounds(s);
+                    if (b) {
+                        if (b.minX < minX) minX = b.minX;
+                        if (b.minY < minY) minY = b.minY;
+                        if (b.maxX > maxX) maxX = b.maxX;
+                        if (b.maxY > maxY) maxY = b.maxY;
+                    }
+                    if (s.reliefMesh?.bounds3D) {
+                        meshSpanZ = Math.max(meshSpanZ,
+                            s.reliefMesh.bounds3D.maxZ - s.reliefMesh.bounds3D.minZ);
+                    }
+                }
+                if (!isFinite(minX)) { this.ui.setStatus('Nothing to fit stock to', 'warning'); return; }
+                if (minX < -1e-6 || minY < -1e-6) {
+                    this.ui.setStatus('Content extends into negative coordinates - move it above (0,0) first', 'warning');
+                }
+
+                // Calculate true dimensions based on the original bounding box
+                const actualWidth = maxX - minX;
+                const actualHeight = maxY - minY;
+
+                // Set the UI inputs to the true dimensions
+                document.getElementById('stock-width').value = Math.max(1, Math.ceil(actualWidth));
+                document.getElementById('stock-height').value = Math.max(1, Math.ceil(actualHeight));
+                if (meshSpanZ > 0) {
+                    document.getElementById('stock-thickness').value = Math.ceil(meshSpanZ * 2) / 2;
+                }
+
+                // Move the physical shapes to the current origin (World 0,0)
+                const ox = this.scene.transform.origin.x;
+                const oy = this.scene.transform.origin.y;
+                const dx = ox - minX;
+                const dy = oy - minY;
+
+                if (dx !== 0 || dy !== 0) {
+                    // This leverages your undo/redo history to safely translate the shapes
+                    this.history.executeAndRecord(new TranslateCommand(ids, dx, dy));
+                }
+
+                // Commit the state
+                applyStock();
+            });
+
             document.getElementById('reset-stock')?.addEventListener('click', resetStock);
         }
     }
@@ -709,15 +1157,5 @@
     window.disableShapeDebug = function() { 
         debugState.enabled = false; 
         console.log('Debug mode disabled'); 
-    };
-    window.getShapeReconstructionRegistry = function() {
-        if (!ctrl.core.geometryProcessor) { 
-            console.error('Geometry processor not initialized'); 
-            return; 
-        }
-        // REVIEW - exportRegistry doesn't exist.
-        const registry = ctrl.core.geometryProcessor.arcReconstructor?.exportRegistry?.();
-        if (registry) { console.table(registry); }
-        return registry;
     };
 })();

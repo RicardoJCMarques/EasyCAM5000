@@ -1,9 +1,9 @@
 /*!
  * @file        operations/trace-clearing-handler.js
- * @description Copper clearing — always-internal offsets with cut-in resolution
+ * @description Copper clearing - always-internal offsets with cut-in resolution
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
- * @see         {@link https://github.com/RicardoJCMarques/EasyTrace5000}
+ * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
  *
  * SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
  * SPDX-License-Identifier: AGPL-3.0-or-later
@@ -26,7 +26,7 @@
 
         /**
          * Clearing intentionally collapses geometry inward until nothing
-         * remains — the circle-collapse guard must not fire.
+         * remains - the circle-collapse guard must not fire.
          */
         shouldGuardCircleCollapse() {
             return false;
@@ -39,8 +39,6 @@
          * large" errors on complex multi-polygon geometry.
          */
         async orchestrateGeneration(operation, params, core, options = {}) {
-            core.resetOperationState(operation.id);
-
             // Both tiers: compounds (glyphs, nested fills) + separate
             // loops (multi-polygon pour fragments that contain each other).
             operation.primitives = this.resolveContourTopology(

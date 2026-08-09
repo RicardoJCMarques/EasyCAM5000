@@ -13,12 +13,12 @@
  *
  *              EasyTrace's renderer has origin / rotation / mirror state;
  *              EasyShape's renderer leaves them at identity. The same code
- *              works for both — the inverse transforms collapse to no-ops
+ *              works for both - the inverse transforms collapse to no-ops
  *              when state is identity.
  *
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
- * @see         {@link https://github.com/RicardoJCMarques/EasyTrace5000}
+ * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
  *
  * SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
  * SPDX-License-Identifier: AGPL-3.0-or-later
@@ -53,7 +53,7 @@
         /**
          * @param {object} data Normalized pointer payload from InputManager.
          *                      Uses data.canvasX / data.canvasY (physical
-         *                      canvas pixels — matches core.canvasToWorld).
+         *                      canvas pixels - matches core.canvasToWorld).
          */
         updatePointer(data) {
             if (!this.coordXEl || !this.coordYEl) return;

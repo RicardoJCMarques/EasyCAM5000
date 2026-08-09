@@ -3,7 +3,7 @@
  * @description Unified modal management
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
- * @see         {@link https://github.com/RicardoJCMarques/EasyTrace5000}
+ * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
  *
  * SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
  * SPDX-License-Identifier: AGPL-3.0-or-later
@@ -39,13 +39,12 @@
             // Track selected pipeline
             this.selectedPipeline = 'cnc'; // default
 
-            // Track quickstart files
-            this.quickstartFiles = {
-                isolation: null,
-                drill: null,
-                clearing: null,
-                cutout: null
-            };
+            // Quickstart drop-zone state. Zone ids are app-owned - EasyTrace
+            // maps one gerber layer per zone, EasyShape uses a single drop
+            // target it wires itself.
+            // REVIEW - Double check consistency, both apps have drop zones, initialization should be consistent now and for future apps.
+            this.quickstartOpTypes = ctrl.getQuickstartOpTypes?.() || [];
+            this.quickstartFiles = {};
 
             // Focus management for accessibility
             this.previousActiveElement = null;
@@ -168,6 +167,23 @@
             const distance = document.getElementById('exporter-distance');
             if (distance) distance.textContent = `${result.totalDistance.toFixed(1)}mm`;
 
+            // Pipeline warnings - dropped rotary/indexed plans above all.
+            // These were console.warn-only, so a post that cannot emit the
+            // operation's route produced an EMPTY program that looked like a
+            // clean export.
+            const warn = document.getElementById('exporter-warnings');
+            if (warn) {
+                const list = result.warnings || [];
+                warn.style.display = list.length ? '' : 'none';
+                warn.innerHTML = '';
+                for (const w of list) {
+                    const line = document.createElement('div');
+                    line.className = 'preview-warning';
+                    line.textContent = `⚠ ${w}`;
+                    warn.appendChild(line);
+                }
+            }
+
             this.updateCopyButtonScrollbar();
         }
 
@@ -225,9 +241,13 @@
             const distance = document.getElementById('exporter-distance');
             if (distance) distance.textContent = '0mm';
 
+            const warn = document.getElementById('exporter-warnings');
+            if (warn) { warn.style.display = 'none'; warn.innerHTML = ''; }
+
             this.updateCopyButtonScrollbar();
         }
 
+        // REVIEW - Rename, no need to call it placeholder these days.
         showPlaceholderPreview() {
             const previewText = document.getElementById('exporter-preview-text');
             if (previewText) {
@@ -341,9 +361,10 @@
                     this.previousActiveElement.id !== 'preview-canvas') {
                     this.previousActiveElement.focus();
                 } else {
-                    // Fallback to first tree item
-                    const treeItem = document.querySelector('#operations-tree [tabindex="0"]');
-                    if (treeItem) treeItem.focus();
+                    // Fallback to the app's tree
+                    // REVIEW - This fallback seems sort of useless? It should just work or break to be fixed?
+                    const sel = this.ctrl.getTreeFocusSelector?.() || '#operations-tree [tabindex="0"]';
+                    const treeItem = document.querySelector(sel);
                 }
                 this.previousActiveElement = null;
             }
@@ -414,7 +435,7 @@
             const modal = this.modals.laserConfig;
             if (!modal) return;
 
-            // UV card — full laser pipeline
+            // UV card - full laser pipeline
             const uvCard = document.getElementById('laser-select-uv');
             if (uvCard) {
                 uvCard.onclick = (e) => {
@@ -435,7 +456,7 @@
                 };
             }
 
-            // Fiber card — hybrid pipeline
+            // Fiber card - hybrid pipeline
             const fiberCard = document.getElementById('laser-select-fiber');
             if (fiberCard) {
                 fiberCard.onclick = (e) => {
@@ -583,36 +604,16 @@
         showWelcomeHandler(options) {
             const modal = this.modals.welcome;
 
-            // CNC card
-            const cncCard = document.getElementById('pipeline-cnc');
-            if (cncCard) {
-                cncCard.onclick = (e) => {
+            // Cards are declared per app in HTML with data-pipeline; the
+            // controller decides what each id means. EasyTrace: cnc | laser.
+            // EasyShape: cnc | 3d. Re-assigned (not addEventListener) because
+            // this handler runs on every showModal('welcome').
+            modal?.querySelectorAll('.pipeline-card[data-pipeline]').forEach(card => {
+                card.onclick = (e) => {
                     e.preventDefault();
-                    this.selectedPipeline = 'cnc';
-                    this.ctrl.setPipeline('cnc');
-                    this.closeModal();
-
-                    const hideWelcome = localStorage.getItem(storageKeys.hideWelcome);
-                    if (!hideWelcome) {
-                        this.showModal('quickstart', options);
-                    }
+                    this.selectPipeline(card.dataset.pipeline, options);
                 };
-            }
-
-            // Laser card - opens laser config modal
-            const laserCard = document.getElementById('pipeline-laser');
-            if (laserCard) {
-                laserCard.onclick = (e) => {
-                    e.preventDefault();
-                    this.selectedPipeline = 'laser';
-                    this.closeModal();
-
-                    const hideWelcome = localStorage.getItem(storageKeys.hideWelcome);
-                    if (!hideWelcome) {
-                        this.showModal('laserConfig', options);
-                    }
-                };
-            }
+            });
 
             // Sponsor slots and CTA
             ['sponsor-slot-1', 'sponsor-slot-2', 'sponsor-slot-3', 'sponsor-contact-cta'].forEach(id => {
@@ -641,6 +642,20 @@
             }
         }
 
+        /**
+         * Single entry point for welcome-modal pipeline choices. The
+         * controller performs the app-specific side effect and returns the
+         * modal to advance to, or null to land straight in the workspace.
+         */
+        selectPipeline(pipelineId, options) {
+            this.selectedPipeline = pipelineId;
+            const next = this.ctrl.onPipelineSelected?.(pipelineId) ?? 'quickstart';
+            this.closeModal();
+            if (next && !localStorage.getItem(storageKeys.hideWelcome)) {
+                this.showModal(next, options);
+            }
+        }
+
         showQuickstartHandler(options = {}) {
             const modal = this.modals.quickstart;
 
@@ -651,16 +666,12 @@
             const pipeline = this.selectedPipeline || 'cnc';
 
             // Apply State
-            modalContent.classList.remove('mode-cnc', 'mode-laser');
+            modalContent.classList.remove('mode-cnc', 'mode-laser', 'mode-3d');
             modalContent.classList.add(`mode-${pipeline}`);
 
             // Reset file state
-            this.quickstartFiles = {
-                isolation: null,
-                drill: null,
-                clearing: null,
-                cutout: null
-            };
+            this.quickstartFiles = {};
+            for (const opType of this.quickstartOpTypes) this.quickstartFiles[opType] = null;
 
             // Initialize "don't show again" checkbox from stored preference
             const dontShowCheckbox = document.getElementById('dont-show-quickstart');
@@ -722,7 +733,7 @@
                 startEmptyBtn.onclick = () => this.handleQuickstartClose();
             }
 
-            // Back button — pipeline-aware
+            // Back button - pipeline-aware
             const backBtn = document.getElementById('quickstart-back-btn');
             if (backBtn) {
                 backBtn.onclick = () => {
@@ -747,7 +758,8 @@
         }
 
         setupQuickstartDropZones() {
-            const opTypes = ['isolation', 'drill', 'clearing', 'cutout', 'unassigned'];
+            const opTypes = this.quickstartOpTypes;
+            if (opTypes.length === 0) return;
 
             opTypes.forEach(opType => {
                 const zone = document.getElementById(`qs-${opType}-zone`);
@@ -1181,10 +1193,9 @@
 
             // Trigger the global wait spinner (with webkit delay context)
             const isWebKit = /AppleWebKit/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
-            if (loadingOverlay) {
-                loadingText.textContent = isWebKit ? 'Exporting Files — Pacing downloads in webkit...' : 'Exporting Files...';
-                loadingOverlay.style.display = 'flex';
-                loadingOverlay.style.opacity = '1';
+            if (loadingOverlay && loadingText) {
+                loadingText.textContent = isWebKit ? 'Exporting Files - Pacing downloads in webkit...' : 'Exporting Files...';
+                loadingOverlay.classList.remove('is-hidden');
                 loadingOverlay.focus();
             }
 
@@ -1238,10 +1249,7 @@
             } finally {
                 if (executeBtn) executeBtn.disabled = false;
                 // Hide the global wait spinner gracefully
-                if (loadingOverlay) {
-                    loadingOverlay.style.opacity = '0';
-                    setTimeout(() => { loadingOverlay.style.display = 'none'; }, 300); // Wait for fade-out before removing from flow
-                }
+                if (loadingOverlay) loadingOverlay.classList.add('is-hidden');
             }
         }
 
@@ -1338,9 +1346,10 @@
             const params = document.createElement('div');
             params.className = 'geometry-info';
 
-            const tool = operation.settings.tool?.diameter;
-            const depth = operation.settings.cutDepth;
-            const feed = operation.settings.feedRate;
+            const opParams = this.ctrl.parameterManager.getAllParameters(operation.id) || {};
+            const tool = opParams.toolDiameter;
+            const depth = opParams.cutDepth;
+            const feed = opParams.feedRate;
 
             params.innerHTML = `
                 T: ${tool}mm | Z: ${depth}mm | F: ${feed}
@@ -1354,7 +1363,7 @@
             let draggedItem = null;
             let grabbedItem = null;
 
-            // Mouse drag support — only when ordering is active and item isn't locked
+            // Mouse drag support - only when ordering is active and item isn't locked
             container.addEventListener('dragstart', (e) => {
                 if (!container.classList.contains('is-orderable')) {
                     e.preventDefault();
@@ -1383,7 +1392,7 @@
 
                 const afterElement = this.getDragAfterElement(container, e.clientY);
                 if (afterElement == null) {
-                    // Don't append after locked items — insert before the first locked one
+                    // Don't append after locked items - insert before the first locked one
                     const firstLocked = container.querySelector('.file-node-content[data-locked="true"]');
                     if (firstLocked) {
                         container.insertBefore(draggedItem, firstLocked);
@@ -1447,7 +1456,7 @@
                     const targetIdx = e.key === 'ArrowDown' ? idx + 1 : idx - 1;
 
                     if (isGrabbed) {
-                        // Reorder — but never past locked items
+                        // Reorder - but never past locked items
                         const sibling = e.key === 'ArrowDown' ? focused.nextElementSibling : focused.previousElementSibling;
                         if (sibling && sibling.classList.contains('file-node-content') && !sibling.dataset.locked) {
                             if (e.key === 'ArrowUp') {
@@ -1500,7 +1509,7 @@
             btn.disabled = true;
 
             try {
-                // Gather UI intent only — no machine settings, no business logic
+                // Gather UI intent only - no machine settings, no business logic
                 let selectedItemIds = [];
                 if (explicitOps) {
                     selectedItemIds = explicitOps.map(o => o.id);

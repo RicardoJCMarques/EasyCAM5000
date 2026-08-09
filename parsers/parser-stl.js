@@ -1,7 +1,7 @@
 /*!
  * @file        parsers/parser-stl.js
  * @description STL mesh parser (binary + ASCII) for relief/2.5D operations.
- *              Output is a raw triangle soup — it is NOT ParserPlotter
+ *              Output is a raw triangle soup - it is NOT ParserPlotter
  *              compatible and must bypass the plotter. The relief import
  *              path attaches the mesh to the operation directly; the
  *              ShapeReliefHandler rasterizes it into a heightmap on
@@ -9,13 +9,12 @@
  *              current operation parameters.
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
- * @see         {@link https://github.com/RicardoJCMarques/EasyTrace5000}
+ * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
  *
  * SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-// Not wired
 (function() {
     'use strict';
 
@@ -36,7 +35,7 @@
          *   success: boolean,
          *   format: 'stl',
          *   type: 'mesh',
-         *   triangles: Float32Array,   // 9 floats per triangle (x,y,z ×3)
+         *   triangles: Float32Array,   // 9 floats per triangle (x,y,z x3)
          *   triangleCount: number,
          *   bounds: {minX,minY,maxX,maxY},          // XY (for operation.bounds)
          *   bounds3D: {minX,minY,minZ,maxX,maxY,maxZ},
@@ -110,7 +109,7 @@
 
         /**
          * Binary detection: the size implied by the uint32 facet count must
-         * match the buffer length. "solid" prefixes alone are unreliable —
+         * match the buffer length. "solid" prefixes alone are unreliable -
          * some binary exporters write "solid" into the 80-byte header.
          */
         isBinarySTL(buffer) {
@@ -135,7 +134,7 @@
 
             let offset = 84;
             for (let t = 0; t < count; t++) {
-                offset += 12; // skip facet normal — recomputed if ever needed
+                offset += 12; // skip facet normal - recomputed if ever needed
                 const base = t * 9;
                 for (let v = 0; v < 9; v++) {
                     triangles[base + v] = view.getFloat32(offset, true) * s;
@@ -161,7 +160,7 @@
                 this.stats.coordinatesParsed += 3;
             }
             if (values.length % 9 !== 0) {
-                this.warnings.push(`ASCII STL vertex count not divisible by 3 — truncating partial facet`);
+                this.warnings.push(`ASCII STL vertex count not divisible by 3 - truncating partial facet`);
                 values.length = values.length - (values.length % 9);
             }
             return new Float32Array(values);

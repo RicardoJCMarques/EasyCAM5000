@@ -3,7 +3,7 @@
  * @description Centralized application configuration
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
- * @see         {@link https://github.com/RicardoJCMarques/EasyTrace5000}
+ * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
  *
  * SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
  * SPDX-License-Identifier: AGPL-3.0-or-later
@@ -19,7 +19,20 @@
  *   config.*()       - Helper methods (root level, read from both sections).
  */
 
-window.CAMConfig = {
+// `window` does not exist in a Web Worker, and field-worker.js
+// importScripts this file so the worker-clean geometry modules can read
+// config directly instead of having every value packed into a job
+// payload. The deep-freeze tail below already resolves via globalThis.
+//window.CAMConfig = {
+(typeof self !== 'undefined' ? self : window).CAMConfig = {
+
+
+    // ╔═══════════════════════════════════════════════════════════════════════╗
+    // ║  ASSET PATHS                                                          ║
+    // ╚═══════════════════════════════════════════════════════════════════════╝
+    paths: {
+        fieldWorker: '../geometry/field-worker.js'
+    },
 
     // ╔═══════════════════════════════════════════════════════════════════════╗
     // ║  CONSTANTS                                                            ║
@@ -39,11 +52,40 @@ window.CAMConfig = {
         precision: {
             epsilon: 1e-9,              // Floating-point near-zero. Guard divisions, cross-product zero checks.
             collinear: 1e-12,           // Stricter near-zero for geometric collinearity where even tiny deviations matter.
-            collinearDot: 0.995,        // Dot-product angle threshold. Unit vectors with dot > this are "parallel enough."
 
             coordinate: 0.001,          // Coordinate quantization grid. All coordinates snap to this resolution.
 
-            rdpSimplification: 0.0005  // Douglas-Peucker polygon simplification.
+            rdpSimplification: 0.0001  // Douglas-Peucker polygon simplification.
+        },
+
+        // ====================================================================
+        // 4TH AXIS
+        // ====================================================================
+        // ONE block. Split across constants.rotary and constants.geometry.rotary,
+        // half of it was unreachable: FieldParams read a single path and the
+        // other half's values silently fell through to inline defaults.
+        // Shipped to the generators as genOptions.tuning - config cannot cross
+        // postMessage, so FieldParams.tuning() reads these and the job payload
+        // carries them into the worker.
+        rotary: {
+            // ── Generator tuning (ships in genOptions.tuning) ──
+            edgeRunCells:    2,     // Consecutive covered cells before a row's inward scan calls it the model edge. Rejects single-cell pinholes without trimming genuinely thin tips.
+            minRadiusClip:   0.01,  // Smallest radius any radial target holds.
+            stubDefaultMm:   0.5,   // Drive core radius when none is resolved.
+            autoLipFraction: 0.1,   // Rollover lip depth as a fraction of tool diameter when the user leaves it at 0.
+            padSlackMm:      0.1,   // Grid padding beyond the cutting reach.
+
+            // ── Slicer / chain post-filtering (ride genOptions) ──
+            minRadialitySin2: 0.05, // Reject faces within ~13° of axial (0 = off).
+            // REVIEW - there are 5 places where simplification happens, realistically the best place to do this may be toolpath optimization?
+            simplifyTolerance: 0.01,
+            minSegmentLength:  0.2,
+
+            // ── Export ──
+            // Fallback inverse-time (G93) ceiling for posts that don't declare
+            // their own. F = feed/length blows up on microscopic segments and
+            // hard-alarms most controllers above ~1e4.
+            maxInverseTime: 9999.99
         },
 
         // ====================================================================
@@ -57,8 +99,6 @@ window.CAMConfig = {
                 maxCircle: 2048,
                 minArc: 200,
                 maxArc: 2048,
-                obround: 128,
-                adaptiveSegmentation: true,
                 minEndCap: 32,
                 maxEndCap: 256,
                 defaultMinSegments: 16,
@@ -71,10 +111,7 @@ window.CAMConfig = {
             },
 
             arcReconstruction: {
-                // REVIEW - Are these necessary? These may be pure truths that aren't meant to be reviewd themselves or edited in any capacity?
-                minArcPoints: 2,
-                maxGapPoints: 1,
-                minCirclePoints: 4
+                minArcPoints: 2   // Fewest tagged points before a curve run is arc-reconstruction viable.
             },
 
             curveRegistry: {
@@ -150,7 +187,7 @@ window.CAMConfig = {
                 rulerCornerFont: '9px Arial',
                 rulerCornerText: 'mm',
                 rulerMinPixelStep: 50,
-                rulerAlpha: '99',
+                rulerAlpha: 'CC',   // ruler backdrop opacity, hex 00-FF
                 scaleIndicatorPadding: 10,
                 scaleIndicatorBarHeight: 4,
                 scaleIndicatorYOffset: 20,
@@ -273,6 +310,20 @@ window.CAMConfig = {
     // ╚═══════════════════════════════════════════════════════════════════════╝
     defaults: {
 
+        // ====================================================================
+        // WORKERS
+        // ====================================================================
+        // Field worker pool size. Clamped to hardwareConcurrency - 1 at spawn
+        // (FieldWorkerClient._poolSize), so this is a ceiling, not a demand.
+        // Each worker importScripts the whole geometry stack, so it is a
+        // memory/throughput trade:
+        //   vcarve  - ONE JOB PER SHAPE; scales with pool size. A 200-glyph
+        //             sign is the case that wants this raised.
+        //   relief  - one job total. Never uses more than one worker.
+        //   rotary  - one job total. Never uses more than one worker.
+        // 0 = auto (hardwareConcurrency - 1, capped). Set a positive value only
+        // to define a static pool for debugging or when memory-constrained.
+        fieldWorkerPool: 0,
 
         // ====================================================================
         // MACHINE
@@ -280,23 +331,17 @@ window.CAMConfig = {
         machine: {
             pcb: {
                 thickness: 1.6,
-                copperThickness: 0.035,
                 minFeatureSize: 0.1
             },
             heights: {
                 safeZ: 5.0,
                 travelZ: 2.0,
                 feedHeight: 1.0,    // Clearance above Z0 where G0→G1 handoff occurs.
-                maxSafeDepth: -10.1, // Negative Z limit. Calculated values below this throw an error.
-                // REVIEW - probeZ and homeZ may be mislabeled? Or just useless?
-                probeZ: -5.0,
-                homeZ: 10.0
+                maxSafeDepth: -10.1 // Negative Z limit. Calculated values below this throw an error.
             },
             speeds: {
                 rapidFeed: 1000,
-                probeFeed: 25,
-                maxFeed: 2000,
-                maxAcceleration: 100
+                maxFeed: 2000
             },
             // REVIEW - There is currently no workspace validation
             // workspace: {
@@ -318,6 +363,19 @@ window.CAMConfig = {
         gcode: {
             postProcessor: 'grbl',
             units: 'mm',
+            // 4th-axis export route. '' means "not chosen yet" and only
+            // survives until the machine-settings picker first renders, which
+            // resolves it to the selected post's first declared route and
+            // commits that concrete value. A saved route the current post does
+            // not declare resolves the same way. There is no 'auto' route.
+            // See BasePostProcessor.normalizeRotary for the route semantics.
+            rotaryRoute: '',
+            // Rotary index settling dwell, SECONDS. '' = use the selected
+            // post's declared indexDwell. This is a property of the rotary
+            // HARDWARE (belt vs geared/servo with a brake), not the
+            // controller - one post drives both kinds, so the machine
+            // setting has to be able to override the post's guess.
+            indexDwell: '',
 
             decimals: {
                 coordinates: 3,
@@ -332,6 +390,10 @@ window.CAMConfig = {
             optimization: {
                 enableGrouping: true,
                 pathOrdering: true,
+                // Or-opt relocation refinement (refinePlanOrder /
+                // refineRegionOrder) is O(n³) worst case. Above this block/
+                // region count the greedy NN order is kept as-is.
+                orOptMaxBlocks: 500,
                 segmentSimplification: true,
                 leadInOut: true,
                 rapidStrategy: 'adaptive',
@@ -470,29 +532,10 @@ window.CAMConfig = {
         // ====================================================================
         geometry: {
             offsetting: {
-                miterLimit: 2.0,
-                minRoundJointSegments: 2
+                miterLimit: 2.0
             },
             fusion: {
                 preserveArcs: true
-            },
-            // REVIEW - Dead code? Regions are handled automatically or worst case scenario the user is prompted
-            implicitRegionClosure: {
-                enabled: true,
-                cutoutOnly: true,
-                warnOnFailure: true
-            },
-            // REVIEW - Analytic offsetting values? Can be disabled?
-            selfIntersection: {
-                enabled: true,
-                gridCellFactor: 4,
-                endpointExclusion: 1e-6,
-                spatialDedup: 0.0001,
-                minLoopArea: 1e-6,
-                maxPasses: 3
-            },
-            simplification: {
-                enabled: true
             }
         },
 
@@ -513,15 +556,15 @@ window.CAMConfig = {
                         shallowDepthFactor: 0.1
                     }
                 },
+                // Only minHelixDiameter has a reader today. Kept so they are not re-invented as literals later.
                 drilling: {
                     peckRapidClearance: 0.1,
-                    helixPitchFactor: 0.5,
-                    helixMaxDepthFactor: 3.0,
-                    helixSegmentsPerRev: 16,
-                    slotHelixSegments: 12,
-                    slotHelixMaxPitchFactor: 0.5,
-                    minHelixDiameter: 0.2,
-                    defaultStepOver: 40
+                    // helixPitchFactor: 0.5,
+                    // helixMaxDepthFactor: 3.0,
+                    // helixSegmentsPerRev: 16,
+                    // slotHelixSegments: 12,
+                    // slotHelixMaxPitchFactor: 0.5,
+                    minHelixDiameter: 0.1
                 },
                 rapidCost: {
                     zTravelThreshold: 5.0,
@@ -529,16 +572,47 @@ window.CAMConfig = {
                     baseCost: 10000
                 },
                 simplification: {
-                    minArcLength: 0.01,
-                    curveToleranceFactor: 100.0,
-                    curveToleranceFallback: 0.0005,
-                    straightToleranceFactor: 10.0,
+                    curveToleranceFallback: 0.001,
                     straightToleranceFallback: 0.005,
                     straightAngleThreshold: 1.0,
                     sharpAngleThreshold: 10.0,
                     sharpCornerTolerance: 0.00001,
-                    segmentThresholdFactor: 10.0,
-                    segmentThresholdFallback: 0.5
+
+                    // ── 3D chains (V-Carve skeletons, relief rasters) ──
+                    // tolerance3D        max 3D deviation the RDP pass may introduce.
+                    // minSegmentLength3D + collinearAngle3D drive a cheap O(n)
+                    //   pre-pass that removes Voronoi micro-segments BEFORE RDP.
+                    //   A point is collapsed only when its incoming segment is
+                    //   shorter than minSegmentLength3D OR the turn is under
+                    //   collinearAngle3D, AND the resulting deviation stays under
+                    //   tolerance3D * preTolFactor. Total error is therefore
+                    //   bounded by tolerance3D * (1 + preTolFactor).
+                    tolerance3D: 0.01,
+                    minSegmentLength3D: 0.02,
+                    collinearAngle3D: 1.0,
+                    preTolFactor: 0.25
+                },
+
+                // Single source of truth for the 3D toolpath layer. The
+                // translator, reverse3DPlan and simplify3DSegments ALL read
+                // descentFeedAngleDeg from here - it used to exist as three
+                // independent literals (45 / 45 / 1).
+                threeD: {
+                    // Descents steeper than this angle from horizontal use
+                    // plungeRate instead of feedRate. 45deg => |dz| > dxy.
+                    descentFeedAngleDeg: 60,
+
+                    // Retract only to feedHeight between chains of the same
+                    // operation (nothing protrudes above stock top).
+                    allowHop: true,
+
+                    // Proximity-clustering margin for 3D chains, in mm.
+                    // stepOver is meaningless for a V-bit and toolDiameter is
+                    // the TIP flat (often ~0.1mm), so the 2D formula
+                    // toolDiameter * (1 - stepOver/100) collapses to ~0 and
+                    // every chain becomes its own region. Effective margin is
+                    // max(clusterMargin, toolDiameter).
+                    clusterMargin: 1.0
                 }
             },
             tabs: {
@@ -610,6 +684,16 @@ window.CAMConfig = {
                 enableArcReconstruction: false,
                 showDebugInLog: false
             },
+            // 3D preview (renderer3d/*). Those modules are ESM and
+            // dynamically imported, so they read window.CAMConfig at module
+            // load with this value duplicated as an inline fallback - keep
+            // the two in sync the same way the worker-clean modules do.
+            preview3D: {
+                // mm per chord when linearizing an arc command or wrapping a
+                // developed rotary segment. Preview fidelity and simulator
+                // timing only; the exported arc is never touched.
+                arcSegmentLength: 0.4
+            },
             canvas: {
                 defaultZoom: 10,
                 zoomStep: 1.2,
@@ -666,6 +750,11 @@ window.CAMConfig = {
         // ====================================================================
         debug: {
             enabled: false,
+            // Cross-section slicer smoke check: rebuilds each face's top
+            // envelope from SectionSlicer and diffs it against the
+            // heightmap the face actually machined from. Stage 1 of the
+            // section-stack migration - validation only, no output change.
+            sections: false,
             // REVIEW - Many are disconnected? Worth connecting?
             logging: {
                 wasmOperations: false,

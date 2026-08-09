@@ -3,9 +3,14 @@
 ![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg) ![Status: Active](https://img.shields.io/badge/status-active-success.svg) ![Tech: VanillaJS](https://img.shields.io/badge/tech-Vanilla_JS-yellow.svg) ![Tech: WebAssembly](https://img.shields.io/badge/tech-WebAssembly-blueviolet.svg) ![Accessibility: WCAG 2.1 AA Partial](https://img.shields.io/badge/accessibility-WCAG_2.1_AA_partial-yellow.svg)
 
 
+## The EasyCAM5000 Suite
+
+EasyCAM5000 is collection of browser-based CAM tools built on one shared, open-source engine: parsing, an almost lossless-arc geometry pipeline, toolpath planning, and multi-dialect G-code posts. All running entirely client-side, with no installation, accounts or cloud processing. Each app wraps those foundations with a dedicated UI and operations list: **EasyTrace5000** for PCB fabrication files, **EasyShape5000** for general 2.5D/3D CNC routing from vector and mesh sources. More workflows are planned on the same foundation. Follow the links bellow and try them out.
+
+
 ## EasyTrace5000
 
-EasyTrace5000 is a browser-based CAM workspace that converts standard fabrication files (Gerber, Excellon, SVG) into G-code for CNC milling and precision SVG/PNG files for Laser processing. It runs entirely client-side on any browser, removing the need for software installation or cloud processing.
+EasyTrace5000 is a browser-based CAM workspace that converts standard fabrication files (Gerber, Excellon, SVG) into G-code for CNC milling and precision SVG/PNG files for Laser processing. It runs entirely client-side on any browser, removing the need for software installation or cloud processing. EasyTrace5000 is meant to be an alternative to FlatCAM.
 
 <div align="center">
   <img src="./images/EasyTrace5000_workspace.webp" width="830" height="467" alt="EasyTrace5000 Workspace screenshot">
@@ -17,7 +22,7 @@ EasyTrace5000 is a browser-based CAM workspace that converts standard fabricatio
 
 ## EasyShape5000
 
-EasyShape5000 is a browser-based CAM workspace for CNC router milling of SVG files. Currently it has 3x 2D operations (Profile, Pocket and Drilling) and more are planned, including 3D operations (V-Carving & 3D Relief Maps). It shares all foundations with EasyTrace5000 but with it's own UI/tweaked work-flow and operation handlers.
+EasyShape5000 is a browser-based CAM workspace for CNC router milling of SVG files. Currently it has 3x 2D operations (Profile, Pocket and Drilling) and more are planned, including 3D operations (V-Carving & 3D Relief Maps). It shares all foundations with EasyTrace5000 but with it's own UI/tweaked work-flow and operation handlers. EasyShape5000 was born after I noticed I was getting better toolpaths from EasyTrace than from Easel and it grew into an alternative, dedicated app from there.
 
 <div align="center">
   <img src="./images/EasyShape5000_workspace.webp" width="830" height="467" alt="EasyShape5000 Workspace screenshot">
@@ -133,7 +138,7 @@ The application guides the user through a clear, non-destructive process. Each s
 ### The Laser Workflow (Beta)
 * **Stage 3: Laser Path Generation**
   * **Action:** Configure laser parameters (spot size, clear strategy, hatch angle, isolation width) and click **"Generate Laser Paths"**.
-  * **Result:** Generates precise 2D geometry—such as concentric offsets, solid fills, or directional hatch patterns.
+  * **Result:** Generates precise 2D geometry - such as concentric offsets, solid fills, or directional hatch patterns.
 * **Stage 4: Image Export**
   * **Action:** Open the Export Manager, arrange the operation sequence, assign layer colors, and click **"Export"**.
   * **Result:** Fuses colinear hatch segments to optimize laser travel time and exports your paths into precision vector (`.svg`) or high-resolution raster (`.png`) files.
@@ -311,9 +316,7 @@ EasyTrace5000 supports keyboard-only navigation and screen readers. See the [Acc
 │   ├── LineTest.svg                      # Precision test pattern
 │   └── 100mmSquare.svg                   # 100*100mm square to check steps/mm
 │
-├── images/                               # Thumbnails and icons and sharing stuff
-│
-└── clipper2/                             # Clipper2 test page
+└── images/                               # Thumbnails and icons and sharing stuff
 ```
 </details>
 
@@ -349,7 +352,6 @@ Output in `./dist/` mirrors the deployed site (inlined CSS, embedded default JSO
 // Browser console commands
 window.enablePCBDebug()                 // Enable verbose logging - Toggle in Visualization options too
 window.pcbcam.getStats()                // Display pipeline statistics
-window.getReconstructionRegistry()      // Inspect arc metadata from curve registry
 ```
 
 ## Known Issues & Limitations
@@ -378,11 +380,9 @@ window.getReconstructionRegistry()      // Inspect arc metadata from curve regis
 ## Development Tools
 
 ### Clipper2 Integration Test Suite
-The repository includes a standalone test page used during initial development to test syntax of the WASM compilation factory wrapper. It's living documentation on how to interact with the Clipper2 WASM library.
+A standalone test page was created and used during initial development to test syntax of the WASM compilation factory wrapper. [It's living documentation on how to interact with the Clipper2 WASM library](https://github.com/RicardoJCMarques/Clipper2-WASM-Example).
 
-* **Live website:** [cam.eltryus.design/clipper2/](https://cam.eltryus.design/clipper2/)
-* **Purpose:** Interactive sandbox for Boolean operations, Offsetting, Minkowski Sums, and Arc Reconstruction.
-* **Local:** Navigate to `http://localhost:YOUR_PORT/clipper2/` while serving the project.
+* **Live website:** [ricardojcmarques.github.io/Clipper2-WASM-Example](https://ricardojcmarques.github.io/Clipper2-WASM-Example/)
 
 ## Support & Sponsorship
 
@@ -466,4 +466,4 @@ While I'm not actively seeking major code contributions, please help me test it 
 
 ---
 
-**Status**: Active Development | **Version**: 1.4.2 | **Platform**: Client-side Web
+**Status**: Active Development | **Version**: 1.4.9 | **Platform**: Client-side Web

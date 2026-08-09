@@ -1,17 +1,16 @@
 cff-version: 1.2.0
-title: EasyTrace5000
+title: EasyCAM5000
 message: >-
-  If you use this software for your project, please cite it
-  using the metadata from this file.
+  If you use this software for your project, please cite it using the metadata from this file.
 type: software
 authors:
   - given-names: Ricardo
     family-names: Marques
     alias: Eltryus
-repository-code: 'https://github.com/RicardoJCMarques/Eltryus_CAM'
+repository-code: 'https://github.com/RicardoJCMarques/EasyCAM5000'
 url: 'https://cam.eltryus.design'
 abstract: >-
-  An open-source, browser-based CAM tool for generating G-code from PCB manufacturing files (Gerber/Excellon/SVG).
+  An open-source, browser-based and client-side CAM tools for makers. From PCB isolation routing to 2.5-3D milling operations.
 keywords:
   - CAM
   - PCB
@@ -20,5 +19,5 @@ keywords:
   - WebAssembly
   - CNC
 license: AGPL-3.0
-version: 1.0.0
+version: 1.4.9
 date-released: '2026-01-12'

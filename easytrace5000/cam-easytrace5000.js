@@ -3,7 +3,7 @@
  * @description EasyTrace5000 application controller - UI orchestration, file handling, export
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
- * @see         {@link https://github.com/RicardoJCMarques/EasyTrace5000}
+ * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
  *
  * SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
  * SPDX-License-Identifier: AGPL-3.0-or-later
@@ -426,10 +426,10 @@
                 const groups = new Map();
                 for (const item of items) {
                     const d = item.detected.diameter;
-                    const key = type === 'circle' ? d.toFixed(3) : (() => { const slot = item.detected.originalSlot; const len = Math.hypot(slot.end.x - slot.start.x, slot.end.y - slot.start.y); return `${d.toFixed(3)} × ${(len + d).toFixed(3)}`; })();
+                    const key = type === 'circle' ? d.toFixed(3) : (() => { const slot = item.detected.originalSlot; const len = Math.hypot(slot.end.x - slot.start.x, slot.end.y - slot.start.y); return `${d.toFixed(3)} x ${(len + d).toFixed(3)}`; })();
                     groups.set(key, (groups.get(key) || 0) + 1);
                 }
-                return Array.from(groups.entries()).map(([size, count]) => `<div class="recovery-size-entry">${type === 'circle' ? `⌀${size}mm` : `${size}mm`} × ${count}</div>`).join('');
+                return Array.from(groups.entries()).map(([size, count]) => `<div class="recovery-size-entry">${type === 'circle' ? `⌀${size}mm` : `${size}mm`} x ${count}</div>`).join('');
             };
 
             const circleCount = rec.circles?.length || 0;
@@ -516,6 +516,18 @@
         getCore() { return this.core; }
         getUI() { return this.ui; }
 
+        onPipelineSelected(pipelineId) {
+            if (pipelineId === 'laser') return 'laserConfig';
+            this.setPipeline('cnc');
+            return 'quickstart';
+        }
+
+        getQuickstartOpTypes() {
+            return ['isolation', 'drill', 'clearing', 'cutout', 'unassigned'];
+        }
+
+        getTreeFocusSelector() { return '#operations-tree [tabindex="0"]'; }
+
         getStats() {
             return {
                 ...super.getStats(),
@@ -556,13 +568,5 @@
         if (opConfig) { const extensions = [...opConfig.extensions]; if (!extensions.includes('.svg')) extensions.push('.svg'); fileInput.setAttribute('accept', extensions.join(',')); }
         fileInput.onchange = async (e) => { const file = e.target.files[0]; if (file) await ctrl.processFile(file, type); fileInput.value = ''; };
         fileInput.click();
-    };
-
-    window.getReconstructionRegistry = function() {
-        if (!ctrl.core.geometryProcessor) { console.error('Geometry processor not initialized'); return; }
-        // REVIEW - exportRegistry doesn't exist.
-        const registry = ctrl.core.geometryProcessor.arcReconstructor?.exportRegistry?.();
-        if (registry) { console.table(registry); }
-        return registry;
     };
 })();

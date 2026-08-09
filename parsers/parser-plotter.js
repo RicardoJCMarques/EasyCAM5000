@@ -3,7 +3,7 @@
  * @description Converts parsed objects into geometric primitives
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
- * @see         {@link https://github.com/RicardoJCMarques/EasyTrace5000}
+ * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
  *
  * SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
  * SPDX-License-Identifier: AGPL-3.0-or-later
@@ -842,124 +842,181 @@
 
         mergeContinuousArcs(primitives) {
             const TOL = C.precision.coordinate;
-            const merged = [];
+            const result = [];
+            const standaloneArcs = [];
 
-            for (let i = 0; i < primitives.length; i++) {
-                let current = primitives[i];
-
-                // Merge standalone ArcPrimitives (e.g., Gerber Traces)
-                if (current.type === 'arc') {
-                    while (i + 1 < primitives.length) {
-                        const next = primitives[i + 1];
-                        if (next.type !== 'arc') break;
-
-                        // Check geometric match
-                        const sameCenter = Math.abs(current.center.x - next.center.x) < TOL &&
-                                           Math.abs(current.center.y - next.center.y) < TOL;
-                        const sameRadius = Math.abs(current.radius - next.radius) < TOL;
-                        const sameWinding = current.clockwise === next.clockwise;
-
-                        // Check continuity (Current End == Next Start)
-                        const distSq = Math.pow(current.endPoint.x - next.startPoint.x, 2) + 
-                                       Math.pow(current.endPoint.y - next.startPoint.y, 2);
-
-                        if (sameCenter && sameRadius && sameWinding && distSq < TOL * TOL) {
-                            // Calculate total sweep to prevent over-rotation
-                            let sweep1 = current.endAngle - current.startAngle;
-                            if (current.clockwise && sweep1 > 0) sweep1 -= 2 * Math.PI;
-                            if (!current.clockwise && sweep1 < 0) sweep1 += 2 * Math.PI;
-
-                            let sweep2 = next.endAngle - next.startAngle;
-                            if (next.clockwise && sweep2 > 0) sweep2 -= 2 * Math.PI;
-                            if (!next.clockwise && sweep2 < 0) sweep2 += 2 * Math.PI;
-
-                            const totalSweep = sweep1 + sweep2;
-
-                            if (Math.abs(totalSweep) <= 2 * Math.PI + TOL) {
-                                // Create unified arc primitive
-                                current = new ArcPrimitive(
-                                    current.center,
-                                    current.radius,
-                                    current.startAngle,
-                                    next.endAngle,
-                                    current.clockwise,
-                                    current.properties
-                                );
-                                i++; // Consume the next primitive
-                                continue;
-                            }
-                        }
-                        break; // Stop merging if conditions fail
-                    }
-                } 
-                // Merge internal arcSegments inside PathPrimitives (e.g., Gerber Regions)
-                else if (current.type === 'path' && current.contours) {
-                    current.contours.forEach(contour => {
-                        if (!contour.arcSegments || contour.arcSegments.length < 2) return;
-
-                        const mergedArcs = [];
-                        // Sort by start index to ensure perimeter is walked sequentially
-                        const sortedArcs = contour.arcSegments.slice().sort((a, b) => a.startIndex - b.startIndex);
-
-                        for (const arc of sortedArcs) {
-                            if (mergedArcs.length === 0) {
-                                mergedArcs.push(arc);
-                                continue;
-                            }
-
-                            const prev = mergedArcs[mergedArcs.length - 1];
-
-                            const sameCenter = Math.abs(prev.center.x - arc.center.x) < TOL &&
-                                               Math.abs(prev.center.y - arc.center.y) < TOL;
-                            const sameRadius = Math.abs(prev.radius - arc.radius) < TOL;
-                            const sameWinding = prev.clockwise === arc.clockwise;
-                            const isContiguous = prev.endIndex === arc.startIndex;
-
-                            if (sameCenter && sameRadius && sameWinding && isContiguous) {
-                                let sweep1 = prev.sweepAngle !== undefined ? prev.sweepAngle : (prev.endAngle - prev.startAngle);
-                                if (prev.clockwise && sweep1 > 0) sweep1 -= 2 * Math.PI;
-                                if (!prev.clockwise && sweep1 < 0) sweep1 += 2 * Math.PI;
-
-                                let sweep2 = arc.sweepAngle !== undefined ? arc.sweepAngle : (arc.endAngle - arc.startAngle);
-                                if (arc.clockwise && sweep2 > 0) sweep2 -= 2 * Math.PI;
-                                if (!arc.clockwise && sweep2 < 0) sweep2 += 2 * Math.PI;
-
-                                const totalSweep = sweep1 + sweep2;
-
-                                if (Math.abs(totalSweep) <= 2 * Math.PI + TOL) {
-                                        prev.endIndex = arc.endIndex;
-                                        prev.endAngle = arc.endAngle;
-                                        prev.sweepAngle = totalSweep;
-
-                                        // Re-assign Curve ID for All encompassed points
-                                        for (let pIdx = arc.startIndex; pIdx <= arc.endIndex; pIdx++) {
-                                            if (contour.points[pIdx]) {
-                                                contour.points[pIdx].curveId = prev.curveId;
-                                            }
-                                        }
-
-                                        // Update Global Curve Registry
-                                        if (window.globalCurveRegistry && prev.curveId) {
-                                            const regCurve = window.globalCurveRegistry.getCurve(prev.curveId);
-                                            if (regCurve) {
-                                                regCurve.endAngle = prev.endAngle;
-                                                regCurve.sweepAngle = prev.sweepAngle;
-                                            }
-                                        }
-
-                                        continue;
-                                    }
-                            }
-                            mergedArcs.push(arc);
-                        }
-                        contour.arcSegments = mergedArcs;
-                    });
+            // Separate ArcPrimitives from paths and other geometry
+            for (const prim of primitives) {
+                if (prim.type === 'arc') {
+                    standaloneArcs.push(prim);
+                } else if (prim.type === 'path' && prim.contours) {
+                    // Process arcSegments embedded inside PathPrimitive contours
+                    this.mergePathContourArcs(prim, TOL);
+                    result.push(prim);
+                } else {
+                    result.push(prim);
                 }
-
-                merged.push(current);
             }
 
-            return merged;
+            if (standaloneArcs.length === 0) return result;
+
+            // Group standalone arcs spatially by Center, Radius, Width, and Polarity
+            const buckets = new Map();
+            for (const arc of standaloneArcs) {
+                const width = arc.properties?.strokeWidth || 0;
+                const polarity = arc.properties?.polarity || 'dark';
+                const key = `${arc.center.x.toFixed(3)}_${arc.center.y.toFixed(3)}_${arc.radius.toFixed(3)}_${width.toFixed(3)}_${polarity}`;
+                
+                if (!buckets.has(key)) {
+                    buckets.set(key, []);
+                }
+                buckets.get(key).push(arc);
+            }
+
+            // Chain connecting arcs within each bucket
+            for (const [key, bucketArcs] of buckets) {
+                const visited = new Set();
+
+                for (let i = 0; i < bucketArcs.length; i++) {
+                    if (visited.has(i)) continue;
+
+                    let current = bucketArcs[i];
+                    visited.add(i);
+                    let totalSweep = this.getArcSweep(current);
+                    let closedAsCircle = false;
+
+                    let mergedInPass = true;
+                    while (mergedInPass) {
+                        mergedInPass = false;
+                        for (let j = 0; j < bucketArcs.length; j++) {
+                            if (visited.has(j)) continue;
+
+                            const next = bucketArcs[j];
+                            if (current.clockwise !== next.clockwise) continue;
+
+                            // Distance between current end and next start
+                            const distSq = Math.pow(current.endPoint.x - next.startPoint.x, 2) + 
+                                        Math.pow(current.endPoint.y - next.startPoint.y, 2);
+
+                            if (distSq < TOL * TOL) {
+                                const nextSweep = this.getArcSweep(next);
+                                const combinedSweep = Math.abs(totalSweep + nextSweep);
+
+                                // Check if combined sweep completes a 360-degree circle (2 * PI)
+                                if (Math.abs(combinedSweep - 2 * Math.PI) < TOL) {
+                                    const circleProps = {
+                                        ...current.properties,
+                                        isTrace: true,
+                                        stroke: true,
+                                        strokeWidth: current.properties?.strokeWidth || 0
+                                    };
+                                    result.push(new CirclePrimitive(current.center, current.radius, circleProps));
+                                    
+                                    visited.add(j);
+                                    closedAsCircle = true;
+                                    mergedInPass = false;
+                                    break;
+                                } 
+                                // Partial merge (still an open arc)
+                                else if (combinedSweep < 2 * Math.PI - TOL) {
+                                    current = new ArcPrimitive(
+                                        current.center,
+                                        current.radius,
+                                        current.startAngle,
+                                        next.endAngle,
+                                        current.clockwise,
+                                        current.properties
+                                    );
+                                    totalSweep += nextSweep;
+                                    visited.add(j);
+                                    mergedInPass = true;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+
+                    if (!closedAsCircle) {
+                        result.push(current);
+                    }
+                }
+            }
+
+            return result;
+        }
+
+        /**
+         * Calculates signed sweep angle for an ArcPrimitive
+         */
+        getArcSweep(arc) {
+            let sweep = arc.endAngle - arc.startAngle;
+            if (arc.clockwise && sweep > 0) sweep -= 2 * Math.PI;
+            if (!arc.clockwise && sweep < 0) sweep += 2 * Math.PI;
+            return sweep;
+        }
+
+        /**
+         * Helper to handle internal arcSegments within PathPrimitives
+         */
+        mergePathContourArcs(pathPrimitive, TOL) {
+            pathPrimitive.contours.forEach(contour => {
+                if (!contour.arcSegments || contour.arcSegments.length < 2) return;
+
+                const mergedArcs = [];
+                // Sort by start index to ensure perimeter is walked sequentially
+                const sortedArcs = contour.arcSegments.slice().sort((a, b) => a.startIndex - b.startIndex);
+
+                for (const arc of sortedArcs) {
+                    if (mergedArcs.length === 0) {
+                        mergedArcs.push(arc);
+                        continue;
+                    }
+
+                    const prev = mergedArcs[mergedArcs.length - 1];
+                    const sameCenter = Math.abs(prev.center.x - arc.center.x) < TOL &&
+                                    Math.abs(prev.center.y - arc.center.y) < TOL;
+                    const sameRadius = Math.abs(prev.radius - arc.radius) < TOL;
+                    const sameWinding = prev.clockwise === arc.clockwise;
+                    const isContiguous = prev.endIndex === arc.startIndex;
+
+                    if (sameCenter && sameRadius && sameWinding && isContiguous) {
+                        let sweep1 = prev.sweepAngle !== undefined ? prev.sweepAngle : (prev.endAngle - prev.startAngle);
+                        if (prev.clockwise && sweep1 > 0) sweep1 -= 2 * Math.PI;
+                        if (!prev.clockwise && sweep1 < 0) sweep1 += 2 * Math.PI;
+
+                        let sweep2 = arc.sweepAngle !== undefined ? arc.sweepAngle : (arc.endAngle - arc.startAngle);
+                        if (arc.clockwise && sweep2 > 0) sweep2 -= 2 * Math.PI;
+                        if (!arc.clockwise && sweep2 < 0) sweep2 += 2 * Math.PI;
+
+                        const totalSweep = sweep1 + sweep2;
+
+                        if (Math.abs(totalSweep) < 2 * Math.PI - TOL) {
+                            prev.endIndex = arc.endIndex;
+                            prev.endAngle = arc.endAngle;
+                            prev.sweepAngle = totalSweep;
+
+                            // Re-assign Curve ID for All encompassed points
+                            for (let pIdx = arc.startIndex; pIdx <= arc.endIndex; pIdx++) {
+                                if (contour.points[pIdx]) {
+                                    contour.points[pIdx].curveId = prev.curveId;
+                                }
+                            }
+
+                            // Update Global Curve Registry
+                            if (window.globalCurveRegistry && prev.curveId) {
+                                const regCurve = window.globalCurveRegistry.getCurve(prev.curveId);
+                                if (regCurve) {
+                                    regCurve.endAngle = prev.endAngle;
+                                    regCurve.sweepAngle = prev.sweepAngle;
+                                }
+                            }
+                            continue;
+                        }
+                    }
+                    mergedArcs.push(arc);
+                }
+                contour.arcSegments = mergedArcs;
+            });
         }
 
         /**
@@ -1074,7 +1131,7 @@
             const startAngle = Math.atan2(p0.y - center.y, p0.x - center.x);
             const endAngle = Math.atan2(p3.y - center.y, p3.x - center.x);
 
-            // Winding: cross product of radial × tangent at start
+            // Winding: cross product of radial x tangent at start
             const rx = p0.x - center.x, ry = p0.y - center.y;
             const cross = rx * t0y - ry * t0x;
             const clockwise = cross < 0;

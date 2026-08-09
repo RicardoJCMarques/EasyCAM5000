@@ -3,7 +3,7 @@
  * @description Scanline hatch fill generator for laser operations
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
- * @see         {@link https://github.com/RicardoJCMarques/EasyTrace5000}
+ * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
  *
  * SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
  * SPDX-License-Identifier: AGPL-3.0-or-later
@@ -29,7 +29,7 @@
      *      in one pass per scanline. The yMin/yMax pre-filter implements the
      *      standard vertex-hit crossing rule (count shared vertices exactly once).
      *   3. Sorted X-intersections are paired Even-Odd: [enter, exit], [enter, exit]…
-     *      Holes are handled automatically — a hole boundary creates extra enter/exit
+     *      Holes are handled automatically - a hole boundary creates extra enter/exit
      *      pairs that skip the hole interior.
      *   4. Pairs are reordered in zig-zag fashion (alternating scan direction per
      *      scanline) to minimize laser head travel between consecutive lines.
@@ -39,7 +39,7 @@
      *      optimized before export.
      *
      * Input primitives MUST be boolean-unioned before calling generate().
-     * This module performs pure geometry math — no Clipper2 dependency.
+     * This module performs pure geometry math - no Clipper2 dependency.
      */
     const HatchGenerator = {
 
@@ -89,7 +89,7 @@
             }
 
             // Generate N passes, each rotated by 180°/numPasses from the previous.
-            // Using 180° (not 360°) because hatch lines are bidirectional — a line at 0° covers the same area as one at 180°. This gives optimal angular separation: 1 pass = 0°, 2 passes = 0°/90°, 3 = 0°/60°/120°, etc.
+            // Using 180° (not 360°) because hatch lines are bidirectional - a line at 0° covers the same area as one at 180°. This gives optimal angular separation: 1 pass = 0°, 2 passes = 0°/90°, 3 = 0°/60°/120°, etc.
             const angleStep = 180 / numPasses;
             const passes = [];
 
@@ -185,7 +185,7 @@
                 const ry2 = center.y + dx2 * sin + dy2 * cos;
 
                 // Skip truly degenerate edges (protects against division-by-zero).
-                // Use a tight epsilon — SMALLER THAN PRECISION (0.001mm) — so that thin-sliver edges from Clipper boolean artifacts survive into the edge pool.
+                // Use a tight epsilon - SMALLER THAN PRECISION (0.001mm) - so that thin-sliver edges from Clipper boolean artifacts survive into the edge pool.
                 // Near-coincident crossings from surviving slivers are handled by intersection deduplication in scanAndPair.
                 if (Math.abs(ry1 - ry2) < 1e-10) return;
 
@@ -272,7 +272,7 @@
         },
 
         /**
-         * Tessellates an arc segment into dense linear sub-edges for the scanline edge pool. Uses the arc's analytic parameters (center, radius, angles) to compute intermediate points. The first and last points are taken from the actual contour to avoid floating-point gaps at arc–line junctions.
+         * Tessellates an arc segment into dense linear sub-edges for the scanline edge pool. Uses the arc's analytic parameters (center, radius, angles) to compute intermediate points. The first and last points are taken from the actual contour to avoid floating-point gaps at arc-line junctions.
          * Doesn't use the existing Util to avoid adding unnecessary arcs to the registry.
          */
         tessellateArcForScanline(arc, startPoint, endPoint) {
@@ -296,7 +296,7 @@
                 if ((dx * dx + dy * dy) < PRECISION * PRECISION) {
                     sweepAngle = arc.clockwise ? -2 * Math.PI : 2 * Math.PI;
                 } else {
-                    // Not a circle, just a small arc — return straight edge
+                    // Not a circle, just a small arc - return straight edge
                     return [startPoint, endPoint];
                 }
             }
@@ -343,7 +343,7 @@
             // Merge threshold for near-coincident intersections.
             const mergeThreshold = PRECISION * 2;
 
-            // Phase-lock scanlines to a global grid anchored at Y=0 in rotated space. Since all operations rotate around the same origin, their grids align exactly — enabling line fusion across operations during export.
+            // Phase-lock scanlines to a global grid anchored at Y=0 in rotated space. Since all operations rotate around the same origin, their grids align exactly - enabling line fusion across operations during export.
             const startY = Math.ceil(minY / spacing) * spacing;
 
             for (let y = startY; y < maxY; y += spacing) {
@@ -452,9 +452,9 @@
         /**
          * Packages world-space line segments as 2-point open PathPrimitives.
          * Properties are set to avoid triggering CNC pipeline logic:
-         * - isHatch: true    — identifies these as laser hatch lines
-         * - closed: false     — prevents path-closing in renderer
-         * - stroke/fill: false — prevents stroke-to-polygon conversion in preprocessor
+         * - isHatch: true    - identifies these as laser hatch lines
+         * - closed: false     - prevents path-closing in renderer
+         * - stroke/fill: false - prevents stroke-to-polygon conversion in preprocessor
          * These primitives only exist in operation.offsets and never enter the geometry preprocessing pipeline.
          */
         packageAsPathPrimitives(lines, angleDeg, operationType) {

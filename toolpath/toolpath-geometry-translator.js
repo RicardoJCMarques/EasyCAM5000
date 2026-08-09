@@ -3,7 +3,7 @@
  * @description Translates annotated 2D primitives into 3D ToolpathPlans
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
- * @see         {@link https://github.com/RicardoJCMarques/EasyTrace5000}
+ * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
  *
  * SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
  * SPDX-License-Identifier: AGPL-3.0-or-later
@@ -31,7 +31,7 @@
      * This translator is the ONE AND ONLY place geometry crosses into
      * MACHINE SPACE. It applies a single combined matrix:
      *
-     *     machineMatrix = T(−origin) ⊗ workspaceMatrix
+     *     machineMatrix = T(-origin) ⊗ workspaceMatrix
      *
      * provided by cam-core's buildToolpathContext as ctx.transforms.
      * Everything downstream (ToolpathOptimizer, MachineProcessor,
@@ -52,6 +52,11 @@
             } else {
                 console.error("[GeometryTranslator] ToolpathTabPlanner module missing.");
             }
+            // Delegate translator for 3D contours (V-Carve chains, relief
+            // rasters): native path3d input, phase ranking, slope-gated
+            // plunge feeds. Inline translate3DContour remains as fallback.
+            // REVIEW - Is this why EasyTrace5000 needs the 3d translator?
+            this.t3d = new Toolpath3DTranslator(this);
         }
 
         // ────────────────────────────────────────────────────────────
@@ -62,7 +67,6 @@
          * Translates a single operation's offset geometry into ToolpathPlans.
          * Phase 1 - Pre-scan:  Groups concentric circle/obround drill milling paths by holeIndex and emits one macro plan per hole.  All other primitives pass through.
          * Phase 2 - Per-primitive dispatch based on properties.role and properties.tabConfig.  No operation-type checks.
-         * REVIEW - Should 3D toolpaths be spun-off entirely?
          */
         async translateOperation(operation, ctx) {
             const plans = [];
@@ -196,6 +200,7 @@
 
                 const plan = new ToolpathPlan(operationId);
                 plan.metadata.context = ctx;
+                plan.metadata.transforms = ctx.transforms;
                 plan.metadata.operationId = operationId;
                 plan.metadata.operationType = 'drill';
                 plan.metadata.isDrillMilling = true;
@@ -220,7 +225,7 @@
                 plan.metadata.groupKey = `T:${tool.diameter.toFixed(3)}_OP:${operationId}_TYPE:drill_mill`;
                 plan.metadata.optimization = {
                     linkType: 'rapid',
-                    optimizedEntryPoint: plan.metadata.entryPoint,
+                    optimizedEntryPoint: { ...plan.metadata.entryPoint },
                     entryCommandIndex: 0
                 };
 
@@ -259,6 +264,7 @@
 
                 const plan = new ToolpathPlan(operationId);
                 plan.metadata.context = ctx;
+                plan.metadata.transforms = ctx.transforms;
                 plan.metadata.operationId = operationId;
                 plan.metadata.operationType = 'drill';
                 plan.metadata.isDrillMilling = true;
@@ -282,7 +288,7 @@
                 plan.metadata.groupKey = `T:${tool.diameter.toFixed(3)}_OP:${operationId}_TYPE:drill_mill`;
                 plan.metadata.optimization = {
                     linkType: 'rapid',
-                    optimizedEntryPoint: plan.metadata.entryPoint,
+                    optimizedEntryPoint: { ...plan.metadata.entryPoint },
                     entryCommandIndex: 0
                 };
 
@@ -301,6 +307,7 @@
 
             const plan = new ToolpathPlan(operationId);
             plan.metadata.context = ctx;
+            plan.metadata.transforms = ctx.transforms;
             plan.metadata.tool = tool;
             plan.metadata.cutDepth = computed.depthLevels[computed.depthLevels.length - 1];
             plan.metadata.feedRate = cutting.feedRate;
@@ -331,7 +338,7 @@
 
             plan.metadata.optimization = {
                 linkType: 'rapid',
-                optimizedEntryPoint: plan.metadata.entryPoint,
+                optimizedEntryPoint: { ...plan.metadata.entryPoint },
                 entryCommandIndex: 0
             };
 
@@ -423,68 +430,9 @@
          * the MachineProcessor Z-overwrite and the optimizer's staydown
          * links and 2D collinear simplifier).
          */
-        // Not Wired
+        // REVIEW - Why keep this alias? Just connect directly?
         translate3DContour(primitive, ctx) {
-            const { operationId, tool, cutting } = ctx;
-            const transforms = ctx.transforms;
-            const plans = [];
-
-            for (const contour of (primitive.contours || [])) {
-                const pts = contour.points;
-                if (!pts || pts.length < 2) continue;
-
-                const plan = new ToolpathPlan(operationId);
-                plan.metadata.context = ctx;
-                plan.metadata.operationId = operationId;
-                plan.metadata.operationType = ctx.operationType;
-                plan.metadata.is3DContour = true;
-                plan.metadata.isClosed = false;
-                plan.metadata.isClosedLoop = false;
-                plan.metadata.primitiveType = 'path3d';
-                plan.metadata.feedRate = cutting.feedRate;
-                plan.metadata.plungeRate = cutting.plungeRate;
-                plan.metadata.spindleSpeed = cutting.spindleSpeed;
-                plan.metadata.spindleDwell = cutting.spindleDwell;
-                plan.metadata.toolDiameter = tool.diameter;
-                plan.metadata.entryType = 'plunge';
-                plan.metadata.groupKey = `T:${tool.diameter.toFixed(3)}_OP:${operationId}_TYPE:${ctx.operationType}`;
-
-                let minZ = 0;
-                const firstXY = this.applyTransforms(pts[0], transforms);
-                const firstZ = pts[0].z ?? 0;
-                if (firstZ < minZ) minZ = firstZ;
-                plan.metadata.entryPoint = { x: firstXY.x, y: firstXY.y, z: firstZ };
-
-                for (let i = 1; i < pts.length; i++) {
-                    const p = this.applyTransforms(pts[i], transforms);
-                    const z = pts[i].z ?? 0;
-                    if (z < minZ) minZ = z;
-                    plan.addLinear(p.x, p.y, z, cutting.feedRate);
-                }
-
-                const lastIdx = pts.length - 1;
-                const lastXY = this.applyTransforms(pts[lastIdx], transforms);
-                plan.metadata.exitPoint = { x: lastXY.x, y: lastXY.y, z: pts[lastIdx].z ?? 0 };
-
-                // cutDepth = 0 keeps all V-Carve chains in ONE Z-level group
-                // (groupByZLevel keys on cutDepth) so nearest-neighbor path
-                // ordering works across chains. The true deepest point is
-                // kept in minZ - per-command Z is what the export-depth
-                // validator actually checks.
-                plan.metadata.cutDepth = 0;
-                plan.metadata.finalDepth = minZ;
-                plan.metadata.minZ = minZ;
-
-                plan.metadata.optimization = {
-                    linkType: 'rapid',
-                    optimizedEntryPoint: plan.metadata.entryPoint,
-                    entryCommandIndex: 0
-                };
-
-                plan.computeBounds();
-                plans.push(plan);
-            }
-            return plans;
+            return this.t3d.translate(primitive, ctx);
         }
 
         /**
@@ -494,14 +442,16 @@
         processStandardContour(contour, primitive, ctx, isHole, parentShapeKey, featureId, parentPass) {
             const shapeKey = parentShapeKey ?? primitive.properties?.shapeKey ?? null;
             const isClosed = primitive.closed ?? true;
-
             const plan = this.createPurePlan(contour, ctx, isClosed, isHole, true);
             if (plan) {
                 plan.metadata.shapeKey = shapeKey;
                 plan.metadata.featureId = featureId ?? null;
                 plan.metadata.pass = parentPass ?? plan.metadata.pass;
                 plan.computeBounds();
-                if (isClosed) {
+                // Climb direction is a boundary-cutting rule. A centerline pass
+                // is fully engaged whichever way it runs, so forcing CW only
+                // scrambles the source artwork's own ordering.
+                if (isClosed && !primitive.properties?.preserveDirection) {
                     this.enforceClimbMilling(plan, isHole);
                 }
                 return [plan];
@@ -515,6 +465,7 @@
                              primitive.type === 'obround' ||
                              primitive.type === 'rectangle' ||
                              (primitive.closed !== false);
+
             const shapeKey = primitive.properties?.shapeKey ?? null;
             const featureId = `${ctx.operationId}:sk${shapeKey ?? 'x'}:prim`;
             const parentPass = primitive.properties?.pass ?? null;
@@ -524,7 +475,7 @@
                 plan.metadata.featureId = featureId;
                 plan.metadata.pass = parentPass ?? plan.metadata.pass;
                 plan.computeBounds();
-                if (isClosed) {
+                if (isClosed && !primitive.properties?.preserveDirection) {
                     this.enforceClimbMilling(plan, isHole);
                 }
                 return [plan];
@@ -534,32 +485,25 @@
 
         /**
          * Processes a contour that has tabConfig attached.
-         * Generates tab-segmented commands via the TabPlanner, then emits one plan per depth level with tab Z-lift metadata.
-         *
-         * The tab planner receives the full context (ctx) for backward compatibility. The tabConfig on the primitive acts as the signal and provides the height for Z-lift calculation.
-         * // REVIEW - Is this fallback/backwards compatibility still necessary?
          */
         processTabbedContour(contour, ctx, isHole, parentShapeKey, featureId, parentPass) {
             const tabConfig = ctx.strategy.cutout; 
-
-            // Generate the standard, continuous (unsliced) path
-            const tempPlan = new ToolpathPlan(ctx.operationId);
-            tempPlan.metadata.context = ctx;
-            tempPlan.metadata.isClosed = true;
-            this.translatePrimitiveToCutting(tempPlan, contour, ctx.cutting.feedRate);
-            const standardCommands = tempPlan.commands.map(cmd => {
-                cmd.metadata = cmd.metadata || {};
-                cmd.metadata.isTab = false;
-                return cmd;
-            });
 
             // Generate the tab-sliced path if tabs are requested
             let commandsToSend = [];
             if (tabConfig.tabs > 0 && this.tabPlanner) {
                 commandsToSend = this.tabPlanner.calculateTabPositions(contour, ctx);
             }
-            if (commandsToSend.length === 0) {
-                commandsToSend = standardCommands;
+
+            // Fallback to standard generation if tabPlanner is missing or tabs is 0
+            // REVIEW - Why is this necessary?!?
+            if (!commandsToSend || commandsToSend.length === 0) {
+                const tempPlan = new ToolpathPlan(ctx.operationId);
+                tempPlan.metadata.context = ctx;
+                tempPlan.metadata.transforms = ctx.transforms;
+                tempPlan.metadata.isClosed = true;
+                this.translatePrimitiveToCutting(tempPlan, contour, ctx.cutting.feedRate);
+                commandsToSend = tempPlan.commands;
             }
 
             const plan = this.createPurePlan(contour, ctx, true, isHole, false);
@@ -569,8 +513,8 @@
             plan.metadata.featureId = featureId ?? null;
             plan.metadata.pass = parentPass ?? plan.metadata.pass;
 
+            // Assign the single source of truth for the optimizer
             plan.commands = commandsToSend;
-            plan.metadata.standardCommands = standardCommands;
 
             // Flag that this plan has tab segments requiring Z-expansion
             plan.metadata.isTabbedPass = tabConfig.tabs > 0;
@@ -592,18 +536,21 @@
          * Core Translation Utilities
          */
 
-        // TODO [METADATA-BLOAT] - Every plan stores a reference to the full ctx object
-        // via plan.metadata.context. This prevents GC of context data until all plans are
-        // collected, and risks silent corruption if ctx is mutated post-creation.
-        // ctx is now frozen (see cam-core.js buildToolpathContext) as a safety measure.
-        // Long-term fix: copy only the fields each plan needs (transforms, cutting, tool)
-        // into metadata directly, and remove the ctx reference.
+        // TODO [METADATA-BLOAT] - plan.metadata.context is now referenced by
+        // exactly ONE remaining consumer family: MachineProcessor's
+        // determineWinding/planContext (5 sites). metadata.transforms is
+        // already stamped alongside; migrate those reads, then delete the 7
+        // context stamps. Separately: the big multipliers are MotionCommand
+        // (COMMAND-STREAM-MEMORY) and the per-depth-level {...cmd} clones +
+        // metadata.standardCommands in MachineProcessor's tab expansion -
+        // both resolve together in the packed-stream refactor.
         createPurePlan(primitive, ctx, isClosed, isHole, generateCommands = true) {
             // Get all settings from the context
             const { operationId, operationType, tool, cutting, strategy } = ctx;
 
             const plan = new ToolpathPlan(operationId);
             plan.metadata.context = ctx; 
+            plan.metadata.transforms = ctx.transforms;
 
             // Set metadata
             plan.metadata.operationId = ctx.operationId;
@@ -681,22 +628,14 @@
                 this.translatePrimitiveToCutting(plan, primitive, cutting.feedRate);
             }
 
-            // Fallback safety for missed helix centers
-            if (ctx.operationType === 'drill' && ctx.strategy.entryType === 'helix' && plan.commands.length === 0) {
-                // If the plan is empty but is a helix entry for drill milling, populate metadata
-                if (plan.metadata.primitiveType === 'path' && primitive.arcSegments && primitive.arcSegments.length > 0) {
-                    const arc = primitive.arcSegments[0];
-                    const dist = Math.hypot(primitive.points[0].x - primitive.points[primitive.points.length-1].x, primitive.points[0].y - primitive.points[primitive.points.length-1].y);
-                    if(primitive.arcSegments.length === 1 && dist < PRECISION) {
-                        plan.metadata.center = arc.center;
-                        plan.metadata.radius = arc.radius;
-                    }
-                }
-            }
 
             plan.metadata.optimization = {
                 linkType: 'rapid',
-                optimizedEntryPoint: plan.metadata.entryPoint,
+                // COPY, never an alias. rotateCircleEntry and rotatePlanCommands
+                // REPLACE metadata.entryPoint wholesale, and MachineProcessor's
+                // indexed +apothem bump walks entryPoint, exitPoint AND
+                // optimizedEntryPoint - a shared object gets shifted twice.
+                optimizedEntryPoint: { ...plan.metadata.entryPoint },
                 entryCommandIndex: 0
             };
 
@@ -769,27 +708,62 @@
                     // Check for arc segments
                     metadata.hasArcs = geometry.arcSegments && geometry.arcSegments.length > 0;
 
-                    // Full circle stored as an all-arc path (every edge an arc
-                    // about one center).
-                    const arcs = geometry.arcSegments || [];
-                    if (metadata.isClosedLoop && arcs.length >= 3 &&
-                        arcs.length === points.length &&
-                        arcs[0].center && arcs[0].radius > 0) {
-                        const c0 = arcs[0];
-                        const sameCircle = arcs.every(a =>
-                            a.center &&
-                            Math.abs(a.center.x - c0.center.x) < PRECISION &&
-                            Math.abs(a.center.y - c0.center.y) < PRECISION &&
-                            Math.abs(a.radius - c0.radius) < PRECISION
-                        );
-                        if (sameCircle) {
-                            metadata.isSimpleCircle = true;
-                            metadata.center = { x: c0.center.x, y: c0.center.y };
-                            metadata.radius = c0.radius;
-                        }
+                    // THE decision point. Everything downstream - translatePath,
+                    // enforceClimbMilling, computeBounds, samplePlanPoints,
+                    // rotateCircleEntry, the MachineProcessor entry move - reads
+                    // isSimpleCircle/center/radius and never re-derives.
+                    // center is set UNTRANSFORMED; createPurePlan transforms it
+                    // right after this call, same contract as the circle and
+                    // obround branches above.
+                    // The reconstructor's flag is ground truth and needs no
+                    // measuring. detectCircularContour is the fallback for the
+                    // legacy tessellated shape only.
+                    // REVIEW - Trim comment
+                    const arc0 = geometry.arcSegments?.[0];
+                    const circle = (geometry.isFullCircle && arc0?.center && arc0.radius > 0)
+                        ? { center: { x: arc0.center.x, y: arc0.center.y }, radius: arc0.radius }
+                        : this.detectCircularContour(points, geometry.arcSegments, metadata.isClosedLoop);
+
+                    if (circle) {
+                        metadata.isSimpleCircle = true;
+                        metadata.center = circle.center;
+                        metadata.radius = circle.radius;
                     }
                 }
             }
+        }
+
+        /**
+         * LEGACY SHAPE ONLY: GeometryUtils.circleToPath output - N points and N
+         * micro-arcs, one per edge, all about one centre. This still reaches the
+         * translator because translateOperation runs primitiveToPath on analytic
+         * primitives before the contour loop (deliberately: the tab planner
+         * needs the tessellated ring).
+         *
+         * Reconstructor output does NOT come through here - it carries an
+         * explicit contour.isFullCircle, which analyzePrimitive reads first.
+         * Do not add cases to this function; add them to the flag instead.
+         *
+         * The test is structural, not tolerance-based: arc count === point count
+         * means every edge of the closed ring is an arc.
+         */
+        // REVIEW - This sounds like a legacy safeguard? why not guaranteed circleToPath is processed correctly before reaching this stage?
+        detectCircularContour(points, arcSegments, isClosedLoop) {
+            if (!isClosedLoop || !points || !arcSegments || arcSegments.length < 3) return null;
+            if (arcSegments.length !== points.length) return null;
+
+            const c0 = arcSegments[0];
+            if (!c0.center || !(c0.radius > 0)) return null;
+
+            const sameCircle = arcSegments.every(a =>
+                a.center &&
+                Math.abs(a.center.x - c0.center.x) < PRECISION &&
+                Math.abs(a.center.y - c0.center.y) < PRECISION &&
+                Math.abs(a.radius - c0.radius) < PRECISION
+            );
+            if (!sameCircle) return null;
+
+            return { center: { x: c0.center.x, y: c0.center.y }, radius: c0.radius };
         }
 
         /**
@@ -814,7 +788,7 @@
          * Translate circle to cutting commands
          */
         translateCircle(plan, primitive, feedRate, clockwise) {
-            const transforms = plan.metadata.context?.transforms;
+            const transforms = plan.metadata.transforms;
 
             // Transform the Center
             const center = this.applyTransforms(primitive.center, transforms);
@@ -850,7 +824,7 @@
          * Translate obround to cutting commands (2 lines, 2 arcs)
          */
         translateObround(plan, primitive, feedRate, clockwise) {
-            const transforms = plan.metadata.context?.transforms;
+            const transforms = plan.metadata.transforms;
             const slotRadius = Math.min(primitive.width, primitive.height) / 2;
             const isHorizontal = primitive.width > primitive.height;
 
@@ -909,7 +883,7 @@
          */
         translateArc(plan, primitive, feedRate) {
             // Get Transform Context
-            const transforms = plan.metadata.context?.transforms;
+            const transforms = plan.metadata.transforms;
 
             // Transform Absolute Points
             const start = this.applyTransforms(primitive.startPoint, transforms);
@@ -935,10 +909,15 @@
             const minArcChordLength = 0.01;
             const chordDistance = Math.hypot(end.x - start.x, end.y - start.y);
 
-            // Calculate actual sweep to protect full circles
-            let sweep = primitive.endAngle - primitive.startAngle;
-            if (isClockwise && sweep > 0) sweep -= 2 * Math.PI;
-            if (!isClockwise && sweep < 0) sweep += 2 * Math.PI;
+            // Signed sweep via the shared normalizer.
+            const sweep = ToolpathPlan.normalizeArcSweep({
+                sweepAngle: primitive.sweepAngle,
+                startAngle: primitive.startAngle,
+                endAngle: primitive.endAngle,
+                clockwise: isClockwise,
+                chord: chordDistance,
+                radius: primitive.radius
+            });
             
             // Only skip if the chord AND the sweep are both tiny
             if (chordDistance < minArcChordLength && Math.abs(sweep) < Math.PI) {
@@ -950,60 +929,31 @@
             plan.addArc(end.x, end.y, undefined, i, j, isClockwise, feedRate);
         }
 
-        // TODO [ARC-NORMALIZATION] - Arc sweep normalization logic is duplicated across
-        // GeometryTranslator (translatePath, translateArc),
-        // ToolpathTabPlanner (getArcData, calculateTotalLength), and GCodeGenerator (linearizeArc).
-        // Each has slightly different edge-case handling for full circles and CW/CCW sign correction.
-        // A single normalizeArcSweep(startAngle, endAngle, clockwise) utility should replace all of them.
-        // Candidate location: ToolpathPlan static method or a shared geometry-utils module.
-        // Defer until the next dedicated arc-geometry audit pass.
         translatePath(plan, contour, feedRate) {
             const points = contour.points;
             if (!points || points.length < 2) return;
 
-            const transforms = plan.metadata.context?.transforms;
+            const transforms = plan.metadata.transforms;
             const isClosed = plan.metadata.isClosed;
             const arcSegments = contour.arcSegments || [];
             const minArcChordLength = 0.01;
             const minLinearLength = 0.001;
-            
+
             // Build arc map
             const arcMap = new Map();
             for (const arc of arcSegments) {
                 arcMap.set(arc.startIndex, arc);
             }
-            
-            // Detect full circle: all edges are arcs from same center/radius
-            if (arcSegments.length >= 3 && arcSegments.length === points.length) {
-                const first = arcSegments[0];
-                const isFullCircle = first.center && first.radius > 0 && arcSegments.every(arc =>
-                    arc.center &&
-                    Math.abs(arc.center.x - first.center.x) < PRECISION &&
-                    Math.abs(arc.center.y - first.center.y) < PRECISION &&
-                    Math.abs(arc.radius - first.radius) < PRECISION
-                );
 
-                if (isFullCircle) {
-                    const transformedCenter = this.applyTransforms(first.center, transforms);
-                    // Use the actual start point of the path, not 3 o'clock
-                    const transformedStart = this.applyTransforms(points[0], transforms);
-                    // Calculate I/J relative to the transformed start
-                    const i = transformedCenter.x - transformedStart.x;
-                    const j = transformedCenter.y - transformedStart.y;
-
-                    // Always CW (true) for climb milling
-                    plan.addArc(
-                        transformedStart.x, 
-                        transformedStart.y, 
-                        undefined, 
-                        i, j, 
-                        true, 
-                        feedRate
-                    );
-                    return;
-                }
+            if (plan.metadata.isSimpleCircle &&
+                plan.metadata.center && plan.metadata.radius > 0) {
+                const start = this.applyTransforms(points[0], transforms);
+                const c = plan.metadata.center;
+                plan.addArc(start.x, start.y, undefined,
+                    c.x - start.x, c.y - start.y, true, feedRate);
+                return;
             }
-            
+
             // Standard segment-by-segment processing
             const isPhysicallyClosed = ToolpathPlan.isClosedPoints(points);
             const numPoints = points.length;
@@ -1014,59 +964,71 @@
 
             let i = 0;
             let segmentsDrawn = 0;
-
             // Transform the first point ONCE before the loop. Each iteration
             // carries its endPoint into the next iteration's startPoint, so
-            // every point is transformed exactly once (the old loop body
-            // transformed each shared point twice - once as endPoint, again
-            // as the next segment's startPoint).
+            // every point is transformed exactly once.
             let startPoint = this.applyTransforms(points[0], transforms);
 
             while (segmentsDrawn < segmentsToDraw) {
                 const arc = arcMap.get(i);
 
-                let nextIndex = (i + 1) % numPoints;
-                if (nextIndex >= numPoints) nextIndex = 0;
+                // An arcSegment spans startIndex..endIndex and REPLACES every
+                // point between them. Adjacent indices are the span === 1 case;
+                // tessellated spans (obround caps, primitiveToPath's arc) are
+                // the rest. Rejecting a span emits its tessellation as chords -
+                // correct geometry, silently faceted G-code.
+                let arcEnd = -1;
+                let arcSpan = 0;
+                if (arc && Number.isInteger(arc.endIndex)) {
+                    arcEnd = ((arc.endIndex % numPoints) + numPoints) % numPoints;
+                    arcSpan = (((arcEnd - i) % numPoints) + numPoints) % numPoints;
+                }
 
+                const useArc = arcSpan > 0 &&
+                               arcSpan <= (segmentsToDraw - segmentsDrawn) &&
+                               arc.center && arc.radius > 0;
+
+                const nextIndex = useArc ? arcEnd : (i + 1) % numPoints;
                 const endPoint = this.applyTransforms(points[nextIndex], transforms);
 
-                // Arc segment
-                if (arc && arc.endIndex === nextIndex) {
+                if (useArc) {
                     const chordDistance = Math.hypot(endPoint.x - startPoint.x, endPoint.y - startPoint.y);
 
-                    let sweep = arc.sweepAngle;
-                    if (sweep === undefined) {
-                        sweep = arc.endAngle - arc.startAngle;
-                        // REVIEW - should these be isClockwise too, for consistency?
-                        if (arc.clockwise && sweep > 0) sweep -= 2 * Math.PI;
-                        if (!arc.clockwise && sweep < 0) sweep += 2 * Math.PI;
-                    }
+                    // Shared normalizer
+                    const sweep = ToolpathPlan.normalizeArcSweep({
+                        sweepAngle: arc.sweepAngle,
+                        startAngle: arc.startAngle,
+                        endAngle: arc.endAngle,
+                        clockwise: arc.clockwise,
+                        chord: chordDistance,
+                        radius: arc.radius
+                    });
 
                     // Allow arcs with a tiny chord IF their sweep angle is massive (e.g., a full circle)
-                    if ((chordDistance >= minArcChordLength || Math.abs(sweep) >= Math.PI) && arc.center && arc.radius > 0) {
+                    if (chordDistance >= minArcChordLength || Math.abs(sweep) >= Math.PI) {
                         const transformedCenter = this.applyTransforms(arc.center, transforms);
                         const i_val = transformedCenter.x - startPoint.x;
                         const j_val = transformedCenter.y - startPoint.y;
-
                         let clockwise = arc.clockwise;
                         // If mirrored, it might be necessary to flip the arc direction
                         if (windingFlipped) { clockwise = !clockwise; }
                         plan.addArc(endPoint.x, endPoint.y, undefined, i_val, j_val, clockwise, feedRate);
                     } else {
-                        // Tiny arc or missing data, use line
+                        // Tiny arc, use line
                         plan.addLinear(endPoint.x, endPoint.y, undefined, feedRate);
                     }
+                    segmentsDrawn += arcSpan;
                 } else {
                     // Linear segment
                     const dist = Math.hypot(endPoint.x - startPoint.x, endPoint.y - startPoint.y);
                     if (dist > minLinearLength) {
                         plan.addLinear(endPoint.x, endPoint.y, undefined, feedRate);
                     }
+                    segmentsDrawn++;
                 }
 
                 i = nextIndex;
                 startPoint = endPoint;
-                segmentsDrawn++;
             }
         }
 
@@ -1088,7 +1050,7 @@
                 const nextPos = {
                     x: cmd.x !== null ? cmd.x : currentPos.x,
                     y: cmd.y !== null ? cmd.y : currentPos.y,
-                    z: cmd.z !== null ? cmd.z : currentPos.z,
+                    z: cmd.z, // Preserve original null state instead of currentPos.z
                     feed: cmd.f,
                     // Store the command info *on the point it leads to*
                     cmdType: cmd.type,
@@ -1111,13 +1073,13 @@
                 const cmdType = startPos.cmdType;
                 const feed = startPos.feed;
                 const meta = startPos.metadata;
+                const zVal = startPos.z; // Keeps null for 2D moves
 
                 let newCmd;
 
                 if (cmdType === 'ARC_CW' || cmdType === 'ARC_CCW') {
                     // This command was an arc. Create its reverse.
                     const newType = cmdType === 'ARC_CW' ? 'ARC_CCW' : 'ARC_CW';
-
                     // The original 'i, j' was relative to the original start (endPos)
                     // Set the center from that.
                     const centerX = endPos.x + startPos.i;
@@ -1129,14 +1091,14 @@
 
                     newCmd = new MotionCommand(
                         newType,
-                        { x: endPos.x, y: endPos.y, z: endPos.z },
+                        { x: endPos.x, y: endPos.y, z: zVal },
                         { i: new_i, j: new_j, feed: feed }
                     );
                 } else {
                     // Default to Linear
                     newCmd = new MotionCommand(
                         'LINEAR',
-                        { x: endPos.x, y: endPos.y, z: endPos.z },
+                        { x: endPos.x, y: endPos.y, z: zVal },
                         { feed: feed }
                     );
                 }
@@ -1164,9 +1126,29 @@
          * - Hole contours: CCW
          */
         enforceClimbMilling(plan, isHole = false) {
-            // Skip open paths and empty plans
-            if (!plan.commands || plan.commands.length < 2) return false;
+            if (!plan.commands || plan.commands.length === 0) return false;
             if (!plan.metadata.isClosed && !plan.metadata.isClosedLoop) return false;
+
+            const wantCW = !isHole; // External = CW (climb), Hole = CCW (climb)
+
+            // A circle is ONE arc command, so the endpoint-winding scan below
+            // has nothing to measure and used to bail - which left every
+            // circular hole cutting conventional. Direction is declarative
+            // here: flipping a 2*PI arc keeps the same start point and the same
+            // I/J, only the opcode changes. This is also correct under mirror,
+            // where the point scan measures post-transform winding but hole-ness
+            // is invariant.
+            // REVIEW - Trim comment
+            if (plan.metadata.isSimpleCircle && plan.commands.length === 1) {
+                const cmd = plan.commands[0];
+                if (cmd.type !== 'ARC_CW' && cmd.type !== 'ARC_CCW') return false;
+                if ((cmd.type === 'ARC_CW') === wantCW) return false;
+                cmd.type = wantCW ? 'ARC_CW' : 'ARC_CCW';
+                return true;
+            }
+
+            // Skip open paths and empty plans
+            if (plan.commands.length < 2) return false;
 
             // Build point list from generated commands
             const commandPoints = [];
@@ -1181,7 +1163,6 @@
             if (commandPoints.length < 3) return false;
 
             const isCW = GeometryUtils.isClockwise(commandPoints);
-            const wantCW = !isHole; // External = CW (climb), Hole = CCW (climb)
 
             if (isCW !== wantCW) {
                 this.reversePlan(plan);
@@ -1267,7 +1248,7 @@
          */
         applyTransforms(point, transforms) {
             if (this.isIdentityTransforms(transforms)) return point;
-            // machineMatrix = T(−origin) ⊗ workspaceMatrix.
+            // machineMatrix = T(-origin) ⊗ workspaceMatrix.
             // Fall back to the workspace-only matrix for legacy contexts
             // (origin then still handled by GCodeGenerator, if present).
             const m = transforms.machineMatrix || transforms.matrix;

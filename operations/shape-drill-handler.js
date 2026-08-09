@@ -3,7 +3,7 @@
  * @description Drill handler for EasyShape5000.
  *              Thin extension of DrillHandler. The base class
  *              already handles SVG circle/obround classification, peck vs
- *              mill strategy, and compound path recovery — all of which
+ *              mill strategy, and compound path recovery - all of which
  *              apply identically to EasyShape's SVG-imported shapes.
  *
  *              The only EasyShape-specific behavior: shapes arrive one at
@@ -12,7 +12,7 @@
  *              processes single primitives correctly so no override needed.
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
- * @see         {@link https://github.com/RicardoJCMarques/EasyTrace5000}
+ * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
  *
  * SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
  * SPDX-License-Identifier: AGPL-3.0-or-later
@@ -26,7 +26,7 @@
         /**
          * Override postParsePrimitives to handle shapes that are already
          * classified. When EasyShape assigns a drill operation to a circle
-         * shape, the primitive doesn't have role tags yet — the base class
+         * shape, the primitive doesn't have role tags yet - the base class
          * SVG classifier adds them.
          */
         postParsePrimitives(operation) {

@@ -3,7 +3,7 @@
  * @description Optimizes toolpath plan objects and movement between them
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
- * @see         {@link https://github.com/RicardoJCMarques/EasyTrace5000}
+ * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
  *
  * SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
  * SPDX-License-Identifier: AGPL-3.0-or-later
@@ -66,6 +66,48 @@
                 plansByGroupKey.get(groupKey).push(plan);
             }
 
+            // Machining-phase guarantee: roughing groups must process before
+            // finishing regardless of plan insertion order. phaseRank is
+            // stamped by Toolpath3DTranslator (roughing=0, finishing=1);
+            // 2D plans have no phaseRank and sort as 0 - stable order kept.
+            //
+            // Rank is precomputed per group with a plain loop. The previous
+            // Math.min(...g.map(...)) inside the comparator recomputed the
+            // min on every comparison AND spread the whole group as call
+            // arguments - a dense 3D finishing group (one plan per raster
+            // span) overflows the call stack and crashes the optimization.
+            const groupRank = new Map();
+            for (const [k, g] of plansByGroupKey) {
+                let r = Infinity;
+                for (const p of g) {
+                    const m = p.metadata;
+                    let pr = m.phaseRank ?? 0;
+                    // [INDEXED] Face-order policy folds into the SAME
+                    // scalar (this is a numeric sort, not a tuple
+                    // comparator). Groups are face-homogeneous (_IX: in
+                    // groupKey) and phase-homogeneous (_PH:), so min()
+                    // over the group stays exact.
+                    //   'sequential' - complete each face before the next
+                    //     (minimizes index moves): indexOrder·4 + phaseRank
+                    //     (4 > max phaseRank + 1, collision-safe headroom).
+                    //   'phase' - rough all faces, then finish all: the
+                    //     bare phaseRank already yields this - the stable
+                    //     sort keeps insertion (= face) order within each
+                    //     phase, and _Z: roughing layers likewise.
+                    // Non-indexed plans (indexOrder undefined) rank
+                    // exactly as before under either mode.
+                    if (m.indexOrder != null && m.indexedFaceOrder !== 'phase') {
+                        pr = m.indexOrder * 4 + pr;
+                    }
+                    if (pr < r) r = pr;
+                }
+                groupRank.set(k, r === Infinity ? 0 : r);
+            }
+            const groupEntries = [...plansByGroupKey.entries()]
+                .sort((a, b) => groupRank.get(a[0]) - groupRank.get(b[0]));
+            plansByGroupKey.clear();
+            for (const [k, v] of groupEntries) plansByGroupKey.set(k, v);
+
             this.debug(`Grouped into ${plansByGroupKey.size} groups`);
 
             let finalOrderedPlans = [];
@@ -80,6 +122,97 @@
                     if (groupPlans.length > 0) {
                         currentMachinePos = groupPlans[groupPlans.length - 1].metadata.exitPoint;
                     }
+                    continue;
+                }
+
+                // ── Ordered 3D fast path ─────────────────────────────
+                // Field generators (relief/rotary) emit chains in
+                // serpentine order: the emission sequence IS the route.
+                // Re-deriving it here costs O(N²) clustering + O(N²) NN
+                // + O(N³) or-opt and usually DEGRADES the order (scattered
+                // serpentines turn stepover hops into long rapids). Keep
+                // emission order; the only per-chain decision left is
+                // which END to enter from (chains are direction-agnostic
+                // - same contract reversePlanCommands already relies on).
+                // Plunge count is fixed at one per chain regardless of
+                // ordering, so this is also within a small factor of the
+                // achievable optimum on travel.
+                const ordered3D = groupPlans.length > 1 && groupPlans.every(
+                    p => p.metadata.is3DContour && p.metadata.preserveOrder === true);
+                if (ordered3D) {
+                    let pos = currentMachinePos;
+                    let travel = 0;
+                    for (let gi = 0; gi < groupPlans.length; gi++) {
+                        const plan = groupPlans[gi];
+                        const md = plan.metadata;
+                        const e = md.entryPoint;
+                        const x = md.exitPoint || e;
+                        const dxE = e.x - pos.x, dyE = e.y - pos.y;
+                        const dxX = x.x - pos.x, dyX = x.y - pos.y;
+                        const dE = dxE * dxE + dyE * dyE;   // squared - no sqrt
+                        const dX = dxX * dxX + dyX * dyX;
+                        // Enter from the cheaper end. reversePlanCommands
+                        // rewrites commands, re-derives 3D feeds, and swaps
+                        // entry/exit AND optimization.optimizedEntryPoint.
+                        if (dX < dE - 1e-12) this.reversePlanCommands(plan);
+                        // Stamp the link so MachineProcessor uses a feed-height
+                        // hop instead of a full travelZ retract between chains.
+                        // First chain of the run has no predecessor to hop from.
+                        const canHop = gi > 0 && md.allow3DHop === true;
+                        md.optimization = {
+                            linkType: canHop ? 'hop' : 'rapid',
+                            // COPIES, never aliases: insertIndexMoves bumps
+                            // entryPoint AND optimizedEntryPoint by
+                            // +apothem independently, so an alias took the
+                            // shift twice (metadata-only corruption - macro
+                            // commands are cloned - but it feeds the 3D
+                            // preview and any later metadata consumer).
+                            originalEntryPoint: { ...md.entryPoint },
+                            optimizedEntryPoint: { ...md.entryPoint },
+                            entryCommandIndex: 0
+                        };
+
+                        const leave = md.exitPoint || md.entryPoint;
+                        travel += Math.sqrt(Math.min(dE, dX));
+                        pos = leave;
+                    }
+                    // Emission order is both the baseline and the result.
+                    this.stats.originalTravelDistance += travel;
+                    this.stats.optimizedTravelDistance += travel;
+                    finalOrderedPlans.push(...groupPlans);
+                    currentMachinePos = { ...pos };
+                    this.debug(`Ordered-3D fast path: ${groupPlans.length} chain(s), emission order kept`);
+                    continue;
+                }
+
+                // ── Unordered 3D (V-Carve) ───────────────────────────
+                // 3D chains never staydown (canStaydown is false for
+                // is3DContour), so buildRegions' proximity/staydown
+                // clustering produces links that can never be used - while
+                // costing a pairwise O(N²) pass AND an adjacency graph that
+                // approaches O(N²) MEMORY on dense art (thousands of glyph
+                // skeletons). That combination is what melts the browser on
+                // ~7000-object SVGs. Order the whole group with ONE direct
+                // greedy nearest-neighbour pass - exactly the light O(N²)
+                // that optimized these well before the staydown machinery
+                // was layered on. reversePlanCommands handles per-chain
+                // direction inside optimizePathOrder (commandIndex === -2).
+                const unordered3D = groupPlans.length > 1 &&
+                    groupPlans.every(p => p.metadata.is3DContour);
+                if (unordered3D) {
+                    let seq = this.optimizePathOrder(groupPlans, currentMachinePos, {
+                        allowStaydown: false
+                    });
+                    // refinePlanOrder self-caps at orOptMaxBlocks (200): a
+                    // 7000-chain group skips it, a small one gets polished.
+                    if (seq.length > 3) {
+                        seq = this.refinePlanOrder(seq, currentMachinePos);
+                    }
+                    if (seq.length) {
+                        finalOrderedPlans.push(...seq);
+                        currentMachinePos = seq[seq.length - 1].metadata.exitPoint;
+                    }
+                    this.debug(`Unordered-3D NN: ${groupPlans.length} chain(s), no staydown clustering`);
                     continue;
                 }
 
@@ -103,24 +236,44 @@
 
                 seq = this.refineRegionOrder(seq, currentMachinePos);
 
+                const groupStartPos = { ...currentMachinePos };
+                let groupOrdered = [];
+
                 // Optimize the actual toolpaths WITHIN each sorted cluster
                 for (const cluster of seq) {
                     const ordered = this.optimizePathOrder(cluster.plans, currentMachinePos, {
                         allowStaydown, skipShapeGuard
                     });
 
-                    // Count staydown links
-                    for (let i = 1; i < ordered.length; i++) {
-                        if (ordered[i].metadata.optimization?.linkType === 'staydown') {
-                            this.stats.staydownLinksUsed++;
-                        }
-                    }
-
                     if (ordered.length) {
-                        finalOrderedPlans.push(...ordered);
+                        groupOrdered.push(...ordered);
                         currentMachinePos = ordered[ordered.length - 1].metadata.exitPoint;
                     }
                 }
+
+                // Look-ahead or-opt, scoped to THIS group.
+                //
+                // It used to run once over the concatenation of every group.
+                // Its cost model is pure XY distance, so it happily relocated a
+                // finishing plan ahead of a roughing plan (groupKey carries the
+                // phase rank) and interleaved tool groups. It also relocated
+                // plans carrying optimization.linkType === 'staydown', which is
+                // a CONTRACT with the immediate predecessor - MachineProcessor
+                // then feeds at depth from whatever plan happened to land in
+                // front of it, and suppresses the wrong retract.
+                if (groupOrdered.length > 3) {
+                    groupOrdered = this.refinePlanOrder(groupOrdered, groupStartPos);
+                    currentMachinePos = groupOrdered[groupOrdered.length - 1].metadata.exitPoint;
+                }
+
+                // Count staydown links AFTER reordering settles
+                for (let i = 1; i < groupOrdered.length; i++) {
+                    if (groupOrdered[i].metadata.optimization?.linkType === 'staydown') {
+                        this.stats.staydownLinksUsed++;
+                    }
+                }
+
+                finalOrderedPlans.push(...groupOrdered);
             }
 
             // Segment simplification
@@ -128,13 +281,19 @@
                 this.debug(`Simplifying ${finalOrderedPlans.length} paths...`);
                 // Simplify after ordering to preserve entry/exit points
                 let totalPointsRemoved = 0;
+                let total3DPointsRemoved = 0;
                 for (const plan of finalOrderedPlans) {
                     const originalCount = plan.commands.length;
-                    this.simplifySegments(plan);
+                    if (plan.metadata?.is3DContour) {
+                        this.simplify3DSegments(plan);
+                        total3DPointsRemoved += (originalCount - plan.commands.length);
+                    } else {
+                        this.simplifySegments(plan);
+                    }
                     totalPointsRemoved += (originalCount - plan.commands.length);
                 }
                 this.stats.pointsRemoved = totalPointsRemoved;
-                this.debug(`Removed ${totalPointsRemoved} collinear points.`);
+                this.debug(`Removed ${totalPointsRemoved} collinear points (${total3DPointsRemoved} from 3D paths).`);
             }
 
             this.stats.optimizedPathCount = finalOrderedPlans.length;
@@ -276,9 +435,10 @@
             // A full circle is emitted as ONE arc command, so command sampling
             // yields a single point and every proximity / closest-distance test
             // collapses (the circle can never join a stay-down cluster). Walk the
-            // real circumference instead. isSimpleCircle is set for analytic
-            // circles AND, via analyzePrimitive, for arc-reconstructed circular
-            // paths, so this one gate covers both populations.
+            // real circumference instead. analyzePrimitive sets isSimpleCircle
+            // for BOTH circle populations - the analytic CirclePrimitive and the
+            // arc-reconstructed contour - so this one gate covers everything,
+            // and metadata.center/radius are always present when it is true.
             if (plan.metadata?.isSimpleCircle) {
                 const arcCmd = plan.commands.find(c => c.type === 'ARC_CW' || c.type === 'ARC_CCW');
                 const entryCmd = plan.commands[0];
@@ -349,11 +509,24 @@
             // helper isn't given a pass signal, so it degrades to pure proximity.
             const subdivideByProximity = (groupPlans, usePassAdjacency) => {
                 if (groupPlans.length <= 1) return [groupPlans];
-                const first = groupPlans[0];
-                const stepDistance =
-                    first.metadata.toolDiameter * (1.0 - (first.metadata.stepOver / 100.0));
+                const md = groupPlans[0].metadata;
+
+                // 3D chains carry an explicit clusterMargin. stepOver is
+                // meaningless for a V-bit and toolDiameter is the TIP flat
+                // (often ~0.1mm), so toolDiameter * (1 - stepOver/100)
+                // collapsed to ~0 and every chain became its own region:
+                // hundreds of regions, O(N^2) or-opt, and a cluster ordering
+                // that carried no information.
+                let margin = md.clusterMargin;
+                if (!Number.isFinite(margin) || margin <= 0) {
+                    margin = md.toolDiameter * (1.0 - (md.stepOver / 100.0));
+                }
+                if (!Number.isFinite(margin) || margin <= 0) {
+                    margin = md.toolDiameter || 1;
+                }
+
                 return this.buildStaydownClusters(
-                    groupPlans, stepDistance + EPSILON, usePassAdjacency
+                    groupPlans, margin + EPSILON, usePassAdjacency
                 );
             };
 
@@ -404,6 +577,113 @@
         }
 
         /**
+         * Or-opt refinement over ONE tool/phase group's plan list.
+         *
+         * Unit of relocation is a BLOCK, not a plan. A plan whose
+         * optimization.linkType is 'staydown' has a contract with its
+         * immediate predecessor: MachineProcessor emits a feed move at the
+         * current cut depth into its entry and suppresses the predecessor's
+         * retract (isStayDownSource). Moving either half of that pair drags
+         * the tool through uncut stock. Staydown runs are therefore glued
+         * into atomic blocks before the search.
+         *
+         * Direction: a single-plan block that is a 3D open chain (V-Carve,
+         * relief) may be entered from either end - the V-cone is symmetric
+         * and raster lines are direction-agnostic - so each such block
+         * contributes min(dist-to-entry, dist-to-exit) and is flipped when
+         * its exit end is the cheaper approach.
+         *
+         * O(N^2) per pass with a small cap. Ordering is a fraction of total
+         * time and the travel savings dwarf it.
+         */
+        refinePlanOrder(plans, startPos) {
+            if (!plans || plans.length < 4) return plans;
+
+            // Hard cap. With no staydown links every plan is its own block,
+            // and the relocation search is O(blocks² · routeCost) = O(N³).
+            // Ordered field rasters bypass this method entirely (fast path);
+            // this guard protects the populations that legitimately reach it
+            // (V-Carve skeletons, dense 2D jobs) from pathological sizes.
+            // Beyond the cap the greedy NN order stands - correct, just not
+            // or-opt-polished.
+            // REVIEW - I dislike this safeguard, if it's a huge operation it will never fit. User just needs feedback. And multi-threading.
+            const orOptMax = D.gcode.optimization.orOptMaxBlocks;
+
+            // The first plan of a run has no predecessor to stay down from.
+            // (optimizePathOrder now guards this too; belt and braces so the
+            // block builder and MachineProcessor can never disagree.)
+            const firstOpt = plans[0]?.metadata?.optimization;
+            if (firstOpt && firstOpt.linkType === 'staydown') firstOpt.linkType = 'rapid';
+
+            const blocks = [];
+            for (const p of plans) {
+                const linked = p.metadata.optimization?.linkType === 'staydown';
+                if (linked && blocks.length) blocks[blocks.length - 1].push(p);
+                else blocks.push([p]);
+            }
+            if (blocks.length < 4 || blocks.length > orOptMax) return plans;
+
+            const reversible = (b) => b.length === 1 && b[0].metadata?.is3DContour === true;
+            const entryOf = (b) => b[0].metadata.entryPoint;
+            const exitOf  = (b) => b[b.length - 1].metadata.exitPoint
+                                || b[b.length - 1].metadata.entryPoint;
+            const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+
+            // Cost to travel from machine position `from` into block `b`,
+            // choosing the cheaper end when the block is reversible. Returns
+            // the leave position (the OTHER end).
+            const step = (from, b) => {
+                const e = entryOf(b), x = exitOf(b);
+                if (reversible(b)) {
+                    const dE = dist(from, e), dX = dist(from, x);
+                    return dX < dE ? { cost: dX, leave: e } : { cost: dE, leave: x };
+                }
+                return { cost: dist(from, e), leave: x };
+            };
+
+            const routeCost = (seq) => {
+                let pos = startPos, c = 0;
+                for (const b of seq) { const s = step(pos, b); c += s.cost; pos = s.leave; }
+                return c;
+            };
+
+            let best = blocks.slice();
+            let bestCost = routeCost(best);
+            let improved = true, guard = 0;
+            const GUARD_MAX = 8;
+
+            while (improved && guard++ < GUARD_MAX) {
+                improved = false;
+                for (let i = 0; i < best.length && !improved; i++) {
+                    const without = best.slice();
+                    const [moved] = without.splice(i, 1);
+                    for (let j = 0; j <= without.length; j++) {
+                        if (j === i) continue;
+                        const trial = without.slice();
+                        trial.splice(j, 0, moved);
+                        const c = routeCost(trial);
+                        if (c < bestCost - 1e-6) {
+                            best = trial; bestCost = c; improved = true; break;
+                        }
+                    }
+                }
+            }
+
+            // Apply the direction decisions from the winning route.
+            // reversePlanCommands rewrites commands + entry/exit +
+            // optimizedEntryPoint. reversible() guarantees b.length === 1.
+            let pos = startPos;
+            for (const b of best) {
+                if (reversible(b) && dist(pos, exitOf(b)) < dist(pos, entryOf(b)) - 1e-6) {
+                    this.reversePlanCommands(b[0]);
+                }
+                pos = exitOf(b);
+            }
+
+            return best.flat();
+        }
+
+        /**
          * Or-opt relocate pass over the region sequence (look-ahead seed = greedy NN result).
          * Direction-PRESERVING: it only moves a region to a better slot, never reverses a
          * region's internal path - safe for multi-Z regions whose depth order is fixed.
@@ -412,7 +692,9 @@
          * touching geometry or stay-down.
          */
         refineRegionOrder(regions, startPos) {
-            if (regions.length < 3) return regions;
+            // REVIEW - I dislike this safeguard, if it's a huge operation it will never fit. User just needs feedback. And multi-threading.
+            const orOptMax = D.gcode.optimization.orOptMaxBlocks;
+            if (regions.length < 3 || regions.length > orOptMax) return regions;
             const d = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
             const cost = (seq) => {
                 let pos = startPos, c = 0;
@@ -452,6 +734,12 @@
             // No prior plan at the start of a run → first link can't be staydown anyway.
             this.lastShapeKey = null;
             this.skipShapeGuard = options.skipShapeGuard || false;
+            // Each cluster is its own staydown unit. Without this flag the
+            // first plan of cluster N+1 could staydown-link to the last plan
+            // of cluster N (sameShape defaults to true when lastShapeKey is
+            // null), dragging the tool at depth across the gap that defined
+            // the cluster boundary in the first place.
+            this.isFirstLink = true;
 
             let totalOriginalTravel = 0;
             let totalOptimizedTravel = 0;
@@ -490,9 +778,9 @@
                     if (chosen.plans && chosen.plans.length > 0) {
                         chosen.plans[0].metadata.optimization = {
                             linkType: bestResult.linkType,
-                            originalEntryPoint: chosen.plans[0].metadata.entryPoint,
-                            optimizedEntryPoint: bestResult.bestPoint,
-                            entryCommandIndex: 0 
+                            originalEntryPoint: { ...chosen.plans[0].metadata.entryPoint },
+                            optimizedEntryPoint: { ...bestResult.bestPoint },
+                            entryCommandIndex: 0
                         };
                     }
 
@@ -502,22 +790,29 @@
                     continue;
                 }
 
-                // Store optimization decision in plan
+                // Store optimization decision in plan. COPIES, never aliases:
+                // findClosestPointOnPlan returns metadata.entryPoint itself for
+                // fixed-entry plans, and MachineProcessor's indexed +apothem
+                // bump walks entryPoint, exitPoint and optimizedEntryPoint - a
+                // shared object gets shifted twice.
                 chosen.metadata.optimization = {
                     linkType: bestResult.linkType,
-                    originalEntryPoint: chosen.metadata.entryPoint,
-                    optimizedEntryPoint: bestResult.bestPoint,
+                    originalEntryPoint: { ...chosen.metadata.entryPoint },
+                    optimizedEntryPoint: { ...bestResult.bestPoint },
                     entryCommandIndex: bestResult.commandIndex
                 };
 
-                // Rotate entry point to reduce travel. Circles always
-                // rotate via projection (commandIndex is always 0 for
-                // circles, but rotateCircleEntry handles it correctly).
-                // Paths rotate only when a non-entry vertex was selected.
+                // Rotate or reverse entry point to reduce travel.
                 if (!chosen.metadata.isPeckMark && !chosen.metadata.isDrillMilling) {
-                    if (chosen.metadata.isSimpleCircle) {
+                    const meta = chosen.metadata;
+                    if (meta.isSimpleCircle && bestResult.commandIndex >= 0) {
+                        // A full circle has one command, so the vertex scan
+                        // cannot propose a better start - slide it instead.
                         this.rotateCircleEntry(chosen, currentPos);
-                    } else if (bestResult.commandIndex >= 0 && chosen.metadata.isClosedLoop) {
+                    } else if (bestResult.commandIndex === -2 && !meta.isClosedLoop) {
+                        // Reverses both 2D open engraving paths and 3D contours
+                        this.reversePlanCommands(chosen);
+                    } else if (bestResult.commandIndex >= 0 && meta.isClosedLoop) {
                         this.rotatePlanCommands(chosen, bestResult.commandIndex);
                     }
                 }
@@ -526,6 +821,7 @@
                 totalOptimizedTravel += bestResult.realDistance;
                 currentPos = { ...chosen.metadata.exitPoint };
                 this.lastShapeKey = chosen.metadata.shapeKey ?? null;
+                this.isFirstLink = false;
             }
 
             this.stats.originalTravelDistance += totalOriginalTravel;
@@ -576,54 +872,63 @@
 
             const isMultiDepth = (planMetadata.depthLevels?.length || 1) > 1;
 
+            // 3D contours NEVER staydown. The link mechanism for 3D is the
+            // MachineProcessor's allow3DHop feed-height hop between adjacent
+            // same-group plans - not a lateral feed move at depth, which
+            // would need a machined-surface proof between arbitrary chains.
+            // (A previous contiguous3D check read this.last3DExit, which was
+            // never assigned anywhere - the branch was dead code and every
+            // 3D link already resolved to 'rapid'. This makes it explicit.)
             const canStaydown = allowStaydown &&
+                               !this.isFirstLink &&
                                sameShape &&
                                !isMultiDepth &&
                                !planMetadata.isPeckMark &&
-                               !planMetadata.isDrillMilling;
+                               !planMetadata.isDrillMilling &&
+                               !planMetadata.is3DContour;
 
+            // Find this block:
             if (canStaydown) {
                 const dxEntry = planMetadata.entryPoint.x - fromPos.x;
                 const dyEntry = planMetadata.entryPoint.y - fromPos.y;
-                const originalEntryDist = Math.sqrt(dxEntry * dxEntry + dyEntry * dyEntry);
+                
+                // Calculate the square directly
+                const originalEntryDistSq = (dxEntry * dxEntry) + (dyEntry * dyEntry);
 
                 const toolDiameter = planMetadata.toolDiameter;
                 const stepOverPercent = planMetadata.stepOver;
                 const stepOverRatio = stepOverPercent / 100.0;
                 const stepDistance = toolDiameter * (1.0 - stepOverRatio);
                 const staydownThreshold = stepDistance + EPSILON;
+                
+                // Square the threshold
+                const staydownThresholdSq = staydownThreshold * staydownThreshold;
 
-                this.debug(`Plan ${planMetadata.operationId} (Pass ${planMetadata.pass || 1}): ToolD=${toolDiameter.toFixed(3)}, StepOver=${stepOverPercent}%, StepDist=${stepDistance.toFixed(3)}, Threshold=${staydownThreshold.toFixed(3)}`);
-                this.debug(`   Original Entry Dist: ${originalEntryDist.toFixed(3)}`);
-
-                // Original entry is close enough (no rotation needed)
-                if (originalEntryDist <= staydownThreshold) {
-                    this.debug(`   >> Using Original Entry (Staydown) - Within Threshold`);
+                // Compare squares
+                if (originalEntryDistSq <= staydownThresholdSq) {
                     return {
-                        cost: originalEntryDist,
-                        realDistance: originalEntryDist,
+                        cost: Math.sqrt(originalEntryDistSq), // Only root when returning cost
+                        realDistance: Math.sqrt(originalEntryDistSq),
                         linkType: 'staydown',
                         bestPoint: planMetadata.entryPoint,
                         commandIndex: -1
                     };
                 }
 
-                // Find closest point on the path and consider rotation
-                const { point: closestPoint, distance: closestDist, commandIndex } =
+                // Step A provides distanceSq here now:
+                const { point: closestPoint, distanceSq: closestDistSq, distance: closestDist, commandIndex } =
                     this.findClosestPointOnPlan(fromPos, toPlan);
 
-                if (closestDist <= staydownThreshold && (commandIndex >= 0 || planMetadata.isSimpleCircle))
-                {
-                    this.debug(`   >> Using Rotated Entry (Staydown), Dist: ${closestDist.toFixed(3)}, Index: ${commandIndex}`);
+                // Compare squares again
+                if (closestDistSq <= staydownThresholdSq && (commandIndex >= 0 || planMetadata.isSimpleCircle)) {
                     return {
-                        cost: closestDist,
+                        cost: closestDist, // Already rooted by findClosestPointOnPlan
                         realDistance: closestDist,
                         linkType: 'staydown',
                         bestPoint: closestPoint,
                         commandIndex: commandIndex
                     };
                 }
-                    this.debug(`   Closest point dist (${closestDist.toFixed(3)}) beyond staydown threshold.`);
             }
 
             // Rapid link
@@ -632,17 +937,20 @@
 
             const rapidCost = this.calculateRapidCost(fromPos, bestRapidPoint, closestRapidXYDist);
 
-            if (debugState.enabled) {
-                const reason = !allowStaydown ? "Not Allowed" :
-                    (planMetadata.isPeckMark || planMetadata.isDrillMilling) ? "Drill Op" :
-                    isMultiDepth ? "Multi-Depth" : "Too Far";
-                console.log(`[Optimizer]   >> Using Rapid Link (${reason}). Cost: ${rapidCost.toFixed(1)}, Dist: ${closestRapidXYDist.toFixed(3)}, Index: ${rapidCommandIndex}`);
-            }
+            // REVIEW - Dead/Useless Code?
+            // if (debugState.enabled && !options.isClusterRun) {
+            //     const o = chosen.metadata.optimization;
+            //     this.debug(`Placed ${chosen.metadata.operationId}: ${o?.linkType || 'rapid'} ` +
+            //         `d=${bestResult.realDistance.toFixed(2)} idx=${o?.entryCommandIndex}`);
+            // }
+
+            const isHop = planMetadata.is3DContour && planMetadata.allow3DHop;
+            const linkType = isHop ? 'hop' : 'rapid';
 
             return {
                 cost: rapidCost,
                 realDistance: closestRapidXYDist,
-                linkType: 'rapid',
+                linkType: linkType,
                 bestPoint: bestRapidPoint,
                 commandIndex: rapidCommandIndex
             };
@@ -662,141 +970,259 @@
          * Find closest point on a plan
          */
         findClosestPointOnPlan(fromPos, plan) {
-            const meta = plan.metadata;
+            const meta = plan.metadata || {};
 
-            // Do not optimize entry points for ANY drill operations
-            if (meta.isPeckMark || meta.isDrillMilling || meta.isCenterlinePath) { // Review - circles can be rotated and centerline path start/end points are interchangeable.
-                const dx = meta.entryPoint.x - fromPos.x;
-                const dy = meta.entryPoint.y - fromPos.y;
-                return { point: meta.entryPoint, distance: Math.sqrt(dx * dx + dy * dy), commandIndex: 0 };
+            // Skip entry points for protected geometry
+            if (meta.isPeckMark || meta.isDrillMilling || meta.isCenterlinePath || meta.isTabbedPass) {
+                const entry = meta.entryPoint;
+                const dx = entry.x - fromPos.x;
+                const dy = entry.y - fromPos.y;
+                const distSq = dx * dx + dy * dy;
+                return {
+                    point: entry,
+                    distanceSq: distSq,
+                    distance: Math.sqrt(distSq),
+                    commandIndex: 0
+                };
             }
 
-            // Circle-specific optimization
+            // Simple Circles: Entry point is always fixed at 0 index, but projected around circumference
             if (meta.isSimpleCircle) {
-                const arcCmd = plan.commands.find(cmd => cmd.type === 'ARC_CW' || cmd.type === 'ARC_CCW');
-                const entryCmd = plan.commands[0];
-
-                if (arcCmd && entryCmd) {
-                    const centerX = entryCmd.x + arcCmd.i;
-                    const centerY = entryCmd.y + arcCmd.j;
-                    const radius = Math.hypot(arcCmd.i, arcCmd.j);
-                    const vecX = fromPos.x - centerX;
-                    const vecY = fromPos.y - centerY;
-                    const vecMagSq = vecX * vecX + vecY * vecY;
-
-                    // REVIEW - Why isn't this epsilon linked to config?
-                    if (vecMagSq > 1e-12) {
-                        const vecMag = Math.sqrt(vecMagSq);
-                        const idealX = centerX + (vecX / vecMag) * radius;
-                        const idealY = centerY + (vecY / vecMag) * radius;
-                        const dxIdeal = idealX - fromPos.x;
-                        const dyIdeal = idealY - fromPos.y;
-                        return { 
-                            point: { x: idealX, y: idealY },
-                            distance: Math.sqrt(dxIdeal * dxIdeal + dyIdeal * dyIdeal),
-                            commandIndex: -1
-                        };
-                    }
-                }
+                const entry = meta.entryPoint;
+                const dx = entry.x - fromPos.x;
+                const dy = entry.y - fromPos.y;
+                const distSq = dx * dx + dy * dy;
+                return {
+                    point: entry,
+                    distanceSq: distSq,
+                    distance: Math.sqrt(distSq),
+                    commandIndex: 0
+                };
             }
 
-            // Path searching
-            const canRotate = meta.isClosedLoop;
+            const canRotate = meta.isClosedLoop ?? false;
+            const is3D = meta.is3DContour ?? false;
+
+            // ── Open Path Strategy (2D Engraving & 3D Contours) ──────────
+            // Open paths only have 2 valid entry locations: start (entryPoint) or end (exitPoint).
+            if (!canRotate) {
+                const entry = meta.entryPoint;
+                const exit = meta.exitPoint || entry;
+
+                const dxE = entry.x - fromPos.x, dyE = entry.y - fromPos.y;
+                const dxX = exit.x - fromPos.x,  dyX = exit.y - fromPos.y;
+                const distSqE = dxE * dxE + dyE * dyE;
+                const distSqX = dxX * dxX + dyX * dyX;
+
+                // Return commandIndex -2 to signal reversal if approach from exitPoint is shorter
+                if (distSqX < distSqE - EPSILON) {
+                    return {
+                        point: exit,
+                        distanceSq: distSqX,
+                        distance: Math.sqrt(distSqX),
+                        commandIndex: -2
+                    };
+                }
+
+                return {
+                    point: entry,
+                    distanceSq: distSqE,
+                    distance: Math.sqrt(distSqE),
+                    commandIndex: 0
+                };
+            }
+
+            // ── Closed Loop Strategy ──────────
+            // Vertex sampling allowed ONLY for closed loops that can rotate start point.
             let bestPoint = meta.entryPoint;
-            const dxEntry = bestPoint.x - fromPos.x;
-            const dyEntry = bestPoint.y - fromPos.y;
-            let bestDistSq = (dxEntry * dxEntry + dyEntry * dyEntry);
+            let bestDistSq = Infinity;
             let bestIndex = -1;
 
-            if (plan.commands.length > 0) {
+            if (plan.commands && plan.commands.length > 0) {
                 for (let i = 0; i < plan.commands.length; i++) {
                     const cmd = plan.commands[i];
-                    if (cmd.x === null || cmd.y === null) continue;
-
-                    // For closed loops, skip commands whose target ≈ entry.
-                    // Rotating to these (or their neighbor) places the
-                    // closure command first, producing a degenerate zero-move
-                    // and breaking the simplifier's collinearity reference.
-                    if (canRotate) {
-                        const ceX = cmd.x - meta.entryPoint.x;
-                        const ceY = cmd.y - meta.entryPoint.y;
-                        if (ceX * ceX + ceY * ceY < PRECISION * PRECISION) continue;
-                    }
+                    if (cmd.x === null || cmd.y === null || cmd.x === undefined || cmd.y === undefined) continue;
 
                     const dx = cmd.x - fromPos.x;
                     const dy = cmd.y - fromPos.y;
-                    const distSq = (dx * dx + dy * dy);
+                    const distSq = dx * dx + dy * dy;
 
                     if (distSq < bestDistSq) {
                         bestDistSq = distSq;
                         bestPoint = { x: cmd.x, y: cmd.y };
-                        if (canRotate) {
-                            bestIndex = i;
-                        }
+                        bestIndex = i;
                     }
                 }
             }
 
-            // Only perform the expensive square root once at the very end
-            return { point: bestPoint, distance: Math.sqrt(bestDistSq), commandIndex: bestIndex };
+            if (bestIndex === -1) {
+                const entry = meta.entryPoint;
+                const dx = entry.x - fromPos.x;
+                const dy = entry.y - fromPos.y;
+                bestDistSq = dx * dx + dy * dy;
+                bestPoint = entry;
+                bestIndex = 0;
+            }
+
+            return {
+                point: bestPoint,
+                distanceSq: bestDistSq,
+                distance: Math.sqrt(bestDistSq),
+                commandIndex: bestIndex
+            };
+        }
+
+        /**
+         * Reverses command sequence and metadata endpoints for any open path plan (2D or 3D).
+         * Swaps entryPoint and exitPoint, reverses motion order, flips arc directions (CW <-> CCW),
+         * and recalculates relative arc center vectors (I/J).
+         */
+        reversePlanCommands(plan) {
+            if (!plan || !plan.commands || plan.commands.length === 0) return;
+
+            const oldCommands = plan.commands;
+            const newCommands = [];
+
+            // Reverse the command sequence array
+            const reversed = [...oldCommands].reverse();
+
+            // Compute motion endpoint mapping
+            //  In forward order: command[k] moves tool TO command[k].x, y
+            //  In reverse order: position before move comes from reversed[k-1] (or original entryPoint)
+            for (let i = 0; i < reversed.length; i++) {
+                const cmd = reversed[i];
+                const nextCmdPos = (i < reversed.length - 1)
+                    ? { x: reversed[i + 1].x, y: reversed[i + 1].y, z: reversed[i + 1].z }
+                    : { ...plan.metadata.entryPoint };
+
+                // Feed goes in PARAMS, not coords: MotionCommand reads
+                // params.feed and ignores coords.f entirely. A dropped f
+                // emits no F word, so the chain silently inherits the modal
+                // feed - a reversed 3D chain then takes its slope-gated
+                // descents at cutting feed instead of plunge. `a` is
+                // undefined during optimization today (the rotary word is
+                // written later, in convertDevelopedToRotary) but carrying
+                // it costs nothing and stops that ordering from being load-
+                // bearing.
+                if (cmd.type === 'ARC_CW' || cmd.type === 'ARC_CCW') {
+                    const newType = (cmd.type === 'ARC_CW') ? 'ARC_CCW' : 'ARC_CW';
+
+                    // Arc center in original command was (currentPos.x + i, currentPos.y + j).
+                    // In reverse, start position is cmd.x, cmd.y. Center remains constant:
+                    // CenterX = original_end_x + cmd.i = new_start_x + new_i
+                    // Therefore: new_i = original_start_x - original_end_x + cmd.i
+                    const newI = (nextCmdPos.x - cmd.x) + cmd.i;
+                    const newJ = (nextCmdPos.y - cmd.y) + cmd.j;
+
+                    newCommands.push(new MotionCommand(newType, {
+                        x: nextCmdPos.x, y: nextCmdPos.y, z: nextCmdPos.z, a: cmd.a
+                    }, { feed: cmd.f, i: newI, j: newJ }));
+                } else {
+                    newCommands.push(new MotionCommand(cmd.type, {
+                        x: nextCmdPos.x, y: nextCmdPos.y, z: nextCmdPos.z, a: cmd.a
+                    }, { feed: cmd.f }));
+                }
+            }
+
+            plan.commands = newCommands;
+
+            // 3D chains: feed is a DIRECTION classification, not a value.
+            // Each segment keeps its own feed above, which is right for a
+            // 2D contour but wrong here - what was a steep ascent at
+            // cutting feed is now a steep descent at cutting feed. Re-derive
+            // from the same slope gate the translator used.
+            if (plan.metadata.is3DContour) {
+                const feedRate = plan.metadata.feedRate;
+                const plungeRate = plan.metadata.plungeRate ?? feedRate;
+                const gate = this.slopeGate();
+                let px = plan.metadata.exitPoint?.x, py = plan.metadata.exitPoint?.y,
+                    pz = plan.metadata.exitPoint?.z;
+                for (const cmd of newCommands) {
+                    if (cmd.x !== null && cmd.x !== undefined &&
+                        cmd.z !== null && cmd.z !== undefined &&
+                        px !== undefined && pz !== undefined) {
+                        cmd.f = Toolpath3DTranslator.feedFor(
+                            cmd.z - pz, Math.hypot(cmd.x - px, cmd.y - py),
+                            feedRate, plungeRate, gate);
+                    }
+                    if (cmd.x !== null && cmd.x !== undefined) px = cmd.x;
+                    if (cmd.y !== null && cmd.y !== undefined) py = cmd.y;
+                    if (cmd.z !== null && cmd.z !== undefined) pz = cmd.z;
+                }
+            }
+
+            // Swap Entry/Exit metadata
+            const oldEntry = { ...plan.metadata.entryPoint };
+            const oldExit = plan.metadata.exitPoint ? { ...plan.metadata.exitPoint } : { ...oldEntry };
+
+            plan.metadata.entryPoint = oldExit;
+            plan.metadata.exitPoint = oldEntry;
+
+            if (plan.metadata.optimization) {
+                plan.metadata.optimization.optimizedEntryPoint = { ...oldExit };
+                plan.metadata.optimization.entryCommandIndex = 0;
+            }
         }
 
         /**
          * Rotate plan entry point for closed loops.
          *
-         * TODO [ROTATION-ARC-IJ] - This splice rotation breaks arc commands.
-         * Arc I/J offsets are relative to the arc's start point. When rotation
-         * moves the entry, the command that was previously mid-sequence now
-         * starts from a different position, but its I/J still reference the
-         * old start. Fix: after splicing, walk the rotated commands and
-         * recalculate I/J for any ARC_CW/ARC_CCW command whose preceding
-         * position changed. Alternatively, store arcs as absolute center
-         * coordinates internally and convert to relative I/J only at G-code
-         * emission time.
+         * Arc I/J survive the splice: for a genuinely closed loop every
+         * command keeps its predecessor. commands[k+1]'s new predecessor is
+         * the plan start, which IS commands[k]'s endpoint; commands[0]'s is
+         * commands[N-1], whose endpoint is commands[0]'s original start. The
+         * defect was never the I/J - it was leaving metadata.optimization
+         * describing the pre-rotation order while MachineProcessor positions
+         * from optimizedEntryPoint.
          */
         rotatePlanCommands(plan, newEntryIndex) {
             if (newEntryIndex < 0 || newEntryIndex >= plan.commands.length) return;
 
-            // Identify the pivot command (the one that leads TO the new start point)
             const pivotCmd = plan.commands[newEntryIndex];
-
-            // Split the commands
-            // Pre-Pivot: Commands before the pivot (0 to newEntryIndex - 1)
             const prePivot = plan.commands.slice(0, newEntryIndex);
-
-            // Post-Pivot: Commands after the pivot (newEntryIndex + 1 to end)
-            // Skip newEntryIndex here because it must move to the end of the sequence
             const postPivot = plan.commands.slice(newEntryIndex + 1);
 
             plan.commands = [...postPivot, ...prePivot, pivotCmd];
 
-            // Update Entry/Exit Metadata
-            plan.metadata.entryPoint = { 
-                x: pivotCmd.x, 
-                y: pivotCmd.y 
+            plan.metadata.entryPoint = {
+                x: pivotCmd.x,
+                y: pivotCmd.y,
+                z: pivotCmd.z
             };
-
-            // Since the loop was closed (explicitly or via logic), exit = entry
             plan.metadata.exitPoint = { ...plan.metadata.entryPoint };
+
+            // MachineProcessor rapids to optimizedEntryPoint and then runs
+            // commands[0]. Leaving it at the pre-rotation point positions the
+            // tool at one place and starts an arc whose I/J are relative to
+            // another - a wrong centre, which is how closed loops came out
+            // correct on screen and destroyed in G-code.
+            if (plan.metadata.optimization) {
+                plan.metadata.optimization.optimizedEntryPoint = { ...plan.metadata.entryPoint };
+                plan.metadata.optimization.entryCommandIndex = 0;
+            }
         }
 
         /**
-         * Rotate circle entry to closest point.
+         * Rotate circle entry to the closest point on the circumference.
          *
-         * TODO [CIRCLE-ROTATION] - This updates entry/exit metadata and the
-         * single arc command's target + I/J, which is correct for a full-circle
-         * arc (G2/G3 back to start). Winding is preserved because the arc
-         * direction (CW/CCW) doesn't change - only the start/end point moves
-         * along the circle. The current implementation is functionally correct
-         * for simple circles. For compound circles (multi-arc approximations
-         * from arc reconstruction), this would need to rotate within the arc
-         * sequence, not just update the first command.
+         * Correct for a full-circle arc: winding is unchanged and the single
+         * command's endpoint plus I/J both move with the start. The part that
+         * is NOT optional is re-syncing metadata.optimization - MachineProcessor
+         * positions the rapid, the entry move and every depth plunge from
+         * optimizedEntryPoint, and findClosestPointOnPlan hands back
+         * metadata.entryPoint ITSELF for a simple circle, so without this the
+         * tool arrives at the pre-rotation point and runs an arc whose I/J
+         * describe a different start: start + I/J is no longer the centre.
          */
         rotateCircleEntry(plan, fromPos) {
             const center = plan.metadata.center;
             const radius = plan.metadata.radius;
-
             if (!center || !radius) return;
+            if (!plan.commands || plan.commands.length !== 1) {
+                this.debug(`rotateCircleEntry skipped: isSimpleCircle plan has ` +
+                    `${plan.commands?.length ?? 0} commands, expected 1`);
+                return;
+            }
 
             const dx = fromPos.x - center.x;
             const dy = fromPos.y - center.y;
@@ -807,8 +1233,11 @@
             const newEntryX = center.x + (dx / distToCenter) * radius;
             const newEntryY = center.y + (dy / distToCenter) * radius;
 
-            plan.metadata.entryPoint = { x: newEntryX, y: newEntryY };
-            plan.metadata.exitPoint = { x: newEntryX, y: newEntryY };
+            // Z is carried, not dropped: a multi-depth circle's entry keeps
+            // whatever plane it was on.
+            const entryZ = plan.metadata.entryPoint?.z;
+            plan.metadata.entryPoint = { x: newEntryX, y: newEntryY, z: entryZ };
+            plan.metadata.exitPoint = { x: newEntryX, y: newEntryY, z: entryZ };
 
             if (plan.commands && plan.commands.length > 0) {
                 const cmd = plan.commands[0];
@@ -819,12 +1248,217 @@
                     cmd.j = center.y - newEntryY;
                 }
             }
+
+            if (plan.metadata.optimization) {
+                plan.metadata.optimization.optimizedEntryPoint = { ...plan.metadata.entryPoint };
+                plan.metadata.optimization.entryCommandIndex = 0;
+            }
+        }
+
+        /**
+         * tan(descentFeedAngle). Delegates to the translator so the feed
+         * classification used at generation, at reversal and at simplification
+         * is provably the same number.
+         */
+        slopeGate() {
+            return Toolpath3DTranslator.slopeGate();
+        }
+
+        /** Squared 3D distance from p to the CLAMPED segment a→b. */
+        deviationSq3D(p, a, b) {
+            const abx = b.x - a.x, aby = b.y - a.y, abz = b.z - a.z;
+            const apx = p.x - a.x, apy = p.y - a.y, apz = p.z - a.z;
+            const abLenSq = abx * abx + aby * aby + abz * abz;
+            if (abLenSq < 1e-18) return apx * apx + apy * apy + apz * apz;
+            let t = (apx * abx + apy * aby + apz * abz) / abLenSq;
+            t = t < 0 ? 0 : (t > 1 ? 1 : t);
+            const dx = apx - t * abx, dy = apy - t * aby, dz = apz - t * abz;
+            return dx * dx + dy * dy + dz * dz;
+        }
+
+        /**
+         * 3D simplification for V-Carve and relief plans. Two stages:
+         *
+         *   1. O(n) pre-pass. Collapses Voronoi micro-segments and
+         *      near-collinear runs. A point is dropped only when its incoming
+         *      segment is shorter than minSegmentLength3D OR the turn is under
+         *      collinearAngle3D, AND the deviation from the bridging chord is
+         *      below tolerance3D * preTolFactor. This is where 80-90% of the
+         *      medial-axis point count goes, and it costs one pass.
+         *
+         *   2. 3D Ramer-Douglas-Peucker at tolerance3D over the survivors.
+         *
+         * Total deviation is bounded by tolerance3D * (1 + preTolFactor).
+         *
+         * Forced anchors (never removed):
+         *   - first / last point
+         *   - any non-LINEAR command (arcs, dwells)
+         *   - feed-class transitions (cut ↔ plunge). Removing the point that
+         *     carries a transition silently slides the plunge feed onto a
+         *     neighbouring segment. The old code claimed to preserve these
+         *     and did not.
+         *
+         * Feeds are REBUILT from the surviving geometry with the shared slope
+         * gate, so a simplified chain and a reversed chain classify identically.
+         */
+        simplify3DSegments(plan) {
+            const cmds = plan.commands;
+            if (!cmds || cmds.length < 2 || !plan.metadata.entryPoint) return;
+
+            const s = D.toolpath.generation.simplification || {};
+            const tol       = s.tolerance3D ?? 0.01;
+            const tolSq     = tol * tol;
+            const preTolSq  = Math.pow(tol * (s.preTolFactor ?? 0.25), 2);
+            const minSegSq  = Math.pow(s.minSegmentLength3D ?? 0.02, 2);
+            const cosGate   = Math.cos((s.collinearAngle3D ?? 1.0) * Math.PI / 180);
+            const gate      = this.slopeGate();
+
+            // ── Resolve the absolute point list [entry, ...commands] ──
+            const P   = new Array(cmds.length + 1);
+            const T   = new Array(cmds.length + 1);
+            const CMD = new Array(cmds.length + 1);
+
+            P[0] = { x: plan.metadata.entryPoint.x, y: plan.metadata.entryPoint.y, z: plan.metadata.entryPoint.z };
+            T[0] = 'LINEAR';
+            CMD[0] = null;
+
+            let cx = P[0].x, cy = P[0].y, cz = P[0].z;
+            for (let i = 0; i < cmds.length; i++) {
+                const c = cmds[i];
+                if (c.x !== null && c.x !== undefined) cx = c.x;
+                if (c.y !== null && c.y !== undefined) cy = c.y;
+                if (c.z !== null && c.z !== undefined) cz = c.z;
+                P[i + 1] = { x: cx, y: cy, z: cz };
+                T[i + 1] = c.type;
+                CMD[i + 1] = c;
+            }
+            const n = P.length;
+            if (n < 3) return;
+
+            // ── Feed class of the segment ENTERING each point (1 = plunge) ──
+            const feedClass = new Uint8Array(n);
+            for (let i = 1; i < n; i++) {
+                const a = P[i - 1], b = P[i];
+                const dz = b.z - a.z;
+                const dxy = Math.hypot(b.x - a.x, b.y - a.y);
+                feedClass[i] = (dz < 0 && Math.abs(dz) > dxy * gate) ? 1 : 0;
+            }
+
+            // Hard anchors
+            const forced = new Uint8Array(n);
+            forced[0] = 1;
+            forced[n - 1] = 1;
+            for (let i = 1; i < n; i++) if (T[i] !== 'LINEAR') forced[i] = 1;
+            for (let i = 1; i < n - 1; i++) {
+                if (feedClass[i] !== feedClass[i + 1]) forced[i] = 1;
+            }
+
+            // ── Stage 1: micro-segment + collinearity pre-pass ──
+            const anchors = [0];
+            let prevIdx = 0;
+            for (let i = 1; i < n - 1; i++) {
+                if (forced[i]) { anchors.push(i); prevIdx = i; continue; }
+
+                const a = P[prevIdx], b = P[i], c = P[i + 1];
+                const abx = b.x - a.x, aby = b.y - a.y, abz = b.z - a.z;
+                const bcx = c.x - b.x, bcy = c.y - b.y, bcz = c.z - b.z;
+                const abLenSq = abx * abx + aby * aby + abz * abz;
+                const bcLenSq = bcx * bcx + bcy * bcy + bcz * bcz;
+
+                if (abLenSq < 1e-18 || bcLenSq < 1e-18) continue;   // duplicate point → drop
+
+                const cosT = (abx * bcx + aby * bcy + abz * bcz) / Math.sqrt(abLenSq * bcLenSq);
+                const collapsible = (abLenSq < minSegSq) || (cosT >= cosGate);
+
+                if (!collapsible || this.deviationSq3D(b, a, c) > preTolSq) {
+                    anchors.push(i);
+                    prevIdx = i;
+                }
+            }
+            anchors.push(n - 1);
+
+            // ── Stage 2: 3D RDP over the survivors ──
+            const m = anchors.length;
+            const keepA = new Uint8Array(m);
+            keepA[0] = 1;
+            keepA[m - 1] = 1;
+            for (let a = 1; a < m - 1; a++) if (forced[anchors[a]]) keepA[a] = 1;
+
+            const stack = [];
+            let blockStart = 0;
+            for (let a = 1; a < m; a++) {
+                if (keepA[a]) {
+                    if (a - blockStart > 1) stack.push([blockStart, a]);
+                    blockStart = a;
+                }
+            }
+
+            while (stack.length > 0) {
+                const [s0, s1] = stack.pop();
+                if (s1 - s0 < 2) continue;
+                const A = P[anchors[s0]];
+                const B = P[anchors[s1]];
+                let maxDevSq = 0, maxA = -1;
+                for (let a = s0 + 1; a < s1; a++) {
+                    const dev = this.deviationSq3D(P[anchors[a]], A, B);
+                    if (dev > maxDevSq) { maxDevSq = dev; maxA = a; }
+                }
+                if (maxDevSq > tolSq && maxA > 0) {
+                    keepA[maxA] = 1;
+                    stack.push([s0, maxA]);
+                    stack.push([maxA, s1]);
+                }
+            }
+
+            // ── Reconstruction ──
+            const feedRate   = plan.metadata.feedRate;
+            const plungeRate = plan.metadata.plungeRate ?? feedRate;
+
+            const newCmds = [];
+            let prev = P[anchors[0]];
+            for (let a = 1; a < m; a++) {
+                if (!keepA[a]) continue;
+                const i = anchors[a];
+
+                if (T[i] !== 'LINEAR') {
+                    newCmds.push(CMD[i]);   // preserve arcs/dwells exactly
+                    prev = P[i];
+                    continue;
+                }
+
+                const b = P[i];
+                const dz  = b.z - prev.z;
+                const dxy = Math.hypot(b.x - prev.x, b.y - prev.y);
+                const feed = (dz < 0 && Math.abs(dz) > dxy * gate) ? plungeRate : feedRate;
+
+                newCmds.push(new MotionCommand('LINEAR', { x: b.x, y: b.y, z: b.z }, { feed }));
+                prev = b;
+            }
+
+            if (newCmds.length === 0) return;   // never hand the processor an empty plan
+
+            plan.commands = newCmds;
+            plan.metadata.entryPoint = { x: P[0].x, y: P[0].y, z: P[0].z };
+            plan.metadata.exitPoint  = { x: P[n - 1].x, y: P[n - 1].y, z: P[n - 1].z };
+
+            // process3DContourPlan plunges at optimizedEntryPoint. Leaving it
+            // aliased to the pre-simplification object is a live footgun.
+            const opt = plan.metadata.optimization;
+            if (opt) opt.optimizedEntryPoint = { ...plan.metadata.entryPoint };
+
+            plan.computeBounds();
         }
 
         /**
          * Simplify path by removing collinear points, aware of arcs.
          */
         simplifySegments(plan) {
+            // 3D contours carry per-point Z; the collinearity test below is
+            // XY-only, so a straight-in-XY relief scanline (all information
+            // in Z) would collapse to its endpoints and flatten the terrain.
+            // Output density for 3D plans is controlled at generation time
+            // (simplify3D in the relief/vcarve generators).
+            if (plan.metadata?.is3DContour) return;
             if (!plan.commands || plan.commands.length < 3) return;
 
             const simplified = [];
@@ -987,6 +1621,13 @@
         /**
          * Simplifies a point sequence by removing collinear points based on deviation and angle.
          */
+        // REVIEW - Five independent polyline simplifiers ship in this repo:
+        // GeometryUtils.simplifyDouglasPeucker, VCarveGenerator.simplifyRDP/rdpOpen,
+        // FieldPaths.simplify3D, ToolpathOptimizer.simplifyCollinearPoints and
+        // GerberParser.simplifyRDP. Consolidation is blocked on the worker boundary
+        // (vcarve and fieldpaths cannot reach GeometryUtils). Fix all five together
+        // or none.
+        // This Simplifier takes precedence over others. The whole pipeline should be as lossless as possible until export time.
         simplifyCollinearPoints(points) {
             if (points.length <= 2) {
                 return points; // Not enough points to simplify

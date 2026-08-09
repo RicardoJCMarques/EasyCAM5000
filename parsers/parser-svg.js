@@ -3,7 +3,7 @@
  * @description SVG parsing module
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
- * @see         {@link https://github.com/RicardoJCMarques/EasyTrace5000}
+ * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
  *
  * SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
  * SPDX-License-Identifier: AGPL-3.0-or-later
@@ -48,7 +48,7 @@
                 const s = this.unitScale;
                 const h = this.documentHeight;
                 // Matrix: scale by unitScale, flip Y, translate so Y=0 is at bottom
-                const rootTransform = [s, 0, 0, -s, 0, h];
+                const rootTransform = { a: s, b: 0, c: 0, d: -s, e: 0, f: h };
                 this.traverseNode(svgNode, rootTransform);
 
                 this.layers.bounds = this.calculateBounds(this.layers.objects);
@@ -145,7 +145,7 @@
                 this.documentHeight = this.viewBox.height;
                 this.documentWidth = this.viewBox.width;
                 this.unitScale = 1;
-                this.warnings.push('SVG has no explicit dimensions. Assuming viewBox units are mm.');
+                this.warnings.push('SVG has no explicit dimensions. Assuming viewBox units are mm.'); // REVIEW - Should this be hidden behind this.debug?
             }
 
             // Final fallback if still no scale
@@ -267,7 +267,7 @@
 
                         if (styles.stroke && styles.stroke !== 'none' && styles.strokeWidth > 0 && styles.strokeOpacity > 0) {
                             // Scale stroke width by transform scale factor (viewBox units → mm)
-                            const det = currentTransform[0] * currentTransform[3] - currentTransform[1] * currentTransform[2];
+                            const det = TransformMath.det(currentTransform);
                             const scale = Math.sqrt(Math.abs(det));
                             this.processStrokedShape(geometry, currentTransform, styles.strokeWidth * scale);
                         }
@@ -679,12 +679,12 @@
         }
 
         applyTransformToGeometry(geom, m) {
-            const determinant = m[0] * m[3] - m[1] * m[2];
+            const determinant = TransformMath.det(m);
             const isReflection = determinant < 0;
             const scale = Math.sqrt(Math.abs(determinant));
 
             // Check for uniform scaling (no rotation/skew)
-            const isAxisAligned = Math.abs(m[1]) < 1e-10 && Math.abs(m[2]) < 1e-10;
+            const isAxisAligned = Math.abs(m.b) < 1e-10 && Math.abs(m.c) < 1e-10;
 
             if (geom.type === 'circle') {
                 return {
@@ -699,8 +699,8 @@
                     return {
                         type: 'ellipse',
                         center: this.applyTransformToPoint(geom.center, m),
-                        rx: geom.rx * Math.abs(m[0]),
-                        ry: geom.ry * Math.abs(m[3])
+                        rx: geom.rx * Math.abs(m.a),
+                        ry: geom.ry * Math.abs(m.d)
                     };
                 }
                 // Non-axis-aligned ellipse - convert to path
@@ -827,11 +827,11 @@
             const center = seg.center ? this.applyTransformToPoint(seg.center, m) : null;
 
             // Calculate scale factors
-            const scaleX = Math.sqrt(m[0] * m[0] + m[1] * m[1]);
-            const scaleY = Math.sqrt(m[2] * m[2] + m[3] * m[3]);
+            const scaleX = Math.sqrt(m.a * m.a + m.b * m.b);
+            const scaleY = Math.sqrt(m.c * m.c + m.d * m.d);
 
             // Calculate rotation angle from transform
-            const rotation = Math.atan2(m[1], m[0]);
+            const rotation = Math.atan2(m.b, m.a);
 
             // Transform radii and phi
             const newRx = seg.rx * scaleX;
@@ -891,7 +891,7 @@
                 }
             ];
 
-            return this.transformPath({ type: 'path', subpaths: [segments] }, m, m[0] * m[3] - m[1] * m[2] < 0);
+            return this.transformPath({ type: 'path', subpaths: [segments] }, m, TransformMath.windingFlipped(m));
         }
 
         /**
@@ -919,7 +919,7 @@
                 segments = this.buildObroundSegments(x, y, width, height, r);
             }
 
-            return this.transformPath({ type: 'path', subpaths: [segments] }, m, m[0] * m[3] - m[1] * m[2] < 0);
+            return this.transformPath({ type: 'path', subpaths: [segments] }, m, TransformMath.windingFlipped(m));
         }
 
         buildObroundSegments(x, y, width, height, r) {
@@ -1017,68 +1017,53 @@
             return styles;
         }
 
+        // REVIEW - This seems redundant, why not point directly to TransformMath.applyToPoint instead of all the this.applyTransformToPoint? Any good reason to keep all these TransformMath aliases?
         applyTransformToPoint(p, m) {
-            return {
-                x: m[0] * p.x + m[2] * p.y + m[4],
-                y: m[1] * p.x + m[3] * p.y + m[5]
-            };
+            return TransformMath.applyToPoint(m, p);
         }
 
         applyTransformToPoints(points, m) {
             return points.map(p => this.applyTransformToPoint(p, m));
         }
 
-        identityMatrix() { return [1, 0, 0, 1, 0, 0]; }
+        identityMatrix() { return TransformMath.identity(); }
 
-        multiplyMatrix(m1, m2) {
-            return [
-                m1[0] * m2[0] + m1[2] * m2[1],
-                m1[1] * m2[0] + m1[3] * m2[1],
-                m1[0] * m2[2] + m1[2] * m2[3],
-                m1[1] * m2[2] + m1[3] * m2[3],
-                m1[0] * m2[4] + m1[2] * m2[5] + m1[4],
-                m1[1] * m2[4] + m1[3] * m2[5] + m1[5]
-            ];
-        }
+        multiplyMatrix(m1, m2) { return TransformMath.multiply(m1, m2); }
 
         parseTransform(transformString) {
-            let matrix = this.identityMatrix();
+            let matrix = TransformMath.identity();
             if (!transformString) return matrix;
 
             const regex = /(\w+)\s*\(([^)]+)\)/g;
             let match;
             while ((match = regex.exec(transformString)) !== null) {
                 const type = match[1].toLowerCase();
-
-                // Extract numbers robustly
                 const values = (match[2].match(/-?(?:\d*\.\d+|\d+)(?:[eE][+-]?\d+)?/g) || []).map(parseFloat);
 
-                let transform = this.identityMatrix();
+                let transform = TransformMath.identity();
 
                 if (type === 'matrix' && values.length === 6) {
-                    transform = values;
+                    transform = { a: values[0], b: values[1], c: values[2],
+                                  d: values[3], e: values[4], f: values[5] };
                 } else if (type === 'translate') {
-                    transform[4] = values[0] || 0;
-                    transform[5] = values[1] || 0;
+                    transform = TransformMath.translation(values[0] || 0, values[1] || 0);
                 } else if (type === 'scale') {
-                    transform[0] = values[0] || 1;
-                    transform[3] = values[1] !== undefined ? values[1] : values[0];
+                    transform = TransformMath.scaling(
+                        values[0] || 1,
+                        values[1] !== undefined ? values[1] : (values[0] || 1));
                 } else if (type === 'rotate') {
-                    const angle = (values[0] || 0) * Math.PI / 180;
-                    const cos = Math.cos(angle), sin = Math.sin(angle);
-                    if (values.length === 3) {
-                        const [cx, cy] = [values[1], values[2]];
-                        transform = this.multiplyMatrix([1, 0, 0, 1, cx, cy], [cos, sin, -sin, cos, 0, 0]);
-                        transform = this.multiplyMatrix(transform, [1, 0, 0, 1, -cx, -cy]);
-                    } else {
-                        transform = [cos, sin, -sin, cos, 0, 0];
-                    }
+                    const deg = values[0] || 0;
+                    transform = (values.length === 3)
+                        ? TransformMath.rotationAbout(deg, values[1], values[2])
+                        : TransformMath.rotationAbout(deg, 0, 0);
                 } else if (type === 'skewx') {
-                    transform[2] = Math.tan((values[0] || 0) * Math.PI / 180);
+                    transform = { a: 1, b: 0, c: Math.tan((values[0] || 0) * Math.PI / 180),
+                                  d: 1, e: 0, f: 0 };
                 } else if (type === 'skewy') {
-                    transform[1] = Math.tan((values[0] || 0) * Math.PI / 180);
+                    transform = { a: 1, b: Math.tan((values[0] || 0) * Math.PI / 180),
+                                  c: 0, d: 1, e: 0, f: 0 };
                 }
-                matrix = this.multiplyMatrix(matrix, transform);
+                matrix = TransformMath.multiply(matrix, transform);
             }
             return matrix;
         }

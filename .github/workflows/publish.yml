@@ -4,6 +4,10 @@ on:
     branches:
       - main
 
+concurrency:
+  group: deploy-main
+  cancel-in-progress: true
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -15,46 +19,14 @@ jobs:
         with:
           node-version: '18'
 
-      # 1. Build: Run custom build script (creates dist, inlines CSS, bundles JS)
+      # 1. Build + minify. The target list lives in build.js (--minify) so
+      #    a local `node build.js --minify` produces the same artifact.
       - name: Build Production Assets
-        run: node .github/scripts/build.js --src . --dist ./dist
-
-      # 2. Minify: Compress bundled assets
-      - name: Minify Assets
         run: |
-          npm install terser html-minifier-terser --no-save
+          npm install terser html-minifier-terser esbuild --no-save
+          node .github/scripts/build.js --src . --dist ./dist --minify
 
-          # Minify EasyTrace5000 JS bundle
-          npx terser dist/easytrace5000/easytrace5000.js \
-            --compress --mangle \
-            --comments '/^!/' \
-            -o dist/easytrace5000/easytrace5000.js
-
-          # Minify EasyShape5000 JS bundle
-          npx terser dist/easyshape5000/easyshape5000.js \
-            --compress --mangle \
-            --comments '/^!/' \
-            -o dist/easyshape5000/easyshape5000.js
-
-          # Minify theme-loader.js
-          npx terser dist/themes/theme-loader.js \
-            --compress --mangle \
-            --comments '/^!/' \
-            -o dist/themes/theme-loader.js
-
-          # Minify all HTML files recursively
-          find dist -name "*.html" -type f | while read html; do
-            echo "Minifying $html..."
-            npx html-minifier-terser "$html" \
-              --collapse-whitespace \
-              --remove-comments \
-              --ignore-custom-comments "^!" \
-              --minify-css true \
-              --minify-js true \
-              -o "$html"
-          done
-
-      # 3. Deploy: Upload dist folder via FTP
+      # 2. Deploy: Upload dist folder via FTP
       - name: FTP Deploy
         uses: SamKirkland/FTP-Deploy-Action@v4.3.4
         with:

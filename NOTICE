@@ -1,11 +1,23 @@
-EasyTrace5000 Copyright (C) 2025-2026 Eltryus
+EasyCAM5000 Copyright (C) 2025-2026 Eltryus
 This program comes with ABSOLUTELY NO WARRANTY.
 This is free software, and you are welcome to redistribute it
 under certain conditions; see the LICENSE file for details.
 
 This software incorporates the following third-party libraries:
 
-** Clipper2 Library **
+** delaunator **
+Distributed under the ISC License.
+(See copy at https://www.isc.org/licenses/)
+Copyright (c) 2026 Mapbox
+
+** three.js **
+Distributed under the MIT License.
+(See copy at https://opensource.org/license/MIT)
+Copyright 2010-2026 Three.js Authors
+
+** Clipper2 **
 Distributed under the Boost Software License, Version 1.0.
 (See copy at https://www.boost.org/LICENSE_1_0.txt)
 Copyright 2010-2026 Angus Johnson
+
+The example files may not belong to this project and carry their own copyright licenses.

@@ -3,7 +3,7 @@
  * @description Isolation routing - external offsets around copper with cut-in resolution
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
- * @see         {@link https://github.com/RicardoJCMarques/EasyTrace5000}
+ * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
  *
  * SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
  * SPDX-License-Identifier: AGPL-3.0-or-later
@@ -25,8 +25,6 @@
 
         // Resolve compound contours before offset pipeline
         async orchestrateGeneration(operation, params, core, options = {}) {
-            core.resetOperationState(operation.id);
-
             // Tier 1 only - isolation can have thousands of primitives,
             // so skip the O(n²) inter-primitive merge.
             operation.primitives = this.resolveContourTopology(operation.primitives);

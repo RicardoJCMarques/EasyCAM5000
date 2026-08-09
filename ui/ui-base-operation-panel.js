@@ -1,12 +1,12 @@
 /*!
  * @file        ui/ui-base-operation-panel.js
- * @description Shared operation panel base class for EasyTrace5000 and EasyShape5000.
+ * @description Shared operation panel base class.
  *              Owns parameter form rendering, change handling, stage dispatch,
  *              generation/preview pipeline, and action button logic.
  *              Subclasses override hooks for app-specific behavior.
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
- * @see         {@link https://github.com/RicardoJCMarques/EasyTrace5000}
+ * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
  *
  * SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
  * SPDX-License-Identifier: AGPL-3.0-or-later
@@ -37,7 +37,7 @@
         }
 
         // ═══════════════════════════════════════════════════════════════
-        // Initialization — called by subclass init()
+        // Initialization - called by subclass init()
         // ═══════════════════════════════════════════════════════════════
 
         initBase(core, paramManager, appProfile, lang) {
@@ -53,7 +53,7 @@
         }
 
         // ═══════════════════════════════════════════════════════════════
-        // Abstract hooks — subclasses MUST override
+        // Abstract hooks - subclasses MUST override
         // ═══════════════════════════════════════════════════════════════
 
         /** @returns {string} 'prop-' for EasyTrace, 'op-' for EasyShape */
@@ -89,7 +89,7 @@
             return resolved;
         }
 
-        /** Called when millHoles checkbox toggles — requires full panel rebuild */
+        /** Called when millHoles checkbox toggles - requires full panel rebuild */
         onMillHolesToggle(value) {}
 
         /** Called after a successful parameter change to check if generated geometry should be invalidated */
@@ -135,7 +135,7 @@
                 container.appendChild(section);
             }
 
-            ParameterManager.evaluateConditionals(container, values);
+            ParameterManager.evaluateConditionals(container, values, pm.optionGates);
             UIControls.setupPropertyGridNavigation(container);
         }
 
@@ -146,22 +146,31 @@
         onParameterChange(name, value, inputEl, opType) {
             if (!this.currentOperationId) return;
 
+            // Register explicit user choice so defaults don't overwrite it later
+            const op = this.resolveCurrentOperation();
+            if (op) {
+                if (!op.userOverrides) op.userOverrides = new Set();
+                if (Array.isArray(op.userOverrides)) op.userOverrides = new Set(op.userOverrides);
+
+                // Track explicitly edited parameter
+                op.userOverrides.add(name);
+            }
+
+            const pm = this.parameterManager;
+            const getStage = paramName => pm.parameterDefinitions[paramName]?.stage || this.currentStage;
+
             // Tool diameter resolution
             if ((name === 'tool' || name.endsWith('Tool')) && this.toolLibrary) {
-                const diam = ParameterManager.resolveToolDiameter(value, this.toolLibrary);
-                if (diam !== null) {
-                    this.parameterManager.setParameter(
-                        this.currentOperationId, this.currentStage, 'toolDiameter', diam
-                    );
-                    const diamEl = document.getElementById(`${this.getIdPrefix()}toolDiameter`);
-                    if (diamEl) diamEl.value = diam;
+                const resolvedDiam = ParameterManager.resolveToolDiameter(value, this.toolLibrary);
+                if (resolvedDiam !== null) {
+                    pm.setParameter(this.currentOperationId, getStage('toolDiameter'), 'toolDiameter', resolvedDiam);
+                    const diamInput = document.getElementById(`${this.getIdPrefix()}toolDiameter`);
+                    if (diamInput) diamInput.value = resolvedDiam;
                 }
             }
 
             // Validate through ParameterManager
-            const result = this.parameterManager.setParameter(
-                this.currentOperationId, this.currentStage, name, value
-            );
+            const result = pm.setParameter(this.currentOperationId, getStage(name), name, value);
 
             if (result.success) {
                 if (inputEl) inputEl.classList.remove('input-error');
@@ -178,32 +187,29 @@
             if (name === 'millHoles') {
                 clearTimeout(this.changeTimeout);
                 this.saveCurrentState();
-                this.onMillHolesToggle(value);
-                return;
+                return void this.onMillHolesToggle(value);
             }
 
             // Invalidate generated geometry when source params change
             this.checkInvalidation(name);
 
             // Re-evaluate conditionals from PM state (single source of truth)
-            const container = this.getFormContainer();
-            if (container) {
-                const allValues = this.parameterManager.getAllParameters(this.currentOperationId);
-                ParameterManager.evaluateConditionals(container, allValues);
+            const formContainer = this.getFormContainer();
+            if (formContainer) {
+                const allParams = pm.getAllParameters(this.currentOperationId);
+                ParameterManager.evaluateConditionals(formContainer, allParams, pm.optionGates);
             }
 
             // Debounced auto-save
             if (result.success) {
                 clearTimeout(this.changeTimeout);
-                const delay =  D.ui.timing.propertyDebounce;
-                this.changeTimeout = setTimeout(() => this.saveCurrentState(), delay);
+                const debounceDelay = CAMConfig.defaults.ui.timing.propertyDebounce;
+                this.changeTimeout = setTimeout(() => this.saveCurrentState(), debounceDelay);
             }
         }
 
         onExternalParameterChange(change) {
             if (change.operationId !== this.currentOperationId) return;
-            if (change.stage !== this.currentStage) return;
-
             const input = document.getElementById(`${this.getIdPrefix()}${change.name}`);
             if (!input) return;
             if (input.type === 'checkbox') input.checked = change.value;
@@ -263,16 +269,42 @@
             }
 
             const params = this.parameterManager.getAllParameters(operationId);
-            if (!operation.settings) operation.settings = {};
-            Object.assign(operation.settings, params);
 
-            const onProgress = (msg) => this.ui.showCanvasSpinner?.(msg);
+            // Task ownership lives HERE: every entry point into generation
+            // (handleAction, EasyShape bucket flows) funnels through
+            // runGeneration, so this is the one begin/end pair. Progress is
+            // forwarded STRUCTURED ({frac,label}); StatusManager formats.
+            // REVIEW - EasyTrace5000 should be updated for this as well.
+            const sm = this.ui.statusManager;
+            const taskId = sm?.beginTask?.(
+                this.getSpinnerLabel?.('geometry', operation.type) || 'Generating');
+            const onProgress = (p) => sm?.tick?.(taskId, p);
+
+            // Let the overlay paint before any main-thread-blocking work.
+            await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
 
             try {
-                return await handler.orchestrateGeneration(operation, params, this.core, onProgress);
+                const result = await handler.orchestrateGeneration(
+                    operation, params, this.core, { onProgress });
+
+                // An operation with no strategy stage has no second button to
+                // build the preview artifact, and preview.ready is the export
+                // gate isExportReady and executeExport both read. Route it
+                // through runPreview rather than core.generateCNCPreview so
+                // the 3D refresh below happens for both paths.
+                const stages = this.parameterManager.getStagesForPipeline(
+                    this.getPipelineType(), operation.type);
+                if (result?.success && !stages.includes('strategy')) {
+                    await this.runPreview(operationId);
+                }
+                return this.withDepthWarning(result, operation, params);
             } catch (e) {
                 console.error(`[BaseOperationPanel] Generation failed for ${operation.type}:`, e);
                 return { success: false, message: `Generation failed: ${e.message}`, status: 'error' };
+            } finally {
+                sm?.endTask?.(taskId);
+                // Never leave a UI closure retained on the operation object.
+                operation._onProgress = null;
             }
         }
 
@@ -296,7 +328,52 @@
             }
 
             operation.exportReady = true;
-            return { success: true, message: 'Preview generated', status: 'success' };
+
+            // preview.ready is what refresh3DPlans filters on, so this is the
+            // only moment a new toolpath can reach the 3D plan layer. The
+            // refresh is reentrancy-guarded and coalescing, so a generation-
+            // side call and this one collapse into one pipeline run.
+            this.ui.ctrl?.refresh3DPlans?.();
+
+            return this.withDepthWarning(
+                { success: true, message: 'Preview generated', status: 'success' },
+                operation, this.parameterManager.getAllParameters(operationId));
+        }
+
+        /** Appends a depth warning to a successful result, if there is one. */
+        withDepthWarning(result, operation, params) {
+            if (!result?.success) return result;
+            const warning = this.checkDepthLimits(operation, params);
+            if (!warning) return result;
+            return { ...result, status: 'warning', message: `${result.message} - ${warning}` };
+        }
+
+        /**
+         * cutDepth against the machine's configured floor. The only other
+         * check in the codebase is BasePostProcessor.validateCommand, which
+         * runs per command at G-code emission and reaches the user as a
+         * console.warn - after the file is written. surfaceZ mirrors
+         * buildToolpathContext exactly; if the two ever diverge this warning
+         * describes a depth the export never cuts.
+         * @returns {string|null}
+         */
+        checkDepthLimits(operation, params) {
+            if (params.cutDepth == null) return null;   // 3D ops own their depths
+            const machine = this.core.settings?.machine;
+            const maxSafe = machine?.heights?.maxSafeDepth;
+            if (typeof maxSafe !== 'number') return null;
+
+            const stock = machine.stock || {};
+            const bedZero = stock.zeroReference && stock.zeroReference !== 'material'
+                && operation.type !== 'rotary';
+            const surfaceZ = bedZero ? (stock.thickness || 0) : 0;
+            const deepestZ = surfaceZ - Math.abs(params.cutDepth);
+
+            if (deepestZ < maxSafe) {
+                return `cut reaches Z ${deepestZ.toFixed(2)}mm, past the machine's max ` +
+                    `safe depth (${maxSafe}mm). Check stock thickness and Z-zero.`;
+            }
+            return null;
         }
 
         // ═══════════════════════════════════════════════════════════════
@@ -374,10 +451,10 @@
 
         /**
          * Shared stage-based action dispatch. Subclasses override hooks:
-         *   getActionStageLabel(stage, opType) — returns spinner text
-         *   onGenerationSuccess(operationId)   — post-generation UI update
-         *   onPreviewSuccess(operationId)      — post-preview UI update
-         *   getExportModalOptions(opType)      — data for export modal
+         *   getActionStageLabel(stage, opType) - returns spinner text
+         *   onGenerationSuccess(operationId)   - post-generation UI update
+         *   onPreviewSuccess(operationId)      - post-preview UI update
+         *   getExportModalOptions(opType)      - data for export modal
          */
         async handleAction() {
             this.saveCurrentState();
@@ -398,8 +475,8 @@
             });
 
             if (stage === 'geometry') {
-                this.ui.showCanvasSpinner?.(this.getSpinnerLabel?.('geometry', opType) || 'Generating...');
-                await yieldToRender();
+                // this.ui.showCanvasSpinner?.(this.getSpinnerLabel?.('geometry', opType) || 'Generating...');
+                await yieldToRender(); // REVIEW - Is this still necessary now that the spinner is managed directly by the state manager?
 
                 try {
                     const result = await this.runGeneration(opId);
@@ -472,7 +549,7 @@
         async onGenerationSuccess(opId, operation) {}
 
         /** Called after failed generation. Refresh panel, etc. */
-        onGenerationFailure(opId, operation, stage) {}
+        onGenerationFailure(opId, operation, stage) {} // EasyTrace5000 needs the stage, EasyShape5000 does not.
 
         /** Called after successful preview. Update tree, renderer, etc. */
         async onPreviewSuccess(opId, operation) {}

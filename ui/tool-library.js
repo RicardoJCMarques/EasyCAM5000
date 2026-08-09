@@ -3,7 +3,7 @@
  * @description Manages tool definitions and tool selection functionality
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
- * @see         {@link https://github.com/RicardoJCMarques/EasyTrace5000}
+ * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
  *
  * SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
  * SPDX-License-Identifier: AGPL-3.0-or-later
@@ -56,8 +56,12 @@
             const tool = this.getTool(toolId);
             if (!tool || !tool.geometry) return null;
 
-            // V-bits use tipDiameter as their effective cutting width at surface
-            if (tool.type === 'v_bit' && tool.geometry.tipDiameter !== undefined) {
+            // V-bits and tapered-ball tools report their at-the-tip width -
+            // the widest point is depth-dependent and is ToolProfile's job
+            // (see geometry-utils-toolprofile.js h(d) / kernelRadius), not
+            // a fixed "diameter" this method could return.
+            if ((tool.type === 'v_bit' || tool.type === 'tapered_ball') &&
+                tool.geometry.tipDiameter !== undefined) {
                 return tool.geometry.tipDiameter;
             }
             return tool.geometry.diameter;
@@ -134,9 +138,9 @@
             }
 
             // Check required geometry properties based on tool type
-            if (tool.type === 'v_bit') {
+            if (tool.type === 'v_bit' || tool.type === 'tapered_ball') {
                 if (tool.geometry.tipDiameter === undefined || tool.geometry.tipDiameter === null) {
-                    throw new Error(`[Fatal] Tool validation failed: V-Bit '${toolIdentifier}' is missing 'geometry.tipDiameter'.`);
+                    throw new Error(`[Fatal] Tool validation failed: Tool '${toolIdentifier}' is missing 'geometry.tipDiameter'.`);
                 }
             } else {
                 if (tool.geometry.diameter === undefined || tool.geometry.diameter === null) {
@@ -151,7 +155,14 @@
                     throw new Error(`[Fatal] Tool validation failed: Tool '${toolIdentifier}' is missing 'cutting.${field}'.`);
                 }
             }
-            
+
+            // Optional: toolNumber, when present, identifies a magazine/
+            // carousel slot for future tool-change UI and logic.
+            if (tool.toolNumber != null &&
+                (!Number.isInteger(tool.toolNumber) || tool.toolNumber <= 0)) {
+                throw new Error(`[Fatal] Tool validation failed: Tool '${toolIdentifier}' has an invalid toolNumber (must be a positive integer).`);
+            }
+
             return true;
         }
 
@@ -211,19 +222,42 @@
 
             const imported = [];
             const failed = [];
+            // Seed with toolNumbers already in the loaded library so a
+            // custom import can't silently collide with a built-in tool.
+            const seenToolNumbers = new Map(); // toolNumber -> id
+            for (const t of this.tools) {
+                if (t.toolNumber != null) seenToolNumbers.set(t.toolNumber, t.id);
+            }
 
             data.tools.forEach(tool => {
-                if (this.validateTool(tool)) {
-                    // Check for duplicate IDs
-                    if (!this.toolsById.has(tool.id)) {
-                        this.addTool(tool);
-                        imported.push(tool.id);
-                    } else {
-                        failed.push({ id: tool.id, reason: 'Duplicate ID' });
-                    }
-                } else {
-                    failed.push({ id: tool.id || 'unknown', reason: 'Validation failed' });
+                const label = tool?.id || tool?.name || 'unknown';
+
+                // validateTool THROWS on the first bad field - one malformed
+                // tool in a custom upload must not abort the whole batch.
+                try {
+                    this.validateTool(tool);
+                } catch (e) {
+                    failed.push({ id: label, reason: e.message });
+                    return;
                 }
+
+                if (this.toolsById.has(tool.id)) {
+                    failed.push({ id: tool.id, reason: 'Duplicate ID' });
+                    return;
+                }
+                if (tool.toolNumber != null) {
+                    if (seenToolNumbers.has(tool.toolNumber)) {
+                        failed.push({
+                            id: tool.id,
+                            reason: `Duplicate toolNumber ${tool.toolNumber} (already used by ${seenToolNumbers.get(tool.toolNumber)})`
+                        });
+                        return;
+                    }
+                    seenToolNumbers.set(tool.toolNumber, tool.id);
+                }
+
+                this.addTool(tool);
+                imported.push(tool.id);
             });
 
             return {
@@ -231,6 +265,32 @@
                 failed,
                 total: data.tools.length
             };
+        }
+
+        /**
+         * Imports a user-supplied tools.json (drag-and-drop / file picker).
+         * Thin wrapper isolating the one extra failure mode a raw file
+         * introduces - invalid JSON - behind the same result shape as
+         * importTools(), so the UI (whenever it's wired) has one path to
+         * handle either way.
+         * @param {string} jsonText - raw file contents
+         * @returns {{success:boolean, imported:string[], failed:Array, total:number, error?:string}}
+         * 
+         * Not Wired
+         */
+        importFromJSONText(jsonText) {
+            let data;
+            try {
+                data = JSON.parse(jsonText);
+            } catch (e) {
+                return { success: false, imported: [], failed: [], total: 0, error: `Invalid JSON: ${e.message}` };
+            }
+            try {
+                const result = this.importTools(data);
+                return { success: true, ...result };
+            } catch (e) {
+                return { success: false, imported: [], failed: [], total: 0, error: e.message };
+            }
         }
 
         logToolStats() {

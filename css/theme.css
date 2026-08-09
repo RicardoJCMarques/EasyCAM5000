@@ -3,7 +3,7 @@
  * @description Theme application layer - applies theme tokens as CSS variables
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
- * @see         {@link https://github.com/RicardoJCMarques/EasyTrace5000}
+ * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
  *
  * SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
  * SPDX-License-Identifier: AGPL-3.0-or-later
@@ -49,6 +49,9 @@
     --color-warning: #f59e0b;
     --color-error: #ef4444;
     --color-info: #06b6d4;
+    /* REVIEW - Avoid transparency, update theme .jsons */
+    --color-scrim: rgba(0, 0, 0, 0.6);
+    --color-scrim-strong: rgba(0, 0, 0, 0.8);
 
     /* Operations Colors */
     --color-operation-isolation: #ff8844;
@@ -57,6 +60,14 @@
     --color-operation-cutout: #ff00ff;
     --color-operation-stencil: #90177d;
     --color-operation-toolpath: #00ffff;
+    --color-operation-profile: #6dd3a0;
+    --color-operation-pocket: #5a8acf;
+    --color-operation-engrave: #c794d6;
+    --color-operation-shape-drill: #d8a44a;
+    --color-operation-vcarve: #e07a7a;
+    --color-operation-relief: #e0a97a;
+    --color-operation-rotary: #7ab8e0;
+    --color-operation-pattern: #a8b56d;
 
     /* Canvas Colors */
     --color-canvas-background: #0f0f0f;
@@ -121,11 +132,29 @@
     /* Pipelines Colors */
     --color-pipeline-cnc: #ff8844;
     --color-pipeline-laser: #a855f7;
+    --color-pipeline-3d: #22d3ee;
 
     /* Interaction Colors */
     --color-interaction-sponsorship: #6366f1;
     --color-interaction-sponsorship-text: #e9d5ff;
     --color-interaction-kofi: #42d6aa;
+
+    /* Canvas interaction affordances */
+    --color-interaction-selection-stroke: #22d3ee;
+    --color-interaction-selection-fill: #0a3f47;
+    --color-interaction-marquee-stroke: #3b82f6;
+    --color-interaction-marquee-fill: #112240;
+    --color-interaction-group-bounds: #22d3ee;
+
+    /* 3D preview (renderer3d) */
+    --color-render3d-background: #16181c;
+    --color-render3d-grid: #2a2e34;
+    --color-render3d-grid-center: #3a3f46;
+    --color-render3d-rapid: #565b63;
+    --color-render3d-cut-shallow: #4fc3f7;
+    --color-render3d-cut-deep: #e07a7a;
+    --color-render3d-stock: #8a7a5c;
+    --color-render3d-surface: #b0a58e;
 }
 
 /* ============================================================================

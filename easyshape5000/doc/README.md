@@ -1,8 +1,8 @@
-# EasyShape5000 — Browser-Based CNC Router CAM
+# EasyShape5000 - Browser-Based CNC Router CAM
 
 ![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg) ![Status: v1.0](https://img.shields.io/badge/status-v1.0-green.svg) ![Tech: VanillaJS](https://img.shields.io/badge/tech-Vanilla_JS-yellow.svg)
 
-EasyShape5000 is a browser-based CAM tool for CNC routers. Import SVG designs, assign per-shape operations (profile, pocket, drill), and export G-code. 100% client-side — no installation, no cloud, no accounts.
+EasyShape5000 is a browser-based CAM tool for CNC routers. Import SVG designs, assign per-shape operations (profile, pocket, drill), and export G-code. 100% client-side - no installation, no cloud, no accounts.
 
 Part of the [Eltryus EasyCAM5000 Suite](../README.md), sharing its geometry engine, renderer, and export pipeline with [EasyTrace5000](../easytrace5000/README.md) (PCB fabrication).
 
@@ -18,12 +18,13 @@ Part of the [Eltryus EasyCAM5000 Suite](../README.md), sharing its geometry engi
 * Full undo/redo for all structural mutations
 
 ### Operations
-* **Profile Cut** — outside, inside, or on-line contour cutting with nesting detection and optional holding tabs
-* **Pocket Clearing** — concentric inward offsets with configurable stepover; inner shapes become holes automatically
-* **Drilling** — automatic peck-or-mill strategy selection for circles and obround slots
-* **Engraving** — follow-the-path at fixed depth (coming soon)
-* **Pattern Generator** — grid/radial repetition (coming soon)
-* **V-Carve / 3D Relief** — planned for future 3D preview system
+* **Profile Cut** - outside, inside, or on-line contour cutting with nesting detection and optional holding tabs
+* **Pocket Clearing** - concentric inward offsets with configurable stepover; inner shapes become holes automatically
+* **Drilling** - automatic peck-or-mill strategy selection for circles and obround slots
+* **Engraving** - follow paths at fixed depth, no fill yet.
+* **V-Carve** - 
+* **3D Relief** - 
+* **Pattern Generator** - (likely getting a spin-off UI)
 
 ### Canvas Interaction
 * Click-select, shift-toggle, ctrl-add, marquee rectangle
@@ -52,8 +53,8 @@ See the [Workflow Guide](https://cam.eltryus.design/easyshape5000/doc/guide) for
 
 ## File Compatibility
 
-* **SVG** — full path spec: lines, arcs, quadratic/cubic Béziers. Group hierarchies preserved. Clones and clip paths not yet supported.
-* **STL** — planned for 3D relief operations (future)
+* **SVG** - full path spec: lines, arcs, quadratic/cubic Béziers. Group hierarchies preserved. Clones and clip paths not yet supported.
+* **STL** - for 3D relief operations
 
 Bézier curves are interpolated into line segments before offsetting. True analytic Bézier offsetting is not yet supported.
 
@@ -72,9 +73,8 @@ Bézier curves are interpolated into line segments before offsetting. True analy
 ## Current Limitations
 
 * No laser export pipeline (CNC only)
-* No automatic tool change (M6) — separate files per tool
-* Engraving, pattern, v-carve, and 3D relief operations are not yet functional
-* No 3D preview (2D tool-reach only)
+* No automatic tool change (M6) - separate files per tool
+* Pattern operation is not yet functional
 * Touch pinch-to-zoom not available on the select tool (works during pan)
 * Experimental post-processors need real-machine verification (inhereted from EasyTrace5000)
 

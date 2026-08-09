@@ -4,6 +4,37 @@ All notable changes to the **EasyTrace5000** project will be documented in this 
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.9] - 2026-08-09
+
+### Added
+- **3D Operations:** V-Carving and 3D Relief Maps (Flat and Cylindrical) have been added to EasyShape5000. Proceed with some caution.
+- **3D Rendering:** 3D Frustrum to preview 3D geometry in all it's splendor. The UI and keyboard shortcuts will be tweaked in the future.
+- **Engraving:** Just a simple, lossless, operation to turn svg geometry into toolpaths with EasyShape5000 (no fill option, yet but easy to add if requested as hatching patterns already exist for the laser pipeline).
+- **Fanuc Post:** A VERY experimental post-processor draft for Fanuc variants controllers has been added. Proceed with extreme caution.
+
+### Changed
+- **EasyCAM5000:** Renaming the main repository as EasyCAM5000, it holds the original [EasyTrace5000](https://cam.eltryus.design/easytrace5000/) and now [EasyShape5000](https://cam.eltryus.design/easyshape5000/). With more to come.
+- **3D Previews:** Toolpaths are now getting triggered before the old Calculate Toolpaths button in the export modal. But the new system needs fine tunning and tweaks to the workflow. (4th axis toolpaths are wack.)
+- **State Manager:** The Status Log Manager got upgraded to also handle overlay spinner heartbeat messages.
+- **Tool Library:** Upgraded with more options for new operations. Initial plumbing to allow custom tool files.
+
+### Fixed
+- **Excellon Parsing:** Small tweak for explicit format notation syntax. 
+- **Tab Cut Direction:** Fixed tab passes being exported with the opposite cut direction/winding of other passes.
+- **Gerber Arcs:** Some implicit arc syntax wasn't getting properly processed. [#24](https://github.com/RicardoJCMarques/EasyCAM5000/issues/24)
+
+### Planned
+- **3D Optimizations:** EVERYTHING needs optimization, especially Relief toolpaths. Warning that V-Carve geometry generation is quite slow.
+- **Documentation:** Is a bit outdated now and needs a refresh. Especially EasyShape5000 and 3D operations.
+- **Invert SVG:** Some fabrication files have the actual traces set as holes. A new flip toggle can be implemented.
+- **Non-Conductive Copper:** Extend either isolation or clearing ops to allow for the efficient removal of non conductive copper up the cutout edge.
+
+### Known Problems
+- **Circle Stay-down:** Stay-down optimizations for full circles seems to be broken. May be related to rotate optimizations.
+- **Mold Mode:** The inversion on 3D flat reliefs is sort of working but not in a usable way yet.
+- **Themes & Colors:** Most transparency was removed from all rendering layers which caused colors to shift. Some things may look a bit off in the near future. Some changes have already been implemented to fix consistency between EasyTrace5000 and EasyShape5000.
+
+
 ## [1.4.2] - 2026-07-01
 
 ### Fixed
@@ -50,14 +81,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 - **Improved Bezier Plotting:** Some CAD programs lazily export regular arcs and linear segments as beziers; sometimes these can be infered back instead of getting automatically tessellated (better quality offsets).
-- **Add OP Files:** The + buttons to manually add files, through the file explorer, to individual operation are working again. [#19](https://github.com/RicardoJCMarques/EasyTrace5000/issues/19)
-- **Laser Drilling:** Geometry is now correctly offset instead of generating a laser dot sized circle. [#20](https://github.com/RicardoJCMarques/EasyTrace5000/issues/20)
+- **Add OP Files:** The + buttons to manually add files, through the file explorer, to individual operation are working again. [#19](https://github.com/RicardoJCMarques/EasyCAM5000/issues/19)
+- **Laser Drilling:** Geometry is now correctly offset instead of generating a laser dot sized circle. [#20](https://github.com/RicardoJCMarques/EasyCAM5000/issues/20)
 
 ### Changed
 - **Huge Backend Refactor:** With EasyShape5000 sharing most foundational sub-systems, it was necessary to split unique code blocks from all the shared ones. There shouldn't be any major changes to UI flow in EasyTrace5000. Included some explicit UI warnings.
  **Coordinate Rework:** Coordinates and transforms are now stored in matrices and there's a new scene manager (mostly because of EasyShape5000).
  **Transform Inputs:** Rotation and Scale (EasyShape5000) are now absolute and will always and explicitly show the value from default instead of being relative and reset to 0 on Apply.
- - **SVG Icons:** All icons have been extracted and now live as individual .svg files that are bundled into a sprite with the [build-sprite.js](https://github.com/RicardoJCMarques/EasyTrace5000/blob/main/.github/scripts/build-sprite.js) script.
+ - **SVG Icons:** All icons have been extracted and now live as individual .svg files that are bundled into a sprite with the [build-sprite.js](https://github.com/RicardoJCMarques/EasyCAM5000/blob/main/.github/scripts/build-sprite.js) script.
 - **Clipper2 WASM Test Page:** Spun off the test page developed during initial testing of the WASM version of Clipper2. It's now a split repo at [Clipper2-WASM-Example](https://github.com/RicardoJCMarques/Clipper2-WASM-Example).
 
 ### Known Problems
@@ -70,7 +101,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ## [1.3.3] - 2026-05-15
 
 ### Fixed
-- **Overwriting Geometry:** If Offset/Preview geometry objects exist, they are now replaced when new objects are created with different parameters. [#17](https://github.com/RicardoJCMarques/EasyTrace5000/issues/17)
+- **Overwriting Geometry:** If Offset/Preview geometry objects exist, they are now replaced when new objects are created with different parameters. [#17](https://github.com/RicardoJCMarques/EasyCAM5000/issues/17)
 - **Operation Warnings:** Some warnings wouldn't reset and could stack on themselves inside the parameter panel.
 
 ### Added
@@ -86,12 +117,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ## [1.3.2] - 2026-05-01
 
 ### Fixed
-- **Geometry Transforms:** Rotation and mirroring won't break arc winding any more. [#15](https://github.com/RicardoJCMarques/EasyTrace5000/issues/15)
+- **Geometry Transforms:** Rotation and mirroring won't break arc winding any more. [#15](https://github.com/RicardoJCMarques/EasyCAM5000/issues/15)
 - **Drill Macros:** Hole and slot macros for drill operations are now mirroring agnostic and are hardcoded climb milling.
 - **Tab Generation:** Was reinforced to handle mirroring without breaking arc winding for toolpaths at tab depth.
-- **Visualization State:** Layer visibility is more persistant and won't reset/desync when geometry changes happen. [#14](https://github.com/RicardoJCMarques/EasyTrace5000/issues/14)
+- **Visualization State:** Layer visibility is more persistant and won't reset/desync when geometry changes happen. [#14](https://github.com/RicardoJCMarques/EasyCAM5000/issues/14)
 - **File Parsing:** Leading and Trailing zeros are recognized and handled correctly now. Arcs that share a center, winding and touch will be merged too.
-- **Gerber Parsing:** Oval/Obround and other complex flashed pad macro shapes are properly processed. [#16](https://github.com/RicardoJCMarques/EasyTrace5000/issues/16)
+- **Gerber Parsing:** Oval/Obround and other complex flashed pad macro shapes are properly processed. [#16](https://github.com/RicardoJCMarques/EasyCAM5000/issues/16)
 - **Excellon Parsing:** More encoding formats are now supported.
 - **Arc Rendering:** Small improvements during debug states.
 

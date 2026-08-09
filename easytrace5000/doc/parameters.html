@@ -7,7 +7,7 @@
         @description EasyTrace5000 Parameter Reference
         @author      Eltryus - Ricardo Marques
         @copyright   2025-2026 Eltryus - Ricardo Marques
-        @see         {@link https://github.com/RicardoJCMarques/EasyTrace5000}
+        @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
 
         SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
         SPDX-License-Identifier: AGPL-3.0-or-later
@@ -79,7 +79,7 @@
 
     <header class="doc-header">
         <div class="doc-brand">
-            <a href="/" aria-label="EasyTrace5000 Homepage">EasyTrace5000</a>
+            <a href="/" aria-label="EasyCAM5000 Homepage">EasyCAM5000</a>
         </div>
 
         <button class="doc-menu-toggle" aria-label="Toggle Navigation Menu" aria-expanded="false">
@@ -102,7 +102,7 @@
             <a href="parameters" class="active" draggable="false" aria-current="page" aria-label="Parameter Reference">Parameters</a>
             <a href="accessibility" draggable="false" aria-label="Accessibility Statement">Accessibility</a>
             <span class="separator" aria-hidden="true"></span>
-            <a href="https://github.com/RicardoJCMarques/EasyTrace5000" target="_blank" draggable="false" aria-label="GitHub Repository (opens in a new tab)">GitHub</a>
+            <a href="https://github.com/RicardoJCMarques/EasyCAM5000" target="_blank" draggable="false" aria-label="GitHub Repository (opens in a new tab)">GitHub</a>
 
             <button id="theme-toggle" class="btn btn--icon" title="Toggle Theme" aria-label="Toggle Theme">
                 <svg class="cam-icon" width="16" height="16"><use href="#icon-sun"></use></svg>
@@ -138,12 +138,12 @@
                 <table>
                     <thead><tr><th>Parameter</th><th>Range</th><th>Default</th><th>Applies to</th><th>Description</th></tr></thead>
                     <tbody>
-                        <tr><td>Tool Diameter</td><td>0.01–10 mm</td><td>-</td><td>all</td><td>The physical diameter of the cutting tool - the most critical value for accurate offsets.</td></tr>
-                        <tr><td>Number of Passes</td><td>1–30</td><td>3</td><td>isolation</td><td>Offset passes to create. More passes clear more copper but take longer.</td></tr>
-                        <tr><td>Step Over</td><td>10–99 %</td><td>50</td><td>isolation, clearing</td><td>Percentage of tool diameter overlapped each pass. 50% is a good default.</td></tr>
+                        <tr><td>Tool Diameter</td><td>0.01-10 mm</td><td>-</td><td>all</td><td>The physical diameter of the cutting tool - the most critical value for accurate offsets.</td></tr>
+                        <tr><td>Number of Passes</td><td>1-30</td><td>3</td><td>isolation</td><td>Offset passes to create. More passes clear more copper but take longer.</td></tr>
+                        <tr><td>Step Over</td><td>10-99 %</td><td>50</td><td>isolation, clearing</td><td>Percentage of tool diameter overlapped each pass. 50% is a good default.</td></tr>
                         <tr><td>Combine Passes</td><td>on/off</td><td>on</td><td>isolation</td><td>Merge all passes into one geometry. Simpler G-code, loses per-pass control.</td></tr>
                         <tr><td>Mill Holes</td><td>on/off</td><td>on</td><td>drill</td><td>Mill circular paths inside holes larger than the tool; otherwise peck/drill at center.</td></tr>
-                        <tr><td>Mill Stepover</td><td>10–90 %</td><td>50</td><td>drill</td><td>Overlap on each concentric ring inside oversize holes (when Mill Holes is on).</td></tr>
+                        <tr><td>Mill Stepover</td><td>10-90 %</td><td>50</td><td>drill</td><td>Overlap on each concentric ring inside oversize holes (when Mill Holes is on).</td></tr>
                         <tr><td>Cut Side</td><td>outside / inside / on</td><td>outside</td><td>cutout</td><td>Where the tool sits relative to the outline. Outside clears around the shape, inside within, on centers the tool.</td></tr>
                     </tbody>
                 </table>
@@ -155,17 +155,17 @@
                 <table>
                     <thead><tr><th>Parameter</th><th>Range</th><th>Default</th><th>Applies to</th><th>Description</th></tr></thead>
                     <tbody>
-                        <tr><td>Cut Depth</td><td>-10–0 mm</td><td>-0.1</td><td>all</td><td>Final target depth relative to the surface (Z=0). Negative value.</td></tr>
+                        <tr><td>Cut Depth</td><td>-10-0 mm</td><td>-0.1</td><td>all</td><td>Final target depth relative to the surface (Z=0). Negative value.</td></tr>
                         <tr><td>Multi-depth Cutting</td><td>on/off</td><td>on</td><td>all</td><td>Multiple passes at increasing depth for deep cuts. Reduces tool stress.</td></tr>
-                        <tr><td>Depth per Pass</td><td>0.001–5 mm</td><td>0.1</td><td>all (multi-depth)</td><td>Incremental depth of each pass. Smaller is gentler on the tool.</td></tr>
+                        <tr><td>Depth per Pass</td><td>0.001-5 mm</td><td>0.1</td><td>all (multi-depth)</td><td>Incremental depth of each pass. Smaller is gentler on the tool.</td></tr>
                         <tr><td>Entry Type</td><td>plunge / helix</td><td>plunge</td><td>all</td><td>How the tool enters material. Plunge: straight down. Helix: spiral down.</td></tr>
                         <tr><td>Canned Cycle</td><td>none / G81 / G82 / G83 / G73</td><td>none</td><td>drill</td><td>Pre-programmed drill cycle. G83 peck-drilling retracts to clear chips.</td></tr>
-                        <tr><td>Peck Depth</td><td>0–5 mm</td><td>0</td><td>drill</td><td>Depth to drill before retracting in peck drilling. Smaller = cleaner holes.</td></tr>
-                        <tr><td>Dwell Time</td><td>0–10 s</td><td>0</td><td>drill</td><td>Pause at hole bottom. Clears chips and reduces burrs.</td></tr>
-                        <tr><td>Retract Height</td><td>0–10 mm</td><td>0.5</td><td>drill</td><td>Height between holes. Clears the board while minimizing travel.</td></tr>
-                        <tr><td>Number of Tabs</td><td>0–12</td><td>0</td><td>cutout</td><td>Small uncut bridges that hold the board in place.</td></tr>
-                        <tr><td>Tab Width</td><td>0.5–10 mm</td><td>0</td><td>cutout</td><td>Length of each holding tab.</td></tr>
-                        <tr><td>Tab Height</td><td>0.1–5 mm</td><td>0</td><td>cutout</td><td>Tab thickness from the cut floor (−0.5 on a −1.8 cut leaves a 0.5 mm tab).</td></tr>
+                        <tr><td>Peck Depth</td><td>0-5 mm</td><td>0</td><td>drill</td><td>Depth to drill before retracting in peck drilling. Smaller = cleaner holes.</td></tr>
+                        <tr><td>Dwell Time</td><td>0-10 s</td><td>0</td><td>drill</td><td>Pause at hole bottom. Clears chips and reduces burrs.</td></tr>
+                        <tr><td>Retract Height</td><td>0-10 mm</td><td>0.5</td><td>drill</td><td>Height between holes. Clears the board while minimizing travel.</td></tr>
+                        <tr><td>Number of Tabs</td><td>0-12</td><td>0</td><td>cutout</td><td>Small uncut bridges that hold the board in place.</td></tr>
+                        <tr><td>Tab Width</td><td>0.5-10 mm</td><td>0</td><td>cutout</td><td>Length of each holding tab.</td></tr>
+                        <tr><td>Tab Height</td><td>0.1-5 mm</td><td>0</td><td>cutout</td><td>Tab thickness from the cut floor (-0.5 on a -1.8 cut leaves a 0.5 mm tab).</td></tr>
                     </tbody>
                 </table>
             </section>
@@ -175,10 +175,10 @@
                 <table>
                     <thead><tr><th>Parameter</th><th>Range</th><th>Description</th></tr></thead>
                     <tbody>
-                        <tr><td>Feed Rate</td><td>1–5000 mm/min</td><td>Speed while cutting.</td></tr>
-                        <tr><td>Plunge Rate</td><td>1–2000 mm/min</td><td>Speed descending into material. Usually slower than feed rate.</td></tr>
-                        <tr><td>Spindle Speed</td><td>100–30000 RPM</td><td>Spindle rotation. Higher speeds for smaller tools.</td></tr>
-                        <tr><td>Spindle Dwell</td><td>0–60 s</td><td>Wait for the spindle to reach speed. Essential for high-inertia spindles.</td></tr>
+                        <tr><td>Feed Rate</td><td>1-5000 mm/min</td><td>Speed while cutting.</td></tr>
+                        <tr><td>Plunge Rate</td><td>1-2000 mm/min</td><td>Speed descending into material. Usually slower than feed rate.</td></tr>
+                        <tr><td>Spindle Speed</td><td>100-30000 RPM</td><td>Spindle rotation. Higher speeds for smaller tools.</td></tr>
+                        <tr><td>Spindle Dwell</td><td>0-60 s</td><td>Wait for the spindle to reach speed. Essential for high-inertia spindles.</td></tr>
                     </tbody>
                 </table>
             </section>
@@ -188,12 +188,12 @@
                 <table>
                     <thead><tr><th>Parameter</th><th>Range</th><th>Default</th><th>Description</th></tr></thead>
                     <tbody>
-                        <tr><td>Aperture Offset</td><td>-1–1 mm</td><td>-0.05</td><td>Shrinks (−) or expands (+) apertures. −0.05 mm prevents solder bridging.</td></tr>
+                        <tr><td>Aperture Offset</td><td>-1-1 mm</td><td>-0.05</td><td>Shrinks (-) or expands (+) apertures. -0.05 mm prevents solder bridging.</td></tr>
                         <tr><td>Ignore Solid Regions</td><td>on/off</td><td>on</td><td>Ignore pours and traces; generate apertures only for component pads.</td></tr>
                         <tr><td>Exclude Pads Over Drill Holes</td><td>on/off</td><td>on</td><td>Remove apertures over through-holes so paste won't fall in.</td></tr>
                         <tr><td>Add Registration Holes</td><td>on/off</td><td>off</td><td>Four alignment holes outside the board for pinning the stencil.</td></tr>
-                        <tr><td>Registration Hole Diameter</td><td>0.5–10 mm</td><td>3.0</td><td>Diameter of the alignment pins/dowels.</td></tr>
-                        <tr><td>Registration Hole Margin</td><td>1–25 mm</td><td>5.0</td><td>Distance outside the board boundary to place the holes.</td></tr>
+                        <tr><td>Registration Hole Diameter</td><td>0.5-10 mm</td><td>3.0</td><td>Diameter of the alignment pins/dowels.</td></tr>
+                        <tr><td>Registration Hole Margin</td><td>1-25 mm</td><td>5.0</td><td>Distance outside the board boundary to place the holes.</td></tr>
                     </tbody>
                 </table>
             </section>
@@ -204,10 +204,10 @@
                 <table>
                     <thead><tr><th>Parameter</th><th>Range</th><th>Default</th><th>Description</th></tr></thead>
                     <tbody>
-                        <tr><td>Isolation Width</td><td>0.05–2.5 mm</td><td>0.3</td><td>Total width of copper to ablate around traces. Pass count is derived from this, the spot size, and step-over.</td></tr>
+                        <tr><td>Isolation Width</td><td>0.05-2.5 mm</td><td>0.3</td><td>Total width of copper to ablate around traces. Pass count is derived from this, the spot size, and step-over.</td></tr>
                         <tr><td>Clearing Strategy</td><td>offset / filled / hatch</td><td>offset</td><td>How areas are filled. Offset is most streak-proof; filled hands the fill to your laser software; hatch is directional line coverage.</td></tr>
-                        <tr><td>Step Over</td><td>10–99 %</td><td>50</td><td>Overlap between adjacent laser paths. Lower (more overlap) removes copper better; reduce to ~30% if streaks appear.</td></tr>
-                        <tr><td>Hatch Base Angle</td><td>0–180°</td><td>45</td><td>Angle of hatch lines; cross-hatch adds a perpendicular set. 45° crosses both H and V traces.</td></tr>
+                        <tr><td>Step Over</td><td>10-99 %</td><td>50</td><td>Overlap between adjacent laser paths. Lower (more overlap) removes copper better; reduce to ~30% if streaks appear.</td></tr>
+                        <tr><td>Hatch Base Angle</td><td>0-180°</td><td>45</td><td>Angle of hatch lines; cross-hatch adds a perpendicular set. 45° crosses both H and V traces.</td></tr>
                         <tr><td>Cut Side</td><td>outside / inside / on</td><td>outside</td><td>Where the kerf falls relative to the outline (board stays full size / shrinks / shrinks by half-kerf).</td></tr>
                     </tbody>
                 </table>
@@ -217,7 +217,7 @@
         <footer class="doc-footer" aria-label="Footer">
             <p>
                 <a href="#doc-content" draggable="false" aria-label="Scroll back to top">Back to Top</a> |
-                <a href="https://github.com/RicardoJCMarques/EasyTrace5000" target="_blank" draggable="false" aria-label="GitHub Repository (opens in a new tab)">GitHub</a> |
+                <a href="https://github.com/RicardoJCMarques/EasyCAM5000" target="_blank" draggable="false" aria-label="GitHub Repository (opens in a new tab)">GitHub</a> |
                 <a href="/#support" draggable="false" aria-label="Support Development via Sponsorship">Support Development</a> |
                 <a href="../../LICENSE" target="_blank" draggable="false" aria-label="AGPLv3 License (opens in a new tab)">AGPLv3 Licensed</a>
             </p>

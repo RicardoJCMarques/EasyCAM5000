@@ -3,7 +3,7 @@
  * @description Low-level intersection math and shared geometric primitives
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
- * @see         {@link https://github.com/RicardoJCMarques/EasyTrace5000}
+ * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
  *
  * SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
  * SPDX-License-Identifier: AGPL-3.0-or-later
@@ -26,7 +26,7 @@
      *
      * Dependencies:
      *   - CAMConfig             (epsilon, minRoundJointSegments)
-     *   - GeometryUtils         (getOptimalSegments — must be loaded first)
+     *   - GeometryUtils         (getOptimalSegments - must be loaded first)
      *   - globalCurveRegistry   (optional, for round-joint curve registration)
      */
     const GeometryMath = {
@@ -36,7 +36,7 @@
         // ==========================================
 
         /**
-         * Unbounded line–line intersection.
+         * Unbounded line-line intersection.
          * Returns the intersection point or null if the lines are parallel.
          * @param {Object} p1 - First point of line A.
          * @param {Object} p2 - Second point of line A.
@@ -64,7 +64,7 @@
 
         /**
          * Intersects an unbounded line (through p1→p2) with a circle.
-         * Returns an array of { point, tLine, angle } objects (0–2 results).
+         * Returns an array of { point, tLine, angle } objects (0-2 results).
          *
          * When the discriminant is slightly negative (near-miss), the routine
          * snaps to the closest point on the line to the circle center. This
@@ -134,7 +134,7 @@
 
         /**
          * Intersects two circles.
-         * Returns an array of { x, y } points (0–2 results).
+         * Returns an array of { x, y } points (0-2 results).
          *
          * @param {Object}  c1        - Center of circle 1.
          * @param {number}  r1        - Radius of circle 1.
@@ -158,7 +158,7 @@
             let hSq = r1 * r1 - a * a;
 
             if (hSq < 0 && hSq > -(eps * eps)) {
-                hSq = 0; // Tangent — clamp floating point noise
+                hSq = 0; // Tangent - clamp floating point noise
             } else if (hSq < 0) {
                 return [];
             }
@@ -173,7 +173,7 @@
             const p1 = { x: mx + px, y: my - py };
             const p2 = { x: mx - px, y: my + py };
 
-            if (h < precision) return [p1]; // Tangent — single point
+            if (h < precision) return [p1]; // Tangent - single point
 
             return [p1, p2];
         },
@@ -254,7 +254,7 @@
 
             const jointIsClockwise = angleDiff < 0;
 
-            // Register joint arc (optional — gracefully skipped if registry absent)
+            // Register joint arc (optional - gracefully skipped if registry absent)
             const jointCurveId = window.globalCurveRegistry?.register({
                 type: 'arc',
                 center: { x: originalCorner.x, y: originalCorner.y },

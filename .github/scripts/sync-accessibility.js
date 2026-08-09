@@ -3,7 +3,7 @@
  * @description Syncs doc/ACCESSIBILITY.md to doc/accessibility.html
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
- * @see         {@link https://github.com/RicardoJCMarques/EasyTrace5000}
+ * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
  *
  * SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
  * SPDX-License-Identifier: AGPL-3.0-or-later
@@ -19,7 +19,7 @@ const CONFIG = {
     output: 'easytrace5000/doc/accessibility.html',
     cssPath: '../../css',
     themeScriptPath: '../../themes/theme-loader.js',
-    githubUrl: 'https://github.com/RicardoJCMarques/EasyTrace5000',
+    githubUrl: 'https://github.com/RicardoJCMarques/EasyCAM5000',
     siteUrl: 'https://cam.eltryus.design'
 };
 
@@ -160,7 +160,7 @@ const getTemplate = (sidebarHtml, mainBodyHtml, heroTitle, tagline) => `<!DOCTYP
         @description EasyTrace5000 | Accessibility Information
         @author      Eltryus - Ricardo Marques
         @copyright   2025-2026 Eltryus - Ricardo Marques
-        @see         {@link https://github.com/RicardoJCMarques/EasyTrace5000}
+        @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
         
         SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
         SPDX-License-Identifier: AGPL-3.0-or-later
@@ -235,7 +235,7 @@ const getTemplate = (sidebarHtml, mainBodyHtml, heroTitle, tagline) => `<!DOCTYP
     <!-- Header -->
     <header class="doc-header">
         <div class="doc-brand">
-            <a href="/" aria-label="EasyTrace5000 Homepage">EasyTrace5000</a>
+            <a href="/" aria-label="EasyCAM5000 Homepage">EasyCAM5000</a>
         </div>
 
         <button class="doc-menu-toggle" aria-label="Toggle Navigation Menu" aria-expanded="false">
@@ -262,7 +262,7 @@ const getTemplate = (sidebarHtml, mainBodyHtml, heroTitle, tagline) => `<!DOCTYP
             <a href="parameters" draggable="false" aria-label="Parameter Reference">Parameters</a>
             <a href="accessibility" class="active" draggable="false" aria-current="page" aria-label="Accessibility Statement">Accessibility</a>
             <span class="separator" aria-hidden="true"></span>
-            <a href="https://github.com/RicardoJCMarques/EasyTrace5000" target="_blank" draggable="false" aria-label="GitHub Repository (opens in a new tab)">GitHub</a>
+            <a href="https://github.com/RicardoJCMarques/EasyCAM5000" target="_blank" draggable="false" aria-label="GitHub Repository (opens in a new tab)">GitHub</a>
 
             <button id="theme-toggle" class="btn btn--icon" title="Toggle Theme" aria-label="Toggle Theme">
                 <svg class="cam-icon" width="16" height="16"><use href="#icon-sun"></use></svg>

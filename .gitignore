@@ -25,5 +25,11 @@ node_modules/
 /dist
 
 # Extras
-/extras
-/renderer/3d.pdf
+/extras/
+/parsers/parser-gcode.js
+/parsers/gcode-integration.md
+/parsers/gcode-parser.md
+PROJECT_CONTEXT.txt
+context-gen.js
+package-lock.json
+package.json

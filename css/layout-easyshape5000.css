@@ -1,25 +1,46 @@
 /*!
  * @file        css/layout-easyshape5000.css
- * @description EasyShape5000-specific layout — scene tree, operation palette, right-panel state machine, staged parameter forms.
+ * @description EasyShape5000-specific layout - scene tree, operation palette, right-panel state machine, staged parameter forms.
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
- * @see         {@link https://github.com/RicardoJCMarques/EasyTrace5000}
+ * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
  *
  * SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 /* ============================================================================
-   EASYSHAPE OPERATION COLORS
+   EASYSHAPE OPERATION MAP
+   Maps this app's operation TYPE strings to palette entries. The palette lives
+   in theme.css; nothing here invents a colour. JS reads the same names through
+   BaseAppUI.resolveOperationColor.
+
+   `drill` points at the shape-drill amber rather than the PCB blue: same type
+   string, different operation, different colour. This file is the only place
+   that mapping exists, so it no longer depends on stylesheet order.
    ============================================================================ */
 
+/* REVIEW - fix --op-color vs --color-operation mismatching once and for all. */
 :root {
-    --color-op-profile: #6dd3a0;
-    --color-op-pocket:  #5a8acf;
-    --color-op-drill:   #d8a44a;
-    --color-op-engrave: #c794d6;
-    --color-op-vcarve:  #e07a7a;
+    --op-color-profile: var(--color-operation-profile);
+    --op-color-pocket:  var(--color-operation-pocket);
+    --op-color-drill:   var(--color-operation-shape-drill);
+    --op-color-engrave: var(--color-operation-engrave);
+    --op-color-vcarve:  var(--color-operation-vcarve);
+    --op-color-relief:  var(--color-operation-relief);
+    --op-color-rotary:  var(--color-operation-rotary);
+    --op-color-pattern: var(--color-operation-pattern);
 }
+
+/* One accent local for every op-tagged row, set once for both row kinds. */
+.path-row[data-op="profile"],   .bucket-row[data-op="profile"]   { --op-accent: var(--op-color-profile); }
+.path-row[data-op="pocket"],    .bucket-row[data-op="pocket"]    { --op-accent: var(--op-color-pocket); }
+.path-row[data-op="drill"],     .bucket-row[data-op="drill"]     { --op-accent: var(--op-color-drill); }
+.path-row[data-op="engrave"],   .bucket-row[data-op="engrave"]   { --op-accent: var(--op-color-engrave); }
+.path-row[data-op="vcarve"],    .bucket-row[data-op="vcarve"]    { --op-accent: var(--op-color-vcarve); }
+.path-row[data-op="relief"],    .bucket-row[data-op="relief"]    { --op-accent: var(--op-color-relief); }
+.path-row[data-op="rotary"],    .bucket-row[data-op="rotary"]    { --op-accent: var(--op-color-rotary); }
+.path-row[data-op="pattern"],   .bucket-row[data-op="pattern"]   { --op-accent: var(--op-color-pattern); }
 
 /* ============================================================================
    TREE VIEW PADDING OVERRIDE
@@ -36,7 +57,7 @@
 }
 
 /* ============================================================================
-   LEFT SIDEBAR — SCENE TREE
+   LEFT SIDEBAR - SCENE TREE
    ============================================================================ */
 
 /* Path rows */
@@ -57,18 +78,12 @@
 }
 
 .path-row.selected {
-    background: color-mix(in srgb, var(--row-op-color, var(--color-accent-primary)) 15%, var(--color-bg-active));
-    border-left-color: var(--row-op-color, var(--color-accent-primary));
+    background: color-mix(in srgb, var(--op-accent, var(--color-accent-primary)) 15%, var(--color-bg-active));
+    border-left-color: var(--op-accent, var(--color-accent-primary));
 }
 
-.path-row[data-op="profile"] { --row-op-color: var(--color-op-profile); }
-.path-row[data-op="pocket"]  { --row-op-color: var(--color-op-pocket); }
-.path-row[data-op="drill"]   { --row-op-color: var(--color-op-drill); }
-.path-row[data-op="engrave"] { --row-op-color: var(--color-op-engrave); }
-.path-row[data-op="vcarve"]  { --row-op-color: var(--color-op-vcarve); }
-
 .path-row[data-op] {
-    border-left-color: var(--row-op-color, transparent);
+    border-left-color: var(--op-accent, transparent);
 }
 
 .path-row .path-name {
@@ -158,6 +173,37 @@
     color: var(--color-text-secondary);
 }
 
+/* Selected rows */
+.path-row.selected,
+.group-row.selected {
+    background: var(--color-bg-active);
+    border-left: 2px solid var(--color-accent-primary);
+}
+
+.path-row.selected .path-name,
+.group-row.selected .group-name {
+    color: var(--color-accent-primary);
+}
+
+/* ============================================================================
+   3D VIEWPORT
+   ============================================================================ */
+
+.viewport-3d {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    background: var(--color-canvas-background);
+}
+
+.viewport-3d[hidden] {
+    display: none;
+}
+
+.canvas-container[data-render-mode="3d"] #preview-canvas {
+    display: none;
+}
+
 /* Tree toolbar */
 .tree-toolbar {
     display: flex;
@@ -188,15 +234,9 @@
     margin-bottom: var(--spacing-xs);
     border: 1px solid var(--color-border-primary);
     border-radius: var(--radius);
-    border-left: 3px solid var(--bucket-op-color, var(--color-border-secondary));
+    border-left: 3px solid var(--op-accent, var(--color-border-secondary));
     overflow: hidden;
 }
-
-.bucket-row[data-op="profile"] { --bucket-op-color: var(--color-op-profile); }
-.bucket-row[data-op="pocket"]  { --bucket-op-color: var(--color-op-pocket); }
-.bucket-row[data-op="drill"]   { --bucket-op-color: var(--color-op-drill); }
-.bucket-row[data-op="engrave"] { --bucket-op-color: var(--color-op-engrave); }
-.bucket-row[data-op="vcarve"]  { --bucket-op-color: var(--color-op-vcarve); }
 
 .bucket-header {
     display: flex;
@@ -215,7 +255,7 @@
 }
 
 .bucket-header.selected {
-    background: color-mix(in srgb, var(--bucket-op-color) 15%, var(--color-bg-active));
+    background: color-mix(in srgb, var(--op-accent, var(--color-accent-primary)) 15%, var(--color-bg-active));
 }
 
 .bucket-toggle {
@@ -361,7 +401,7 @@
 [data-right-panel-state="bucket-stage"]       [data-panel-state="source-selected bucket-stage"] { display: block !important; }
 
 /* ============================================================================
-   RIGHT SIDEBAR — STATE MACHINE
+   RIGHT SIDEBAR - STATE MACHINE
    ============================================================================ */
 
 /* Default: hide all state-driven blocks */

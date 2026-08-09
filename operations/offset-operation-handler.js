@@ -3,7 +3,7 @@
  * @description Shared offset pipeline for all contour-based operations
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
- * @see         {@link https://github.com/RicardoJCMarques/EasyTrace5000}
+ * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
  *
  * SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
  * SPDX-License-Identifier: AGPL-3.0-or-later
@@ -78,144 +78,13 @@
             return null;
         }
 
-        /**
-         * Counts open path primitives. Closed-only operations
-         * (profile, pocket) call this before offsetting. Analytic shapes
-         * (circle/rect/obround) are closed by definition.
-         */
-        countOpenPaths(operation) {
-            return (operation.primitives || []).filter(p => {
-                if (p.type === 'circle' || p.type === 'rectangle' || p.type === 'obround') return false;
-                return !GeometryUtils.isPrimitiveClosed(p, PRECISION);
-            }).length;
-        }
-
         // ORCHESTRATION
 
-        /**
-         * Resolves contour topology before the offset pipeline.
-         *
-         * Tier 1 (always): Re-derives hole assignment within each compound
-         *   primitive by geometric containment. Fixes the winding-sign
-         *   fragility in plotRegion for even-parity transforms.
-         *
-         * Tier 2 (opt-in via mergeNesting:true): Detects containment among
-         *   separate primitives and merges outers with their holes into
-         *   compound PathPrimitives.
-         *
-         * @param {Array} primitives
-         * @param {Object} [options]
-         * @param {boolean} [options.mergeNesting=false] - Run inter-primitive merge
-         * @returns {Array} Primitives with corrected topology
-         */
-        resolveContourTopology(primitives, { mergeNesting = false } = {}) {
-            if (!primitives || primitives.length === 0) return primitives;
-
-            // Tier 1: intra-primitive compound resolution
-            let resolved = [];
-            let compoundsFixed = 0;
-
-            for (const prim of primitives) {
-                const result = GeometryUtils.resolveCompoundContours(prim);
-                if (result.length !== 1 || result[0] !== prim) compoundsFixed++;
-                resolved.push(...result);
-            }
-
-            if (compoundsFixed > 0) {
-                this.debug(`Tier 1: resolved ${compoundsFixed} compound primitive(s) by containment`);
-            }
-
-            // Tier 2: inter-primitive nesting merge
-            if (!mergeNesting || resolved.length < 2) return resolved;
-
-            // Build the loop set for topology analysis. Closed analytic shapes
-            // (circle / rectangle / obround) are converted to paths HERE so they
-            // participate in nesting detection - an SVG circle dropped inside a
-            // rectangle is the common EasyShape case. Anything without a usable
-            // closed contour (open strokes, drill points) is set aside and
-            // re-appended untouched.
-            //
-            // NOTE: the prior version filtered to type === 'path' FIRST and
-            // pushed every analytic shape into nonPaths, so the conversion that
-            // followed was dead code and the `length < 2` guard aborted the merge
-            // whenever the nested set was analytic. That silently disabled
-            // nesting detection for EasyShape while leaving EasyTrace cutout
-            // (its own classifyPrimitives path) unaffected.
-            const loops    = [];
-            const passthru = [];
-            const sourceOf = new Map(); // converted loop -> original primitive
-
-            for (const prim of resolved) {
-                let loop = prim;
-                if (prim.type !== 'path') {
-                    const path = GeometryUtils.primitiveToPath(prim);
-                    if (path) {
-                        path.properties = { ...prim.properties, ...path.properties };
-                        loop = path;
-                    }
-                }
-
-                if (loop && loop.type === 'path' && loop.contours?.length > 0) {
-                    // Explode every contour into its own single-contour loop.
-                    // classifyCutoutTopology only inspects contours[0], so a
-                    // compound path (outer + holes - re-fed from a previous
-                    // generation, or a native SVG compound path) would otherwise
-                    // hide its holes from the classifier and the merge would drop
-                    // them. Mirrors GeometryUtils.resolveCompoundContours.
-                    for (const contour of loop.contours) {
-                        const singleLoop = new PathPrimitive([contour], { ...loop.properties });
-                        loops.push(singleLoop);
-                        // Only genuinely single-contour inputs revert to their
-                        // original primitive (preserves analytic arcs). Exploded
-                        // compound pieces get NO sourceOf entry, so the merge's
-                        // `|| outer.loop` fallback keeps the exploded contour
-                        // instead of dragging the whole compound (hole included)
-                        // back in.
-                        if (loop.contours.length === 1) sourceOf.set(singleLoop, prim);
-                    }
-                } else {
-                    passthru.push(prim);
-                }
-            }
-
-            if (loops.length < 2) return resolved;
-
-            const topology = GeometryUtils.classifyCutoutTopology(loops);
-            if (!topology.some(t => t.isHole)) return resolved;
-
-            // Group holes under their parent outers. Standalone outers (no holes)
-            // are emitted as their ORIGINAL primitive so analytic arcs survive;
-            // only true compounds (outer + hole contours) must be polygonized
-            // into a PathPrimitive.
-            const outers = topology.filter(t => !t.isHole);
-            const holes  = topology.filter(t => t.isHole);
-            const merged = [];
-
-            for (const outer of outers) {
-                const children = holes.filter(h => h.parentIdx === outer.originalIdx);
-                if (children.length === 0) {
-                    merged.push(sourceOf.get(outer.loop) || outer.loop);
-                } else {
-                    const newContours = [outer.loop.contours[0]];
-                    for (const child of children) {
-                        newContours.push(child.loop.contours[0]);
-                    }
-                    merged.push(new PathPrimitive(newContours, {
-                        ...outer.loop.properties
-                    }));
-                }
-            }
-
-            // Orphan holes (no parent) - keep as their original primitive
-            for (const hole of holes) {
-                if (hole.parentIdx === null) merged.push(sourceOf.get(hole.loop) || hole.loop);
-            }
-
-            this.debug(`Tier 2: merged ${loops.length} loop(s) → ${merged.length} primitive(s)`);
-            return [...merged, ...passthru];
-        }
-
         async orchestrateGeneration(operation, params, core, options = {}) {
+            // Stale-run token + structured progress + state reset
+            const token = this.beginRun(operation, options, core);
+            this.resolveProgress(operation, options);
+
             // Wipe all previous generation state
             core.resetOperationState(operation.id);
 
@@ -227,6 +96,10 @@
                 await this.generateLaserFills(operation, opParams);
             } else {
                 await this.generateGeometry(operation, { ...params, ...opParams });
+            }
+
+            if (this.isStale(operation, token)) {
+                return { success: false, message: 'Generation superseded by a newer request', status: 'warning' };
             }
 
             const total = operation.offsets?.reduce((s, o) => s + (o.primitives?.length || 0), 0) || 0;
@@ -370,10 +243,6 @@
             this.debug('=== OFFSET PIPELINE START ===');
             this.debug(`Operation: ${operation.id} (${operation.type})`);
 
-            await this.core.ensureProcessorReady();
-            if (!this.core.geometryOffsetter || !this.core.geometryProcessor) {
-                throw new Error('Geometry processors not initialized');
-            }
             if (!operation.primitives || operation.primitives.length === 0) {
                 return [];
             }
@@ -507,8 +376,14 @@
                 return out;
             };
 
-            // Cache DOM ref outside the hot loop
-            const progressEl = document.getElementById('canvas-loading-message');
+            // Progress: structured ticks through the operation's callback.
+            // The state manager owns the overlay element, the label format
+            // and rAF coalescing.
+            const onProgress = operation._onProgress || null;
+            // Laser targetWidth walks outward until the width is met, so it
+            // has no known count → indeterminate (frac null = spinner only).
+            const totalPasses = (isOnLine || forceOnLine || settings.targetWidth > 0)
+                ? 0 : Math.min(settings.passes || 1, maxPasses);
 
             let passIndex = 0;
             while (true) {
@@ -522,13 +397,19 @@
                     break;
                 }
 
-                if (passIndex > 0 && passIndex % 1 === 0) {
-                    if (progressEl) progressEl.textContent = `Generating... pass ${passIndex + 1}`;
+                // Tick + macrotask yield so the rAF-coalesced overlay can
+                // paint between Clipper-bound passes.
+                if (passIndex > 0) {
+                    const of = totalPasses > 0 ? `/${totalPasses}` : '';
+                    onProgress?.({
+                        frac: totalPasses > 0 ? passIndex / totalPasses : null,
+                        label: `${operation.type || 'Offset'} pass ${passIndex + 1}${of}`
+                    });
                     await new Promise(resolve => {
                         const ch = new MessageChannel();
                         ch.port1.onmessage = () => resolve();
                         ch.port2.postMessage(null);
-                    })
+                    });
                 }
 
                 const offsetType = distance >= 0 ? 'external' : 'internal';
@@ -622,10 +503,13 @@
                 }
 
                 // POST-PROCESSING
-                if (!settings.skipArcReconstruction && Math.abs(distance) >= PRECISION) {
+                // Runs at distance 0 too. An on-line pass still crosses Clipper
+                // (jsPathToClipper tessellates whatever it is handed), so its arcs
+                // are already gone by here - skipping reconstruction did not
+                // "keep the original arcs", it shipped a 2048-segment polyline.
+                if (!settings.skipArcReconstruction) {
                     passGeometry = this.core.geometryProcessor.arcReconstructor.processForReconstruction(passGeometry);
                 }
-                this.core.geometryOffsetter.simplifyOffsetResult(passGeometry, Math.abs(distance));
 
                 const thermalGroup = distance < 0 ? 'internal' : 'external';
 
@@ -777,10 +661,7 @@
         }
 
         // CLEARANCE POLYGON (shared helper for filled/hatch)
-
         async generateClearancePolygon(operation, isolationWidth) {
-            await this.core.ensureProcessorReady();
-
             if (!operation.primitives || operation.primitives.length === 0) return [];
 
             this.debug(`=== CLEARANCE POLYGON GENERATION: width=${isolationWidth.toFixed(3)}mm ===`);

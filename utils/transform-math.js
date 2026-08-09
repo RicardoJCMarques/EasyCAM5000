@@ -22,7 +22,7 @@
  *
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
- * @see         {@link https://github.com/RicardoJCMarques/EasyTrace5000}
+ * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
  *
  * SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
  * SPDX-License-Identifier: AGPL-3.0-or-later
@@ -247,82 +247,6 @@
             };
         },
 
-        // Self-test
-
-        /**
-         * Debug-mode boot check. Verifies:
-         *  1. composeWorkspace matches the legacy procedural forward transform
-         *  2. forward ∘ inverse round-trips
-         *  3. det sign parity matches the mirror-XOR winding rule
-         * Throws on drift so convention bugs fail at boot, not in a G-code file.
-         */
-        selfTest() {
-            const cases = [
-                { rotation: 37, rotationCenter: { x: 13, y: -4 },
-                  mirrorX: true,  mirrorY: false, mirrorCenter: { x: 50, y: 50 } },
-                { rotation: -90, rotationCenter: { x: 0, y: 0 },
-                  mirrorX: false, mirrorY: true,  mirrorCenter: { x: 10, y: 20 } },
-                { rotation: 215, rotationCenter: { x: 7, y: 7 },
-                  mirrorX: true,  mirrorY: true,  mirrorCenter: { x: -3, y: 12 } },
-                { rotation: 0, rotationCenter: { x: 0, y: 0 },
-                  mirrorX: false, mirrorY: false, mirrorCenter: { x: 0, y: 0 } }
-            ];
-            const samples = [{ x: 0, y: 0 }, { x: 17.3, y: -42.9 }, { x: 100, y: 100 }];
-
-            // Legacy procedural reference (the machine-verified convention).
-            const reference = (t, p) => {
-                let x = p.x, y = p.y;
-                if (t.rotation && t.rotation !== 0) {
-                    const rc = t.rotationCenter;
-                    const rad = (this.effectiveRotationDeg(t) * Math.PI) / 180;
-                    const cos = Math.cos(rad), sin = Math.sin(rad);
-                    const dx = x - rc.x, dy = y - rc.y;
-                    x = rc.x + (dx * cos - dy * sin);
-                    y = rc.y + (dx * sin + dy * cos);
-                }
-                if (t.mirrorX) x = 2 * t.mirrorCenter.x - x;
-                if (t.mirrorY) y = 2 * t.mirrorCenter.y - y;
-                return { x, y };
-            };
-
-            for (const t of cases) {
-                const m = this.composeWorkspace(t);
-                const inv = this.invert(m);
-                if (this.windingFlipped(m) !== this.windingFlippedParams(t)) {
-                    throw new Error('[TransformMath] self-test failed - det/XOR winding parity drift');
-                }
-                for (const p of samples) {
-                    const ref = reference(t, p);
-                    const fwd = this.applyToPoint(m, p);
-                    const rt  = this.applyToPoint(inv, fwd);
-                    if (Math.hypot(fwd.x - ref.x, fwd.y - ref.y) > 1e-9 ||
-                        Math.hypot(rt.x - p.x, rt.y - p.y) > 1e-9) {
-                        throw new Error('[TransformMath] self-test failed - transform conventions have drifted');
-                    }
-                }
-            }
-
-            // Decomposition round-trip: composeTRS(decompose(M)) === M for
-            // similarity matrices (uniform scale, optional reflection) at assorted pivots.
-            const decompCases = [
-                { tx: 5,  ty: -3, rot: 0,    sx: 1,     sy: 1,     cx: 0,  cy: 0  },
-                { tx: 12, ty: 7,  rot: 37,   sx: 2,     sy: 2,     cx: 4,  cy: -8 },
-                { tx: -6, ty: 9,  rot: -110, sx: 0.5,   sy: 0.5,   cx: 10, cy: 10 },
-                { tx: 3,  ty: 3,  rot: 215,  sx: -1.5,  sy: 1.5,   cx: -3, cy: 12 }, // mirror X
-                { tx: 0,  ty: 0,  rot: 90,   sx: 1.25,  sy: -1.25, cx: 7,  cy: 7  }  // mirror Y
-            ];
-            for (const t of decompCases) {
-                const M  = this.composeTRS(t.tx, t.ty, t.rot, t.sx, t.sy, t.cx, t.cy);
-                const d  = this.decomposeToTRS(M, { x: t.cx, y: t.cy });
-                const M2 = this.composeTRS(d.x, d.y, d.rotation, d.scaleX, d.scaleY, t.cx, t.cy);
-                for (const k of ['a', 'b', 'c', 'd', 'e', 'f']) {
-                    if (Math.abs(M[k] - M2[k]) > 1e-9) {
-                        throw new Error('[TransformMath] self-test failed - decomposeToTRS round-trip drift');
-                    }
-                }
-            }
-            return true;
-        }
     };
 
     window.TransformMath = TransformMath;

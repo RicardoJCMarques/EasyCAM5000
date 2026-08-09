@@ -3,7 +3,7 @@
  * @description Shared parsing infrastructure for all file formats
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
- * @see         {@link https://github.com/RicardoJCMarques/EasyTrace5000}
+ * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
  *
  * SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
  * SPDX-License-Identifier: AGPL-3.0-or-later
@@ -119,6 +119,10 @@
             });
 
             if (!Number.isFinite(minX) || !Number.isFinite(minY) || !Number.isFinite(maxX) || !Number.isFinite(maxY)) {
+                const msg = '[Parser-Core] Non-finite geometry bounds - source produced NaN/Infinite coordinates (check transforms/units).';
+                // REVIEW - This should be an explicit error?
+                this.warnings.push(msg);
+                console.warn(`[ParserCore] ${msg}`);
                 return { minX: 0, minY: 0, maxX: 0, maxY: 0 };
             }
 
@@ -128,86 +132,40 @@
         getObjectBounds(obj) {
             switch (obj.type) {
                 case 'region':
-                    return this.getRegionBounds(obj);
-                case 'trace':
-                    return this.getTraceBounds(obj);
-                case 'flash':
-                    return this.getFlashBounds(obj);
+                    return GeometryUtils.boundsOfPoints(obj.points);
+                case 'trace': {
+                    const halfWidth = (obj.width || 0) / 2;
+                    // SVG linear_path traces carry points; Gerber traces carry start/end
+                    // REVIEW - why not standardize traces to have points? first point is start last point is end?
+                    const b = obj.points && obj.points.length > 0
+                        ? GeometryUtils.boundsOfPoints(obj.points)
+                        : GeometryUtils.boundsOfPoints([obj.start, obj.end]);
+                    if (!b) return null;
+                    return {
+                        minX: b.minX - halfWidth, minY: b.minY - halfWidth,
+                        maxX: b.maxX + halfWidth, maxY: b.maxY + halfWidth
+                    };
+                }
+                case 'flash': {
+                    const radius = obj.radius ||
+                        (Math.max(obj.width || 0, obj.height || 0) / 2) ||
+                        ((obj.parameters && obj.parameters[0]) ? obj.parameters[0] / 2 : 0.5);
+                    return {
+                        minX: obj.position.x - radius, minY: obj.position.y - radius,
+                        maxX: obj.position.x + radius, maxY: obj.position.y + radius
+                    };
+                }
                 case 'hole':
-                case 'drill':
-                    return this.getDrillBounds(obj);
+                case 'drill': {
+                    const radius = obj.diameter ? obj.diameter / 2 : 0.5;
+                    return {
+                        minX: obj.position.x - radius, minY: obj.position.y - radius,
+                        maxX: obj.position.x + radius, maxY: obj.position.y + radius
+                    };
+                }
                 default:
                     return null;
             }
-        }
-
-        getRegionBounds(region) {
-            if (!region.points || region.points.length === 0) return null;
-
-            let minX = Infinity, minY = Infinity;
-            let maxX = -Infinity, maxY = -Infinity;
-
-            region.points.forEach(p => {
-                minX = Math.min(minX, p.x);
-                minY = Math.min(minY, p.y);
-                maxX = Math.max(maxX, p.x);
-                maxY = Math.max(maxY, p.y);
-            });
-
-            return { minX, minY, maxX, maxY };
-        }
-
-        getTraceBounds(trace) {
-            const halfWidth = (trace.width || 0) / 2;
-
-            // SVG linear_path traces use points array instead of start/end
-            if (trace.points && trace.points.length > 0) {
-                let minX = Infinity, minY = Infinity;
-                let maxX = -Infinity, maxY = -Infinity;
-                for (const p of trace.points) {
-                    minX = Math.min(minX, p.x);
-                    minY = Math.min(minY, p.y);
-                    maxX = Math.max(maxX, p.x);
-                    maxY = Math.max(maxY, p.y);
-                }
-                return {
-                    minX: minX - halfWidth,
-                    minY: minY - halfWidth,
-                    maxX: maxX + halfWidth,
-                    maxY: maxY + halfWidth
-                };
-            }
-
-            // Gerber-style two-point traces
-            return {
-                minX: Math.min(trace.start.x, trace.end.x) - halfWidth,
-                minY: Math.min(trace.start.y, trace.end.y) - halfWidth,
-                maxX: Math.max(trace.start.x, trace.end.x) + halfWidth,
-                maxY: Math.max(trace.start.y, trace.end.y) + halfWidth
-            };
-        }
-
-        getFlashBounds(flash) {
-            const radius = flash.radius || 
-                         (Math.max(flash.width || 0, flash.height || 0) / 2) ||
-                         ((flash.parameters && flash.parameters[0]) ? flash.parameters[0] / 2 : 0.5);
-
-            return {
-                minX: flash.position.x - radius,
-                minY: flash.position.y - radius,
-                maxX: flash.position.x + radius,
-                maxY: flash.position.y + radius
-            };
-        }
-
-        getDrillBounds(drill) {
-            const radius = drill.diameter ? drill.diameter / 2 : 0.5;
-            return {
-                minX: drill.position.x - radius,
-                minY: drill.position.y - radius,
-                maxX: drill.position.x + radius,
-                maxY: drill.position.y + radius
-            };
         }
 
         calculateWinding(points) {

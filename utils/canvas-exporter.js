@@ -3,7 +3,7 @@
  * @description Logic for exporting canvas contents as optimized SVG
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
- * @see         {@link https://github.com/RicardoJCMarques/EasyTrace5000}
+ * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
  *
  * SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
  * SPDX-License-Identifier: AGPL-3.0-or-later
@@ -35,52 +35,46 @@
 
         // Color System
         /**
-         * Get all drill-related colors with fallbacks
+         * Export palette, resolved from RendererCore's theme cache. `source`
+         * and `geometry` were previously read off an object that never had
+         * them, so eight colours were pinned to these fallbacks in both
+         * themes. Fallbacks now exist only for a renderer that has not
+         * resolved yet - they are not a second palette.
          */
-       getColors() {
-            const src = this.core.colors?.source || {};
-            const geo = this.core.colors?.geometry || {};
-            const prim = this.core.colors?.primitives || {};
-
-            // Helper to strip 8-digit hex to 6-digit (remove alpha)
-            const stripAlpha = (color) => {
-                if (!color) return null;
-                // Match #RRGGBBAA format
-                if (/^#[0-9a-fA-F]{8}$/.test(color)) {
-                    return color.slice(0, 7);
-                }
-                return color;
-            };
+        getColors() {
+            const c = this.core.colors || {};
+            const src = c.source || {};
+            const geo = c.geometry || {};
+            const prim = c.primitives || {};
+            const bw = c.bw || {};
 
             return {
-                // Source geometry
-                drillSource: stripAlpha(src.drill) || '#4488ff',
+                drillSource: src.drill || '#4488ff',
 
-                // Preview/offset strokes
-                preview: stripAlpha(geo.preview) || '#0060dd',
-                offsetExternal: stripAlpha(geo.offset?.external) || '#a60000',
-                offsetInternal: stripAlpha(geo.offset?.internal) || '#00a600',
+                preview: geo.preview || '#0060dd',
+                offsetExternal: geo.offset?.external || '#a60000',
+                offsetInternal: geo.offset?.internal || '#00a600',
 
-                // Status colors (tool fit)
-                statusGood: stripAlpha(prim.peckMarkGood) || '#22c55e',
-                statusWarn: stripAlpha(prim.peckMarkWarn) || '#f59e0b',
-                statusError: stripAlpha(prim.peckMarkError) || '#ef4444',
 
-                // Fixed
-                white: '#FFFFFF'
+                statusGood: prim.peckMarkGood || '#16d329',
+                statusWarn: prim.peckMarkWarn || '#d2cb00',
+                statusError: prim.peckMarkError || '#ff0000',
+
+                white: bw.white || '#ffffff'
             };
         }
 
         /**
          * Get status color based on tool relation
          */
+        // REVIEW - Isn't this duplicated somewhere?
         getStatusColor(toolRelation) {
             const colors = this.getColors();
-            switch (toolRelation) {
-                case 'oversized': return colors.statusError;
-                case 'undersized': return colors.statusWarn;
-                default: return colors.statusGood;
-            }
+            return window.resolveToolRelationColor(toolRelation, {
+                error: colors.statusError,
+                warn: colors.statusWarn,
+                good: colors.statusGood
+            });
         }
 
         /**
@@ -138,7 +132,7 @@
         // Main Export
         exportCanvasSVG(options = {}) {
             const exportConfig = { ...this.options, ...options };
-            const filename = exportConfig.filename || 'EasyTrace5000-CanvasContents.svg';
+            const filename = exportConfig.filename || 'EasyCAM5000-CanvasContents.svg';
 
             this.core.calculateOverallBounds();
             const bounds = this.core.bounds;
@@ -194,13 +188,13 @@
             const colors = this.getColors();
 
             const src = this.core.colors?.source || {};
-            const isBW = this.core.options.blackAndWhite;
+            const bwPal = this.core.colors?.bw || {};
 
             let css = `.lg { stroke-linecap: round; stroke-linejoin: round; }\n`;
 
             if (isBW) {
-                const w = this.core.colors?.bw?.white || '#ffffff';
-                const b = this.core.colors?.bw?.black || '#000000';
+                const w = bwPal.white || '#ffffff';
+                const b = bwPal.black || '#000000';
                 css += `svg { background: ${b}; }\n`;
                 css += `.fill { fill: ${w}; stroke: none; fill-rule: evenodd; }\n`;
                 css += `.str { fill: none; stroke: ${w}; }\n`;
@@ -210,7 +204,7 @@
                 css += `.drl { fill: ${src.drill || '#4488ff'}; }\n`;
                 css += `.clr { fill: ${src.clearing || '#44ff88'}; }\n`;
                 css += `.cut { fill: ${src.cutout || '#333333'}; }\n`;
-                css += `.fus { fill: ${src.fused || '#ff8844'}; fill-rule: evenodd; }\n`;
+                css += `.fus { fill: ${src.isolation || '#ff8844'}; fill-rule: evenodd; }\n`;
 
                 // Stroke-only layers
                 css += `.trc { fill: none; stroke: ${src.isolation || '#ff8844'}; }\n`;
@@ -523,7 +517,7 @@
                 line.setAttribute('y1', fmt(p1.y));
                 line.setAttribute('x2', fmt(p2.x));
                 line.setAttribute('y2', fmt(p2.y));
-                line.setAttribute('stroke', '#FFFFFF');
+                line.setAttribute('stroke', colors.white);
                 line.setAttribute('stroke-width', fmt(0.025));
                 group.appendChild(line);
 

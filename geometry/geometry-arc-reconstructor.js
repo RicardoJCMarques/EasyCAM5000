@@ -3,7 +3,7 @@
  * @description Custom built system to recover arcs after Clipper2 booleans
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
- * @see         {@link https://github.com/RicardoJCMarques/EasyTrace5000}
+ * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
  *
  * SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
  * SPDX-License-Identifier: AGPL-3.0-or-later
@@ -25,8 +25,6 @@
             // Simplified thresholds
             const arcConfig = C.geometry.arcReconstruction;
             this.minArcPoints = arcConfig.minArcPoints;
-            this.maxGapPoints = arcConfig.maxGapPoints;
-            this.minCirclePoints = arcConfig.minCirclePoints;
 
             // Use global registry
             this.registry = window.globalCurveRegistry;
@@ -36,14 +34,10 @@
 
             // Statistics
             this.stats = {
-                detected: 0,
-                registered: 0,
                 reconstructed: 0,
-                failed: 0,
-                pathsWithCurves: 0,
-                pointsWithCurves: 0,
                 partialArcs: 0,
                 fullCircles: 0,
+                pathsWithCurves: 0,
                 groupsFound: 0,
                 wrappedGroups: 0
             };
@@ -52,14 +46,10 @@
         // Clear all registered curves
         clear() {
             this.stats = {
-                detected: 0,
-                registered: 0,
                 reconstructed: 0,
-                failed: 0,
-                pathsWithCurves: 0,
-                pointsWithCurves: 0,
                 partialArcs: 0,
                 fullCircles: 0,
+                pathsWithCurves: 0,
                 groupsFound: 0,
                 wrappedGroups: 0
             };
@@ -109,24 +99,46 @@
 
             this.stats.pathsWithCurves++;
             const isClosed = primitive.closed !== false;
-
-            // Handle single-group full circle special case
-            if (primitive.contours.length === 1) {
-                const contour = primitive.contours[0];
-                if (contour.points && contour.points.length >= 3) {
-                    this.recoverLostMetadata(contour.points, isClosed);
-                    const groups = this.groupPointsWithGaps(contour.points, isClosed);
-
-                    if (groups.length === 1 && groups[0].type === 'curve') {
-                        const circleResult = this.attemptFullCircleReconstruction(groups[0], primitive);
-                        if (circleResult) return [circleResult];
-                    }
-                }
-            }
+            const isLoneContour = primitive.contours.length === 1;
 
             const reconstructedContours = [];
+
             for (const contour of primitive.contours) {
-                const reconstructed = this.reconstructSingleContour(contour, isClosed);
+                if (!contour.points || contour.points.length < 3) {
+                    reconstructedContours.push(contour);
+                    continue;
+                }
+
+                this.recoverLostMetadata(contour.points, isClosed);
+                const groups = this.groupPointsWithGaps(contour.points, isClosed);
+
+                // A circular HOLE is as much a circle as a lone outer ring, so the
+                // promotion runs per contour. Alone it becomes a CirclePrimitive;
+                // inside a compound the ring stays a contour carrying one 2*PI arc,
+                // which the translator emits as a single G2/G3.
+                // REVIEW - This may be true but arc and analtic circle offsets are very different.
+                const ring = (groups.length === 1 && groups[0].type === 'curve')
+                    ? GeometryUtils.analyzeCircleRing(groups[0].points)
+                    : null;
+
+                if (ring && ring.isFullCircle) {
+                    this.stats.fullCircles++;
+                    this.stats.reconstructed++;
+
+                    if (isLoneContour) {
+                        return [this.attemptFullCircleReconstruction(ring, primitive)];
+                    }
+                    reconstructedContours.push(this.fullCircleContour(contour, groups[0], ring));
+                    continue;
+                }
+
+                if (ring) {
+                    this.debug(`Full circle rejected (${ring.reason}): id=${ring.curveId ?? 'none'} ` +
+                        `pts=${groups[0].points.length} sweep=${(ring.closedSweep ?? 0).toFixed(5)} ` +
+                        `endGap=${(ring.endGap ?? 0).toFixed(5)} chord=${(ring.chord ?? 0).toFixed(5)}`);
+                }
+
+                const reconstructed = this.reconstructSingleContour(contour, isClosed, groups);
                 if (reconstructed) reconstructedContours.push(reconstructed);
             }
 
@@ -138,12 +150,15 @@
             })];
         }
 
-        reconstructSingleContour(contour, isClosed) {
+        reconstructSingleContour(contour, isClosed, precomputedGroups = null) {
             if (!contour.points || contour.points.length < 3) return contour;
 
             const originalPointCount = contour.points.length;
-            this.recoverLostMetadata(contour.points, isClosed);
-            const groups = this.groupPointsWithGaps(contour.points, isClosed);
+            let groups = precomputedGroups;
+            if (!groups) {
+                this.recoverLostMetadata(contour.points, isClosed);
+                groups = this.groupPointsWithGaps(contour.points, isClosed);
+            }
 
             const newPoints = [];
             const detectedArcSegments = [];
@@ -257,6 +272,7 @@
             }
 
             // Return reconstructed contour
+            // TODO [ARC-ENCODING] - chord-only output: two points per arc.
             return {
                 points: dedupedPoints,
                 isHole: contour.isHole || false,
@@ -293,8 +309,11 @@
                     continue;
                 } 
 
-                // Case 2: Mismatch - Try Strict 1-Point Bridge
-                // Only attempt if currently tracking a valid curve
+                // Case 2: Mismatch - Strict 1-point bridge, and it stays at 1.
+                // Clipper drops the Z word on the vertices it CREATES at an
+                // intersection, which is at most one per crossing. A wider
+                // bridge would span a genuine boolean seam and try to rebuild
+                // an arc across geometry that is no longer on the curve.
                 if (currentGroup.curveId) {
                     const nextIndex = i + 1;
 
@@ -368,74 +387,48 @@
         }
 
         /**
-         * Calculates the total angular sweep of a set of points around a center.
+         * Lone circular contour -> analytic CirclePrimitive. `ring` comes from
+         * GeometryUtils.analyzeCircleRing and has already passed provenance,
+         * sweep and closure; this only builds the primitive.
          */
-        calculateAngularSweep(points, center, isClosed) {
-            if (points.length < 2) return 0;
-
-            let totalSweep = 0;
-            // Calculate sweep for the main body of points
-            for (let i = 1; i < points.length; i++) {
-                const p1 = points[i - 1];
-                const p2 = points[i];
-                const angle1 = Math.atan2(p1.y - center.y, p1.x - center.x);
-                const angle2 = Math.atan2(p2.y - center.y, p2.x - center.x);
-                let delta = angle2 - angle1;
-
-                // Handle wrapping around PI/-PI to get the shortest angle
-                if (delta > Math.PI) delta -= 2 * Math.PI;
-                if (delta < -Math.PI) delta += 2 * Math.PI;
-                totalSweep += delta;
-            }
-
-            // If the path is closed, add the final segment's sweep
-            if (isClosed && points.length > 1) {
-                const p_last = points[points.length - 1];
-                const p_first = points[0];
-                const angle1 = Math.atan2(p_last.y - center.y, p_last.x - center.x);
-                const angle2 = Math.atan2(p_first.y - center.y, p_first.x - center.x);
-                let delta = angle2 - angle1;
-
-                if (delta > Math.PI) delta -= 2 * Math.PI;
-                if (delta < -Math.PI) delta += 2 * Math.PI;
-                totalSweep += delta;
-            }
-
-            return totalSweep;
+        attemptFullCircleReconstruction(ring, primitive) {
+            return new CirclePrimitive(ring.center, ring.radius, {
+                ...primitive.properties,
+                reconstructed: true,
+                originalCurveId: ring.curveId
+            });
         }
 
-        // Attempt to reconstruct a full circle
-        attemptFullCircleReconstruction(group, primitive) {
-            const curveData = this.getCurve(group.curveId);
-            if (!curveData || curveData.type !== 'circle') {
-                console.warn(`[ArcReconstructor] Failed curve data check for ID ${group.curveId}.`);
-                return null;
-            }
+        /**
+         * Circular contour inside a compound. Two coincident points plus one
+         * arc of exactly +/-2*PI: the translator's per-segment loop emits that
+         * as a single arc command, and the canvas renderer draws it as a full
+         * circle. Keeping it a contour preserves the compound's hole topology.
+         */
+        fullCircleContour(contour, group, ring) {
+            const start = group.points[0];
+            const startAngle = Math.atan2(start.y - ring.center.y, start.x - ring.center.x);
+            const sweep = ring.clockwise ? -2 * Math.PI : 2 * Math.PI;
 
-            // All tessellation points must be present — missing points means Clipper2 clipped this circle.
-            const expectedSegments = GeometryUtils.getOptimalSegments(curveData.radius, 'circle');
-            if (group.points.length < expectedSegments) {
-                this.debug(`Full circle rejected: ${group.points.length}/${expectedSegments} points present (ID: ${group.curveId})`);
-                return null;
-            }
-
-            this.stats.fullCircles++;
-            this.stats.reconstructed++;
-
-            if (typeof CirclePrimitive !== 'undefined') {
-                return new CirclePrimitive(
-                    curveData.center,
-                    curveData.radius,
-                    {
-                        ...primitive.properties,
-                        reconstructed: true,
-                        originalCurveId: group.curveId,
-                        reconstructionMethod: 'sweep'
-                    }
-                );
-            }
-
-            return null;
+            return {
+                points: [{ x: start.x, y: start.y }, { x: start.x, y: start.y }],
+                isFullCircle: true,
+                isHole: contour.isHole || false,
+                nestingLevel: contour.nestingLevel || 0,
+                parentId: contour.parentId || null,
+                arcSegments: [{
+                    startIndex: 0,
+                    endIndex: 1,
+                    center: ring.center,
+                    radius: ring.radius,
+                    startAngle,
+                    endAngle: startAngle,
+                    sweepAngle: sweep,
+                    clockwise: ring.clockwise,
+                    curveId: ring.curveId
+                }],
+                curveIds: [ring.curveId]
+            };
         }
 
         /**
@@ -456,9 +449,11 @@
                 return false;
             }
 
-            // Full circles have near-zero chord but ≈ 2π sweep — always reconstruct
+            // A near-2*PI sweep has a near-zero chord, so the chord and flatness
+            // gates below must not fire.
             // REVIEW - This could have unnintended consequences.
-            const isFullCircle = Math.abs(absSweep - 2 * Math.PI) < PRECISION;
+            const isFullCircle =
+                Math.abs(absSweep - 2 * Math.PI) <= (2 * Math.PI) / Math.max(2, points.length);
 
             const p0 = points[0];
             const pN = points[points.length - 1];
@@ -558,16 +553,6 @@
             } else {
                 // Y-up standard: CCW = positive sweep
                 if (sweepAngle < 0) sweepAngle += 2 * Math.PI;
-            }
-
-            // Detect full circle: when start ≈ end the above produces sweep ≈ 0,
-            // but the actual point traversal covers ≈ 2π.  Use the cumulative
-            // angular sweep through consecutive points as ground truth.
-            // REVIEW - This could have unnintended consequences.
-            const cumulativeSweep = this.calculateAngularSweep(points, curveData.center, false);
-            if (Math.abs(Math.abs(cumulativeSweep) - 2 * Math.PI) < 0.03) {
-                sweepAngle = actuallyClockwise ? -2 * Math.PI : 2 * Math.PI;
-                this.debug(`Full-circle sweep detected via cumulative traversal (${points.length} pts)`);
             }
 
             if (curveData.clockwise !== actuallyClockwise) {
@@ -683,20 +668,6 @@
             }
 
             return contourPoints;
-        }
-
-        getStats() {
-            const globalStats = this.registry.getStats ? this.registry.getStats() : {};
-            const successRate = this.stats.registered > 0 ? 
-                (this.stats.reconstructed / this.stats.registered * 100).toFixed(1) : '0';
-                
-            return {
-                ...this.stats,
-                ...globalStats,
-                registrySize: globalStats.registrySize || 0,
-                successRate: `${successRate}%`,
-                wrapAroundMerges: this.stats.wrappedGroups
-            };
         }
 
         debug(message, data = null) {

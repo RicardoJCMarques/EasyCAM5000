@@ -7,7 +7,7 @@
         @description EasyShape5000 Parameter Reference
         @author      Eltryus - Ricardo Marques
         @copyright   2025-2026 Eltryus - Ricardo Marques
-        @see         {@link https://github.com/RicardoJCMarques/EasyTrace5000}
+        @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
 
         SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
         SPDX-License-Identifier: AGPL-3.0-or-later
@@ -101,7 +101,7 @@
             <a href="parameters" class="active" draggable="false" aria-current="page" aria-label="Parameter Reference">Parameters</a>
             <a href="/easytrace5000/doc/accessibility" draggable="false" aria-label="Accessibility Statement">Accessibility</a>
             <span class="separator" aria-hidden="true"></span>
-            <a href="https://github.com/RicardoJCMarques/EasyTrace5000" target="_blank" draggable="false" aria-label="GitHub Repository (opens in a new tab)">GitHub</a>
+            <a href="https://github.com/RicardoJCMarques/EasyCAM5000" target="_blank" draggable="false" aria-label="GitHub Repository (opens in a new tab)">GitHub</a>
 
             <button id="theme-toggle" class="btn btn--icon" title="Toggle Theme" aria-label="Toggle Theme">
                 <svg class="cam-icon" width="16" height="16"><use href="#icon-sun"></use></svg>
@@ -139,7 +139,7 @@
                     <thead><tr><th>Parameter</th><th>Range</th><th>Description</th></tr></thead>
                     <tbody>
                         <tr><td>Tool</td><td>library</td><td>Select a tool; its diameter drives all calculations.</td></tr>
-                        <tr><td>Tool Diameter</td><td>0.01–25.4 mm</td><td>Physical diameter of the cutting tool.</td></tr>
+                        <tr><td>Tool Diameter</td><td>0.01-25.4 mm</td><td>Physical diameter of the cutting tool.</td></tr>
                     </tbody>
                 </table>
             </section>
@@ -161,8 +161,8 @@
                     <thead><tr><th>Parameter</th><th>Range / Options</th><th>Default</th><th>Description</th></tr></thead>
                     <tbody>
                         <tr><td>Clearing Strategy</td><td>offset / raster</td><td>offset</td><td>Concentric shrinks inward; raster sweeps back and forth (planned).</td></tr>
-                        <tr><td>Stepover</td><td>1–95 %</td><td>40</td><td>Tool-diameter overlap on each pass.</td></tr>
-                        <tr><td>Raster Angle</td><td>0–180°</td><td>45</td><td>Sweep-line angle (raster strategy).</td></tr>
+                        <tr><td>Stepover</td><td>1-95 %</td><td>40</td><td>Tool-diameter overlap on each pass.</td></tr>
+                        <tr><td>Raster Angle</td><td>0-180°</td><td>45</td><td>Sweep-line angle (raster strategy).</td></tr>
                         <tr><td>Bidirectional Cuts</td><td>on/off</td><td>on</td><td>Cut in both directions; off = climb-only with lift-and-return.</td></tr>
                     </tbody>
                 </table>
@@ -174,13 +174,13 @@
                     <thead><tr><th>Parameter</th><th>Range / Options</th><th>Default</th><th>Description</th></tr></thead>
                     <tbody>
                         <tr><td>Mill Oversize Holes</td><td>on/off</td><td>on</td><td>Mill holes larger than the tool; otherwise peck/drill at center.</td></tr>
-                        <tr><td>Mill Stepover</td><td>10–90 %</td><td>50</td><td>Overlap on each concentric ring inside oversize holes.</td></tr>
+                        <tr><td>Mill Stepover</td><td>10-90 %</td><td>50</td><td>Overlap on each concentric ring inside oversize holes.</td></tr>
                         <tr><td>Canned Cycle</td><td>none / G81 / G82 / G83 / G73</td><td>none</td><td>Pre-programmed drill cycle. G83/G73 peck to clear chips.</td></tr>
-                        <tr><td>Peck Depth</td><td>0–50 mm</td><td>2</td><td>Depth per peck before retracting.</td></tr>
-                        <tr><td>Dwell Time</td><td>0–10 s</td><td>0</td><td>Pause at hole bottom.</td></tr>
-                        <tr><td>Retract Height</td><td>0.1–20 mm</td><td>2.0</td><td>Height between holes.</td></tr>
+                        <tr><td>Peck Depth</td><td>0-50 mm</td><td>2</td><td>Depth per peck before retracting.</td></tr>
+                        <tr><td>Dwell Time</td><td>0-10 s</td><td>0</td><td>Pause at hole bottom.</td></tr>
+                        <tr><td>Retract Height</td><td>0.1-20 mm</td><td>2.0</td><td>Height between holes.</td></tr>
                         <tr><td>Spot Drill First</td><td>on/off</td><td>off</td><td>Shallow pilot hole at each location before drilling.</td></tr>
-                        <tr><td>Spot Drill Depth</td><td>0.1–5 mm</td><td>1.0</td><td>Depth of the spot pilot hole.</td></tr>
+                        <tr><td>Spot Drill Depth</td><td>0.1-5 mm</td><td>1.0</td><td>Depth of the spot pilot hole.</td></tr>
                     </tbody>
                 </table>
             </section>
@@ -190,15 +190,15 @@
                 <table>
                     <thead><tr><th>Parameter</th><th>Range / Options</th><th>Default</th><th>Description</th></tr></thead>
                     <tbody>
-                        <tr><td>Cut Depth</td><td>0.1–100 mm</td><td>18</td><td>Final target depth (positive; into the stock).</td></tr>
+                        <tr><td>Cut Depth</td><td>0.1-100 mm</td><td>18</td><td>Final target depth (positive; into the stock).</td></tr>
                         <tr><td>Multi-depth Cutting</td><td>on/off</td><td>on</td><td>Multiple passes at increasing depth for deep cuts.</td></tr>
-                        <tr><td>Per Pass</td><td>0.1–50 mm</td><td>3</td><td>Incremental depth of each pass.</td></tr>
+                        <tr><td>Per Pass</td><td>0.1-50 mm</td><td>3</td><td>Incremental depth of each pass.</td></tr>
                         <tr><td>Entry Method</td><td>plunge / ramp / helix</td><td>plunge</td><td>How the tool enters: straight, angled, or spiral.</td></tr>
                         <tr><td>Finishing Pass</td><td>on/off</td><td>off</td><td>Final light pass at full depth for a smoother pocket floor (pocket).</td></tr>
-                        <tr><td>Finish Stepover</td><td>1–50 %</td><td>10</td><td>Stepover for the finishing pass.</td></tr>
-                        <tr><td>Number of Tabs</td><td>0–20</td><td>4</td><td>Holding bridges left uncut (profile).</td></tr>
-                        <tr><td>Tab Width</td><td>1–20 mm</td><td>6</td><td>Length of each tab.</td></tr>
-                        <tr><td>Tab Height</td><td>0.5–10 mm</td><td>2</td><td>Tab thickness from the cut floor.</td></tr>
+                        <tr><td>Finish Stepover</td><td>1-50 %</td><td>10</td><td>Stepover for the finishing pass.</td></tr>
+                        <tr><td>Number of Tabs</td><td>0-20</td><td>4</td><td>Holding bridges left uncut (profile).</td></tr>
+                        <tr><td>Tab Width</td><td>1-20 mm</td><td>6</td><td>Length of each tab.</td></tr>
+                        <tr><td>Tab Height</td><td>0.5-10 mm</td><td>2</td><td>Tab thickness from the cut floor.</td></tr>
                     </tbody>
                 </table>
             </section>
@@ -208,10 +208,10 @@
                 <table>
                     <thead><tr><th>Parameter</th><th>Range</th><th>Description</th></tr></thead>
                     <tbody>
-                        <tr><td>Feed Rate</td><td>10–10000 mm/min</td><td>Cutting speed.</td></tr>
-                        <tr><td>Plunge Rate</td><td>10–5000 mm/min</td><td>Descent speed into material.</td></tr>
-                        <tr><td>Spindle Speed</td><td>1000–60000 RPM</td><td>Spindle rotation.</td></tr>
-                        <tr><td>Spindle Dwell</td><td>0–30 s</td><td>Wait for the spindle to reach speed.</td></tr>
+                        <tr><td>Feed Rate</td><td>10-10000 mm/min</td><td>Cutting speed.</td></tr>
+                        <tr><td>Plunge Rate</td><td>10-5000 mm/min</td><td>Descent speed into material.</td></tr>
+                        <tr><td>Spindle Speed</td><td>1000-60000 RPM</td><td>Spindle rotation.</td></tr>
+                        <tr><td>Spindle Dwell</td><td>0-30 s</td><td>Wait for the spindle to reach speed.</td></tr>
                     </tbody>
                 </table>
             </section>
@@ -223,11 +223,11 @@
                     <thead><tr><th>Operation</th><th>Parameter</th><th>Range / Options</th><th>Default</th><th>Description</th></tr></thead>
                     <tbody>
                         <tr><td>Engraving</td><td>Path Mode</td><td>on / inside / outside</td><td>on</td><td>On-path traces the line; inside/outside offset by half the tool.</td></tr>
-                        <tr><td>Engraving</td><td>Depth</td><td>0.05–5 mm</td><td>0.5</td><td>Engraving cut depth; typically shallow.</td></tr>
-                        <tr><td>Engraving</td><td>Multi-Pass + Count</td><td>1–10</td><td>2</td><td>Repeat the path for cleaner results in hard materials.</td></tr>
-                        <tr><td>V-Carve</td><td>V-Bit Included Angle</td><td>10–180°</td><td>90</td><td>Bit angle; sets cut width at a given depth.</td></tr>
-                        <tr><td>V-Carve</td><td>Max Depth</td><td>0.1–20 mm</td><td>3</td><td>Depth limit for V-carve cuts.</td></tr>
-                        <tr><td>V-Carve</td><td>Flat Area Depth</td><td>0–10 mm</td><td>0</td><td>Depth for flats wider than the bit can reach (0 skips flats).</td></tr>
+                        <tr><td>Engraving</td><td>Depth</td><td>0.05-5 mm</td><td>0.5</td><td>Engraving cut depth; typically shallow.</td></tr>
+                        <tr><td>Engraving</td><td>Multi-Pass + Count</td><td>1-10</td><td>2</td><td>Repeat the path for cleaner results in hard materials.</td></tr>
+                        <tr><td>V-Carve</td><td>V-Bit Included Angle</td><td>10-180°</td><td>90</td><td>Bit angle; sets cut width at a given depth.</td></tr>
+                        <tr><td>V-Carve</td><td>Max Depth</td><td>0.1-20 mm</td><td>3</td><td>Depth limit for V-carve cuts.</td></tr>
+                        <tr><td>V-Carve</td><td>Flat Area Depth</td><td>0-10 mm</td><td>0</td><td>Depth for flats wider than the bit can reach (0 skips flats).</td></tr>
                         <tr><td>Pattern</td><td>Pattern Type</td><td>grid / hex / radial / linear</td><td>grid</td><td>Repetition layout for the selected shape.</td></tr>
                         <tr><td>Pattern</td><td>Spacing / Count / Radius</td><td>per type</td><td>-</td><td>Rows/cols + spacing (grid/hex), count (linear/radial), radius + angles (radial).</td></tr>
                     </tbody>
@@ -238,7 +238,7 @@
         <footer class="doc-footer" aria-label="Footer">
             <p>
                 <a href="#doc-content" draggable="false" aria-label="Scroll back to top">Back to Top</a> |
-                <a href="https://github.com/RicardoJCMarques/EasyTrace5000" target="_blank" draggable="false" aria-label="GitHub Repository (opens in a new tab)">GitHub</a> |
+                <a href="https://github.com/RicardoJCMarques/EasyCAM5000" target="_blank" draggable="false" aria-label="GitHub Repository (opens in a new tab)">GitHub</a> |
                 <a href="/#support" draggable="false" aria-label="Support Development via Sponsorship">Support Development</a> |
                 <a href="../../LICENSE" target="_blank" draggable="false" aria-label="AGPLv3 License (opens in a new tab)">AGPLv3 Licensed</a>
             </p>

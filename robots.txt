@@ -1,4 +1,4 @@
-# EasyTrace5000 - robots.txt
+# EasyCAM5000 - robots.txt
 
 User-agent: *
 Disallow: /*LICENSE$

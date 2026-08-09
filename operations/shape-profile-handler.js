@@ -4,11 +4,11 @@
  *              Extends OffsetOperationHandler with cutSide control and
  *              holding tab support. Does NOT extend CutoutOperationHandler
  *              because cutout's classifyPrimitives (closure detection) is
- *              irrelevant — EasyShape primitives are already closed paths
+ *              irrelevant - EasyShape primitives are already closed paths
  *              from SVG import.
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
- * @see         {@link https://github.com/RicardoJCMarques/EasyTrace5000}
+ * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
  *
  * SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
  * SPDX-License-Identifier: AGPL-3.0-or-later
@@ -32,22 +32,25 @@
         // Orchestration
 
         async orchestrateGeneration(operation, params, core, options = {}) {
-            core.resetOperationState(operation.id);
+            const token = this.beginRun(operation, options, core);
 
             // Validate: profile requires closed geometry
             const openCount = this.countOpenPaths(operation);
             if (openCount > 0) {
                 return {
                     success: false,
-                    message: `${openCount} open path(s) detected. Profile cutting requires closed shapes. Close paths in your SVG editor (the automated too may not be implemented yet).`,
+                    message: `${openCount} open path(s) detected. Profile cutting requires closed shapes.`,
                     status: 'warning'
                 };
             }
 
             // Resolve compound contours (tier 1) and merge separate
             // shapes that nest inside each other (tier 2).
+            // `=== true`, not `!== false`: getAllParameters merges only stages the
+            // panel actually rendered, so an absent key must fall back to the JSON
+            // default (false), not turn Tier 2 on.
             operation.primitives = this.resolveContourTopology(
-                operation.primitives, { mergeNesting: params.detectNesting !== false }
+                operation.primitives, { mergeNesting: params.detectNesting === true }
             );
 
             const opParams = core.compileOperationParams(operation, params);
@@ -60,6 +63,10 @@
                 combineOffsets: false
             });
 
+            if (this.isStale(operation, token)) {
+                return { success: false, message: 'Generation superseded by a newer request', status: 'warning' };
+            }
+
             const total = operation.offsets?.reduce(
                 (s, o) => s + (o.primitives?.length || 0), 0
             ) || 0;
@@ -67,7 +74,7 @@
             if (total === 0) {
                 return {
                     success: false,
-                    message: 'No profile path generated — tool may be too large for the shape',
+                    message: 'No profile path generated - tool may be too large for the shape',
                     status: 'warning'
                 };
             }

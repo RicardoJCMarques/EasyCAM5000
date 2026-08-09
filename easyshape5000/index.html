@@ -2,12 +2,13 @@
 <html lang="en" data-theme="dark">
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="worker-src 'self';">
     <!--!
         @file        easyshape5000/index.html
         @description EasyShape5000 App Workspace
         @author      Eltryus - Ricardo Marques
         @copyright   2025-2026 Eltryus - Ricardo Marques
-        @see         {@link https://github.com/RicardoJCMarques/EasyTrace5000}
+        @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
 
         SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
         SPDX-License-Identifier: AGPL-3.0-or-later
@@ -43,7 +44,6 @@
     <link rel="stylesheet" href="../css/base.css">
     <link rel="stylesheet" href="../css/components.css">
     <link rel="stylesheet" href="../css/modals.css">
-    <link rel="stylesheet" href="../css/canvas.css">
     <link rel="stylesheet" href="../css/theme.css">
     <link rel="stylesheet" href="../css/layout-shared.css">
 
@@ -67,10 +67,10 @@
                 "applicationSubCategory": "CAM Software",
                 "operatingSystem": "Any (Browser-based)",
                 "browserRequirements": "Requires JavaScript and WebAssembly support",
-                "releaseNotes": "https://github.com/RicardoJCMarques/EasyTrace5000/blob/main/CHANGELOG.md",
-                "softwareVersion": "0.9.0",
+                "releaseNotes": "https://github.com/RicardoJCMarques/EasyCAM5000/blob/main/CHANGELOG.md",
+                "softwareVersion": "1.0.0",
                 "installUrl": "https://cam.eltryus.design/easyshape5000/",
-                "sameAs": "https://github.com/RicardoJCMarques/EasyTrace5000",
+                "sameAs": "https://github.com/RicardoJCMarques/EasyCAM5000",
                 "license": "https://www.gnu.org/licenses/agpl-3.0.html",
                 "isAccessibleForFree": true,
                 "description": "Browser-based CAM tool for CNC routers. Import SVG designs, assign profile/pocket/drill/engrave operations, and export optimized G-code.",
@@ -108,6 +108,16 @@
         ]
     }
     </script>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "../renderer3d/three.core.min.js",
+            "three/webgpu": "../renderer3d/three.webgpu.min.js",
+            "three/tsl": "../renderer3d/three.tsl.min.js"
+        }
+    }
+    </script>
 </head>
 <body>
 
@@ -134,7 +144,7 @@
 
     <!-- Loading Overlay -->
     <div class="loading-overlay" id="loading-overlay" tabindex="-1">
-        <div class="loading-spinner spinner"></div>
+        <div class="spinner"></div>
         <div id="loading-text">Loading EasyShape5000...</div>
         <div id="loading-progress" class="loading-progress" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" aria-label="Application loading progress">0%</div>
     </div>
@@ -153,7 +163,7 @@
                 </button>
                 <div class="dropdown-content" id="quick-actions-menu">
                     <button class="menu-item" id="toolbar-import-svg">
-                        <span><svg class="cam-icon" width="16" height="16"><use href="#icon-folder-open"></use></svg></span> Import SVG
+                        <span><svg class="cam-icon" width="16" height="16"><use href="#icon-folder-open"></use></svg></span> Import Files
                     </button>
                     <div class="menu-divider"></div>
                     <button class="menu-item" id="toolbar-export-canvas">
@@ -179,6 +189,9 @@
                 <svg class="cam-icon" width="18" height="18"><use href="#icon-redo"></use></svg>
             </button>
             <div class="toolbar-separator separator"></div>
+            <button class="btn--tool btn" id="btn-toggle-3d" title="Toggle 2D/3D View (F2)" aria-label="Toggle 2D/3D View">
+                <svg class="cam-icon" width="18" height="18"><use href="#icon-view-3d"></use></svg>
+            </button>
             <button class="btn--tool btn" id="zoom-fit-btn" title="Fit to View (F)" aria-label="Fit to View">
                  <svg class="cam-icon" width="18" height="18"><use href="#icon-zoom-fit"></use></svg>
             </button>
@@ -258,8 +271,10 @@
 
                 <canvas id="preview-canvas" tabindex="0"></canvas>
 
+                <div id="viewport-3d" class="viewport-3d" tabindex="-1" hidden></div>
+
                 <div id="canvas-loading-overlay" class="canvas-loading-overlay hidden">
-                    <div class="loading-spinner spinner"></div>
+                    <div class="spinner"></div>
                     <div id="canvas-loading-message" class="loading-message"></div>
                 </div>
             </div>
@@ -324,6 +339,10 @@
                         <button class="btn btn--compact btn--secondary" id="stock-bottom-left-btn">Bottom-Left</button>
                         <button class="btn btn--compact btn--secondary" id="stock-center-btn">Center</button>
                     </div>
+                    <button class="btn btn--secondary btn--block" id="fit-stock-btn"
+                            title="Fit Stock to Shape Size. 3D objects also set thickness.">
+                        Fit to Object
+                    </button>
                     <div class="origin-buttons">
                         <button class="btn btn--compact btn--primary" id="apply-stock">Apply</button>
                         <button class="btn btn--compact btn--secondary" id="reset-stock">Reset</button>
@@ -463,6 +482,25 @@
                             </label>
                         </div>
                     </div>
+
+                    <!-- 4th axis. Visibility is owned entirely by MachineSettingsUI.updateRotaryRouteField - deliberately NOT tagged data-processor-group, or the gcode/roland pass and the rotary pass would fight over display. REVIEW - this should probably be in the export modal as it only becomes relevant on 4th axis operations? -->
+                    <div class="property-section" id="rotary-section" style="display: none;">
+                        <div class="property-field" id="rotary-route-field">
+                            <label for="rotary-route" data-i18n-tooltip="tooltips.machineSettings.rotaryRoute">4th-Axis Route</label>
+                            <select id="rotary-route"></select>
+                        </div>
+
+                        <div class="property-field" id="index-dwell-field" style="display: none;">
+                            <label for="index-dwell" data-i18n-tooltip="tooltips.machineSettings.indexDwell">Index Settle Dwell</label>
+                            <div class="input-unit">
+                                <input type="number" id="index-dwell" min="0" max="5" step="0.1" placeholder="Auto" aria-label="Rotary index settling dwell in seconds">
+                                <span class="unit" aria-hidden="true">s</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Post-declared customParameters (Fanuc O-number/WCS/unwind, Makera tool-change mode). -->
+                    <div class="property-section" id="processor-custom-params" style="display: none;"></div>
                 </div>
             </div>
 
@@ -558,11 +596,17 @@
                             <button class="op-type-tab" data-op="drill" title="Drill Holes" aria-label="Drill Holes">
                                 <svg class="cam-icon" width="16" height="16"><use href="#icon-op-drilling"></use></svg>
                             </button>
-                            <button class="op-type-tab" data-op="engrave" title="Engrave" aria-label="Engrave" disabled>
+                            <button class="op-type-tab" data-op="engrave" title="Engrave" aria-label="Engrave">
                                 <svg class="cam-icon" width="16" height="16"><use href="#icon-op-engrave"></use></svg>
                             </button>
-                            <button class="op-type-tab" data-op="vcarve" title="V-Carve" aria-label="V-Carve" disabled>
+                            <button class="op-type-tab" data-op="vcarve" title="V-Carve" aria-label="V-Carve">
                                 <svg class="cam-icon" width="16" height="16"><use href="#icon-op-vcarve"></use></svg>
+                            </button>
+                            <button class="op-type-tab" data-op="relief" title="Relief / 2.5D Carve" aria-label="Relief">
+                                <svg class="cam-icon" width="16" height="16"><use href="#icon-op-relief"></use></svg>
+                            </button>
+                            <button class="op-type-tab" data-op="rotary" title="Rotary / 4th Axis" aria-label="Rotary">
+                                <svg class="cam-icon" width="16" height="16"><use href="#icon-op-rotary"></use></svg>
                             </button>
                         </div>
                         <div id="fresh-params-form"></div>
@@ -635,6 +679,12 @@
                         <label class="checkbox-control checkbox-label" for="show-vcarve">
                             <input type="checkbox" id="show-vcarve" checked><span>V-Carve</span>
                         </label>
+                        <label class="checkbox-control checkbox-label" for="show-relief">
+                            <input type="checkbox" id="show-relief" checked><span>Relief</span>
+                        </label>
+                        <label class="checkbox-control checkbox-label" for="show-rotary">
+                            <input type="checkbox" id="show-rotary" checked><span>Rotary</span>
+                        </label>
                         <label class="checkbox-control checkbox-label" for="show-pattern">
                             <input type="checkbox" id="show-pattern" checked><span>Pattern</span>
                         </label>
@@ -699,18 +749,18 @@
         <div class="status-bar" id="status-bar" title="Click to expand log">
             <span class="log-toggle-icon" id="log-toggle-icon">▲</span>
             <span class="status-text" id="status-text" role="status" aria-live="polite">Ready</span>
-            <span class="status-progress progress hidden" id="status-progress">
+            <span class="status-progress progress hidden" id="status-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
                 <span class="progress-bar" id="progress-bar"></span>
             </span>
         </div>
         <div class="status-right" id="status-right">
             <div class="status-info license-info">
-                <a href="https://github.com/RicardoJCMarques/EasyTrace5000/blob/main/CHANGELOG.md" title="Version" draggable="false">Version 1.0.0</a> |
+                <a href="https://github.com/RicardoJCMarques/EasyCAM5000/blob/main/CHANGELOG.md" title="Version" draggable="false">v1.0.0</a> |
                 <a href="/" title="Return to Homepage" draggable="false">Home</a> |
                 <a href="../LICENSE" target="_blank" title="View License" draggable="false" aria-label="View AGPLv3 License (opens in a new tab)">AGPLv3</a> |
                 <a href="doc/" target="_blank" title="Documentation" draggable="false" aria-label="Documentation (opens in a new tab)">Doc</a> |
-                <a href="https://github.com/RicardoJCMarques/EasyTrace5000/issues" target="_blank" title="Repo" draggable="false" aria-label="GitHub Issues (opens in new tab)">Help</a> |
-                <a href="https://github.com/RicardoJCMarques/EasyTrace5000" target="_blank" title="Repo" draggable="false" aria-label="GitHub (opens in new tab)">GitHub</a> |
+                <a href="https://github.com/RicardoJCMarques/EasyCAM5000/issues" target="_blank" title="Repo" draggable="false" aria-label="GitHub Issues (opens in new tab)">Help</a> |
+                <a href="https://github.com/RicardoJCMarques/EasyCAM5000" target="_blank" title="Repo" draggable="false" aria-label="GitHub (opens in new tab)">GitHub</a> |
                 <a href="#support" title="Support the Project" draggable="false" aria-label="Opens Support modal">Support Development</a>
             </div>
         </div>
@@ -754,9 +804,9 @@
                 <div class="modal-notice modal-notice--info" id="welcome-firstrelease-notice">
                     <svg class="cam-icon" width="20" height="20"><use href="#icon-warning"></use></svg>
                     <div class="modal-notice-content">
-                        <strong>Initial public release.</strong>
-                        <span>While its foundations are shared with EasyTrace5000, more testing is needed. Please
-                            <a href="https://github.com/RicardoJCMarques/EasyTrace5000/issues" target="_blank" rel="noopener">report unexpected behavior</a>.
+                        <strong>Initial Stable Release.</strong>
+                        <span>While 2D foundations are shared with <a href="../easytrace5000/" target="_blank" rel="noopener">EasyTrace5000</a>, more testing of the new 3D sub-systems is needed. I'll need help testing post-processors and 4th axis setups. Please
+                            <a href="https://github.com/RicardoJCMarques/EasyCAM5000/issues" target="_blank" rel="noopener">report unexpected behavior</a>.
                         </span>
                         <p>Toolpath Optimizations were also fully reworked so double check output (<a href="https://ncviewer.com/" target="_blank" rel="noopener">ncviewer</a>).</p>
                     </div>
@@ -765,7 +815,7 @@
                 <p class="pipeline-subtitle">Select your workspace mode</p>
 
                 <div class="pipeline-selection">
-                    <a href="#quickstart" class="pipeline-card pipeline-card--active" id="pipeline-cnc" draggable="false" aria-label="Select 2D Workspace">
+                    <a href="#quickstart" class="pipeline-card pipeline-card--active" data-pipeline="cnc" id="pipeline-cnc" draggable="false" aria-label="Select 2D Workspace">
                         <div class="pipeline-icon" aria-hidden="true">
                             <svg class="cam-icon" width="48" height="48"><use href="#icon-cnc"></use></svg>
                         </div>
@@ -775,14 +825,14 @@
                         <span class="pipeline-action" aria-hidden="true">Start 2D</span>
                     </a>
 
-                    <a href="#" class="pipeline-card pipeline-card--dev" draggable="false" style="cursor: not-allowed;" aria-label="3D Workspace is in development">
+                    <a href="#quickstart" class="pipeline-card pipeline-card--dev" data-pipeline="3d" id="pipeline-3d" draggable="false" aria-label="Select 3D Workspace (experimental)">
                         <div class="pipeline-icon" aria-hidden="true">
                             <svg class="cam-icon" width="48" height="48"><use href="#icon-image"></use></svg>
                         </div>
                         <h3>3D Workspace</h3>
-                        <span class="pipeline-badge pipeline-badge--dev">Coming Soon™</span>
-                        <p class="pipeline-desc">Advanced 3D interface for relief maps, adjustable tabs, and complex toolpath previews.</p>
-                        <span class="pipeline-action" aria-hidden="true">In Development</span>
+                        <span class="pipeline-badge pipeline-badge--dev">Experimental</span>
+                        <p class="pipeline-desc">Upgraded 3D workspace for Relief Maps, Flat and Rotary, plus V-Carving.</p>
+                        <span class="pipeline-action" aria-hidden="true">Start 3D</span>
                     </a>
                 </div>
 
@@ -813,13 +863,13 @@
             </div>
             <div class="modal-footer welcome-footer">
                 <div class="welcome-footer-links">
-                    <a href="https://github.com/RicardoJCMarques/EasyTrace5000/blob/main/CHANGELOG.md" title="Version" target="_blank" draggable="false" aria-label="Changelog (opens in a new tab)">v0.9.0</a>
+                    <a href="https://github.com/RicardoJCMarques/EasyCAM5000/blob/main/CHANGELOG.md" title="Version" target="_blank" draggable="false" aria-label="Changelog (opens in a new tab)">v1.0.0</a>
                     <span class="separator" aria-hidden="true"></span>
                     <a href="doc/" target="_blank" draggable="false" aria-label="Documentation (opens in a new tab)">Documentation</a>
                     <span class="separator" aria-hidden="true"></span>
                     <a href="#help" id="welcome-help-link" draggable="false" aria-label="Opens Help modal">Help</a>
                     <span class="separator" aria-hidden="true"></span>
-                    <a href="https://github.com/RicardoJCMarques/EasyTrace5000" target="_blank" draggable="false" aria-label="GitHub Repository (opens in a new tab)">GitHub</a>
+                    <a href="https://github.com/RicardoJCMarques/EasyCAM5000" target="_blank" draggable="false" aria-label="GitHub Repository (opens in a new tab)">GitHub</a>
                     <span class="separator" aria-hidden="true"></span>
                     <a href="../LICENSE" target="_blank" draggable="false" aria-label="AGPLv3 License (opens in a new tab)">AGPLv3</a>
                 </div>
@@ -953,7 +1003,7 @@
                     <section class="help-section">
                         <h3>Workflow</h3>
                         <div class="workflow-steps">
-                            <div class="workflow-step"><span class="step-number">1</span><div class="step-content"><strong>Import SVG</strong><p>Load your design from Illustrator, Inkscape, or Affinity Designer</p></div></div>
+                            <div class="workflow-step"><span class="step-number">1</span><div class="step-content"><strong>Import Files</strong><p>Load your design from Illustrator, Inkscape, or Affinity Designer</p></div></div>
                             <div class="workflow-step"><span class="step-number">2</span><div class="step-content"><strong>Assign Operations</strong><p>Select paths and assign Profile, Pocket, Drill, or Engrave</p></div></div>
                             <div class="workflow-step"><span class="step-number">3</span><div class="step-content"><strong>Set Parameters</strong><p>Configure tool, depth, feeds, and strategy for each operation</p></div></div>
                             <div class="workflow-step"><span class="step-number">4</span><div class="step-content"><strong>Export G-code</strong><p>Generate and download machine-ready files</p></div></div>
@@ -964,6 +1014,7 @@
                         <div class="shortcut-group">
                             <h4>General</h4>
                             <div class="shortcut-list">
+                                <div class="shortcut-item"><span class="shortcut-keys"><kbd>F2</kbd></span><span class="shortcut-desc">Switch between 2D and 3D rendering</span></div>
                                 <div class="shortcut-item"><span class="shortcut-keys"><kbd>Ctrl</kbd>+<kbd>Z</kbd></span><span class="shortcut-desc">Undo</span></div>
                                 <div class="shortcut-item"><span class="shortcut-keys"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd></span><span class="shortcut-desc">Redo</span></div>
                                 <div class="shortcut-item"><span class="shortcut-keys"><kbd>Ctrl</kbd>+<kbd>A</kbd></span><span class="shortcut-desc">Select all</span></div>
@@ -1055,6 +1106,7 @@
                         <span>Est. Time: <strong id="exporter-est-time">--:--</strong></span>
                         <span>Distance: <strong id="exporter-distance">0mm</strong></span>
                     </div>
+                    <div class="preview-warnings" id="exporter-warnings" style="display: none;"></div>
                     <div class="preview-text-container">
                         <textarea id="exporter-preview-text" readonly rows="15" placeholder="G-code preview will appear here..." aria-label="G-code output preview"></textarea>
                         <button id="exporter-copy-btn" class="btn btn--icon btn--compact btn-copy-floating" title="Copy to clipboard" aria-label="Copy to clipboard">
@@ -1107,23 +1159,37 @@
     <script defer src="../geometry/geometry-arc-reconstructor.js"></script>
     <script defer src="../geometry/geometry-clipper-wrapper.js"></script>
     <script defer src="../geometry/geometry-utils.js"></script>
-    <!-- <script defer src="../geometry/geometry-utils-vcarve.js"></script> -->
-    <!-- <script defer src="../geometry/geometry-utils-heightmap.js"></script> -->
-    <!-- <script defer src="../geometry/geometry-utils-relief.js"></script> -->
+    <script defer src="../geometry/delaunator.5.0.0.min.js"></script>
+    <script defer src="../geometry/geometry-utils-vcarve.js"></script>
+    <script defer src="../geometry/geometry-utils-toolprofile.js"></script>
+    <script defer src="../geometry/geometry-utils-field.js"></script>
+    <script defer src="../geometry/geometry-utils-sections.js"></script>
+    <script defer src="../geometry/geometry-utils-fieldpaths.js"></script>
+    <script defer src="../geometry/geometry-utils-heightmap.js"></script>
+    <script defer src="../geometry/geometry-utils-cylmap.js"></script>
+    <script defer src="../geometry/geometry-utils-fieldpipeline.js"></script>
+    <script defer src="../geometry/geometry-utils-relief.js"></script>
+    <script defer src="../geometry/geometry-utils-rotary.js"></script>
     <script defer src="../geometry/geometry-offsetter.js"></script>
     <script defer src="../parsers/primitives.js"></script>
     <script defer src="../parsers/parser-core.js"></script>
     <script defer src="../parsers/parser-svg.js"></script>
-    <!-- <script defer src="../parsers/parser-stl.js"></script> -->
+    <script defer src="../parsers/parser-stl.js"></script>
     <script defer src="../parsers/parser-plotter.js"></script>
     <script defer src="../renderer/renderer-core.js"></script>
     <script defer src="../renderer/renderer-primitives.js"></script>
     <script defer src="../renderer/renderer-overlay.js"></script>
     <script defer src="../renderer/renderer-layer.js"></script>
+    <!-- The 3D preview stack (renderer3d/*) is ESM and is NOT a bundle member:
+         CamController.open3DPreview dynamic-imports renderer3d-core.js on
+         first use, and the specifier resolves against THIS document, not
+         against cam-controller.js. three/* resolves through the importmap
+         above. Don't add them as <script src> or build.js will concatenate
+         ESM into the classic bundle. -->
     <script defer src="../ui/tool-library.js"></script>
     <script defer src="../ui/ui-tooltip.js"></script>
     <script defer src="../ui/ui-parameter-manager.js"></script>
-    <script defer src="../ui/ui-status-manager.js"></script>
+    <script defer src="../ui/ui-state-manager.js"></script>
     <script defer src="../ui/ui-machine-settings.js"></script>
     <script defer src="../ui/ui-controls.js"></script>
     <script defer src="../ui/ui-base-app.js"></script>
@@ -1133,17 +1199,21 @@
     <script defer src="../toolpath/toolpath-optimizer.js"></script>
     <script defer src="../toolpath/toolpath-machine-processor.js"></script>
     <script defer src="../toolpath/toolpath-tab-planner.js"></script>
+    <script defer src="../toolpath/toolpath-3d-translator.js"></script>
     <script defer src="../toolpath/toolpath-geometry-translator.js"></script>
     <script defer src="../export/processors/base-processor.js"></script>
     <script defer src="../operations/base-operation-handler.js"></script>
+    <script defer src="../operations/field-operation-handler.js"></script>
     <script defer src="../operations/offset-operation-handler.js"></script>
     <script defer src="../operations/drill-operation-handler.js"></script>
-    <!-- <script defer src="../operations/shape-vcarve-handler.js"></script> -->
-    <!-- <script defer src="../operations/shape-relief-handler.js"></script> -->
+    <script defer src="../operations/shape-vcarve-handler.js"></script>
+    <script defer src="../operations/shape-relief-handler.js"></script>
+    <script defer src="../operations/shape-rotary-handler.js"></script>
+    <script defer src="../operations/shape-rotary-indexed-handler.js"></script>
     <script defer src="../operations/shape-profile-handler.js"></script>
     <script defer src="../operations/shape-pocket-handler.js"></script>
     <script defer src="../operations/shape-drill-handler.js"></script>
-    <!-- <script defer src="../operations/shape-engrave-handler.js"></script> -->
+    <script defer src="../operations/shape-engrave-handler.js"></script>
     <!-- <script defer src="../operations/shape-pattern-handler.js"></script> -->
     <script defer src="../export/processors/grbl-processor.js"></script>
     <script defer src="../export/processors/makera-processor.js"></script>
@@ -1153,9 +1223,11 @@
     <script defer src="../export/processors/marlin-processor.js"></script>
     <script defer src="../export/processors/mach3-processor.js"></script>
     <script defer src="../export/processors/linuxcnc-processor.js"></script>
+    <script defer src="../export/processors/fanuc-processor.js"></script>
     <script defer src="../export/gcode-generator.js"></script>
     <script defer src="../export/graphics-exporter.js"></script>
     <script defer src="../utils/transform-math.js"></script>
+    <script defer src="../utils/transform-math-3d.js"></script>
     <script defer src="../utils/coordinate-system.js"></script>
     <script defer src="../utils/canvas-exporter.js"></script>
     <script defer src="../cam-controller.js"></script>
@@ -1167,7 +1239,6 @@
     <script defer src="../input/command-manager.js"></script>
     <script defer src="../input/tools-interactive.js"></script>
     <script defer src="../input/keyboard-manager.js"></script>
-
     <script defer src="ui-nav-scene-panel.js"></script>
     <script defer src="ui-shape-buckets-panel.js"></script>
     <script defer src="ui-shape-operation-panel.js"></script>

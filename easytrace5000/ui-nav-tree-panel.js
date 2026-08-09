@@ -1,11 +1,11 @@
 /*!
  * @file        easytrace5000/ui-nav-tree-panel.js
- * @description Operations tree navigation panel — EasyTrace5000 only.
+ * @description EasyTrace5000 Operations tree navigation panel.
  *              Click handlers emit events via on()/emit() so cam-ui.js
  *              decides what mutations to run.
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
- * @see         {@link https://github.com/RicardoJCMarques/EasyTrace5000}
+ * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
  *
  * SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
  * SPDX-License-Identifier: AGPL-3.0-or-later
@@ -209,7 +209,7 @@
                 }
             }
 
-            // Preview node — CNC only. In laser mode, offsets are the exportable result.
+            // Preview node - CNC only. In laser mode, offsets are the exportable result.
             // The preview.ready flag still exists internally for Export Manager compatibility.
             if (!isLaser && operation.preview && operation.preview.primitives) {
                 this.addGeometryNode(fileId, 'preview', 'Preview',
@@ -348,7 +348,7 @@
                 const operation = fileData.operation;
 
                 if (operation.layerVisibility && layerName && operation.layerVisibility[layerName] !== undefined) {
-                    // User has explicitly toggled this layer before — respect their choice
+                    // User has explicitly toggled this layer before - respect their choice
                     isVisible = operation.layerVisibility[layerName];
                 } else if (layerName && this.ui.renderer) {
                     if (geometryType.startsWith('offset') || geometryType === 'offsets_combined') {
@@ -438,7 +438,7 @@
             let stage;
             if (isLaser) {
                 // Laser: generated geometry nodes exist only after generation succeeded.
-                // They are the exportable result — always show export summary.
+                // They are the exportable result - always show export summary.
                 stage = 'export_summary';
             } else {
                 // CNC: 3-stage mapping

@@ -3,7 +3,7 @@
  * @description Excellon parsing module
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
- * @see         {@link https://github.com/RicardoJCMarques/EasyTrace5000}
+ * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
  *
  * SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
  * SPDX-License-Identifier: AGPL-3.0-or-later
@@ -173,7 +173,17 @@
                 if (line.includes('LZ')) this.options.zeroSuppression = 'trailing';
                 else if (line.includes('TZ')) this.options.zeroSuppression = 'leading';
 
-                if (!this.formatExplicitlySet) {
+                // Catch explicit format definitions like "000.000"
+                const formatMatch = line.match(/(0+)\.(0+)/);
+                if (formatMatch) {
+                    this.options.format = { 
+                        integer: formatMatch[1].length, 
+                        decimal: formatMatch[2].length 
+                    };
+                    this.drillData.format = this.options.format;
+                    this.formatExplicitlySet = true;
+                    this.debug(`Explicit format extracted: ${this.options.format.integer}.${this.options.format.decimal}`);
+                } else if (!this.formatExplicitlySet) {
                     this.options.format = { integer: 3, decimal: 3 };
                     this.drillData.format = this.options.format;
                     const warnMsg = "No explicit format found. Defaulting to 3.3 (Metric). If holes/slots are misaligned, the file might use a different format.";
@@ -554,7 +564,7 @@
             const height = range.maxY - range.minY;
 
             if (width > 1000 || height > 1000) {
-                this.warnings.push(`Large board: ${width.toFixed(1)}×${height.toFixed(1)}mm`);
+                this.warnings.push(`Large board: ${width.toFixed(1)}x${height.toFixed(1)}mm`);
             }
         }
 

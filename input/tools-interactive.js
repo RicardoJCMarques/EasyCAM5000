@@ -1,7 +1,7 @@
 /*!
  * @file        input/tools-interactive.js
  * @description EasyShape-specific tools. SelectMoveTool is the default tool
- *              for EasyShape — pick / shift-toggle / ctrl-add, drag-move,
+ *              for EasyShape - pick / shift-toggle / ctrl-add, drag-move,
  *              marquee, wheel zoom from idle.
  *
  *              PanZoomTool used to live here too; it now lives in shared
@@ -11,7 +11,7 @@
  *
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
- * @see         {@link https://github.com/RicardoJCMarques/EasyTrace5000}
+ * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
  *
  * SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
  * SPDX-License-Identifier: AGPL-3.0-or-later
@@ -20,8 +20,8 @@
 (function() {
     'use strict';
 
-    const DRAG_THRESHOLD_MOUSE_PX = 3;   // CSS px — mouse is precise
-    const DRAG_THRESHOLD_TOUCH_PX = 8;   // CSS px — fingers jitter
+    const DRAG_THRESHOLD_MOUSE_PX = 3;   // CSS px - mouse is precise
+    const DRAG_THRESHOLD_TOUCH_PX = 8;   // CSS px - fingers jitter
     const WHEEL_ZOOM_SPEED = 0.002;
 
     function unprojectToWorld(ctx, canvasX, canvasY) {
@@ -51,7 +51,7 @@
             this.lastWorld = null;
             this.marqueeRect = null;
 
-            // Drag accounting — captured at pointerdown so mid-drag tree
+            // Drag accounting - captured at pointerdown so mid-drag tree
             // selection changes can't corrupt the recorded delta.
             this.dragShapeIds = null;
         }
@@ -64,7 +64,7 @@
             const selectMode = data.altKey ? 'shape' : 'group';
             let hit = ctx.scene.pick(world, { tolerance: tol, selectMode });
 
-            // Skip hidden hits — they're not on canvas, so they shouldn't
+            // Skip hidden hits - they're not on canvas, so they shouldn't
             // be pickable. Locked items ARE still pickable (user needs to
             // select them to unlock); drag is filtered separately.
             if (hit && ctx.isNodeVisible && !ctx.isNodeVisible(hit.id)) {
@@ -144,7 +144,7 @@
 
                 case 'drag-move': {
                     // Total delta from gesture start. The shapes have already
-                    // moved live during onPointerMove — we just record.
+                    // moved live during onPointerMove - we just record.
                     const totalDx = this.lastWorld.x - this.startWorld.x;
                     const totalDy = this.lastWorld.y - this.startWorld.y;
                     if ((totalDx !== 0 || totalDy !== 0) && this.dragShapeIds && this.dragShapeIds.length > 0) {
@@ -208,7 +208,7 @@
         }
 
         /**
-         * Overlay payload — JUST the marquee. Selection visuals (path glow
+         * Overlay payload - JUST the marquee. Selection visuals (path glow
          * and aggregate bbox) are drawn by the controller because they need
          * scene access; keeping them in the tool would force the tool to
          * import scene logic.

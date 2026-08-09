@@ -3,7 +3,7 @@
  * @description Drill strategy planning, SVG classification, and shape recovery
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
- * @see         {@link https://github.com/RicardoJCMarques/EasyTrace5000}
+ * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
  *
  * SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
  * SPDX-License-Identifier: AGPL-3.0-or-later
@@ -21,7 +21,7 @@
         /**
          * SVG Drill Classification
          * Called from postParsePrimitives after operation.primitives is set.
-         * For Excellon files, the plotter already assigns roles — no action needed.
+         * For Excellon files, the plotter already assigns roles - no action needed.
          */
 
         postParsePrimitives(operation) {
@@ -128,7 +128,7 @@
                     } else {
                         rejected.push({ type: 'rectangle', id: prim.id, width: w, height: h });
                         warnings.push({
-                            message: `Non-square rectangle (${w.toFixed(3)}×${h.toFixed(3)}mm) rejected — use circles or obrounds for drill holes`,
+                            message: `Non-square rectangle (${w.toFixed(3)}x${h.toFixed(3)}mm) rejected - use circles or obrounds for drill holes`,
                             severity: 'warning'
                         });
                     }
@@ -136,7 +136,7 @@
                 } else {
                     rejected.push({ type: prim.type, id: prim.id });
                     warnings.push({
-                        message: `${prim.type} shape rejected — drill operation only supports circles and obrounds`,
+                        message: `${prim.type} shape rejected - drill operation only supports circles and obrounds`,
                         severity: 'warning'
                     });
                 }
@@ -150,7 +150,12 @@
                 const prim = operation.primitives.find(p => p.id === entry.id);
                 if (!prim || prim.type !== 'path') continue;
 
-                const circleMatch = this.detectCircleFromPath(prim);
+                const ring = prim.contours?.length === 1
+                    ? GeometryUtils.analyzeCircleRing(prim.contours[0].points)
+                    : null;
+                const circleMatch = ring?.isFullCircle
+                    ? { center: ring.center, radius: ring.radius, diameter: ring.radius * 2 }
+                    : this.detectCircleFromPath(prim);
                 if (circleMatch) {
                     const qDiam = quantize(circleMatch.diameter);
                     recoverableCircles.push({
@@ -204,6 +209,16 @@
             this.debug(`Classified ${accepted.length} accepted, ${rejected.length} rejected from ${accepted.length + rejected.length} primitives`);
         }
 
+        /**
+         * DEPRECATED - matches the SVG two-semicircle idiom only (exactly two
+         * arcSegments summing to 2*PI). Superseded by GeometryUtils.analyzeCircleRing,
+         * which decides on registry provenance and works on every circle shape the
+         * pipeline produces.
+         *
+         * Kept for the drill-recovery prompt while EasyTrace SVG imports are still
+         * being surveyed. REMOVE once promoteDrillRecoverable has run a full board
+         * set with no circle candidates that analyzeCircleRing missed.
+         */
         detectCircleFromPath(primitive) {
             if (primitive.type !== 'path' || !primitive.contours || primitive.contours.length !== 1) return null;
 
@@ -376,18 +391,13 @@
         // ORCHESTRATION
         async generateLaserFills(operation, settings) {
             this.debug(`=== LASER DRILL GENERATION ===`);
-            await this.core.ensureProcessorReady();
-
-            if (!this.core.geometryOffsetter) {
-                throw new Error('Geometry processors not initialized');
-            }
 
             // Calculate a simple internal offset of half the laser spot size
             const offsetDist = -(settings.toolDiameter / 2);
             const processedGeometry = [];
 
             for (const prim of operation.primitives) {
-                // Safeguard: Ensure we only offset actual drill holes/slots
+                // Safeguard: Offset only actual drill holes/slots
                 if (prim.properties?.role !== 'drill_hole' && prim.properties?.role !== 'drill_slot') {
                     continue;
                 }
@@ -430,8 +440,7 @@
         }
 
         async orchestrateGeneration(operation, params, core, options = {}) {
-            // Wipe all previous generation state
-            core.resetOperationState(operation.id);
+            const token = this.beginRun(operation, options, core);
 
             // Compile parameters
             const opParams = core.compileOperationParams(operation, params);
@@ -453,6 +462,10 @@
 
             await this.generateGeometry(operation, { ...params, ...opParams });
 
+            if (this.isStale(operation, token)) {
+                return { success: false, message: 'Generation superseded by a newer request', status: 'warning' };
+            }
+
             if (operation.warnings?.length > 0) {
                 return { success: true, message: `Generated with ${operation.warnings.length} warning(s)`, status: 'warning', refreshPanel: true };
             }
@@ -464,7 +477,7 @@
 
         /**
          * Separates a drill operation's preview into milled paths and peck groups by diameter.
-         * Works regardless of millHoles setting — a milled operation still generates pecks
+         * Works regardless of millHoles setting - a milled operation still generates pecks
          * for holes too small to mill.
          */
         static groupPrimitivesByDiameter(operation) {
@@ -635,7 +648,21 @@
                 return [];
             }
 
-            for (let actionIdx = 0; actionIdx < plan.length; actionIdx++) {
+            const onProgress = operation._onProgress || null;
+            const total = plan.length;
+
+            for (let actionIdx = 0; actionIdx < total; actionIdx++) {
+                // Chunked: the loop is synchronous, so a tick without a
+                // macrotask yield never reaches the rAF-coalesced overlay.
+                if (onProgress && actionIdx > 0 && actionIdx % 128 === 0) {
+                    onProgress({ frac: actionIdx / total, label: `Drill ${actionIdx}/${total} holes` });
+                    await new Promise(resolve => {
+                        const ch = new MessageChannel();
+                        ch.port1.onmessage = () => resolve();
+                        ch.port2.postMessage(null);
+                    });
+                }
+
                 const action = plan[actionIdx];
 
                 if (action.type === 'peck') {
@@ -657,7 +684,7 @@
                 } else if (action.type === 'mill') {
                     const source = action.primitiveToOffset;
                     const toolRadius = toolDiameter / 2;
-                    const minFeatureSize = 0.01; // Slightly arbitrary safeguard REVIEW - can't remember what for though? force plunge entry instead of helix?
+                    const minFeatureSize = 0.01; // Slightly arbitrary safeguard REVIEW - can't remember what for though? force plunge entry instead of milling?
 
                     if (source.type === 'circle') {
                         const holeRadius = source.radius;

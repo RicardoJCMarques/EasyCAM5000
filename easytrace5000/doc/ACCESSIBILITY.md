@@ -211,7 +211,7 @@ If you encounter accessibility barriers, please report them via **GitHub Issues*
 
 There's a dedicated template available for these reports to ensure the necessary technical details are included.
 
-1. Go to the [New Issue page](https://github.com/RicardoJCMarques/EasyTrace5000/issues/new/choose)
+1. Go to the [New Issue page](https://github.com/RicardoJCMarques/EasyCAM5000/issues/new/choose)
 2. Select the **Accessibility Report** template
 3. Fill in the required details (Browser, OS, Assistive Technology)
 

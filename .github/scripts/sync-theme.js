@@ -3,7 +3,7 @@
  * @description Syncs dark.json with theme.css - must run manually on .json changes
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
- * @see         {@link https://github.com/RicardoJCMarques/EasyTrace5000}
+ * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
  *
  * SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
  * SPDX-License-Identifier: AGPL-3.0-or-later
@@ -57,7 +57,8 @@ const mappings = [
     { key: 'accent', prefix: 'color-accent' },
     { key: 'semantic', prefix: 'color' },
     { key: 'operations', prefix: 'color-operation' },
-    { key: 'canvas', prefix: 'color-canvas' },
+    { key: 'render2d', prefix: 'color-render2d' },
+    { key: 'render3d', prefix: 'color-render3d' },
     { key: 'debug', prefix: 'color-debug' },
     { key: 'geometry', prefix: 'color-geometry' },
     { key: 'primitives', prefix: 'color-primitive' },
@@ -77,6 +78,10 @@ mappings.forEach(map => {
 
 // Read and Replace CSS File content
 let cssContent = fs.readFileSync(CSS_PATH, 'utf8');
+
+// This rewrites the FIRST :root body in theme.css wholesale. Nothing
+// hand-written may live there - app-level maps belong in the per-app
+// layout stylesheets.
 const rootBlockRegex = /(:root\s*\{)([\s\S]*?)(\})/i;
 const newRootBody = cssLines.join('\n') + '\n';
 

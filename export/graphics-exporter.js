@@ -3,7 +3,7 @@
  * @description Graphics processor
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
- * @see         {@link https://github.com/RicardoJCMarques/EasyTrace5000}
+ * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
  *
  * SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
  * SPDX-License-Identifier: AGPL-3.0-or-later
@@ -14,21 +14,21 @@
 
     const C = window.CAMConfig.constants;
     const D = window.CAMConfig.defaults;
+    const PRECISION = C.precision.coordinate;
     const debugState = D.debug;
 
     class GraphicsExporter {
         constructor() {
             this.DECIMAL = 4;
-            this.HAIRLINE_STROKE = 0.01; // mm — standard svg hairline
+            this.HAIRLINE_STROKE = 0.01; // mm - standard svg hairline
             this.MAX_CANVAS_DIM = 16000;
-            this.FUSION_TOLERANCE = 0.001;  // REVIEW - Check if this should just be coordinate epsilon?
         }
 
         async generate(layers, options) {
             // Fuse colinear hatch segments across operation layers before export
             this.fuseColinearSegments(layers);
 
-            // Build user-transform matrix (rotation, mirror, origin — no bounds shift or Y-flip)
+            // Build user-transform matrix (rotation, mirror, origin - no bounds shift or Y-flip)
             const userMat = this.buildUserTransformMatrix(options.transforms);
 
             // Apply userMat to all geometry to find the TRUE output bounds.
@@ -331,7 +331,7 @@
                     // Detect if this bucket contains hatch lines
                     const hasHatch = primitives.some(p => p.properties?.isHatch);
 
-                    // Skip thermal sorting and reversing for hatch buckets — preserves zig-zag scan order
+                    // Skip thermal sorting and reversing for hatch buckets - preserves zig-zag scan order
                     if (renderCtx.heatManagement !== 'off' && !hasHatch) {
                         primitives = this.applyHeatManagementSort(primitives);
                     }
@@ -798,7 +798,6 @@
          * Only operates on hatch passes. Modifies passes in-place.
          */
         fuseColinearSegments(layers) {
-            const tol = this.FUSION_TOLERANCE;
             const scanLines = new Map();
 
             for (let li = 0; li < layers.length; li++) {
@@ -823,7 +822,7 @@
                         const p0 = { x: pts[0].x * cosA - pts[0].y * sinA, y: pts[0].x * sinA + pts[0].y * cosA };
                         const p1 = { x: pts[1].x * cosA - pts[1].y * sinA, y: pts[1].x * sinA + pts[1].y * cosA };
 
-                        const perpDist = Math.round(p0.y / tol) * tol;
+                        const perpDist = Math.round(p0.y / PRECISION) * PRECISION;
                         const key = `${li}_${pi}_${angle}_${perpDist.toFixed(4)}`;
 
                         const xMin = Math.min(p0.x, p1.x);
@@ -853,7 +852,7 @@
 
                 for (let i = 1; i < segments.length; i++) {
                     const seg = segments[i];
-                    if (seg.xMin <= current.xMax + tol) {
+                    if (seg.xMin <= current.xMax + PRECISION) {
                         current.xMax = Math.max(current.xMax, seg.xMax);
                         consumed.push(seg);
                     } else {
@@ -929,7 +928,7 @@
                         const pB = b.contours[0].points[0];
                         const perpA = pA.x * sinA + pA.y * cosA;
                         const perpB = pB.x * sinA + pB.y * cosA;
-                        if (Math.abs(perpA - perpB) > this.FUSION_TOLERANCE) {
+                        if (Math.abs(perpA - perpB) > PRECISION) {
                             return perpA - perpB;
                         }
                         const parA = pA.x * cosA - pA.y * sinA;
@@ -948,7 +947,7 @@
                         const perp = pts ? pts[0].x * sinA + pts[0].y * cosA : null;
 
                         const isNewScanline = prim === null || currentPerp === null || 
-                            Math.abs(perp - currentPerp) > this.FUSION_TOLERANCE;
+                            Math.abs(perp - currentPerp) > PRECISION;
 
                         if (isNewScanline) {
                             // Process previous scanline group

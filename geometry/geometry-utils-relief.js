@@ -1,388 +1,288 @@
 /*!
  * @file        geometry/geometry-utils-relief.js
- * @description Relief / 2.5D-mold toolpath generator. Converts a
- *              Heightmap into 3D path primitives (per-point Z) in the
- *              SAME output format as the V-Carve generator:
- *              PathPrimitives with properties.is3DContour = true.
- *              Everything downstream (translate3DContour, optimizer
- *              guards, MachineProcessor 3D macro, post-processors)
- *              is shared with V-Carve and needs no relief-specific code.
+ * @description Relief / 2.5D-mold toolpath generator - the PLANAR
+ *              adapter over FieldPipeline. Converts a Heightmap into 3D
+ *              path primitives (per-point Z) with
+ *              properties.is3DContour = true.
  *
- *              Stages:
- *                1. Depth mapping   — model height → cut Z (invertible)
- *                2. Compensation    — ball-nose / flat tool-tip surface
- *                                     (gouge protection)
- *                3. Roughing        — constant-stepdown layers, clamped
- *                                     surface-follow, span trimming
- *                4. Finishing       — serpentine raster (+optional 90°
- *                                     cross pass)
- *                5. Simplification  — 3D Douglas-Peucker per scan segment
- *                                     (the pipeline's 2D simplifier is
- *                                     gated off for 3D plans, so output
- *                                     density is controlled HERE)
+ *              This file owns only what is planar-specific: depth
+ *              resolution, which boundary policy applies, the finishing
+ *              strategy set, and the emitted primitive properties.
+ *              Window, end zones, target composition, compensation and
+ *              rastering live in geometry-utils-fieldpipeline.js and are
+ *              shared with the rotary generator.
+ *
+ *              Two configurations:
+ *                plain relief  - isotropic silhouette boundary
+ *                indexed 3+1   - o.axial present: axial workholding
+ *                                boundary, per-face, sharing one Z datum
+ *                                (o.surfaceRefZ = blank face plane)
+ *
+ *              Depends on: geometry-utils-{fieldpipeline,field,fieldpaths,
+ *              heightmap,toolprofile}.js.
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
- * @see         {@link https://github.com/RicardoJCMarques/EasyTrace5000}
+ * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
  *
  * SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-// Not Wired
 (function() {
     'use strict';
 
-    const D = window.CAMConfig.defaults;
-    const debugState = D.debug;
-    const Z_EPS = 1e-4; // mm — "removes material" threshold for roughing spans
+    const ROOT = (typeof self !== 'undefined') ? self : window;
+    const debugState = ROOT.CAMConfig?.defaults?.debug || { enabled: false };
 
     const ReliefGenerator = {
 
         /**
-         * Main entry.
-         *
          * @param {HeightmapPrimitive|Heightmap} source
          * @param {Object} o - options
-         * @param {number}  o.toolDiameter              - mm
-         * @param {string} [o.toolShape='ball']         - 'ball' | 'flat'
-         * @param {number}  o.reliefDepth               - total carve depth (mm, positive)
-         * @param {number} [o.startDepth=0]             - surface offset below Z0 (mm, positive)
-         * @param {boolean}[o.invert=false]             - true → mold (high model = deep cut)
-         * @param {boolean}[o.roughing=true]            - emit roughing layers
-         * @param {number} [o.roughStepdown=1.5]        - mm per roughing layer
-         * @param {number} [o.roughStepover]            - mm between roughing scanlines
-         * @param {number} [o.roughStock=0.3]           - mm left for finishing
-         * @param {number} [o.finishStepover]           - mm between finishing scanlines
-         * @param {boolean}[o.crossFinish=false]        - add 90° second finishing pass
-         * @param {string} [o.rasterAxis='x']           - 'x' (rows) | 'y' (columns)
-         * @param {number} [o.simplifyTolerance=0.01]   - 3D DP tolerance (mm). 0 = off
-         * @param {number} [o.minSegmentLength=0.2]     - drop roughing slivers shorter than this (mm)
-         * @returns {Array<PathPrimitive>} 3D path primitives (is3DContour)
+         * @param {number}  o.toolDiameter               - mm
+         * @param {string} [o.toolShape='ball']          - 'ball' | 'flat' | 'bull'
+         * @param {number} [o.cornerRadius=0]            - mm (bull only)
+         * @param {Object} [o.holder]                    - plain-data holder
+         *        envelope; wrapped into the profile here so worker and
+         *        sync-fallback paths behave identically.
+         * @param {number} [o.totalDepth]                - carve depth (mm,
+         *        positive). 0/absent = auto: the full model height.
+         * @param {number} [o.startDepth=0]              - surface offset (mm)
+         * @param {boolean}[o.invert=false]              - mold mode
+         * @param {string} [o.depthMapping='scaled']     - 'scaled' | 'literal'
+         * // REVIEW - Why have a depthMapping parameter? It seems like everything is literal anyway?
+         *             And it should be literal? Only gray-scale could use this somehow but it's not implemented yet?
+         * @param {number} [o.surfaceRefZ]               - [INDEXED] shared Z
+         *        datum: depth 0 is the blank FACE PLANE, not this view's
+         *        model top. Required whenever o.axial is set.
+         * @param {Object} [o.boundary]                  - { mode, mm }:
+         *        'stop' (default) | 'rollover' | 'extend'. Superseded by
+         *        o.axial.
+         * @param {boolean}[o.maskUncovered=false]       - honor the coverage
+         *        mask under boundary mode 'stop'.
+         * @param {Object} [o.axial]                     - [INDEXED] axial
+         *        limits: { axis:'x'|'y', ends:{chuck,tail} }, each end being
+         *        resolveWorkholding's { mode, mm, material, reach }.
+         *        chuck = LOW index, tail = HIGH.
+         * @param {number} [o.coreRadius=0]              - [INDEXED] drive-core
+         *        cylinder radius about the rotation axis.
+         * @param {number} [o.axialOvercut=0]            - [INDEXED] mm the tip
+         *        may pass the rotation axis. RESOLVER-OWNED; consumed verbatim.
+         * @param {number} [o.axialFacetHalfWidth=0]     - [INDEXED] half-width
+         *        of the facet this setup clears. 0 = silhouette only.
+         * @param {Object} [o.tuning]                    - required with o.axial
+         * @param {boolean}[o.roughing=true], [o.finishing=true]
+         * @param {number} [o.roughStepdown=1.5], [o.roughStepover], [o.roughStock=0.3]
+         * @param {number} [o.finishStepover]
+         * @param {boolean}[o.crossFinish=false]         - 90° second finish pass
+         * @param {string} [o.rasterAxis='x']            - 'x' (rows) | 'y' (columns)
+         * @param {number} [o.simplifyTolerance=0.01], [o.minSegmentLength=0.2]
+         * @param {boolean}[o.skipFloor=false]           - floor-flat handoff
+         * @param {number} [o.compLattice=0]             - 0 = auto
+         * @returns {Array} 3D path primitives (is3DContour)
          */
         generateReliefPaths(source, o) {
             const hm = source.heightmap || source;
             const t0 = performance.now();
 
-            const toolRadius = (o.toolDiameter || 3) / 2;
-            const toolShape = o.toolShape || 'ball';
-            const reliefDepth = Math.abs(o.reliefDepth || 3);
+            const FP = ROOT.FieldPaths;
+            const FPL = ROOT.FieldPipeline;
+
+            const toolDiameter = o.toolDiameter || 3;
+            // 0/absent = auto: carve the full model height. Resolved here,
+            // not in the handler, because it depends on the sliced field.
+            const reliefDepth = (o.totalDepth > 0) ? Math.abs(o.totalDepth) : hm.maxH;
             const startDepth = Math.max(0, o.startDepth || 0);
-            const simplifyTol = o.simplifyTolerance ?? 0.01;
-            const minSegLen = o.minSegmentLength ?? 0.2;
+            // Deepest legal tip Z anywhere in this operation.
+            const floorZ = -(startDepth + reliefDepth);
+
             const axis = o.rasterAxis === 'y' ? 'y' : 'x';
+            const simplifyTol = o.simplifyTolerance ?? 0.01;
+            const skipFloor = o.skipFloor === true;
+            const ax = o.axial || null;
 
-            // Stage 1: depth mapping
-            // cut[i] ∈ [-(startDepth+reliefDepth), -startDepth]
-            const cut = this.mapDepths(hm, reliefDepth, startDepth, !!o.invert);
+            const { profile, cutR } = FPL.makeProfile({
+                toolShape: o.toolShape || 'ball',
+                toolDiameter,
+                cornerRadius: o.cornerRadius || 0,
+                holder: o.holder
+            });
 
-            // Stage 2: tool-tip compensation
-            const comp = this.compensate(cut, hm.cols, hm.rows, hm.cellSize, toolRadius, toolShape);
-            this.debug(`Compensation done (${toolShape}, r=${toolRadius}mm)`);
+            const space = ROOT.FieldSpace.planar(hm, {
+                axialAxis: ax ? ax.axis : 'x',
+                surfaceRefZ: o.surfaceRefZ,
+                reliefDepth, startDepth,
+                invert: !!o.invert,
+                depthMapping: o.depthMapping || 'scaled'
+            });
 
-            const primitives = [];
+            const policy = ax
+                ? this.buildAxialPolicy(o, hm, cutR)
+                : this.buildIsotropicPolicy(o);
 
-            // Stage 3: roughing
-            if (o.roughing !== false && reliefDepth > Z_EPS) {
-                const layers = this.compensate(startDepth, reliefDepth, o.roughStepdown || 1.5);
-                const stepover = o.roughStepover || toolRadius; // 50% of diameter
-                let chainCount = 0;
-                for (let li = 0; li < layers.length; li++) {
-                    const chains = this.rasterRoughLayer(
-                        comp, hm, axis, stepover,
-                        layers[li],
-                        li === 0 ? -startDepth : layers[li - 1],
-                        o.roughStock ?? 0.3,
-                        minSegLen
-                    );
-                    for (const chain of chains) {
-                        const pts = simplifyTol > 0 ? this.simplify3D(chain, simplifyTol) : chain;
-                        if (pts.length >= 2) {
-                            primitives.push(this.toPrimitive(pts, 'roughing'));
-                            chainCount++;
+            // A rollover lip is allowed to land slightly below the relief
+            // floor - that separation groove is the point of the mode.
+            const boundaryLip = (!ax && hm.mask && policy.mode === 'rollover')
+                ? Math.max(0, o.boundary?.mm || 0) : 0;
+
+            const finishStepover = o.finishStepover || toolDiameter * 0.1;
+            const passes = [axis];
+            if (o.crossFinish) passes.push(axis === 'x' ? 'y' : 'x');
+
+            const res = FPL.generate({
+                space, profile, cutR, policy,
+                lattice: o.compLattice | 0,
+                simplifyTolerance: simplifyTol,
+                minSegmentLength: o.minSegmentLength ?? 0.2,
+
+                rough: {
+                    enabled: o.roughing !== false && reliefDepth > FP.VALUE_EPS,
+                    startVal: -startDepth,
+                    stepdown: o.roughStepdown || 1.5,
+                    stepover: o.roughStepover || toolDiameter / 2,
+                    stock: o.roughStock ?? 0.3,
+                    axis,
+                    skipFloor,
+                    floorVal: floorZ,
+                    layersEndFallback: floorZ - boundaryLip
+                },
+
+                finish: {
+                    enabled: o.finishing !== false,
+                    strategies: passes.map(fax => ({
+                        label: `raster ${fax}`,
+                        run: (view, ctx) => FP.rasterFinish(view, {
+                            axis: fax,
+                            stepover: finishStepover,
+                            simplifyTolerance: simplifyTol,
+                            skipFloor,
+                            floorVal: floorZ,
+                            onProgress: ctx.onProgress,
+                            // Partial coverage breaks the continuous
+                            // single-chain assumption - fall back to
+                            // per-line chains, which the 3D macro hop-links.
+                            splitLines: !!(ctx.finishMask || ctx.roughMask) && !skipFloor
+                        })
+                    }))
+                },
+
+                emitProps: (phase, layerIndex) => ({
+                    isRelief: true,
+                    role: 'relief_path',
+                    machiningPhase: phase,          // 'roughing' | 'finishing'
+                    // Raster emission is serpentine: the emission sequence
+                    // IS the near-optimal route.
+                    preserveOrder: true,
+                    // Roughing layers must keep top-to-bottom order through
+                    // the optimizer; a per-layer group key does that.
+                    // Finishing gets no index, so its raster stays one group.
+                    ...(layerIndex != null ? { roughLayerIndex: layerIndex } : {})
+                }),
+
+                onProgress: o.onProgress || null,
+                // null when off: the pipeline gates its minima scans on
+                // o.debug, so disabled runs skip them entirely.
+                debug: debugState.enabled ? (m) => this.debug(m) : null
+            });
+
+            for (const w of res.warnings) {
+                (hm.meta.warnings || (hm.meta.warnings = [])).push(w);
+            }
+
+            if (debugState.enabled) {
+                let zMin = Infinity, zMax = -Infinity;
+                for (const p of res.primitives) {
+                    if (p.positions) {
+                        const a = p.positions;
+                        for (let i = 2; i < a.length; i += 3) {
+                            if (a[i] < zMin) zMin = a[i];
+                            if (a[i] > zMax) zMax = a[i];
+                        }
+                    } else for (const c of (p.contours || [])) {
+                        for (const pt of (c.points || [])) {
+                            const z = pt.z ?? 0;
+                            if (z < zMin) zMin = z;
+                            if (z > zMax) zMax = z;
                         }
                     }
                 }
-                this.debug(`Roughing: ${layers.length} layer(s) → ${chainCount} chain(s)`);
+                const refZ = o.surfaceRefZ || 0;
+                this.debug(`Emitted Z [machineZ]: ` +
+                    `${Number.isFinite(zMin) ? (zMin + refZ).toFixed(3) : 'n/a'}` +
+                    ` .. ${Number.isFinite(zMax) ? (zMax + refZ).toFixed(3) : 'n/a'}`);
             }
-
-            // Stage 4: finishing
-            const finishStepover = o.finishStepover || toolRadius * 0.2; // 10% of diameter
-            const finishChain = this.rasterFinish(comp, hm, axis, finishStepover, simplifyTol);
-            if (finishChain.length >= 2) primitives.push(this.toPrimitive(finishChain, 'finishing'));
-
-            if (o.crossFinish) {
-                const crossAxis = axis === 'x' ? 'y' : 'x';
-                const crossChain = this.rasterFinish(comp, hm, crossAxis, finishStepover, simplifyTol);
-                if (crossChain.length >= 2) primitives.push(this.toPrimitive(crossChain, 'finishing'));
-            }
-
-            this.debug(`Relief generation complete: ${primitives.length} primitive(s) in ` +
-                `${(performance.now() - t0).toFixed(0)}ms`);
-            return primitives;
-        },
-
-        // ════════════════════════════════════════════════════════
-        // Stage 1 — model heights → cut depths
-        // ════════════════════════════════════════════════════════
-        mapDepths(hm, reliefDepth, startDepth, invert) {
-            const n = hm.cols * hm.rows;
-            const cut = new Float32Array(n);
-            const maxH = hm.maxH > 1e-9 ? hm.maxH : 1;
-            const src = hm.data;
-            for (let i = 0; i < n; i++) {
-                let hNorm = src[i] / maxH;           // 0..1
-                if (invert) hNorm = 1 - hNorm;       // mold mode
-                // highest model points → -startDepth, lowest → -(startDepth+reliefDepth)
-                cut[i] = -(startDepth + reliefDepth * (1 - hNorm));
-            }
-            return cut;
-        },
-
-        // ════════════════════════════════════════════════════════
-        // Stage 2 — tool-tip surface (gouge protection)
-        //
-        // Ball-nose, radius r, tip at (x, y, zt), sphere center at zt + r.
-        // Sphere height at horizontal distance d from the axis:
-        //   zt + r − sqrt(r² − d²)
-        // To avoid gouging: that height must clear the surface at every
-        // (x', y') within r, so:
-        //   zt = max over kernel of ( cut(x', y') + sqrt(r² − d²) − r )
-        // Flat endmill: adj = 0 over the whole footprint (max filter).
-        //
-        // TODO(perf): O(cells × kernel). Fine for ≤1024² grids with small
-        // tools; a separable/EDT-based pass is the upgrade path for
-        // big maps + big tools.
-        // ════════════════════════════════════════════════════════
-        compensate(cut, cols, rows, cellSize, radius, shape) {
-            const rCells = Math.ceil(radius / cellSize);
-            if (rCells <= 0) return cut;
-
-            // Precompute kernel offsets + z adjustment
-            const offs = [];
-            const r2 = radius * radius;
-            for (let dy = -rCells; dy <= rCells; dy++) {
-                for (let dx = -rCells; dx <= rCells; dx++) {
-                    const d = Math.hypot(dx, dy) * cellSize;
-                    if (d > radius) continue;
-                    const adj = (shape === 'ball') ? Math.sqrt(Math.max(0, r2 - d * d)) - radius : 0;
-                    offs.push(dx, dy, adj);
-                }
-            }
-
-            const comp = new Float32Array(cols * rows);
-            for (let iy = 0; iy < rows; iy++) {
-                for (let ix = 0; ix < cols; ix++) {
-                    let best = -Infinity;
-                    for (let k = 0; k < offs.length; k += 3) {
-                        let nx = ix + offs[k];
-                        let ny = iy + offs[k + 1];
-                        // Edge-replicate clamp
-                        if (nx < 0) nx = 0; else if (nx >= cols) nx = cols - 1;
-                        if (ny < 0) ny = 0; else if (ny >= rows) ny = rows - 1;
-                        const z = cut[ny * cols + nx] + offs[k + 2];
-                        if (z > best) best = z;
-                    }
-                    comp[iy * cols + ix] = best;
-                }
-            }
-            return comp;
-        },
-
-        // ════════════════════════════════════════════════════════
-        // Stage 3 — roughing
-        // ════════════════════════════════════════════════════════
-        compensate(startDepth, reliefDepth, stepdown) {
-            const floor = -(startDepth + reliefDepth);
-            const step = Math.abs(stepdown) || 1.5;
-            const layers = [];
-            let z = -startDepth;
-            while (z - step > floor + Z_EPS) {
-                z -= step;
-                layers.push(z);
-            }
-            layers.push(floor);
-            return layers;
+            return res.primitives;
         },
 
         /**
-         * One roughing layer: scanlines along the chosen axis. At each
-         * sample the target Z is max(comp + stock, layerZ) — clamped
-         * surface-follow, which roughs AND semi-finishes in one motion
-         * (no stair-steps left on slopes).
+         * [INDEXED] Axial workholding policy for one face.
          *
-         * Span trimming: a sample only belongs to this layer if material
-         * remains after the PREVIOUS layer, i.e. comp + stock < prevLayerZ.
-         * Contiguous qualifying samples form independent chains (each
-         * gets its own plunge/retract from the 3D macro).
+         * The face plane sits at z = +apothem and the rotation axis at
+         * z = -apothem in this face's sliced frame, so every value below
+         * is measured from the face plane and converts to a radius through
+         * the space's toRadius/fromRadius pair.
          */
-        rasterRoughLayer(comp, hm, axis, stepover, layerZ, prevLayerZ, stock, minSegLen) {
-            const chains = [];
-            const stepCells = Math.max(1, Math.round(stepover / hm.cellSize));
-            const alongX = axis === 'x';
-            const lineCount = alongX ? hm.rows : hm.cols;
-            const sampleCount = alongX ? hm.cols : hm.rows;
-            let flip = false;
+        buildAxialPolicy(o, hm, cutR) {
+            const T = ROOT.CAMConfig.constants.rotary; // Field-worker installs self.CAMConfig before importScripts, so this resolves on both threads.
+            const ends = o.axial.ends;
 
-            for (let li = 0; li < lineCount; li += stepCells) {
-                let chain = null;
-                const flush = () => {
-                    if (chain && chain.length >= 2 && this.chainLength(chain) >= minSegLen) {
-                        chains.push(chain);
-                    }
-                    chain = null;
-                };
+            const apo = o.surfaceRefZ;
+            const core = Number.isFinite(o.coreRadius) ? Math.max(0, o.coreRadius) : 0;
+            // RESOLVER-OWNED. Whether a face may pass the rotation axis, and
+            // by how much, is decided once in the handler; re-deriving it
+            // here is how a job asking for both a drive stub and an over-cut
+            // silently got zero.
+            const overcut = Math.max(0, o.axialOvercut || 0);
+            // The axis plane plus any over-cut: the SHALLOWEST the waste
+            // floor may sit. The pipeline deepens it per station wherever a
+            // covered cell within one cutting radius needs it, so a face
+            // whose visible surface runs past the axis is not shouldered
+            // back up to this plane by its own waste.
+            const axisFloor = -(apo + overcut);
 
-                for (let s = 0; s < sampleCount; s++) {
-                    const si = flip ? (sampleCount - 1 - s) : s;
-                    const ix = alongX ? si : li;
-                    const iy = alongX ? li : si;
-                    const surface = comp[iy * hm.cols + ix] + stock;
-
-                    if (surface < prevLayerZ - Z_EPS) {
-                        // Material remains here after the previous layer
-                        const z = Math.max(surface, layerZ);
-                        if (!chain) chain = [];
-                        chain.push({ x: hm.cellX(ix), y: hm.cellY(iy), z });
-                    } else {
-                        flush();
-                    }
-                }
-                flush();
-                flip = !flip; // serpentine line order for shorter rapids
-            }
-            return chains;
-        },
-
-        // ════════════════════════════════════════════════════════
-        // Stage 4 — finishing: one continuous serpentine chain.
-        // Row→row connectors are cut along the compensated surface
-        // (legitimate in-material moves), so the whole pass is a single
-        // plunge + single retract.
-        // ════════════════════════════════════════════════════════
-        rasterFinish(comp, hm, axis, stepover, simplifyTol) {
-            const stepCells = Math.max(1, Math.round(stepover / hm.cellSize));
-            const alongX = axis === 'x';
-            const lineCount = alongX ? hm.rows : hm.cols;
-            const sampleCount = alongX ? hm.cols : hm.rows;
-
-            const sampleZ = (ix, iy) => comp[iy * hm.cols + ix];
-            const pointAt = (ix, iy) => ({ x: hm.cellX(ix), y: hm.cellY(iy), z: sampleZ(ix, iy) });
-
-            const out = [];
-            let flip = false;
-            let prevLine = -1;
-
-            for (let li = 0; li < lineCount; li += stepCells) {
-                // Connector from previous line end to this line start,
-                // following the surface along the fixed axis.
-                if (prevLine >= 0) {
-                    const fixedSample = flip ? sampleCount - 1 : 0;
-                    for (let c = prevLine + 1; c <= li; c++) {
-                        out.push(alongX ? pointAt(fixedSample, c) : pointAt(c, fixedSample));
-                    }
-                }
-
-                // Scanline (simplified individually to keep DP recursion shallow)
-                const line = [];
-                for (let s = 0; s < sampleCount; s++) {
-                    const si = flip ? (sampleCount - 1 - s) : s;
-                    line.push(alongX ? pointAt(si, li) : pointAt(li, si));
-                }
-                const simplified = simplifyTol > 0 ? this.simplify3D(line, simplifyTol) : line;
-
-                // Avoid duplicating the connector's landing point
-                const start = (prevLine >= 0) ? 1 : 0;
-                for (let i = start; i < simplified.length; i++) out.push(simplified[i]);
-
-                prevLine = li;
-                flip = !flip;
-            }
-            return out;
-        },
-
-        // ════════════════════════════════════════════════════════
-        // Stage 5 — 3D Douglas-Peucker (point-to-segment distance in XYZ)
-        // ════════════════════════════════════════════════════════
-        simplify3D(points, tolerance) {
-            if (points.length <= 2) return points;
-            const keep = new Uint8Array(points.length);
-            keep[0] = 1;
-            keep[points.length - 1] = 1;
-
-            // Iterative stack — scanlines can be long
-            const stack = [[0, points.length - 1]];
-            while (stack.length) {
-                const [a, b] = stack.pop();
-                if (b - a < 2) continue;
-
-                const pa = points[a], pb = points[b];
-                const dx = pb.x - pa.x, dy = pb.y - pa.y, dz = pb.z - pa.z;
-                const segLen2 = dx * dx + dy * dy + dz * dz;
-
-                let maxDist2 = -1, maxIdx = -1;
-                for (let i = a + 1; i < b; i++) {
-                    const p = points[i];
-                    let d2;
-                    if (segLen2 < 1e-18) {
-                        const ex = p.x - pa.x, ey = p.y - pa.y, ez = p.z - pa.z;
-                        d2 = ex * ex + ey * ey + ez * ez;
-                    } else {
-                        let t = ((p.x - pa.x) * dx + (p.y - pa.y) * dy + (p.z - pa.z) * dz) / segLen2;
-                        if (t < 0) t = 0; else if (t > 1) t = 1;
-                        const ex = p.x - (pa.x + t * dx);
-                        const ey = p.y - (pa.y + t * dy);
-                        const ez = p.z - (pa.z + t * dz);
-                        d2 = ex * ex + ey * ey + ez * ez;
-                    }
-                    if (d2 > maxDist2) { maxDist2 = d2; maxIdx = i; }
-                }
-
-                if (maxDist2 > tolerance * tolerance) {
-                    keep[maxIdx] = 1;
-                    stack.push([a, maxIdx], [maxIdx, b]);
-                }
-            }
-
-            const out = [];
-            for (let i = 0; i < points.length; i++) {
-                if (keep[i]) out.push(points[i]);
-            }
-            return out;
-        },
-
-        // ════════════════════════════════════════════════════════
-        // Output — identical contract to VCarveGenerator output
-        // ════════════════════════════════════════════════════════
-        toPrimitive(points, passLabel) {
-            const contour = {
-                points,
-                closed: false,
-                isHole: false,
-                nestingLevel: 0,
-                parentId: null,
-                arcSegments: [],
-                curveIds: []
+            return {
+                kind: 'axial',
+                ends,
+                edgeRun: T.edgeRunCells,
+                coreRadius: core,
+                coreFloor: true,
+                severanceFloor: axisFloor,
+                windowFloor: null,      // mapDepths already clamped the window
+                fillGaps: true,
+                wasteValue: axisFloor,
+                maskMode: 'collar',
+                // May not exceed the compensation kernel: a cell with no
+                // covered cell in reach keeps its raw target, and dilateMask
+                // is L1 (>= Euclidean).
+                collarCells: Math.max(1, Math.floor(cutR / hm.cellSize)),
+                // Hull cells further than one cutting radius from formable
+                // material are severance waste, not leave-stock. Unbounded,
+                // the vertical-wall hull stamps shield the whole band where
+                // opposing faces must overlap, and the two faces meet tangent
+                // at the axis instead of separating.
+                fillReachCells: Math.max(1, Math.ceil(cutR / hm.cellSize)),
+                // Always finite (IndexedBlank.resolve). 0 = silhouette only.
+                facetHalfWidth: Math.max(0, o.axialFacetHalfWidth || 0),
+                // The target holds a depth-window BOUND over uncovered cells,
+                // so its minimum is not a reachable surface.
+                deepestFrom: 'compensated',
+                // Every cell carries a real target after composition, so
+                // "no material here" no longer exists.
+                compensateMasked: false,
+                forceExactLattice: true
             };
-            const properties = {
-                isRelief: true,
-                is3DContour: true,
-                role: 'relief_path',
-                reliefPass: passLabel, // 'roughing' | 'finishing'
-                stroke: true,
-                fill: false,
-                strokeWidth: 0
-            };
-            return typeof PathPrimitive !== 'undefined'
-                ? new PathPrimitive([contour], properties)
-                : { type: 'path', contours: [contour], properties };
         },
 
-        chainLength(points) {
-            let l = 0;
-            for (let i = 1; i < points.length; i++) {
-                l += Math.hypot(points[i].x - points[i - 1].x, points[i].y - points[i - 1].y);
-            }
-            return l;
+        /** Plain relief: an isotropic band around the model silhouette. */
+        buildIsotropicPolicy(o) {
+            return {
+                kind: 'isotropic',
+                mode: o.boundary?.mode || 'stop',
+                mm: o.boundary?.mm || 0,
+                maskUncovered: o.maskUncovered === true,
+                compensateMasked: true,
+                forceExactLattice: false
+            };
         },
 
         debug(message, data = null) {
@@ -392,5 +292,5 @@
         }
     };
 
-    window.ReliefGenerator = ReliefGenerator;
+    ROOT.ReliefGenerator = ReliefGenerator;
 })();

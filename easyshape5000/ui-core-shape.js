@@ -5,7 +5,7 @@
  *              Adds shape-specific panels, layers, overlays, and transforms.
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
- * @see         {@link https://github.com/RicardoJCMarques/EasyTrace5000}
+ * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
  *
  * SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
  * SPDX-License-Identifier: AGPL-3.0-or-later
@@ -19,9 +19,9 @@
             super(ctrl);
 
             this.shapeOperationPanel = null;
-            this.canvasExporter = null;
             this.navScenePanel = null;
             this.opsPanel = null;
+            this.generating = false;
 
             this.vizFilters = {
                 unassigned: true,
@@ -30,6 +30,8 @@
                 drill: true,
                 engrave: true,
                 vcarve: true,
+                relief: true,
+                rotary: true,
                 pattern: true,
                 generated: true,
                 preview: true
@@ -119,17 +121,20 @@
             return new SelectMoveTool();
         }
 
+        // REVIEW - Some consistency is getting lost between EasyShape5000 and EasyTrace5000, double check all these methods maintain some relational predictability to how they work.
         resolveLayerColor(layer) {
             const isBW = this.renderer?.options?.blackAndWhite;
             if (isBW) return this.readCSSVar('--color-bw-white', '#ffffff');
 
-            switch (layer.operationType) {
-                case 'profile': return this.readCSSVar('--color-op-profile', '#6dd3a0');
-                case 'pocket':  return this.readCSSVar('--color-op-pocket', '#5a8acf');
-                case 'drill':   return this.readCSSVar('--color-op-drill', '#d8a44a');
-                case 'engrave': return this.readCSSVar('--color-op-engrave', '#c794d6');
-                case 'vcarve':  return this.readCSSVar('--color-op-vcarve', '#e07a7a');
+            // Operation type wins for EVERY layer that carries one: EasyShape
+            // paints a bucket's offsets and preview in that operation's colour
+            // rather than the shared offset/preview roles the base provides.
+            const opType = layer.operationType;
+            if (opType === 'unassigned') {
+                return layer.color || this.readCSSVar('--color-geometry-source-unassigned', '#228b9d');
             }
+            const opColor = this.resolveOperationColor(opType);
+            if (opColor) return opColor;
 
             const base = super.resolveLayerColor(layer);
             if (base !== null) return base;
@@ -147,7 +152,9 @@
                 case 'pocket':     return 120;
                 case 'engrave':    return 130;
                 case 'vcarve':     return 140;
-                case 'pattern':    return 145;
+                case 'relief':     return 150;
+                case 'rotary':     return 160;
+                case 'pattern':    return 170;
                 default:           return 250;
             }
         }
@@ -172,7 +179,7 @@
                 const b = this.ctrl.scene.getSelectionWorldBounds?.();
                 if (b) {
                     ctx.save();
-                    ctx.strokeStyle = '#22d3ee';
+                    ctx.strokeStyle = this.readCSSVar('--color-interaction-group-bounds', '#22d3ee');
                     ctx.lineWidth = (1.5 * uiScale) * fc.invScale;
                     ctx.setLineDash([4 * fc.invScale, 4 * fc.invScale]);
                     ctx.strokeRect(b.minX, b.minY, b.maxX - b.minX, b.maxY - b.minY);
@@ -183,8 +190,8 @@
             if (state?.marqueeRect) {
                 const r = state.marqueeRect;
                 ctx.save();
-                ctx.fillStyle = this.readCSSVar('--color-bg-active', '#333333'); // REVIEW - previous color was #112240
-                ctx.strokeStyle = this.readCSSVar('--color-accent-primary', '#2563eb'); // REVIEW - previous color was #3b82f6
+                ctx.fillStyle = this.readCSSVar('--color-interaction-marquee-fill', '#112240');
+                ctx.strokeStyle = this.readCSSVar('--color-interaction-marquee-stroke', '#3b82f6');
                 ctx.lineWidth = (1 * uiScale) * fc.invScale;
                 ctx.setLineDash([5 * fc.invScale, 5 * fc.invScale]);
                 ctx.globalAlpha = 0.2;
@@ -236,6 +243,8 @@
             this.opsPanel = new NavOperationsPanel();
             this.opsPanel.init('operations-bucket-list');
             this.opsPanel.setSceneResolver(() => this.ctrl.scene);
+            this.opsPanel.setStageResolver((opType) =>
+                this.ctrl.parameterManager.getStagesForPipeline('cnc', opType));
 
             this.opsPanel.on('select', ({ bucketId, stage }) => {
                 const bucket = this.opsPanel.getBucket(bucketId);
@@ -270,8 +279,8 @@
                 }
             });
 
-            this.opsPanel.on('stageCleared', () => this.rebuildLayers());
-            this.opsPanel.on('bucketRemoved', () => this.rebuildLayers());
+            this.opsPanel.on('stageCleared', () => { this.rebuildLayers(); this.ctrl.refresh3DPlans?.(); });
+            this.opsPanel.on('bucketRemoved', () => { this.rebuildLayers(); this.ctrl.refresh3DPlans?.(); });
         }
 
         initOpTypeTabs() {
@@ -317,7 +326,7 @@
                 const anchorId = this.ctrl.selection.anchor();
                 const anchor = anchorId ? this.ctrl.scene.findShape(anchorId) : null;
                 if (container && anchor?.operation) {
-                    this.shapeOperationPanel.showOperationProperties(container, anchor, newStage);
+                    this.shapeOperationPanel.showOperationProperties(container, anchor);
                 }
             });
 
@@ -338,56 +347,35 @@
                 }
                 if (refs.length === 0) { this.setStatus('No shapes in selection', 'warning'); return; }
 
-                // Re-entrancy guard: ignore extra Generate clicks while one runs.
-                if (this.generating){
-                    this.debug('[EasyShapeUI] - Can\'t trigger operation orchestration while a previous operation is still being processed.');
-                    return;
-                };
-                this.generating = true;
-                    this.showCanvasSpinner('Generating... pass 1');
-                    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-                    try {
-                        const bucketId = this.opsPanel.createBucket(
-                            this.ctrl.core, this.ctrl.scene, opType, label, refs
-                        );
-                        const bucket = this.opsPanel.getBucket(bucketId);
-                        const captured = this.shapeOperationPanel.captureFormStateForId(bucketId, opType);
-                        bucket.settings = { ...bucket.settings, ...captured };
+                await this.runBucketStage('Generation', async () => {
+                    const bucketId = this.opsPanel.createBucket(
+                        this.ctrl.core, this.ctrl.scene, opType, label, refs
+                    );
+                    const bucket = this.opsPanel.getBucket(bucketId);
+                    const captured = this.shapeOperationPanel.captureFormStateForId(bucketId, opType); // REVIEW - This syntax isn't consistent with the next use of this.shapeOperationPanel.captureFormStateForId(?
+                    bucket.settings = { ...bucket.settings, ...captured };
 
-                        const result = await this.shapeOperationPanel.runGeneration(bucketId);
-                        this.opsPanel.updateBucketAfterGeneration(bucketId, this.ctrl.core);
-                        this.setStatus(result.message, result.status);
-                        if (result.success) { this.opsPanel.selectStage(bucketId, 'offsets'); this.rebuildLayers(); }
-                    } catch (e) {
-                        console.error('[EasyShapeUI] Generation failed:', e);
-                        this.setStatus('Generation failed: ' + e.message, 'error');
-                    } finally {
-                        this.hideCanvasSpinner();
-                        this.generating = false;
-                    }
+                    const result = await this.shapeOperationPanel.runGeneration(bucketId);
+                    this.opsPanel.updateBucketAfterGeneration(bucketId, this.ctrl.core);
+                    this.setStatus(result.message, result.status);
+                    if (result.success) { this.opsPanel.selectStage(bucketId, 'offsets'); this.rebuildLayers(); }
+                });
             })
 
             // Action on existing bucket stage
             this.shapeOperationPanel.on('bucketAction', async ({ bucketId, stage }) => {
                 const bucket = this.opsPanel.getBucket(bucketId);
                 if (!bucket) return;
-                const captured = this.shapeOperationPanel.captureFormStateForId(bucketId, bucket.type);
+                const captured = this.shapeOperationPanel.captureFormStateForId(
+                    bucketId, bucket.type, bucket.shapeRefs);
                 bucket.settings = { ...bucket.settings, ...captured };
 
                 if (stage === 'geometry') {
-                    // Regenerate offsets
-                    if (this.generating){
-                        this.debug('[EasyShapeUI] - Can\'t trigger Offset generation while a previous operation is still being processed.');
-                        return;
-                    };
-                    this.generating = true;
-                    this.showCanvasSpinner('Regenerating...');
-                    try {
-                        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-
-                        // Re-sync primitives and clear old results
+                    // Regenerate offsets. resetOperationState is the handler's -
+                    // it runs there AFTER beginGeneration stamps the token, which
+                    // is the order the stale gate depends on.
+                    await this.runBucketStage('Regeneration', async () => {
                         bucket.syncPrimitives(this.ctrl.core, this.ctrl.scene);
-                        this.ctrl.core.resetOperationState(bucketId);
 
                         const result = await this.shapeOperationPanel.runGeneration(bucketId);
                         this.opsPanel.updateBucketAfterGeneration(bucketId, this.ctrl.core);
@@ -396,36 +384,56 @@
                             this.opsPanel.selectStage(bucketId, 'offsets');
                             this.rebuildLayers();
                         }
-                    } catch (e) {
-                        console.error('[EasyShapeUI] Regeneration failed:', e);
-                        this.setStatus('Regeneration failed: ' + e.message, 'error');
-                    } finally { this.hideCanvasSpinner(); this.generating = false; }
-
+                    });
                 } else if (stage === 'offsets') {
+                    // A 3D operation has no strategy stage: its single node IS
+                    // the machine stage and its button opens the exporter.
+                    const stages = this.ctrl.parameterManager
+                        .getStagesForPipeline('cnc', bucket.type);
+                    if (!stages.includes('strategy')) { this.openExportModal(); return; }
+
                     // Generate preview
-                    if (this.generating){
-                        this.debug('[EasyShapeUI] - Can\'t trigger Preview generation while a previous operation is still being processed.');
-                        return;
-                    };
-                    this.generating = true;
-                    this.showCanvasSpinner('Generating preview...');
-                    try {
-                        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-                        const result = await this.shapeOperationPanel.runPreview(bucketId);
-                        this.opsPanel.updateBucketAfterGeneration(bucketId, this.ctrl.core);
-                        this.setStatus(result.message, result.status);
-                        if (result.success) {
-                            this.opsPanel.selectStage(bucketId, 'preview');
-                            this.rebuildLayers();
-                        }
-                    } catch (e) {
-                        console.error('[EasyShapeUI] Preview failed:', e);
-                        this.setStatus('Preview failed: ' + e.message, 'error');
-                    } finally { this.hideCanvasSpinner(); this.generating = false; }
+                    await this.runBucketStage('Preview', async () => {
+                        this.showCanvasSpinner('Generating preview...');
+                        // generateCNCPreview blocks the main thread - let the
+                        // spinner paint first.
+                        await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+                        try {
+                            const result = await this.shapeOperationPanel.runPreview(bucketId);
+                            this.opsPanel.updateBucketAfterGeneration(bucketId, this.ctrl.core);
+                            this.setStatus(result.message, result.status);
+                            if (result.success) {
+                                this.opsPanel.selectStage(bucketId, 'preview');
+                                this.rebuildLayers();
+                            }
+                        } finally { this.hideCanvasSpinner(); }
+                    });
                 } else if (stage === 'preview') {
                     this.openExportModal();
                 }
             })
+        }
+
+        /**
+         * Re-entrancy-guarded bucket stage runner. Spinner/task ownership
+         * lives in BaseOperationPanel.runGeneration (StatusManager task);
+         * this owns only the guard and the shared success/error plumbing.
+         * REVIEW - This seems sort of useless now? Can't it be integrated somewhere else?
+         */
+        async runBucketStage(label, fn) {
+            if (this.generating) {
+                this.debug(`[EasyShapeUI] - Busy: ignored '${label}' while a previous operation is still being processed.`);
+                return;
+            }
+            this.generating = true;
+            try {
+                await fn();
+            } catch (e) {
+                console.error(`[EasyShapeUI] ${label} failed:`, e);
+                this.setStatus(`${label} failed: ` + e.message, 'error');
+            } finally {
+                this.generating = false;
+            }
         }
 
         initVizFilters() {
@@ -441,7 +449,9 @@
             bind('show-drill', 'drill');
             bind('show-engrave', 'engrave');
             bind('show-vcarve', 'vcarve');
-            bind('show-pattern', 'pattern');
+            bind('show-relief', 'relief');
+            bind('show-rotary', 'rotary');
+            // bind('show-pattern', 'pattern'); // Not wired
             bind('show-generated', 'generated');
             bind('show-tool-preview-shape', 'preview');
         }
@@ -458,7 +468,7 @@
 
             // Pre-compute selected shape ids (groups expanded). Selected shapes
             // get their OWN layer so the drag fast-path (updateLayerTransform on
-            // `shape_${id}`) keeps working — batched shapes have no per-shape
+            // `shape_${id}`) keeps working - batched shapes have no per-shape
             // layer to update mid-drag.
             const selectedShapeIds = new Set();
             for (const id of this.ctrl.selection.toSet()) {
@@ -516,6 +526,9 @@
             // Generated geometry (offsets + previews) from operation buckets.
             this.addBucketLayers();
 
+            // Mirror the fresh layer snapshot into the 3D view (no-op in 2D mode)
+            this.ctrl.refresh3D?.();
+
             this.renderer.render();
         }
 
@@ -532,6 +545,28 @@
             for (const bucket of this.opsPanel.getAllBuckets()) {
                 const op = bucket.getOperation(core);
                 if (!op) continue;
+
+                // Rotary developed strips carry y = θ·refRadius starting at
+                // 0 (the future A-axis coordinate - data must stay pure).
+                // DISPLAY ONLY: translate the strip so it straddles the
+                // rotation axis line over the mesh footprint.
+                let stripTransform = null;
+                const meta0 = op.offsets?.[0]?.metadata;
+                if (bucket.type === 'rotary' && meta0?.developedSpace &&
+                    meta0.circumference > 0) {
+                    const halfC = meta0.circumference / 2;
+                    const axisB = meta0.axisCenter?.b || 0;   // world
+                    // axis 'x': developed x IS workspace X; translate the arc
+                    //   dimension so it straddles the axis line.
+                    // axis 'y': developed x IS workspace Y, and +arc points
+                    //   toward -workspace X (the slicer's cross-u is -X - see
+                    //   ShapeRotaryHandler.getInternalOrient). Rotate, don't
+                    //   mirror: det must stay +1 or the strip renders as the
+                    //   mirror image of what the machine cuts.
+                    stripTransform = meta0.rotaryAxis === 'y'
+                        ? { a: 0, b: 1, c: -1, d: 0, e: axisB + halfC, f: 0 }
+                        : { a: 1, b: 0, c: 0,  d: 1, e: 0, f: axisB - halfC };
+                }
 
                 // Offsets
                 if (showGenerated && op.offsets?.length > 0 && !op.isInvalidated) {
@@ -550,6 +585,7 @@
                             offsetType,
                             distance: first.distance,
                             combined: true,
+                            transform: stripTransform || undefined,
                             metadata: first.metadata,
                             zIndex: this.getLayerZIndex('offset', { operationType: bucket.type })
                         });
@@ -563,6 +599,7 @@
                         visible: true,
                         operationId: bucket.id,
                         operationType: bucket.type,
+                        transform: stripTransform || undefined,
                         metadata: op.preview.metadata,
                         zIndex: this.getLayerZIndex('preview', { operationType: bucket.type })
                     });
@@ -597,8 +634,8 @@
             const uiScale = core.devicePixelRatio || 1;
             const glowWidth = Math.max(2.5 * uiScale * fc.invScale, fc.minWorldWidth * 2);
 
-            const accent = this.readCSSVar('--color-accent-primary', '#2563eb'); // REVIEW - previous color was #22d3ee
-            const accentFill = this.readCSSVar('--color-bg-active', '#333333'); // REVIEW - previous color was #0A3F47
+            const accent = this.readCSSVar('--color-interaction-selection-stroke', '#22d3ee');
+            const accentFill = this.readCSSVar('--color-interaction-selection-fill', '#0a3f47');
 
             const pr = this.renderer.primitiveRenderer;
 
@@ -657,15 +694,13 @@
             const container = document.getElementById('operation-form-container');
 
             if (anchor?.operation) {
-                // Shape already has an operation — show its properties
+                // Shape already has an operation - show its properties
                 if (panel) panel.dataset.rightPanelState = 'op-assigned';
                 if (container && this.shapeOperationPanel) {
-                    this.shapeOperationPanel.showOperationProperties(
-                        container, anchor, this.shapeOperationPanel.currentStage || 'geometry'
-                    );
+                    this.shapeOperationPanel.showOperationProperties(container, anchor);
                 }
             } else {
-                // No operation — show fresh selection with default tab
+                // No operation - show fresh selection with default tab
                 if (panel) panel.dataset.rightPanelState = 'source-selected';
                 if (container && this.shapeOperationPanel) {
                     const activeTab = document.querySelector('.op-type-tab.active');
@@ -710,7 +745,7 @@
             if (state === 'op-assigned') {
                 const anchor = this.ctrl.scene.findShape(this.ctrl.selection.anchor());
                 if (this.shapeOperationPanel && anchor) {
-                    this.shapeOperationPanel.showOperationProperties(container, anchor, this.shapeOperationPanel.currentStage || 'geometry');
+                    this.shapeOperationPanel.showOperationProperties(container, anchor);
                 }
             } else {
                 container.innerHTML = '';
@@ -732,9 +767,9 @@
         // ═══════════════════════════════════════════════════════════════
 
         setupTransformFields() {
-            // Position (X/Y) are RELATIVE nudges that rest at 0 — Apply adds
+            // Position (X/Y) are RELATIVE nudges that rest at 0 - Apply adds
             // them to the committed position, then they snap back to 0.
-            // Rotation/Scale are ABSOLUTE — inputs show live values and Apply
+            // Rotation/Scale are ABSOLUTE - inputs show live values and Apply
             // writes them verbatim. Each group has its own Apply/Reset.
             for (const fid of ['shape-x', 'shape-y']) {
                 const el = document.getElementById(fid);
@@ -761,13 +796,13 @@
                 document.getElementById(fid)?.addEventListener('change', () => this.commitMirrorToggle());
             }
 
-            // Position (X/Y nudge) — Apply adds to committed position; Reset reloads fields to 0.
+            // Position (X/Y nudge) - Apply adds to committed position; Reset reloads fields to 0.
             document.getElementById('shape-apply-transform')?.addEventListener('click', () => this.commitPosition());
             document.getElementById('shape-reset-transform')?.addEventListener('click', () => this.resetPosition());
-            // Rotation — absolute, independent of scale.
+            // Rotation - absolute, independent of scale.
             document.getElementById('shape-apply-rotation')?.addEventListener('click', () => this.commitRotation());
             document.getElementById('shape-reset-rotation')?.addEventListener('click', () => this.resetRotation());
-            // Scale — absolute magnitude, preserves mirror sign and rotation.
+            // Scale - absolute magnitude, preserves mirror sign and rotation.
             document.getElementById('shape-apply-scale')?.addEventListener('click', () => this.commitScale());
             document.getElementById('shape-reset-scale')?.addEventListener('click', () => this.resetScale());
             document.getElementById('shape-align-center')?.addEventListener('click', () => this.ctrl.alignSelectionTo('center'));
@@ -793,7 +828,7 @@
             const meta = document.getElementById('shape-meta-size');
             if (meta) {
                 const b = node.getLocalBounds();
-                if (b) meta.textContent = `Size: ${(b.maxX - b.minX).toFixed(2)} × ${(b.maxY - b.minY).toFixed(2)} mm`;
+                if (b) meta.textContent = `Size: ${(b.maxX - b.minX).toFixed(2)} x ${(b.maxY - b.minY).toFixed(2)} mm`;
             }
         }
 
@@ -909,7 +944,7 @@
             ));
         }
 
-        // Position fields are relative nudges resting at 0 — Reset just reloads them.
+        // Position fields are relative nudges resting at 0 - Reset just reloads them.
         resetPosition() {
             this.syncTransformFromSelection();
         }

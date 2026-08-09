@@ -3,7 +3,7 @@
  * @description Geometry offsetting orchestrator
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
- * @see         {@link https://github.com/RicardoJCMarques/EasyTrace5000}
+ * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
  *
  * SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
  * SPDX-License-Identifier: AGPL-3.0-or-later
@@ -25,10 +25,19 @@
             this.initialized = true;
             this.geometryProcessor = null;
 
-            // --- BOOLEAN OFFSET TOGGLE ---
-            // When true:  all path offsetting routes through Clipper2 boolean operations.
-            // When false: arc-containing contours try the analytic offsetter first, then fall back to the polygon-only offsetter. NOTICE: All related code is commented out.
-            this.USE_BOOLEAN_OFFSETTING = true;
+            // --- INFLATE/DEFLATE OFFSET TOGGLE ---
+            // true  → every path offset routes through Clipper2 booleans
+            //         (offsetPathViaBoolean). This is the SHIPPING path, the
+            //         only one wired end to end, and the one that keeps arcs
+            //         almost lossless via the curve registry.
+            // false → arc-free contours would try GeometryAnalyticOffsetter
+            //         first. That module EXISTS and is a parked work in
+            //         progress: no open defect drives it, because the boolean
+            //         pipeline already gives near-exact results. Its call site
+            //         in offsetPath is deliberately unwritten - see the throw
+            //         there. These references are an unfinished branch, not
+            //         dead code to be "cleaned up".
+            this.USE_INFLATE_OFFSETTING = true;
 
             // Analytic strategy (loads gracefully if module is present)
             this.analyticOffsetter = null;
@@ -46,7 +55,7 @@
 
         /**
          * Offsets a filled boundary (polygon, circle, rectangle, obround) inward or outward.
-         * Operation-agnostic — does not inspect stroke/fill/isTrace/isCutout.
+         * Operation-agnostic - does not inspect stroke/fill/isTrace/isCutout.
          * Handlers decide what to pass here; the offsetter just does math.
          *
          * @param {Object} primitive - A filled geometric primitive
@@ -99,7 +108,7 @@
 
         /**
          * Expands a centerline stroke (open or closed path, arc) into filled polygon(s).
-         * The caller provides the final width — this method does not read strokeWidth
+         * The caller provides the final width - this method does not read strokeWidth
          * from properties or combine it with an offset distance.
          *
          * @param {Object} primitive - A stroke/trace primitive (path or arc)
@@ -174,10 +183,13 @@
             const containsArcs = this.hasAnalyticArcs(path);
 
             // Route to Boolean Inflating if: It has arcs, globally force boolean, or the analytic offset module is missing
-            if (containsArcs || this.USE_BOOLEAN_OFFSETTING || !this.analyticOffsetter) {
+            if (containsArcs || this.USE_INFLATE_OFFSETTING || !this.analyticOffsetter) {
                 this.debug(`Routing path ${path.id} to Boolean Inflated Offsetter (containsArcs: ${containsArcs})`);
                 return await this.offsetPathViaBoolean(path, distance);
             }
+
+            // Loud warning, geometry shouldn't be reaching this stage until Analytic offsetting is finalized.
+            throw new Error('[Offsetter] Analytic path offsetting is not implemented; set USE_INFLATE_OFFSETTING = true.');
         }
 
         /**
@@ -218,7 +230,7 @@
                 const tessellated = GeometryUtils.contourArcsToPath(c);
                 let points = tessellated.points;
 
-                // Normalize to CCW — Clipper2 needs positive winding for subject polygons.
+                // Normalize to CCW - Clipper2 needs positive winding for subject polygons.
                 // The isHole flag is already stripped, but CW-wound hole contours that were extracted into standalone primitives retain their original point order, causing winding cancellation during union.
                 if (GeometryUtils.isClockwise(points)) {
                     points = points.slice().reverse();
@@ -263,8 +275,14 @@
                 p.properties.isOffset = true;
                 p.properties.offsetDistance = distance;
                 p.properties.offsetType = isInternal ? 'internal' : 'external';
-                // Smuggle the raw polygonized strokes out for the renderer for visual debugging
-                p.properties._preprocessedStrokes = boundaryStrokes;
+                // Smuggle raw polygonized strokes out ONLY when debugging:
+                // otherwise this pins the full stroke point set on every
+                // offset primitive for the operation's lifetime, and every
+                // downstream {...properties} spread copies the reference.
+                // REVIEW - This may force verbose debug to be turned on before toggling works (Gate toggle to need verbose?) but could limit metadata clutter.
+                if (debugState.enabled) {
+                    p.properties._preprocessedStrokes = boundaryStrokes;
+                }
             });
 
             this.debug(`Boolean offset result: ${resultPrimitives.length} primitive(s) (${isInternal ? 'internal' : 'external'})`);
@@ -301,58 +319,6 @@
             return cleaned;
         }
 
-        /**
-         * Simplifies reconstructed offset geometry using Douglas-Peucker.
-         * Called AFTER arc reconstruction so arc segment endpoints can be protected by index.
-         */
-        // REVIEW - Is this dead code?
-        simplifyOffsetResult(primitives, offsetDist) {
-            if (!primitives || primitives.length === 0) return primitives;
-
-            const simpTolerance = offsetDist * 0.005;
-            const sqTolerance = simpTolerance * simpTolerance;
-
-            for (const prim of primitives) {
-                if (!prim.contours) continue;
-
-                for (const contour of prim.contours) {
-                    if (!contour.points || contour.points.length <= 8) continue;
-
-                    // Protect arc segment endpoints from removal
-                    const protectedIndices = new Set();
-                    if (contour.arcSegments) {
-                        for (const arc of contour.arcSegments) {
-                            if (arc.startIndex >= 0) protectedIndices.add(arc.startIndex);
-                            if (arc.endIndex >= 0) protectedIndices.add(arc.endIndex);
-                        }
-                    }
-
-                    const { points: simplified, indexMap } = GeometryUtils.simplifyDouglasPeucker(
-                        contour.points, sqTolerance,
-                        protectedIndices.size > 0 ? protectedIndices : null
-                    );
-
-                    // Only apply if meaningful reduction (>20%)
-                    if (simplified.length >= 3 && simplified.length < contour.points.length * 0.8) {
-                        const remappedArcs = (contour.arcSegments || []).map(arc => {
-                            const newStart = indexMap[arc.startIndex];
-                            const newEnd = indexMap[arc.endIndex];
-                            if (newStart >= 0 && newEnd >= 0 && newStart !== newEnd) {
-                                return { ...arc, startIndex: newStart, endIndex: newEnd };
-                            }
-                            return null;
-                        }).filter(Boolean);
-
-                        contour.points = simplified;
-                        contour.arcSegments = remappedArcs;
-                        contour.curveIds = remappedArcs.map(a => a.curveId).filter(Boolean);
-                    }
-                }
-            }
-
-            return primitives;
-        }
-
         /*
          * ANALYTIC SHAPE OFFSETTERS
          */
@@ -379,15 +345,15 @@
                 sourcePrimitiveId: circle.id,
             };
 
+            // Provenance rides the side map, never the hashed record: generateHash
+            // appends '_offset' for isOffsetDerived, so writing it back after
+            // register() leaves the record and the hash indexing it disagreeing.
             const contour = offsetPath.contours[0];
             if (window.globalCurveRegistry && contour.curveIds) {
+                const sourceCurveId = circle.properties?.originalCurveId
+                    || (circle.curveIds ? circle.curveIds[0] : null);
                 contour.curveIds.forEach(id => {
-                    const curve = window.globalCurveRegistry.getCurve(id);
-                    if (curve) {
-                        curve.isOffsetDerived = true;
-                        curve.offsetDistance = distance;
-                        curve.sourceCurveId = circle.properties?.originalCurveId || (circle.curveIds ? circle.curveIds[0] : null);
-                    }
+                    window.globalCurveRegistry.noteOffsetDerived(id, sourceCurveId, distance);
                 });
             }
 
@@ -432,35 +398,24 @@
         }
 
         /**
-         * Detects whether a single contour is a circle by checking the global
-         * curve registry. Returns a CirclePrimitive-like object suitable for
-         * offsetCircle(), or null if not a circle.
+         * Adapter over GeometryUtils.analyzeCircleRing: wraps a verified circular
+         * contour into the minimal shape offsetCircle() consumes. The closure and
+         * sweep clauses matter here - an all-one-curveId contour that the boolean
+         * already clipped would otherwise be re-offset as a full circle.
          */
-        // REVIEW - This feels like a band-aid? Or is this nesting detection specific?
         detectCircleContour(contour) {
-            if (!contour.points || contour.points.length < 3) return null;
-            if (!window.globalCurveRegistry) return null;
+            if (!contour.points) return null;
 
-            // All points must share a single curveId
-            let sharedId = null;
-            for (const pt of contour.points) {
-                const id = pt.curveId;
-                if (!id || id <= 0) return null;
-                if (sharedId === null) sharedId = id;
-                else if (id !== sharedId) return null;
-            }
+            const ring = GeometryUtils.analyzeCircleRing(contour.points);
+            if (!ring.isFullCircle) return null;
 
-            const curveData = window.globalCurveRegistry.getCurve(sharedId);
-            if (!curveData || curveData.type !== 'circle') return null;
-
-            // Build a minimal CirclePrimitive-compatible object
             return {
                 type: 'circle',
-                id: `circle_from_contour_${sharedId}`,
-                center: { x: curveData.center.x, y: curveData.center.y },
-                radius: curveData.radius,
+                id: `circle_from_contour_${ring.curveId}`,
+                center: { x: ring.center.x, y: ring.center.y },
+                radius: ring.radius,
                 properties: { polarity: contour.isHole ? 'clear' : 'dark' },
-                curveIds: [sharedId],
+                curveIds: [ring.curveId],
                 getBounds() {
                     return {
                         minX: this.center.x - this.radius,
@@ -515,13 +470,9 @@
             // Post-process the newly registered curve IDs to mark them as offset-derived.
             const contour = offsetPath.contours[0];
             if (window.globalCurveRegistry && contour.curveIds) {
+                const sourceCurveId = obround.curveIds ? obround.curveIds[0] : null;
                 contour.curveIds.forEach(id => {
-                    const curve = window.globalCurveRegistry.getCurve(id);
-                    if (curve) {
-                        curve.isOffsetDerived = true;
-                        curve.offsetDistance = distance;
-                        curve.sourceCurveId = obround.curveIds ? obround.curveIds[0] : null;
-                    }
+                    window.globalCurveRegistry.noteOffsetDerived(id, sourceCurveId, distance);
                 });
             }
 

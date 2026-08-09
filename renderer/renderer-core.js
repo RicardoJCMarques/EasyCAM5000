@@ -3,7 +3,7 @@
  * @description Coordinates canvas, view and layer states
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
- * @see         {@link https://github.com/RicardoJCMarques/EasyTrace5000}
+ * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
  *
  * SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
  * SPDX-License-Identifier: AGPL-3.0-or-later
@@ -99,10 +99,11 @@
             this.colors = {};
             this.updateThemeColors();
 
-            window.addEventListener('themechange', () => {
+            this._onThemeChange = () => {
                 this.updateThemeColors();
                 this.renderStats.lastSignificantChange = 'theme-changed';
-            });
+            };
+            window.addEventListener('themechange', this._onThemeChange);
 
             // Statistics
             this.renderStats = {
@@ -132,30 +133,62 @@
             const rootStyle = getComputedStyle(document.documentElement);
             const read = (varName, fallback) => rootStyle.getPropertyValue(varName).trim() || fallback;
 
+            // Custom-property names are kebab-case end to end: theme.css is
+            // generated from dark.json by sync-theme.js, and ThemeLoader
+            // kebab-cases the same keys. A camelCase name here reads empty and
+            // silently pins the fallback.
             this.colors = {
-                canvas: {
-                    background: read('--color-canvas-background', '#0f0f0f'),
-                    grid: read('--color-canvas-grid', '#333333'),
-                    origin: read('--color-canvas-origin', '#ffffff'),
-                    originOutline: read('--color-canvas-originOutline', '#000000'),
-                    bounds: read('--color-canvas-bounds', '#555555'),
-                    ruler: read('--color-canvas-ruler', '#444444'),
-                    rulerText: read('--color-canvas-rulerText', '#888888')
+                render2d: {
+                    background: read('--color-render2d-background', '#0f0f0f'),
+                    grid: read('--color-render2d-grid', '#aaaaaa'),
+                    origin: read('--color-render2d-origin', '#aaaaaa'),
+                    originOutline: read('--color-render2d-origin-outline', '#000000'),
+                    bounds: read('--color-render2d-bounds', '#aaaaaa'),
+                    ruler: read('--color-render2d-ruler', '#aaaaaa'),
+                    rulerText: read('--color-render2d-ruler-text', '#aaaaaa')
                 },
                 primitives: {
-                    offsetInternal: read('--color-primitive-offsetInternal', '#00aa00'),
-                    offsetExternal: read('--color-primitive-offsetExternal', '#ff0000'),
-                    peckMarkGood: read('--color-primitive-peckMarkGood', '#16d329'),
-                    peckMarkWarn: read('--color-primitive-peckMarkWarn', '#d2cb00'),
-                    peckMarkError: read('--color-primitive-peckMarkError', '#ff0000'),
-                    peckMarkSlow: read('--color-primitive-peckMarkSlow', '#ff5e00'),
+                    offsetInternal: read('--color-primitive-offset-internal', '#00aa00'),
+                    offsetExternal: read('--color-primitive-offset-external', '#ff0000'),
+                    peckMarkGood: read('--color-primitive-peck-mark-good', '#16d329'),
+                    peckMarkWarn: read('--color-primitive-peck-mark-warn', '#d2cb00'),
+                    peckMarkError: read('--color-primitive-peck-mark-error', '#ff0000'),
+                    peckMarkSlow: read('--color-primitive-peck-mark-slow', '#ff5e00'),
                     reconstructed: read('--color-primitive-reconstructed', '#00ffff'),
-                    reconstructedPath: read('--color-primitive-reconstructedPath', '#ffff00')
+                    reconstructedPath: read('--color-primitive-reconstructed-path', '#ffff00')
+                },
+                // Consumed by renderer-layer (laser fills) and CanvasExporter.
+                geometry: {
+                    preview: read('--color-geometry-preview', '#0060dd'),
+                    toolpath: read('--color-geometry-toolpath', '#00ffff'),
+                    selection: read('--color-geometry-selection', '#00ffff'),
+                    offset: {
+                        external: read('--color-geometry-offset-external', '#a60000'),
+                        internal: read('--color-geometry-offset-internal', '#00a600'),
+                        on: read('--color-geometry-offset-on', '#bcbc02')
+                    },
+                    laser: {
+                        filled: read('--color-geometry-laser-filled', '#0060dd')
+                    }
+                },
+                // EasyTrace source-layer fills, read by CanvasExporter's <style>.
+                source: {
+                    isolation: read('--color-geometry-source-isolation', '#ff8844'),
+                    drill: read('--color-geometry-source-drill', '#4488ff'),
+                    clearing: read('--color-geometry-source-clearing', '#44ff88'),
+                    cutout: read('--color-geometry-source-cutout', '#333333'),
+                    stencil: read('--color-geometry-source-stencil', '#90177d'),
+                    unassigned: read('--color-geometry-source-unassigned', '#228b9d')
+                },
+                bw: {
+                    black: read('--color-bw-black', '#000000'),
+                    white: read('--color-bw-white', '#ffffff')
                 },
                 debug: {
-                    wireframe: read('--color-debug-wireframe', '#00ff00'),
+                    wireframe: read('--color-debug-wireframe', '#00aa00'),
                     points: read('--color-debug-points', '#ff00ff'),
                     arcs: read('--color-debug-arcs', '#00ffff'),
+                    bounds: read('--color-debug-bounds', '#ff0000'),
                     preprocessedStroke: read('--color-debug-preprocessed-stroke', '#00ffff'),
                     preprocessedFill: read('--color-debug-preprocessed-fill', '#0a3333')
                 }
@@ -480,7 +513,7 @@
             this.calculateOverallBounds(hasStock);
 
             if (!this.overallBounds) {
-                // No content (only stock or empty) — restore full bounds so we
+                // No content (only stock or empty) - restore full bounds so we
                 // still frame the bed instead of showing nothing.
                 if (hasStock) this.calculateOverallBounds(false);
                 if (!this.overallBounds) {
@@ -617,13 +650,13 @@
             this.ctx.imageSmoothingEnabled = true;
             this.ctx.imageSmoothingQuality = 'high';
 
-            this.ctx.fillStyle = this.colors.canvas?.background || '#1a1a2e';
+            this.ctx.fillStyle = this.colors.render2d.background;
             this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
         }
 
         clearCanvas() {
             this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-            this.ctx.fillStyle = this.colors.canvas.background;
+            this.ctx.fillStyle = this.colors.render2d.background;
             this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
         }
 

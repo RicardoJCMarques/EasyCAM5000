@@ -13,7 +13,7 @@
  *
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
- * @see         {@link https://github.com/RicardoJCMarques/EasyTrace5000}
+ * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
  *
  * SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
  * SPDX-License-Identifier: AGPL-3.0-or-later
@@ -22,7 +22,7 @@
 (function() {
     'use strict';
 
-    /** Base class — subclass and override execute/undo. */
+    /** Base class - subclass and override execute/undo. */
     class Command {
         execute(ctrl) {}
         undo(ctrl) {}
@@ -50,7 +50,7 @@
     }
 
     /**
-     * Move N shapes by a 2D delta. Stores only shape IDs and the delta —
+     * Move N shapes by a 2D delta. Stores only shape IDs and the delta -
      * a few dozen bytes regardless of shape complexity.
      *
      * The delta is in WORLD space. If a node sits inside a parent group
@@ -99,7 +99,7 @@
             const parentWorld = node.parent.getWorldMatrix();
             const inv = TransformMath.invert(parentWorld);
             if (!inv) return { x: dx, y: dy };
-            // Transform direction vector (not point) — use linear part only
+            // Transform direction vector (not point) - use linear part only
             return {
                 x: inv.a * dx + inv.c * dy,
                 y: inv.b * dx + inv.d * dy
@@ -109,7 +109,7 @@
 
     /**
      * Assign or clear an operation on N shapes. `entries` is built by the
-     * controller — each entry captures the previous and new op so undo is
+     * controller - each entry captures the previous and new op so undo is
      * symmetric (it can revert to whatever was there before, including
      * different-typed operations across the selection).
      */
@@ -168,7 +168,7 @@
             ctrl.afterMutation();
         }
         undo(ctrl) {
-            // Re-insert in original order — earliest index first works because
+            // Re-insert in original order - earliest index first works because
             // siblings beyond the index don't matter for our flat slot model.
             const sorted = [...this.snapshots].sort((a, b) => a.indexInParent - b.indexInParent);
             for (const snap of sorted) {
@@ -205,7 +205,7 @@
             const fresh = (now - this.lastTime) < this.coalesceWindowMs;
 
             if (top && fresh && top.coalesceWith && top.coalesceWith(cmd)) {
-                // Merged — no new entry.
+                // Merged - no new entry.
             } else {
                 this.undoStack.push(cmd);
                 if (this.undoStack.length > this.maxSize) this.undoStack.shift();
@@ -295,7 +295,7 @@
             if (!group) return;
             // Fold the group's local transform into each child so its WORLD
             // position survives losing the group from its parent chain:
-            //   childLocal_new = groupLocal × childLocal_old
+            //   childLocal_new = groupLocal x childLocal_old
             // Compute every matrix BEFORE mutating the tree.
             const groupLocalM = group.getLocalMatrix();
             const sorted = [...this.childrenSnapshots].sort((a, b) => a.indexInParent - b.indexInParent);
