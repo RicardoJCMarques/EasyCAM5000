@@ -14,7 +14,6 @@
 
     const C = window.CAMConfig.constants;
     const D = window.CAMConfig.defaults;
-    const validationRules = C.ui.validation;
 
     class ParameterManager {
         constructor(core) {
@@ -27,13 +26,11 @@
             this.operationStates = new Map();
             this.dirtyFlags = new Map();
 
-            // Active state
-            this.currentOperationId = null;
-            this.currentStage = null;
-
             this.validators = {};
 
             this.changeListeners = new Set();
+
+            this.baseRanges = {};
 
             this.definitionsSource = 'empty';
 
@@ -46,161 +43,121 @@
         }
 
         /**
-         * Replaces parameter definitions with an external set and rebuilds
-         * validators. Used by EasyShape to load app-specific definitions
-         * from a JSON file instead of the hardcoded EasyTrace set.
+         * Replaces parameter definitions and rebuilds validators. Both apps
+         * have their own set from profile-{trace,shape}.json.
          */
         setDefinitions(definitions) {
             this.parameterDefinitions = definitions;
+            this.baseRanges = {};
+            for (const [name, def] of Object.entries(definitions)) {
+                if (def && def.type === 'number') {
+                    this.baseRanges[name] = { min: def.min, max: def.max };
+                }
+            }
             this.validators = this.initializeValidators();
             this.operationStates.clear();
             this.dirtyFlags.clear();
-            this.definitionsSource = 'external';
         }
 
-        /**
-         * Loads parameter definitions from a JSON URL. Returns true on success.
-         */
-        async loadDefinitionsFromURL(url) {
-            try {
-                const resp = await fetch(url);
-                if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-                const json = await resp.json();
-                // Strip meta key if present
-                const defs = {};
-                for (const [k, v] of Object.entries(json)) {
-                    if (k.startsWith('_')) continue;
-                    defs[k] = v;
+        /** Range validator bound to a definition, so min/max edits take effect live. */
+        makeNumberValidator(def) {
+            const msg = (key, fallback, tokens) => {
+                const t = this.core?.lang?.format?.(`messages.validation.${key}`, tokens);
+                if (t) return t;
+                let out = fallback;
+                for (const [k, v] of Object.entries(tokens)) {
+                    out = out.replace(new RegExp(`\\{${k}\\}`, 'g'), v);
                 }
-                this.setDefinitions(defs);
-                this.debug(`Loaded ${Object.keys(defs).length} definitions from ${url}`);
-                return true;
-            } catch (e) {
-                console.error(`[ParameterManager] Failed to load definitions from ${url}:`, e);
-                return false;
-            }
+                return out;
+            };
+            return (val) => {
+                if (def.nullable && (val === null || val === undefined || val === '')) {
+                    return { success: true, value: null };
+                }
+                const num = parseFloat(val);
+                if (isNaN(num)) {
+                    return { success: false,
+                        error: msg('mustBeNumber', '{field} must be a number',
+                                   { field: def.label }) };
+                }
+                if (def.min !== undefined && num < def.min) {
+                    return { success: false, correctedValue: def.min,
+                        error: msg('min', '{field} must be at least {min}',
+                                   { field: def.label, min: def.min }) };
+                }
+                if (def.max !== undefined && num > def.max) {
+                    return { success: false, correctedValue: def.max,
+                        error: msg('max', '{field} must be no more than {max}',
+                                   { field: def.label, max: def.max }) };
+                }
+                return { success: true, value: num };
+            };
         }
 
         initializeValidators() {
-            // Dynamically build validator based on the definitions, which are based on the config.
             const validators = {};
             for (const [name, def] of Object.entries(this.parameterDefinitions)) {
-                if (def.type === 'number') {
-                    // Create a validation function for this number
-                    validators[name] = (val) => {
-                        const num = parseFloat(val);
-                        if (isNaN(num)) return { success: false, error: `${def.label} must be a number` };
-
-                        if (def.min !== undefined && num < def.min) {
-                            return { success: false, error: `${def.label} must be at least ${def.min}`, correctedValue: def.min };
-                        }
-                        if (def.max !== undefined && num > def.max) {
-                            return { success: false, error: `${def.label} must be no more than ${def.max}`, correctedValue: def.max };
-                        }
-                        return { success: true, value: num };
-                    };
-                }
-                // Add more validators for 'select', 'checkbox' etc. if needed
-                // REVIEW - Are they needed?
+                if (def.type === 'number') validators[name] = this.makeNumberValidator(def);
             }
             return validators;
         }
 
         /**
-         * Updates validator constraints based on the active machine profile.
-         * Called when the user changes the Roland machine model or switches post-processor.
+         * Narrows parameter ranges to the active machine's limits.
+         * Roland's feeds are mm/sec; everything user-facing is mm/min.
          */
         updateMachineConstraints(machineProfile, postProcessor) {
             const isRoland = postProcessor === 'roland';
+            const clamp = (name, min, max) => {
+                const def = this.parameterDefinitions[name];
+                if (!def) return;
+                if (min !== undefined) def.min = min;
+                if (max !== undefined) def.max = max;
+                this.validators[name] = this.makeNumberValidator(def);
+            };
 
-            // Update spindle speed constraints from profile
-            if (machineProfile.spindleRange) {
-                const def = this.parameterDefinitions.spindleSpeed;
-                def.min = machineProfile.spindleRange.min;
-                def.max = machineProfile.spindleRange.max;
+            if (machineProfile?.spindleRange) {
+                clamp('spindleSpeed', machineProfile.spindleRange.min, machineProfile.spindleRange.max);
+            }
 
-                // Regenerate validator
-                this.validators.spindleSpeed = (val) => {
-                    const num = parseFloat(val);
-                    if (isNaN(num)) return { success: false, error: `${def.label} must be a number` };
-                    if (num < def.min) return { success: false, error: `${def.label} must be at least ${def.min}`, correctedValue: def.min };
-                    if (num > def.max) return { success: false, error: `${def.label} must be no more than ${def.max}`, correctedValue: def.max };
-                    return { success: true, value: num };
-                };
-            } // Roland without RC: fixed/manual spindle - no validator override needed.
-            
-
-            // Update feed rate constraints from profile max speeds
-            if (isRoland && machineProfile.maxFeedXY) {
-                const maxMmMin = machineProfile.maxFeedXY * 60;
-
-                const feedDef = this.parameterDefinitions.feedRate;
-                feedDef.max = maxMmMin;
-                this.validators.feedRate = (val) => {
-                    const num = parseFloat(val);
-                    if (isNaN(num)) return { success: false, error: `${feedDef.label} must be a number` };
-                    if (num < feedDef.min) return { success: false, error: `${feedDef.label} must be at least ${feedDef.min}`, correctedValue: feedDef.min };
-                    if (num > feedDef.max) return { success: false, error: `${feedDef.label} must be no more than ${feedDef.max}`, correctedValue: feedDef.max };
-                    return { success: true, value: num };
-                };
-
-                const plungeDef = this.parameterDefinitions.plungeRate;
-                const maxPlungeMmMin = (machineProfile.maxFeedZ || machineProfile.maxFeedXY) * 60;
-                plungeDef.max = maxPlungeMmMin;
-                this.validators.plungeRate = (val) => {
-                    const num = parseFloat(val);
-                    if (isNaN(num)) return { success: false, error: `${plungeDef.label} must be a number` };
-                    if (num < plungeDef.min) return { success: false, error: `${plungeDef.label} must be at least ${plungeDef.min}`, correctedValue: plungeDef.min };
-                    if (num > plungeDef.max) return { success: false, error: `${plungeDef.label} must be no more than ${plungeDef.max}`, correctedValue: plungeDef.max };
-                    return { success: true, value: num };
-                };
+            if (isRoland && machineProfile?.maxFeedXY) {
+                clamp('feedRate', undefined, machineProfile.maxFeedXY * 60);
+                clamp('plungeRate', undefined,
+                    (machineProfile.maxFeedZ || machineProfile.maxFeedXY) * 60);
             } else if (!isRoland) {
-                // Switching away from Roland - restore default validation limits
                 this.restoreDefaultValidators(['feedRate', 'plungeRate', 'spindleSpeed']);
             }
 
-            // Re-validate all currently loaded operations against new constraints
+            // Values already in state may now sit outside the new range.
             for (const [opId, state] of this.operationStates) {
                 for (const [stage, params] of Object.entries(state)) {
                     for (const [name, value] of Object.entries(params)) {
-                        if (this.validators[name]) {
-                            const result = this.validators[name](value);
-                            if (result.correctedValue !== undefined) {
-                                state[stage][name] = result.correctedValue;
-                                this.markDirty(opId, stage);
-                            }
+                        const validator = this.validators[name];
+                        if (!validator) continue;
+                        const result = validator(value);
+                        if (result.correctedValue !== undefined) {
+                            state[stage][name] = result.correctedValue;
+                            this.markDirty(opId, stage);
                         }
                     }
                 }
             }
 
-            this.debug(`Machine constraints updated for ${machineProfile.label || 'unknown'}`);
+            this.debug(`Machine constraints updated for ${machineProfile?.label || 'unknown'}`);
         }
 
-        // Restores validators to their original config-based limits.
+        /**
+         * Reverts to the ranges the profile declared.
+         */
         restoreDefaultValidators(paramNames) {
             for (const name of paramNames) {
                 const def = this.parameterDefinitions[name];
                 if (!def || def.type !== 'number') continue;
 
-                // Restore min/max from original config spread
-                if (validationRules[name]) {
-                    if (validationRules[name].min !== undefined) def.min = validationRules[name].min;
-                    if (validationRules[name].max !== undefined) def.max = validationRules[name].max;
-                }
+                const base = this.baseRanges[name];
+                if (base) { def.min = base.min; def.max = base.max; }
 
-                // Regenerate validator from restored definition
-                this.validators[name] = (val) => {
-                    const num = parseFloat(val);
-                    if (isNaN(num)) return { success: false, error: `${def.label} must be a number` };
-                    if (def.min !== undefined && num < def.min) {
-                        return { success: false, error: `${def.label} must be at least ${def.min}`, correctedValue: def.min };
-                    }
-                    if (def.max !== undefined && num > def.max) {
-                        return { success: false, error: `${def.label} must be no more than ${def.max}`, correctedValue: def.max };
-                    }
-                    return { success: true, value: num };
-                };
+                this.validators[name] = this.makeNumberValidator(def);
             }
         }
 
@@ -337,8 +294,11 @@
             }
 
             const opSettings = operation.settings || {};
-            // Get the operation-specific config defaults (e.g., passes for "isolation")
-            const defaults = this.getDefaults(operation.type);
+            // The persisted tool id, if the user picked one, so tool-derived
+            // defaults resolve against it rather than the profile default.
+            const savedToolId = (operation.userOverrides.has('tool') && opSettings.tool)
+                ? opSettings.tool : null;
+            const defaults = this.getDefaults(operation.type, savedToolId);
 
             // Re-build fresh state for this operation
             const state = {};
@@ -361,6 +321,8 @@
 
                 // If a value was found (from any source), set it in the manager.
                 // This validates/clamps the value on load.
+                // null is a REAL value for a nullable field - `!== undefined`
+                // lets it through so the empty state persists across reloads.
                 if (value !== undefined) {
                     const validator = this.validators[name];
                     const result = validator ? validator(value) : { success: true, value };
@@ -484,20 +446,26 @@
         }
 
         // Get default values for operation type
-        getDefaults(operationType) {
+        getDefaults(operationType, selectedToolId = null) {
             const defaults = {};
 
             // Ask the Tool Library for an appropriate starting tool via the core
             if (this.core.toolLibrary) {
-                const tool = this.core.toolLibrary.getDefaultToolForOperation(operationType);
+                // Prefer the operation's OWN selected tool. getDefaults is the
+                // fallback source for every non-overridden value, so resolving
+                // from the profile default here silently reverts toolDiameter,
+                // feeds and speeds to a tool the operation is not using.
+                const tool = (selectedToolId
+                        ? this.core.toolLibrary.getTool(selectedToolId) : null)
+                    || this.core.toolLibrary.getDefaultToolForOperation(operationType);
                 if (tool) {
                     const toolDiam = this.core.toolLibrary.getToolDiameter(tool.id);
                     defaults.tool = tool.id;
                     defaults.toolDiameter = toolDiam;
 
-                    // Support custom tool selection keys like engraveTool or vcarveTool
+                    // Support custom tool selection keys like engraveTool or vcarveTool (select fields only)
                     for (const [name, def] of Object.entries(this.parameterDefinitions)) {
-                        if (name.endsWith('Tool') && def.operationTypes && def.operationTypes.includes(operationType)) {
+                        if (def.type === 'select' && name.endsWith('Tool') && def.operationTypes && def.operationTypes.includes(operationType)) {
                             defaults[name] = tool.id;
                         }
                     }
@@ -617,15 +585,14 @@
             label.setAttribute('for', inputId);
 
             const lang = options.lang;
-            const labelText = lang ? lang.get(`parameters.${param.name}`, param.label) : param.label;
+            const entry = lang ? lang.entry(`params.${param.name}`) : {};
+            const labelText = entry.label || param.label;
             label.textContent = labelText;
             field.appendChild(label);
 
-            if (lang && lang.has(`tooltips.parameters.${param.name}`)) {
-                const helpText = lang.get(`tooltips.parameters.${param.name}`);
-                if (helpText && window.TooltipManager) {
-                    window.TooltipManager.attachWithIcon(label, { title: labelText, text: helpText }, { showOnFocus: true });
-                }
+            if (entry.help && window.TooltipManager) {
+                window.TooltipManager.attachWithIcon(label,
+                    { title: labelText, text: entry.help }, { showOnFocus: true });
             }
 
             let inputEl;
@@ -637,7 +604,13 @@
                     inputEl = document.createElement('input');
                     inputEl.type = 'number';
                     inputEl.id = inputId;
-                    inputEl.value = value ?? 0;
+                    // Nullable numbers render EMPTY when unassigned. `?? 0`
+                    // would put a plausible value in the box that the user
+                    // never entered and would never be prompted to check.
+                    inputEl.value = param.nullable
+                        ? (value === null || value === undefined ? '' : value)
+                        : (value ?? 0);
+                    if (param.placeholder) inputEl.placeholder = param.placeholder;
                     if (param.min !== undefined) inputEl.min = param.min;
                     if (param.max !== undefined) inputEl.max = param.max;
                     if (param.step !== undefined) inputEl.step = param.step;
@@ -669,7 +642,8 @@
                         for (const opt of param.options) {
                             const o = document.createElement('option');
                             o.value = opt.value;
-                            const optLabel = lang ? lang.get(`dropdowns.${opt.value}`, opt.label) : opt.label;
+                            const optLabel = lang
+                                ? lang.get(`enums.${opt.value}`, opt.label) : opt.label;
                             o.textContent = optLabel;
                             // Machine-capability gate, applied post-render by
                             // applyOptionGates - the value is unknown at field
@@ -719,9 +693,13 @@
                 if (inputEl) inputEl.disabled = true;
             } else if (inputEl && options.onChange) {
                 const handleCommit = () => {
+                    const raw = inputEl.value;
                     const val = param.type === 'checkbox' ? inputEl.checked
-                        : param.type === 'number' ? (parseFloat(inputEl.value) || 0)
-                        : inputEl.value;
+                        : param.type === 'number'
+                            ? (param.nullable && raw.trim() === ''
+                                ? null
+                                : (parseFloat(raw) || 0))
+                        : raw;
                     options.onChange(param.name, val, inputEl);
                 };
                 inputEl.addEventListener('change', handleCommit);

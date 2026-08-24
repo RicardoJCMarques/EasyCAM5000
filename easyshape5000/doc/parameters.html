@@ -14,7 +14,7 @@
     -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>EasyShape5000 | Parameter Reference</title>
-    <meta name="description" content="Every EasyShape5000 parameter: ranges, defaults, and what it does, grouped by operation and stage.">
+    <meta name="description" content="Every EasyShape5000 parameter with ranges and defaults - tool, depth, feeds, plus V-carve, relief and rotary settings, grouped by operation and stage.">
     <meta name="author" content="Eltryus">
     <meta name="robots" content="index, follow">
     <meta name="theme-color" content="#1a1a1a">
@@ -24,7 +24,7 @@
     <meta property="og:type" content="article">
     <meta property="og:url" content="https://cam.eltryus.design/easyshape5000/doc/parameters">
     <meta property="og:title" content="EasyShape5000 | Parameter Reference">
-    <meta property="og:description" content="A guide to EasyShape5000's operational parameters.">
+    <meta property="og:description" content="Every EasyShape5000 parameter with ranges and defaults - tool, depth, feeds, plus V-carve, relief and rotary settings, grouped by operation and stage.">
     <meta property="og:image" content="https://cam.eltryus.design/images/social-shape.jpg">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
@@ -59,7 +59,7 @@
                 "author": { "@id": "https://www.eltryus.design/#organization" },
                 "publisher": { "@id": "https://www.eltryus.design/#organization" },
                 "datePublished": "2026-06-17",
-                "dateModified": "2026-06-17"
+                "dateModified": "2026-08-24"
             },
             {
                 "@type": "BreadcrumbList",
@@ -118,8 +118,10 @@
                 <li><a href="#pocket" draggable="false">Pocket Clearing</a></li>
                 <li><a href="#drill" draggable="false">Drilling</a></li>
                 <li><a href="#depth" draggable="false">Depth & Passes</a></li>
+                <li><a href="#vcarve" draggable="false">V-Carve</a></li>
+                <li><a href="#relief" draggable="false">3D Relief</a></li>
+                <li><a href="#rotary" draggable="false">Rotary (4th Axis)</a></li>
                 <li><a href="#machine" draggable="false">Feeds & Speeds</a></li>
-                <li><a href="#planned" draggable="false">Planned Operations</a></li>
             </ol>
         </nav>
 
@@ -139,7 +141,8 @@
                     <thead><tr><th>Parameter</th><th>Range</th><th>Description</th></tr></thead>
                     <tbody>
                         <tr><td>Tool</td><td>library</td><td>Select a tool; its diameter drives all calculations.</td></tr>
-                        <tr><td>Tool Diameter</td><td>0.01-25.4 mm</td><td>Physical diameter of the cutting tool.</td></tr>
+                        <tr><td>Tool Number</td><td>1-99 (default 1)</td><td>The T word your controller receives - the magazine slot, pocket or collet this operation's tool sits in. Nothing is inferred from geometry: if your machine has no changer, leaving 1 everywhere is correct.</td></tr>
+                        <tr><td>Tool Diameter</td><td>0.01-25.4 mm</td><td>Physical diameter of the cutting tool. For a V-bit this is the tip flat, not the cutting diameter.</td></tr>
                     </tbody>
                 </table>
             </section>
@@ -216,22 +219,56 @@
                 </table>
             </section>
 
-            <section id="planned">
-                <h2>Planned Operations <span class="doc-badge doc-badge--dev">In Development</span></h2>
-                <p>Parameters exist in the interface but the operations don't yet produce toolpaths.</p>
+            <section id="vcarve">
+                <h2>V-Carve (Geometry) <span class="doc-badge doc-badge--dev">Beta</span></h2>
                 <table>
-                    <thead><tr><th>Operation</th><th>Parameter</th><th>Range / Options</th><th>Default</th><th>Description</th></tr></thead>
+                    <thead><tr><th>Parameter</th><th>Range / Options</th><th>Default</th><th>Description</th></tr></thead>
                     <tbody>
-                        <tr><td>Engraving</td><td>Path Mode</td><td>on / inside / outside</td><td>on</td><td>On-path traces the line; inside/outside offset by half the tool.</td></tr>
-                        <tr><td>Engraving</td><td>Depth</td><td>0.05-5 mm</td><td>0.5</td><td>Engraving cut depth; typically shallow.</td></tr>
-                        <tr><td>Engraving</td><td>Multi-Pass + Count</td><td>1-10</td><td>2</td><td>Repeat the path for cleaner results in hard materials.</td></tr>
-                        <tr><td>V-Carve</td><td>V-Bit Included Angle</td><td>10-180°</td><td>90</td><td>Bit angle; sets cut width at a given depth.</td></tr>
-                        <tr><td>V-Carve</td><td>Max Depth</td><td>0.1-20 mm</td><td>3</td><td>Depth limit for V-carve cuts.</td></tr>
-                        <tr><td>V-Carve</td><td>Flat Area Depth</td><td>0-10 mm</td><td>0</td><td>Depth for flats wider than the bit can reach (0 skips flats).</td></tr>
-                        <tr><td>Pattern</td><td>Pattern Type</td><td>grid / hex / radial / linear</td><td>grid</td><td>Repetition layout for the selected shape.</td></tr>
-                        <tr><td>Pattern</td><td>Spacing / Count / Radius</td><td>per type</td><td>-</td><td>Rows/cols + spacing (grid/hex), count (linear/radial), radius + angles (radial).</td></tr>
+                        <tr><td>V-Bit Included Angle</td><td>10-180°</td><td>90</td><td>Full angle between the bit's flanks. Sets how fast the cut widens with depth.</td></tr>
+                        <tr><td>V-Bit Tip Diameter</td><td>0-3 mm</td><td>0.3</td><td>Flat at the very tip. A true point is 0; most bits have a small flat.</td></tr>
+                        <tr><td>Start Depth</td><td>0-20 mm</td><td>0</td><td>Surface the carve starts from. Use it to carve inside an existing pocket.</td></tr>
+                        <tr><td>Max Depth</td><td>0.1-30 mm</td><td>3</td><td>Depth limit. Regions wider than the bit reaches here get a flat floor instead.</td></tr>
                     </tbody>
                 </table>
+                <p>Chain length, corner angle, sample spacing and noise threshold tune the medial-axis quality. The in-app tooltips carry the detail; defaults suit typical lettering.</p>
+            </section>
+
+            <section id="relief">
+                <h2>3D Relief (Geometry) <span class="doc-badge doc-badge--dev">Beta</span></h2>
+                <table>
+                    <thead><tr><th>Parameter</th><th>Range / Options</th><th>Default</th><th>Description</th></tr></thead>
+                    <tbody>
+                        <tr><td>Tool Shape</td><td>flat / ball / bullnose</td><td>ball</td><td>Real tip profile. Drives the compensation, so a wrong shape gouges or leaves stock.</td></tr>
+                        <tr><td>Depth Mapping</td><td>fit / actual</td><td>fit</td><td>Scale the mesh's Z range into the depth budget, or machine it at true size.</td></tr>
+                        <tr><td>Relief Depth</td><td>mm</td><td>-</td><td>Total depth the height field is mapped across.</td></tr>
+                        <tr><td>Boundary Mode</td><td>stop / rollover</td><td>stop</td><td>What happens at the model edge: stop at the silhouette, or roll the surface over it.</td></tr>
+                        <tr><td>Pass Mode</td><td>rough+finish / finish only</td><td>rough+finish</td><td>Roughing layers clear bulk stock; the finishing raster cuts the surface.</td></tr>
+                        <tr><td>Rough Stepdown / Stock</td><td>mm</td><td>-</td><td>Z per roughing layer, and material left for the finishing pass.</td></tr>
+                        <tr><td>Finish Stepover</td><td>%</td><td>-</td><td>Raster line spacing as a percentage of tool diameter. Lower = smoother, slower.</td></tr>
+                        <tr><td>Cell Size / Grid Max</td><td>mm / cells</td><td>auto</td><td>Sampling resolution of the height field. Finer costs generation time and memory.</td></tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <section id="rotary">
+                <h2>Rotary - 4th Axis (Geometry) <span class="doc-badge doc-badge--dev">Beta</span></h2>
+                <table>
+                    <thead><tr><th>Parameter</th><th>Range / Options</th><th>Default</th><th>Description</th></tr></thead>
+                    <tbody>
+                        <tr><td>Kinematics</td><td>radial / indexed</td><td>radial</td><td>Continuous wrap, or N flat faces at fixed A angles. Changes which parameters below apply.</td></tr>
+                        <tr><td>Rotary Axis</td><td>X (A) / Y (B)</td><td>X</td><td>Which linear axis the part spins about. The post must declare the matching axis word.</td></tr>
+                        <tr><td>Model Up</td><td>axis</td><td>-</td><td>Which way the imported mesh is oriented, so the app knows how to lay it down.</td></tr>
+                        <tr><td>Stock Shape / Blank Diameter</td><td>mm</td><td>-</td><td>The round blank you are cutting from (radial).</td></tr>
+                        <tr><td>Face Count / Start Angle</td><td>3-24 / degrees</td><td>-</td><td>Number of indexed faces and where the first one sits (indexed).</td></tr>
+                        <tr><td>Blank Width</td><td>mm</td><td>auto</td><td>Across-flats size of the prism. Derived from the mesh when left empty; an explicit value always wins (indexed).</td></tr>
+                        <tr><td>Workholding + End Modes</td><td>stop / rollover</td><td>stop</td><td>How far past each end of the model the tool may travel. Chuck is the low end of the axis, tail the high end.</td></tr>
+                        <tr><td>Minimum Radius</td><td>mm</td><td>0</td><td>Drive core left uncut around the axis - the stub a chuck grips.</td></tr>
+                        <tr><td>Rough Stepdown</td><td>mm</td><td>-</td><td>Radius per layer in radial mode, Z per layer in indexed mode. Not the same quantity.</td></tr>
+                    </tbody>
+                </table>
+                <div class="callout callout--warning">
+                    <p>Changing the post-processor invalidates generated indexed operations: indexed 3+1 needs the post to declare an A-word route, so it cannot survive a post swap. Regenerate before exporting.</p>
+                </div>
             </section>
         </main>
 

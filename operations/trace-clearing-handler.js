@@ -33,19 +33,13 @@
         }
 
         /**
-         * Detect nested topology before offsetting. Without this,
-         * internal offsets collapse inner shapes (which should act as
-         * holes) instead of expanding them, producing false "tool too
-         * large" errors on complex multi-polygon geometry.
+         * Both tiers: compounds (glyphs, nested fills) + separate loops
+         * (multi-polygon pour fragments that contain each other). Without
+         * this, internal offsets collapse inner shapes that should act as
+         * holes, producing false "tool too large" errors.
          */
-        async orchestrateGeneration(operation, params, core, options = {}) {
-            // Both tiers: compounds (glyphs, nested fills) + separate
-            // loops (multi-polygon pour fragments that contain each other).
-            operation.primitives = this.resolveContourTopology(
-                operation.primitives, { mergeNesting: true }
-            );
-
-            return super.orchestrateGeneration(operation, params, core, options);
+        resolveSourceTopology(operation) {
+            return this.resolveContourTopology(operation.primitives, { mergeNesting: true });
         }
 
         /**

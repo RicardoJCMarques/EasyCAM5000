@@ -15,7 +15,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>EasyTrace5000 | CNC Milling Guide</title>
 
-    <meta name="description" content="A complete guide to PCB isolation routing with EasyTrace5000. Learn how to generate G-code for GRBL, configure offset parameters and select drill strategies.">
+    <meta name="description" content="Complete PCB isolation routing guide: Gerber to G-code, drill strategy, per-diameter tooling, automatic tool changes, and all ten post-processors.">
     <meta name="author" content="Eltryus">
     <meta name="robots" content="index, follow">
     <meta name="theme-color" content="#1a1a1a">
@@ -25,7 +25,7 @@
     <meta property="og:type" content="article">
     <meta property="og:url" content="https://cam.eltryus.design/easytrace5000/doc/cnc">
     <meta property="og:title" content="EasyTrace5000 | CNC Milling Guide">
-    <meta property="og:description" content="Master PCB isolation routing: From Gerber files to machine-ready G-code.">
+    <meta property="og:description" content="Complete PCB isolation routing guide: Gerber to G-code, drill strategy, per-diameter tooling, automatic tool changes, and all ten post-processors.">
     <meta property="og:image" content="https://cam.eltryus.design/images/social-trace.jpg">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
@@ -60,7 +60,7 @@
             "author": { "@id": "https://www.eltryus.design/#organization" },
             "publisher": { "@id": "https://www.eltryus.design/#organization" },
             "datePublished": "2025-01-16",
-            "dateModified": "2026-03-02"
+            "dateModified": "2026-08-24"
         },
         {
             "@type": "BreadcrumbList",
@@ -658,6 +658,12 @@
                     <dd>Adds descriptive comments identifying each operation.</dd>
                     <dt>Optimize toolpaths (Experimental)</dt>
                     <dd>Applies path optimization to reduce travel moves and group nearby cuts.</dd>
+                    <dt>Insert tool changes</dt>
+                    <dd>Emits <code>T… M6</code> (plus the tool-length mode your post declares) whenever the tool number changes, with a retract, spindle stop and <code>G49</code> before the swap. Greyed out on posts that declare no tool-change support, and on multi-file exports unless one of the files holds more than one tool.</dd>
+                    <dt>Group by tool</dt>
+                    <dd>Reorders operations so each tool is used once, minimising physical swaps. This overrides the order you dragged, so it is never implied by the option above.</dd>
+                    <dt>Split drill files by hole diameter</dt>
+                    <dd>Multi-file mode only. Writes a separate program per hole size (and per milled size) so each file loads exactly one cutter.</dd>
                     <dt>Output Filename</dt>
                     <dd>The filename for the downloaded G-code file.</dd>
                 </dl>
@@ -873,16 +879,18 @@
 
                 <h3>Post-Processor</h3>
                 <table>
-                    <thead>
-                        <tr><th>Processor</th><th>Status</th><th>Notes</th></tr>
-                    </thead>
+                    <thead><tr><th>Post-Processor</th><th>Status</th><th>Tool Changes</th><th>Notes</th></tr></thead>
                     <tbody>
-                        <tr><td>GRBL</td><td><span class="doc-badge doc-badge--stable">Stable</span></td><td>Standard G-code for GRBL-based controllers. Most compatible option.</td></tr>
-                        <tr><td>GrblHAL</td><td><span class="doc-badge doc-badge--dev">Exp</span></td><td>Extended GRBL dialect with additional features.</td></tr>
-                        <tr><td>Marlin</td><td><span class="doc-badge doc-badge--dev">Exp</span></td><td>For Marlin-based CNC/3D printer conversions.</td></tr>
-                        <tr><td>LinuxCNC</td><td><span class="doc-badge doc-badge--dev">Exp</span></td><td>For LinuxCNC-controlled machines.</td></tr>
-                        <tr><td>Mach3</td><td><span class="doc-badge doc-badge--dev">Exp</span></td><td>For Mach3-controlled machines.</td></tr>
-                        <tr><td>Roland RML</td><td><span class="doc-badge doc-badge--dev">Exp</span></td><td>Roland Modela command language (not standard G-code).</td></tr>
+                        <tr><td>GRBL</td><td><span class="doc-badge doc-badge--stable">Stable</span></td><td>No</td><td>Standard G-code for GRBL-based controllers. Most compatible option. Multi-tool jobs must be exported one file per tool.</td></tr>
+                        <tr><td>grblHAL</td><td><span class="doc-badge doc-badge--dev">Exp</span></td><td>T/M6</td><td>Extended GRBL dialect. Optional tool-length table mode.</td></tr>
+                        <tr><td>UCCNC</td><td><span class="doc-badge doc-badge--dev">Exp</span></td><td>T/M6</td><td>Tool-length table mode available.</td></tr>
+                        <tr><td>Mach3</td><td><span class="doc-badge doc-badge--dev">Exp</span></td><td>T/M6</td><td>Outputs <code>.tap</code>. Tool-length table mode available.</td></tr>
+                        <tr><td>LinuxCNC</td><td><span class="doc-badge doc-badge--dev">Exp</span></td><td>T/M6</td><td>Outputs <code>.ngc</code>. Tool-length table mode available.</td></tr>
+                        <tr><td>Fanuc</td><td><span class="doc-badge doc-badge--dev">Exp</span></td><td>T/M6</td><td>Supports both explicit <code>G43 H…</code> and implicit <code>G43</code> tool-length modes.</td></tr>
+                        <tr><td>WinPC-NC</td><td><span class="doc-badge doc-badge--dev">Exp</span></td><td>T/M6</td><td>DIN/ISO interpreter. No tool-length compensation.</td></tr>
+                        <tr><td>Makera</td><td><span class="doc-badge doc-badge--dev">Exp</span></td><td>Yes</td><td>Carvera. Outputs <code>.cnc</code>. Tool length is measured by the machine's probe macro.</td></tr>
+                        <tr><td>Marlin</td><td><span class="doc-badge doc-badge--dev">Exp</span></td><td>No</td><td>For Marlin-based CNC/3D printer conversions. Outputs <code>.gcode</code>.</td></tr>
+                        <tr><td>Roland RML</td><td><span class="doc-badge doc-badge--dev">Exp</span></td><td>No</td><td>Roland Modela command language (not standard G-code). Outputs <code>.rml</code>.</td></tr>
                     </tbody>
                 </table>
 

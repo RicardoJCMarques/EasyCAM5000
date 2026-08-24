@@ -122,14 +122,30 @@
         }
 
         // REVIEW - Some consistency is getting lost between EasyShape5000 and EasyTrace5000, double check all these methods maintain some relational predictability to how they work.
-        resolveLayerColor(layer) {
+                resolveLayerColor(layer) {
             const isBW = this.renderer?.options?.blackAndWhite;
             if (isBW) return this.readCSSVar('--color-bw-white', '#ffffff');
 
-            // Operation type wins for EVERY layer that carries one: EasyShape
-            // paints a bucket's offsets and preview in that operation's colour
-            // rather than the shared offset/preview roles the base provides.
             const opType = layer.operationType;
+
+            // Source outlines resolve from the SOURCE palette, never the
+            // operation palette. EasyShape paints a bucket's offsets and
+            // preview in the operation colour, so a source layer sharing that
+            // token renders the shape and the toolpath generated off it in one
+            // indistinguishable colour - and it does so at ASSIGNMENT, which is
+            // why it reads as "when the bucket generates".
+            // A theme declaring --color-geometry-source-<op> gets a per-op
+            // source tint; one that does not falls back to the plain source
+            // colour, which is the assignment-blind behaviour.
+            if (layer.role === 'source') {
+                return (opType && this.readCSSVar(`--color-geometry-source-${opType}`, null))
+                    || layer.color
+                    || this.readCSSVar('--color-geometry-source-unassigned', '#228b9d');
+            }
+
+            // Operation type wins for every other layer that carries one:
+            // EasyShape paints offsets and preview in that operation's colour
+            // rather than the shared offset/preview roles the base provides.
             if (opType === 'unassigned') {
                 return layer.color || this.readCSSVar('--color-geometry-source-unassigned', '#228b9d');
             }
@@ -279,8 +295,8 @@
                 }
             });
 
-            this.opsPanel.on('stageCleared', () => { this.rebuildLayers(); this.ctrl.refresh3DPlans?.(); });
-            this.opsPanel.on('bucketRemoved', () => { this.rebuildLayers(); this.ctrl.refresh3DPlans?.(); });
+            this.opsPanel.on('stageCleared', () => this.rebuildLayers());
+            this.opsPanel.on('bucketRemoved', () => this.rebuildLayers());
         }
 
         initOpTypeTabs() {
@@ -490,7 +506,7 @@
             for (const shape of this.ctrl.scene.allShapes()) {
                 if (!shape.isVisible) continue;
 
-                const opKey = shape.operation ? shape.operation.type : 'unassigned';
+                const opKey = this.opsPanel?.getShapeOpType(shape.id) || 'unassigned';
 
                 // Per-category visibility filter (default true).
                 if (f && f[opKey] === false) continue;
@@ -503,9 +519,10 @@
                 if (isIdentity && !isSelected) {
                     pushBatch(opKey, shape.primitive);
                 } else {
-                    this.renderer.addLayer(`shape_${shape.id}`, [shape.primitive], {
+                    this.renderer.addLayer(window.LayerNaming.shape(shape.id), [shape.primitive], {
                         type: opKey,
                         operationType: opKey,
+                        role: 'source',
                         visible: true,
                         transform: m,
                         bounds: this.ctrl.scene.getShapeWorldBounds(shape),
@@ -515,9 +532,10 @@
             }
 
             for (const [opKey, prims] of batches) {
-                this.renderer.addLayer(`batch_${opKey}`, prims, {
+                    this.renderer.addLayer(window.LayerNaming.batch(opKey), prims, {
                     type: opKey,
                     operationType: opKey,
+                    role: 'source',
                     visible: true,
                     zIndex: this.getLayerZIndex(opKey, { operationType: opKey })
                 });
@@ -577,7 +595,7 @@
                         if (first.distance < 0) offsetType = 'internal';
                         else if (first.distance === 0) offsetType = 'on';
 
-                        this.renderer.addLayer(`bucket_offset_${bucket.id}`, allPrims, {
+                        this.renderer.addLayer(window.LayerNaming.bucketOffset(bucket.id), allPrims, {
                             type: 'offset',
                             visible: !op.preview?.ready,
                             operationId: bucket.id,
@@ -594,7 +612,7 @@
 
                 // Preview
                 if (showPreview && op.preview?.primitives?.length > 0 && !op.isInvalidated) {
-                    this.renderer.addLayer(`bucket_preview_${bucket.id}`, op.preview.primitives, {
+                    this.renderer.addLayer(window.LayerNaming.bucketPreview(bucket.id), op.preview.primitives, {
                         type: 'preview',
                         visible: true,
                         operationId: bucket.id,
@@ -619,7 +637,7 @@
             }], {
                 stroke: true, fill: false, strokeWidth: 0.5, polarity: 'dark', isStock: true
             });
-            this.renderer.addLayer('__stock__', [prim], { type: 'stock', visible: true, isStock: true, zIndex: this.getLayerZIndex('stock') });
+            this.renderer.addLayer(window.LayerNaming.stock(), [prim], { type: 'stock', visible: true, isStock: true, zIndex: this.getLayerZIndex('stock') });
         }
 
         // ═══════════════════════════════════════════════════════════════

@@ -1,6 +1,6 @@
 {
   "_projectInfo": {
-    "file": "profile-shape.json",
+    "file": "ui/profile-shape.json",
     "description": "EasyShape5000 profile",
     "author": "Eltryus - Ricardo Marques",
     "see": "https://github.com/RicardoJCMarques/EasyCAM5000",
@@ -56,7 +56,8 @@
       "multiDepth": false
     },
     "vcarve": {
-      "toolDiameter": 3
+      "toolDiameter": 3,
+      "vbitAngle": 90
     }
   },
   "ui": {
@@ -68,6 +69,8 @@
       "bounds": "Model Bounds",
       "holding": "Workholding & Ends",
       "passes": "Passes & Stepover",
+      "roughing": "Roughing",
+      "finishing": "Finishing",
       "quality": "Resolution & Finish",
       "tabs": "Holding Tabs",
       "drill": "Drill Strategy",
@@ -131,6 +134,18 @@
       "stage": "geometry",
       "category": "tool",
       "operationTypes": ["profile", "pocket", "drill", "engrave", "vcarve", "relief", "rotary"]
+    },
+    "toolNumber": {
+      "type": "number",
+      "label": "Tool Number",
+      "stage": "geometry",
+      "category": "tool",
+      "operationTypes": ["profile", "pocket", "drill", "engrave", "vcarve", "relief", "rotary"],
+      "default": 1,
+      "min": 1,
+      "max": 99,
+      "step": 1,
+      "invalidates": false
     },
     "toolDiameter": {
       "type": "number",
@@ -238,11 +253,10 @@
       "default": 50,
       "min": 10,
       "max": 90,
-      "step": 5,
-      "conditional": "millHoles"
+      "step": 5
     },
 
-    "_comment_drill_mill_strat": "═══ DRILL MILLING DEPTH (strategy, conditional on millHoles) ═══",
+    "_comment_drill_mill_strat": "═══ DRILL MILLING DEPTH (strategy) ═══",
 
     "drillMultiDepth": {
       "type": "checkbox",
@@ -250,8 +264,7 @@
       "stage": "strategy",
       "category": "depth",
       "operationTypes": "drill",
-      "default": true,
-      "conditional": "millHoles"
+      "default": true
     },
     "drillDepthPerPass": {
       "type": "number",
@@ -264,7 +277,7 @@
       "min": 0.1,
       "max": 50,
       "step": 0.5,
-      "conditional": "millHoles && drillMultiDepth"
+      "conditional": "drillMultiDepth"
     },
     "drillEntryType": {
       "type": "select",
@@ -273,7 +286,6 @@
       "category": "depth",
       "operationTypes": "drill",
       "default": "helix",
-      "conditional": "millHoles",
       "options": [
         { "value": "plunge", "label": "Plunge (Vertical)" },
         { "value": "helix", "label": "Helix (Spiral entry)" }
@@ -293,12 +305,12 @@
       "operationTypes": "vcarve",
       "default": 90,
       "min": 10,
-      "max": 180,
+      "max": 150,
       "step": 5
     },
     "vbitTipDiameter": {
       "type": "number",
-      "label": "Tip Flat Diameter",
+      "label": "Tip Diameter (0 = Pointy)",
       "unit": "mm",
       "stage": "geometry",
       "category": "tool",
@@ -323,58 +335,17 @@
     },
     "vcarveMaxDepth": {
       "type": "number",
-      "label": "Max Depth",
+      "label": "Max Depth (0 = auto)",
       "unit": "mm",
       "stage": "geometry",
       "category": "depth",
       "operationTypes": "vcarve",
-      "default": 3,
-      "min": 0.1,
+      "default": 0,
+      "min": 0,
       "max": 20,
       "step": 0.1
     },
-    "vcarveFlatDepth": {
-      "type": "number",
-      "label": "Flat Area Depth",
-      "unit": "mm",
-      "stage": "geometry",
-      "category": "depth",
-      "operationTypes": "vcarve",
-      "default": 0,
-      "min": 0,
-      "max": 10,
-      "step": 0.1
-    },
 
-    "useVcarveClearingTool": {
-      "type": "checkbox",
-      "label": "Use Clearing Tool for Flats",
-      "stage": "geometry",
-      "category": "passes",
-      "operationTypes": "vcarve",
-      "default": false
-    },
-    "vcarveClearingTool": {
-      "type": "select",
-      "label": "Clearing Tool",
-      "stage": "geometry",
-      "category": "passes",
-      "operationTypes": "vcarve",
-      "conditional": "useVcarveClearingTool"
-    },
-
-    "vcarveSimplifyTolerance": {
-      "type": "number",
-      "label": "Curve Simplification",
-      "unit": "mm",
-      "stage": "geometry",
-      "category": "quality",
-      "operationTypes": "vcarve",
-      "default": 0,
-      "min": 0,
-      "max": 0.001,
-      "step": 0.001
-    },
     "vcarveMinChainLength": {
       "type": "number",
       "label": "Min Path Length",
@@ -398,6 +369,30 @@
       "min": 5,
       "max": 90,
       "step": 5
+    },
+    "vcarveSampleSpacing": {
+      "type": "number",
+      "label": "Boundary Sample Spacing",
+      "unit": "mm",
+      "stage": "geometry",
+      "category": "quality",
+      "operationTypes": "vcarve",
+      "default": 0.15,
+      "min": 0.02,
+      "max": 1,
+      "step":0.01
+    },
+    "vcarveNoiseThreshold": {
+      "type": "number",
+      "label": "Noise Threshold",
+      "unit": "mm",
+      "stage": "geometry",
+      "category": "quality",
+      "operationTypes": "vcarve",
+      "default": 0,
+      "min": 0,
+      "max": 1,
+      "step":0.01
     },
 
     "_comment_relief_geo": "═══ RELIEF GEOMETRY ═══",
@@ -527,7 +522,7 @@
       "label": "Roughing Stepdown",
       "unit": "mm",
       "stage": "geometry",
-      "category": "passes",
+      "category": "roughing",
       "operationTypes": "relief",
       "conditional": "reliefMode:roughing,both",
       "default": 1.5,
@@ -540,7 +535,7 @@
       "label": "Roughing Stepover",
       "unit": "%",
       "stage": "geometry",
-      "category": "passes",
+      "category": "roughing",
       "operationTypes": "relief",
       "conditional": "reliefMode:roughing,both",
       "default": 45,
@@ -553,7 +548,7 @@
       "label": "Finishing Allowance",
       "unit": "mm",
       "stage": "geometry",
-      "category": "passes",
+      "category": "roughing",
       "operationTypes": "relief",
       "conditional": "reliefMode:roughing,both",
       "default": 0.3,
@@ -566,7 +561,7 @@
       "label": "Finishing Stepover",
       "unit": "%",
       "stage": "geometry",
-      "category": "passes",
+      "category": "finishing",
       "operationTypes": "relief",
       "default": 10,
       "min": 2,
@@ -577,7 +572,7 @@
       "type": "select",
       "label": "Raster Direction",
       "stage": "geometry",
-      "category": "passes",
+      "category": "finishing",
       "operationTypes": "relief",
       "default": "x",
       "options": [
@@ -589,7 +584,7 @@
       "type": "checkbox",
       "label": "Cross Finishing Pass (90°)",
       "stage": "geometry",
-      "category": "passes",
+      "category": "finishing",
       "operationTypes": "relief",
       "conditional": "reliefMode:finishing,both",
       "default": false
@@ -598,7 +593,7 @@
       "type": "checkbox",
       "label": "Skip Flat Floor (roughing end-mills it)",
       "stage": "geometry",
-      "category": "passes",
+      "category": "finishing",
       "operationTypes": "relief",
       "default": false
     },
@@ -854,7 +849,7 @@
       "label": "Axis Over-Cut (0 = auto: tool radius when no drive stub)",
       "unit": "mm",
       "stage": "geometry",
-      "category": "depth",
+      "category":"holding",
       "operationTypes": "rotary",
       "conditional": "rotaryKinematics:indexed",
       "default": 0,
@@ -867,7 +862,7 @@
       "label": "Drive Stub Radius (RADIUS - Taper target & between-centers core; Roll Over ends form no stub)",
       "unit": "mm",
       "stage": "geometry",
-      "category": "depth",
+      "category": "holding",
       "operationTypes": "rotary",
       "default": 2,
       "min": 0,
@@ -969,7 +964,7 @@
       "label": "Roughing Stepdown (Z per layer)",
       "unit": "mm",
       "stage": "geometry",
-      "category": "passes",
+      "category": "roughing",
       "operationTypes": "rotary",
       "conditional": "rotaryKinematics:indexed && rotaryMode:roughing,both",
       "default": 1.5,
@@ -982,7 +977,7 @@
       "label": "Roughing Stepover",
       "unit": "%",
       "stage": "geometry",
-      "category": "passes",
+      "category": "roughing",
       "operationTypes": "rotary",
       "conditional": "rotaryMode:roughing,both",
       "default": 45,
@@ -995,7 +990,7 @@
       "label": "Finishing Stock",
       "unit": "mm",
       "stage": "geometry",
-      "category": "passes",
+      "category": "roughing",
       "operationTypes": "rotary",
       "conditional": "rotaryMode:roughing,both",
       "default": 0.3,
@@ -1008,7 +1003,7 @@
       "label": "Finishing Stepover",
       "unit": "%",
       "stage": "geometry",
-      "category": "passes",
+      "category": "finishing",
       "operationTypes": "rotary",
       "conditional": "rotaryMode:finishing,both",
       "default": 10,
@@ -1020,7 +1015,7 @@
       "type": "select",
       "label": "Roughing Direction",
       "stage": "geometry",
-      "category": "passes",
+      "category": "roughing",
       "operationTypes": "rotary",
       "conditional": "rotaryKinematics:radial",
       "default": "x",
@@ -1033,7 +1028,7 @@
       "type": "select",
       "label": "Finishing Pattern",
       "stage": "geometry",
-      "category": "passes",
+      "category": "finishing",
       "operationTypes": "rotary",
       "conditional": "rotaryKinematics:radial",
       "default": "spiral",
@@ -1047,7 +1042,7 @@
       "type": "select",
       "label": "Raster Direction",
       "stage": "geometry",
-      "category": "passes",
+      "category": "finishing",
       "operationTypes": "rotary",
       "conditional": "rotaryKinematics:indexed",
       "default": "axial",
@@ -1060,7 +1055,7 @@
       "type": "checkbox",
       "label": "Cross Finishing Pass (90°)",
       "stage": "geometry",
-      "category": "passes",
+      "category": "finishing",
       "operationTypes": "rotary",
       "conditional": "rotaryKinematics:indexed && rotaryMode:finishing,both",
       "default": false
@@ -1459,6 +1454,7 @@
       "operationTypes": ["profile", "pocket", "drill", "engrave", "vcarve", "relief", "rotary"],
       "min": 1000,
       "max": 60000,
+      "default": 10000,
       "step": 500
     },
     "spindleDwell": {

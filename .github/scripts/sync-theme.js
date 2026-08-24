@@ -76,6 +76,40 @@ mappings.forEach(map => {
     }
 });
 
+// Process top-level tokens if present (unprefixed CSS variables)
+if (themeData.tokens && typeof themeData.tokens === 'object' && Object.keys(themeData.tokens).length > 0) {
+    cssLines.push(`\n    /* Token Overrides */`);
+    Object.entries(themeData.tokens).forEach(([key, value]) => {
+        cssLines.push(`    --${key}: ${value};`);
+    });
+}
+
+// Parity gate: a key present in one theme and missing in another silently
+// inherits the other theme's value, because applyColorVariables writes inline
+// custom properties and never removes them on switch.
+// REVIEW - In the future when more themes are hardcoded, this can apply to all of them.
+const LIGHT_JSON_PATH = path.resolve(__dirname, '../../themes/light.json');
+if (fs.existsSync(LIGHT_JSON_PATH)) {
+    const keysOf = (obj, prefix = '', out = new Set()) => {
+        const entries = Array.isArray(obj) ? obj.entries() : Object.entries(obj);
+        for (const [k, v] of entries) {
+            const p = prefix ? `${prefix}.${k}` : String(k);
+            if (v && typeof v === 'object') keysOf(v, p, out);
+            else out.add(p);
+        }
+        return out;
+    };
+    const darkKeys = keysOf(colors);
+    const lightKeys = keysOf(JSON.parse(fs.readFileSync(LIGHT_JSON_PATH, 'utf8')).colors);
+    const missing = [...darkKeys].filter(k => !lightKeys.has(k));
+    const extra = [...lightKeys].filter(k => !darkKeys.has(k));
+    if (missing.length || extra.length) {
+        if (missing.length) console.error(`❌ light.json is missing: ${missing.join(', ')}`);
+        if (extra.length) console.error(`❌ light.json has extra: ${extra.join(', ')}`);
+        process.exit(1);
+    }
+}
+
 // Read and Replace CSS File content
 let cssContent = fs.readFileSync(CSS_PATH, 'utf8');
 

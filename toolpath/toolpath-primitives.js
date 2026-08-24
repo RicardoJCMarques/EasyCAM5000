@@ -12,6 +12,8 @@
 (function() {
     'use strict';
 
+    const PRECISION = window.CAMConfig.constants.precision.coordinate;
+
     /**
      * Lightweight motion command structure
      */
@@ -185,9 +187,7 @@
             const last = points[points.length - 1];
             const dx = first.x - last.x;
             const dy = first.y - last.y;
-            const threshold = precision !== undefined
-                ? precision
-                : (window.CAMConfig?.constants?.precision?.coordinate || 0.001);
+            const threshold = precision !== undefined ? precision : PRECISION;
             return (dx * dx + dy * dy) < (threshold * threshold);
         }
 
@@ -231,7 +231,6 @@
          * @param {number}  [o.chord]    - |end - start| distance
          * @param {number}  [o.radius]   - guards the rescue vs degenerates
          * @param {number}  [o.eps]      - angular epsilon
-         * @param {number}  [o.chordEps] - coincidence threshold
          * @returns {number} signed sweep (negative = CW)
          */
         static normalizeArcSweep(o = {}) {
@@ -246,9 +245,7 @@
             else    { if (sweep <= -eps) sweep += TAU; }
 
             if (Math.abs(sweep) < eps) {
-                const chordEps = o.chordEps
-                    ?? (window.CAMConfig?.constants?.precision?.coordinate || 0.001);
-                const coincident = o.chord !== undefined && o.chord < chordEps;
+                const coincident = o.chord !== undefined && o.chord < PRECISION;
                 const hasRadius = o.radius === undefined || o.radius > eps;
                 if (coincident && hasRadius) return cw ? -TAU : TAU;
             }
@@ -256,6 +253,25 @@
         }
     }
 
+    /**
+     * Feed classification shared by generation, reversal and simplification.
+     * Lives here rather than on the 3D translator so a 2D-only app never has
+     * to load it.
+     */
+    const ToolpathFeeds = {
+        /** tan(descentFeedAngle). Descents steeper than this use plungeRate. */
+        slopeGate() {
+            const T3D = window.CAMConfig.defaults.toolpath.generation.threeD;
+            return Math.tan((T3D.descentFeedAngleDeg * Math.PI) / 180);
+        },
+
+        /** Feed for a segment whose delta is (dz, dxy). */
+        feedFor(dz, dxy, feedRate, plungeRate, gate) {
+            return (dz < 0 && Math.abs(dz) > dxy * gate) ? plungeRate : feedRate;
+        }
+    };
+
+    window.ToolpathFeeds = ToolpathFeeds;
     window.MotionCommand = MotionCommand;
     window.ToolpathPlan = ToolpathPlan;
 })();

@@ -109,16 +109,14 @@
 
         /**
          * Pack a source-shape identity into a Z word for non-arc points.
-         * Uses bits 24-55 (32-bit), with bits 0-23 forced to zero so that
-         * unpackMetadata sees curveId=0 and knows this is identity, not arc data.
-         *
-         * Bits 24-55, i.e. deliberately OVERLAPPING packMetadata's segmentIndex
-         * field. Safe only because the two are mutually exclusive: a point either
-         * carries a curveId (bits 0-23 non-zero) or a sourceId, never both, and
-         * unpackMetadata dispatches on curveId > 0. Widening sourceId past 31 bits
-         * would collide with the clockwise flag at bit 55.
+         * Bits 24-55, deliberately overlapping packMetadata's segmentIndex
+         * field: a point carries either a curveId (bits 0-23 non-zero) or a
+         * sourceId, never both, and unpackMetadata dispatches on curveId > 0.
+         * unpackSourceId is therefore only meaningful when curveId = 0.
+         * Identity is carried for downstream toolpath grouping; it is not
+         * arc metadata and does not participate in reconstruction.
          */
-        // REVIEW - the current system may not need this but stayDown clusters probably need this.
+        // The current system may not need this but stayDown clusters probably need it in the future.
         // Same shapeID if far appart by the offset distance (not just point distance) should be stayDown compatible, it would allow enough precision for more stayDown moves when explicit points are diagonally distant.
         packSourceId(sourceId) {
             if (!sourceId) return BigInt(0);
@@ -341,6 +339,142 @@
                 console.error('Error converting path to Clipper:', error);
                 if (path && typeof path.delete === 'function') path.delete();
                 return null;
+            }
+        }
+
+        /**
+         * Lean converter for the native linear offset path. No curve registry,
+         * no Z word: Clipper2 creates its own vertices when offsetting, so
+         * there is nothing for arc provenance to survive on. Callers that need
+         * arcs must use GeometryOffsetter.offsetPathViaBoolean instead as this
+         * bypasses all arc logic.
+         */
+        // REVIEW - Should this be in geometry-utils? Like all other pre-processor methods?
+        pointsToPath64Plain(points) {
+            const { Path64, Point64 } = this.clipper2;
+            if (!points || points.length < 3) return null;
+
+            const path = new Path64();
+            const Z = BigInt(0);
+            try {
+                for (let i = 0; i < points.length; i++) {
+                    const p = points[i];
+                    if (!Number.isFinite(p.x) || !Number.isFinite(p.y)) {
+                        console.error(
+                            `[ClipperWrapper] NaN/Infinite coordinate at point ${i}/${points.length}: ` +
+                            `(${p.x}, ${p.y}). Scale=${this.scale}. Skipping entire contour.`
+                        );
+                        path.delete();
+                        return null;
+                    }
+                    const point = new Point64(
+                        BigInt(Math.round(p.x * this.scale)),
+                        BigInt(Math.round(p.y * this.scale)),
+                        Z
+                    );
+                    path.push_back(point);
+                    point.delete();
+                }
+                return path;
+            } catch (error) {
+                console.error('Error converting path to Clipper:', error);
+                if (path && typeof path.delete === 'function') path.delete();
+                return null;
+            }
+        }
+
+        /**
+         * Native Clipper2 polygon offsetting.
+         *
+         * ONE call replaces the stroke-polygon union: the inflate offsetter
+         * builds ~1 quad + join per segment and unions them, so its Clipper
+         * input scales with point count (a single glyph contour measured 13,724
+         * polygons and ~31s). This does the same work inside C++.
+         *
+         * Winding carries the semantics: a NEGATIVE delta shrinks positive-area
+         * outers and grows negative-area holes in the same pass, so a nested
+         * contour set needs no shell/hole split, no union and no difference.
+         *
+         * Arc metadata is NOT preserved and cannot be - the offsetter emits new
+         * vertices. This is the method for 3D tool compensation (V-Carve floor
+         * clamping, field/FEA-style offsets). The 2D pipeline keeps
+         * GeometryOffsetter.offsetPathViaBoolean.
+         *
+         * @param {Array<Object>} primitives - closed contours, correctly wound
+         * @param {number} delta - offset in model units (negative = inward)
+         * @param {Object} [options]
+         * @param {'round'|'miter'|'square'|'bevel'} [options.joinType='round']
+         * @param {number} [options.miterLimit=2]
+         * @param {number} [options.arcTolerance=0] - model units; 0 lets
+         *        Clipper2 pick (~0.25·|delta|)
+         * @returns {Promise<Array<Object>>} primitives with hole hierarchy
+         */
+        async offsetPaths(primitives, delta, options = {}) {
+            await this.ensureInitialized();
+
+            if (!primitives || primitives.length === 0) return [];
+
+            const { Paths64, ClipType, FillRule, Clipper64, PolyPath64,
+                    JoinType, EndType } = this.clipper2;
+            const objects = [];
+
+            try {
+                const input = new Paths64();
+                objects.push(input);
+
+                for (const prim of primitives) {
+                    const contours = (prim.contours && prim.contours.length)
+                        ? prim.contours
+                        : (GeometryUtils.primitiveToPath(prim)?.contours || []);
+                    for (const contour of contours) {
+                        const path = this.pointsToPath64Plain(contour.points);
+                        if (path) {
+                            input.push_back(path);
+                            objects.push(path);
+                        }
+                    }
+                }
+                if (input.size() === 0) return [];
+
+                const jt = {
+                    round:  JoinType.Round,
+                    miter:  JoinType.Miter,
+                    square: JoinType.Square,
+                    bevel:  JoinType.Bevel ?? JoinType.Square
+                }[options.joinType || 'round'];
+
+                const scaledDelta = delta * this.scale;
+                const miterLimit = options.miterLimit ?? 2.0;
+                const arcTolerance = (options.arcTolerance ?? 0) * this.scale;
+
+                let offset;
+                offset = this.clipper2.InflatePaths64(
+                    input, scaledDelta, jt, EndType.Polygon,
+                    miterLimit, arcTolerance);
+                objects.push(offset);
+
+                // The offsetter returns a FLAT path list. Run it through a
+                // union to recover the outer/hole hierarchy so the result has
+                // the same shape every other boolean here produces.
+                const clipper = new Clipper64();
+                const solution = new PolyPath64();
+                objects.push(clipper, solution);
+
+                clipper.AddSubject(offset);
+                const success = clipper.ExecutePoly(
+                    ClipType.Union, FillRule.NonZero, solution);
+                if (!success) {
+                    this.debug('Offset union failed');
+                    return [];
+                }
+
+                return this.polyTreeToJS(solution);
+
+            } catch (error) {
+                console.error('Offset operation failed:', error);
+                throw error;
+            } finally {
+                this.cleanup(objects);
             }
         }
 

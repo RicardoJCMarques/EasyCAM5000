@@ -306,6 +306,7 @@
             }
         }
 
+        // REVIEW - Dead Code?
         getStats() {
             return {
                 totalTools: this.tools.length,

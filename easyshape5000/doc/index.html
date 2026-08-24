@@ -15,7 +15,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>EasyShape5000 | Documentation</title>
 
-    <meta name="description" content="Documentation for EasyShape5000. Guides for CNC routing operations including profile cuts, pocket clearing, drilling, and engraving from SVG designs.">
+    <meta name="description" content="EasyShape5000 documentation: CNC router CAM from SVG and STL. Profile, pocket, drill, engrave, V-carve, 3D relief and 4th-axis rotary operations.">
     <meta name="author" content="Eltryus">
     <meta name="robots" content="index, follow">
     <meta name="theme-color" content="#0f0f0f">
@@ -25,7 +25,7 @@
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://cam.eltryus.design/easyshape5000/doc/">
     <meta property="og:title" content="EasyShape5000 | Documentation">
-    <meta property="og:description" content="Guides and reference for EasyShape5000 CNC router CAM workflows.">
+    <meta property="og:description" content="EasyShape5000 documentation: CNC router CAM from SVG and STL. Profile, pocket, drill, engrave, V-carve, 3D relief and 4th-axis rotary operations.">
     <meta property="og:image" content="https://cam.eltryus.design/images/social-shape.jpg">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
@@ -60,7 +60,7 @@
                 "author": { "@id": "https://www.eltryus.design/#organization" },
                 "publisher": { "@id": "https://www.eltryus.design/#organization" },
                 "datePublished": "2026-06-17",
-                "dateModified": "2026-06-17"
+                "dateModified": "2026-08-24"
             },
             {
                 "@type": "BreadcrumbList",
@@ -106,10 +106,16 @@
 
             <section class="hero">
                 <h1>EasyShape5000 Documentation</h1>
-                <p class="tagline">Browser-based CAM for CNC routers - profile cuts, pockets, drilling, and engraving from SVG designs</p>
+                <p class="tagline">Browser-based CAM for CNC routers - 2.5D cutting, V-carving, relief and 4th-axis rotary, from SVG and STL</p>
+
+                <figure>
+                    <img src="../../images/EasyShape5000_workspace.webp" width="1152" height="648" alt="EasyTrace5000 Workspace">
+                    <figcaption>The EasyShape5000 workspace with loaded SVG geometry</figcaption>
+                </figure>
+
                 <div class="hero-actions">
                     <a href="../" class="btn btn--primary" draggable="false">Launch Application</a>
-                    <a href="guide" class="btn btn--secondary" draggable="false">Workflow Guide</a>
+                    <a href="guide" class="btn btn--secondary" draggable="false">Detailed Workflow Guide</a>
                 </div>
             </section>
 
@@ -118,42 +124,46 @@
                 <p>EasyShape5000 is an open-source, browser-based CAM tool for CNC routers. It takes SVG designs and generates G-code for common 2.5D operations - profile cuts, pocket clearing, drilling, and engraving. A simpler, browser-native alternative to tools like Easel or Carbide Create.</p>
                 <p>Like its sister app <a href="/easytrace5000/doc/" draggable="false">EasyTrace5000</a> (built for PCB fabrication), everything runs client-side. No installation, no cloud, no accounts. Your files stay on your machine.</p>
                 <div class="callout callout--info">
-                    <h3>v1.0 - Stable Release</h3>
-                    <p>Profile, pocket, and drill operations are working. Engraving and pattern generation are coming shortly. 3D Operations were just released, V-Carving and Relief maps, flat, radial and 3+1 indexed. These operations are under active development so report issues on <a href="https://github.com/RicardoJCMarques/EasyCAM5000/issues" target="_blank" draggable="false">GitHub</a>.</p>
+                    <h3>Current Status</h3>
+                    <p>Profile, pocket, drilling and engraving are stable. The 3D set - V-carve, relief, and rotary in both continuous radial and indexed 3+1 kinematics - is newer and under active testing, as is automatic tool changing. Report issues on <a href="https://github.com/RicardoJCMarques/EasyCAM5000/issues" target="_blank" draggable="false">GitHub</a>.</p>
                 </div>
             </section>
 
             <section id="operations">
                 <h2>Operations</h2>
-                <p>EasyShape5000 assigns operations per shape. Select shapes in the scene tree, pick an operation type, configure parameters, and generate toolpaths.</p>
+                <p>EasyShape5000 assigns operations per shape. Select shapes in the scene tree, pick an operation type, configure parameters, and generate toolpaths. Rotary is one operation type with two engines - the cards below split it because the setup differs enough to matter.</p>
                 <div class="pipeline-grid">
                     <div class="pipeline-card pipeline-card--active">
-                        <h3><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"></rect></svg> Profile Cut <span class="status-badge">Working</span></h3>
-                        <p>Cuts along the outside, inside, or directly on a closed shape boundary. Supports nesting detection for shapes with holes.</p>
+                        <h3><svg class="cam-icon" width="24" height="24" aria-hidden="true"><use href="#icon-op-profile"></use></svg> Profile Cut <span class="doc-badge doc-badge--stable">Stable</span></h3>
+                        <p>Cuts along the outside, inside, or directly on a closed shape boundary. Supports nesting detection and holding tabs.</p>
                     </div>
                     <div class="pipeline-card pipeline-card--active">
-                        <h3><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"></rect><rect x="7" y="7" width="10" height="10" rx="1" fill="currentColor" opacity="0.3"></rect></svg> Pocket Clearing <span class="status-badge">Working</span></h3>
+                        <h3><svg class="cam-icon" width="24" height="24" aria-hidden="true"><use href="#icon-op-pocket"></use></svg> Pocket Clearing <span class="doc-badge doc-badge--stable">Stable</span></h3>
                         <p>Clears material from the interior of closed shapes using concentric inward offsets with configurable stepover.</p>
                     </div>
                     <div class="pipeline-card pipeline-card--active">
-                        <h3><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><circle cx="12" cy="12" r="1" fill="currentColor"></circle></svg> Drilling <span class="status-badge">Working</span></h3>
+                        <h3><svg class="cam-icon" width="24" height="24" aria-hidden="true"><use href="#icon-op-drilling"></use></svg> Drilling <span class="doc-badge doc-badge--stable">Stable</span></h3>
                         <p>Converts SVG circles and obrounds into drill holes or milled slots. Auto-selects peck or mill strategy.</p>
                     </div>
-                    <div class="pipeline-card pipeline-card--dev">
-                        <h3><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M12 19l7-7 3 3-7 7-3-3z"></path><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18"></path></svg> Engraving <span class="status-badge">Coming Soon</span></h3>
-                        <p>Follow-the-path engraving at a fixed shallow depth. Traces open or closed paths without offsets.</p>
+                    <div class="pipeline-card pipeline-card--active">
+                        <h3><svg class="cam-icon" width="24" height="24" aria-hidden="true"><use href="#icon-op-engrave"></use></svg> Engraving <span class="doc-badge doc-badge--stable">Stable</span></h3>
+                        <p>Zero-offset centreline cutting. The tool follows the path exactly, on open and closed geometry alike.</p>
                     </div>
                     <div class="pipeline-card pipeline-card--dev">
-                        <h3><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="2" y="2" width="8" height="8" rx="1"></rect><rect x="14" y="2" width="8" height="8" rx="1"></rect><rect x="2" y="14" width="8" height="8" rx="1"></rect><rect x="14" y="14" width="8" height="8" rx="1"></rect></svg> Pattern Generator <span class="status-badge">Coming Soon</span></h3>
-                        <p>Repeats shapes in grid, radial, or custom layouts for production runs and decorative patterns.</p>
+                        <h3><svg class="cam-icon" width="24" height="24" aria-hidden="true"><use href="#icon-op-vcarve"></use></svg> V-Carve <span class="doc-badge doc-badge--dev">Beta</span></h3>
+                        <p>Variable-depth V-bit carving driven by the medial axis of each region, with flat floors where the bit bottoms out.</p>
                     </div>
                     <div class="pipeline-card pipeline-card--dev">
-                        <h3><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M12 2L2 22h20L12 2z"></path></svg> V-Carve <span class="status-badge">Future</span></h3>
-                        <p>Variable-depth carving with V-bits using medial axis transforms. Requires the planned 3D preview system.</p>
+                        <h3><svg class="cam-icon" width="24" height="24" aria-hidden="true"><use href="#icon-op-relief"></use></svg> 3D Relief <span class="doc-badge doc-badge--dev">Beta</span></h3>
+                        <p>Surfaces an STL as a height field with roughing layers and a finishing raster, compensated for the real tool shape.</p>
                     </div>
                     <div class="pipeline-card pipeline-card--dev">
-                        <h3><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M2 20L8 8l4 6 4-10 6 16"></path></svg> 3D Relief <span class="status-badge">Future</span></h3>
-                        <p>Heightmap-driven relief carving from STL or image sources. Requires the planned 3D preview system.</p>
+                        <h3><svg class="cam-icon" width="24" height="24" aria-hidden="true"><use href="#icon-op-rotary"></use></svg> Rotary - Radial <span class="doc-badge doc-badge--dev">Beta</span></h3>
+                        <p>Continuous 4th-axis surfacing. The mesh becomes a cylindrical radius map machined as a developed strip.</p>
+                    </div>
+                    <div class="pipeline-card pipeline-card--dev">
+                        <h3><svg class="cam-icon" width="24" height="24" aria-hidden="true"><use href="#icon-op-rotary"></use></svg> Rotary - Indexed 3+1 <span class="doc-badge doc-badge--dev">Beta</span></h3>
+                        <p>N flat reliefs at fixed A angles joined by positioning moves. Reaches undercuts a continuous wrap cannot.</p>
                     </div>
                 </div>
             </section>
@@ -166,8 +176,8 @@
                         <p>Full SVG path support including lines, arcs, quadratic and cubic Bézier curves. Group hierarchies from Inkscape, Illustrator, or Figma are preserved in the scene tree. Clones and clip paths are not yet supported.</p>
                     </div>
                     <div class="feature-card">
-                        <h3>STL (Future)</h3>
-                        <p>Planned for 3D relief operations once the 3D preview UI is in place.</p>
+                        <h3>STL (Mesh)</h3>
+                        <p>Binary and ASCII STL for relief and rotary operations. The mesh is sliced at generation time, so resolution, orientation and Z datum are operation parameters you can change without re-importing.</p>
                     </div>
                 </div>
             </section>
@@ -212,6 +222,14 @@
                         </ul>
                     </div>
                     <div class="feature-card">
+                        <h3>3D Preview</h3>
+                        <ul class="key-list">
+                            <li><kbd>F2</kbd> Toggle 2D / 3D view</li>
+                            <li><kbd>W</kbd> Toggle wireframe</li>
+                            <li>Drag to orbit, wheel to dolly</li>
+                        </ul>
+                    </div>
+                    <div class="feature-card">
                         <h3>Selection</h3>
                         <ul class="key-list">
                             <li><kbd>Click</kbd> Select shape</li>
@@ -225,8 +243,15 @@
                         <ul class="key-list">
                             <li><kbd>Ctrl+G</kbd> Group</li>
                             <li><kbd>Ctrl+Shift+G</kbd> Ungroup</li>
-                            <li><kbd>Ctrl+Z</kbd> / <kbd>Ctrl+Shift+Z</kbd> Undo / Redo</li>
                             <li><kbd>Delete</kbd> Delete selected</li>
+                        </ul>
+                    </div>
+                    <div class="feature-card">
+                        <h3>Editing</h3>
+                        <ul class="key-list">
+                            <li><kbd>Ctrl+Z</kbd> Undo</li>
+                            <li><kbd>Ctrl+Shift+Z</kbd> / <kbd>Ctrl+Y</kbd> Redo</li>
+                            <li><kbd>I</kbd> Import SVG</li>
                         </ul>
                     </div>
                     <div class="feature-card">
@@ -242,15 +267,19 @@
 
             <section id="post-processors">
                 <h2>Post-Processors</h2>
-                <p>EasyShape5000 shares its export pipeline with EasyTrace5000:</p>
+                <p>EasyShape5000 shares its export pipeline with EasyTrace5000. Tool changes are only emitted by posts that declare support for them:</p>
                 <div class="feature-grid">
                     <div class="feature-card">
-                        <h3>Stable</h3>
-                        <p><strong>GRBL</strong> - Thoroughly tested.</p>
+                        <h3>Tested</h3>
+                        <p><strong>GRBL</strong> - thoroughly tested. Note it declares <em>no</em> tool-change support: a job using more than one tool must be exported one file per tool.</p>
                     </div>
                     <div class="feature-card">
-                        <h3>Experimental</h3>
-                        <p><strong>grblHAL, Marlin, LinuxCNC, Mach3, UCCNC, Makera, Roland RML.</strong> No recent complaints. Always double check first just in case.</p>
+                        <h3>Experimental, with tool changes</h3>
+                        <p><strong>grblHAL, UCCNC, Mach3, LinuxCNC, Fanuc, WinPC-NC, Makera.</strong> These emit T/M6 and, where declared, a tool-length mode (<code>G43 H…</code>, implicit <code>G43</code>, or a probe macro).</p>
+                    </div>
+                    <div class="feature-card">
+                        <h3>Experimental, single tool</h3>
+                        <p><strong>Marlin, Roland RML.</strong> No tool-change support declared. Roland RML is not standard G-code. Always dry-run first.</p>
                     </div>
                 </div>
             </section>

@@ -26,7 +26,6 @@
             this.options = {
                 decimals: 3,
                 padding: D.export.svg.padding ?? 5,
-                preserveArcs: D.geometry.fusion.preserveArcs !== false,
                 includeMetadata: D.export.svg.includeMetadata ?? true,
                 useViewBox: D.export.svg.useViewBox ?? true,
                 embedStyles: D.export.svg.embedStyles ?? true
@@ -138,10 +137,7 @@
             const bounds = this.core.bounds;
 
             if (!bounds || !isFinite(bounds.width)) {
-                // REVIEW - What's happening here?
-                if (this.renderer.appCore.appProfile) {
-                    console.warn('No content to export');
-                }
+                console.warn('[CanvasExporter] No content to export');
                 return null;
             }
 
@@ -720,12 +716,12 @@
 
         // Path Data Building
         buildPathData(prim, prec, config) {
-            if (prim.type === 'obround' && config.preserveArcs) return this.obroundToD(prim, prec);
-            if (prim.type === 'arc' && config.preserveArcs) return this.arcToD(prim, prec);
+            if (prim.type === 'obround') return this.obroundToD(prim, prec);
+            if (prim.type === 'arc') return this.arcToD(prim, prec);
             if (!prim.contours?.length) return '';
 
             return prim.contours.map(c => {
-                if (config.preserveArcs && c.arcSegments?.length) return this.contourArcsToD(c, prec);
+                if (c.arcSegments?.length) return this.contourArcsToD(c, prec);
                 return this.contourPointsToD(c.points, prec);
             }).join('');
         }

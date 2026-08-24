@@ -31,7 +31,10 @@
                     throw new Error(`Failed to load ../language/${lang}.json: ${response.statusText}`);
                 }
                 const data = await response.json();
-                this.strings = data.strings || {}; // Store just the "strings" object
+                // v2 schema has no `strings` wrapper - the namespaces are top level.
+                // `data.strings` is the v1 shape, kept so a stale file still loads.
+                // REVIEW - Is this fallback still necessary?
+                this.strings = data.strings || data;
                 this.isLoaded = true;
                 console.log(`[Lang] Language pack '${lang}' loaded.`);
             } catch (err) {
@@ -70,6 +73,17 @@
             } catch (e) {
                 return false; // Key path was invalid
             }
+        }
+
+       /**
+         * A v2 entry. Objects pass through; a bare string becomes { help }.
+         * Returns {} for a miss so callers can destructure without guarding.
+         */
+        entry(key) {
+            const v = this.get(key, null);
+            if (v && typeof v === 'object') return v;
+            if (typeof v === 'string') return { help: v };
+            return {};
         }
 
         /**

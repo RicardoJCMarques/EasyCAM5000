@@ -19,6 +19,11 @@
                 fileExtension: '.gcode',
                 commentStyle: 'semicolon',
                 supportsToolChange: false,
+                // Marlin's T word selects an EXTRUDER, not a cutter. Emitting
+                // T1 here is not a no-op - it is a different command that
+                // most CNC-flavoured builds will reject.
+                emitsInitialTool: false,
+                toolLengthComp: { modes: ['none'], default: 'none' },
                 supportsArcCommands: true,
                 supportsCannedCycles: false,
                 // 4th axis: Marlin has no G93 and its extra-axis support is

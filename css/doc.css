@@ -576,12 +576,12 @@ tr:last-child td {
 }
 
 .doc-badge--stable {
-    background: rgba(34, 197, 94, 0.15);
+    background: color-mix(in srgb, var(--color-success) 15%, transparent);
     color: var(--color-success);
 }
 
 .doc-badge--dev {
-    background: rgba(245, 158, 11, 0.15);
+    background: color-mix(in srgb, var(--color-warning) 15%, transparent);
     color: var(--color-warning);
 }
 

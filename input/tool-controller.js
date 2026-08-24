@@ -26,6 +26,8 @@
         }
         onActivate(ctx) {}
         onDeactivate(ctx) {}
+        /** An override tool is taking over mid-gesture. Commit and reset. */
+        onSuspend(ctx) {}
         onPointerDown(data, ctx) { return false; }
         onPointerMove(data, ctx) { return false; }
         onPointerUp(data, ctx)   { return false; }
@@ -60,6 +62,9 @@
             if (this.overrideTool && this.overrideTool.onDeactivate) {
                 this.overrideTool.onDeactivate(this.context);
             }
+            // The default tool may be mid-gesture; it will receive no further
+            // events until the override pops.
+            this.defaultTool?.onSuspend?.(this.context);
             this.overrideTool = tool;
             if (tool && tool.onActivate) tool.onActivate(this.context);
         }

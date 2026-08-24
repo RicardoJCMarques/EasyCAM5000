@@ -30,18 +30,17 @@
             return false;
         }
 
-        getToolpathPolicy() {
-            return {
-                staydownPartition: 'shape'
-            };
-        }
-
         // Pocket clearing intentionally collapses geometry inward until nothing remains - the circle-collapse guard must not fire.
         shouldGuardCircleCollapse() {
             return false;
         }
 
         // Orchestration
+
+        resolveSourceTopology(operation, params) {
+            return this.resolveContourTopology(
+                operation.primitives, { mergeNesting: params.detectNesting === true });
+        }
 
         async orchestrateGeneration(operation, params, core, options = {}) {
             const token = this.beginRun(operation, options, core);
@@ -69,12 +68,6 @@
 
             // Concentric offset pocketing
             const opParams = core.compileOperationParams(operation, params);
-
-            // Resolve compound contours (tier 1) and merge separate
-            // shapes that nest inside each other (tier 2).
-            operation.primitives = this.resolveContourTopology(
-                operation.primitives, { mergeNesting: params.detectNesting !== false }
-            );
 
             await this.generateGeometry(operation, {
                 ...params,

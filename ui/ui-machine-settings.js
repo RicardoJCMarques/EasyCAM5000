@@ -20,8 +20,17 @@
             this.ui = ui;
         }
 
+        getOpPanel() {
+            return this.ui.traceOperationPanel || this.ui.shapeOperationPanel || null;
+        }
+
+        getParamManager() {
+            return this.getOpPanel()?.parameterManager
+                || this.ui.ctrl?.parameterManager
+                || null;
+        }
+
         setup() {
-            const opPanel = this.ui.traceOperationPanel || this.ui.shapeOperationPanel;
             const loadedSettings = this.ui.core.settings;
 
             // --- Roland machine profiles ---
@@ -83,18 +92,16 @@
                     }
                     this.ui.rebuildLayers?.();
 
-                    const paramMgr = this.ui.parameterManager || opPanel?.parameterManager;
+                    const paramMgr = this.getParamManager();
                     if (paramMgr) {
                         const isRoland = newProcessor === 'roland';
                         if (isRoland) {
                             const currentModel = rolandSettings.rolandModel || 'mdx50';
-                            const currentProfile = ROLAND_PROFILES[currentModel];
-                            paramMgr.updateMachineConstraints(currentProfile, 'roland');
+                            paramMgr.updateMachineConstraints(ROLAND_PROFILES[currentModel] || {}, 'roland');
                         } else {
                             paramMgr.updateMachineConstraints({}, newProcessor);
                         }
                     }
-                    
 
                     if (newProcessor !== wasProcessor) {
                         this.ui.setStatus(
@@ -189,14 +196,12 @@
 
                     this.updateRolandProfileFields(profile);
 
-                    opPanel.parameterManager.updateMachineConstraints(
+                    const opPanel = this.getOpPanel();
+                    opPanel?.parameterManager?.updateMachineConstraints(
                         profile,
                         this.ui.core.settings.gcode.postProcessor
                     );
-
-                    if (opPanel) {
-                        opPanel.refresh();
-                    }
+                    opPanel?.refresh?.();
 
                     this.ui.setStatus(
                         `Roland profile: ${profile.label} (${profile.stepsPerMM} steps/mm, Z: ${profile.zMode})`, 'info'
@@ -386,10 +391,11 @@
                     this.ui.core.updateSettings('laser', { spotSize: newSpotSize });
                     this.invalidateLaserOperations('Laser spot size changed. Please regenerate laser paths.');
 
-                    if (opPanel?.currentOperation) {
-                        const opId = opPanel.currentOperation.id;
+                    const opPanel = this.getOpPanel();
+                    const opId = opPanel?.currentOperationId;
+                    if (opId) {
                         opPanel.parameterManager.setParameter(opId, 'geometry', 'laserSpotSize', newSpotSize);
-                        const propInput = document.getElementById('prop-laserSpotSize');
+                        const propInput = document.getElementById(`${opPanel.getIdPrefix()}laserSpotSize`);
                         if (propInput) propInput.value = newSpotSize;
                     }
                 });
@@ -491,7 +497,73 @@
             });
 
             this.updateRotaryRouteField(processorName);
+            this.updateToolLengthCompField(processorName);
             this.updateProcessorCustomParameters(processorName);
+        }
+
+        /**
+         * Tool-length-offset picker. Populated from the selected post's
+         * declared modes and hidden when there is only one - a post that can
+         * only do 'none' presents no decision.
+         *
+         * This is a MACHINE fact, not a job property: whether Z offsets live
+         * in the control's tool table, are implied from the T word, are
+         * probed at change time, or don't exist at all depends on how the
+         * operator's spindle and holders are set up. Same shape as the 4th-
+         * axis route picker, for the same reason.
+         */
+        updateToolLengthCompField(processorName) {
+            const field = document.getElementById('tlc-mode-field');
+            const select = document.getElementById('tlc-mode');
+            if (!field || !select) return;
+
+            const generator = this.ui.ctrl?.gcodeGenerator;
+            const tlc = generator?.getProcessorInfo(processorName)?.capabilities?.toolLengthComp;
+            const modes = tlc?.modes || ['none'];
+
+            if (modes.length <= 1) {
+                field.style.display = 'none';
+                // Clear before returning. resolveTLCMode ignores an undeclared mode, so
+                // nothing is emitted wrong - but leaving it makes settings and UI
+                // disagree, and the next post that DOES declare it inherits silently.
+                const stale = this.ui.core.settings.gcode.toolLengthCompMode;
+                stale && !modes.includes(stale) && this.ui.core.updateSettings('gcode', { toolLengthCompMode: '' });
+                return;
+            }
+            field.style.display = '';
+
+            const LABELS = {
+                'none':           'None - re-zero Z after each tool change',
+                'table':          'Controller tool table (G43 H<n>)',
+                'table-implicit': 'Controller tool table, H from T (T<n> M06 G43)',
+                'probe':          'Measured at change time (controller macro)'
+            };
+
+            select.innerHTML = '';
+            modes.forEach(m => {
+                const o = document.createElement('option');
+                o.value = m;
+                o.textContent = LABELS[m] || m;
+                select.appendChild(o);
+            });
+
+            const saved = this.ui.core.settings.gcode.toolLengthCompMode || '';
+            const declared = modes.includes(saved);
+            select.value = declared ? saved : (tlc?.default || modes[0]);
+
+            // Only a value THIS post cannot emit is overwritten - '' survives
+            // as "never chosen", which resolveTLCMode reads as the post default.
+            if (saved && !declared) {
+                this.ui.core.updateSettings('gcode', { toolLengthCompMode: '' });
+            }
+
+            if (!select.dataset.bound) {
+                select.dataset.bound = '1';
+                select.addEventListener('change', (e) => {
+                    this.ui.core.updateSettings('gcode', { toolLengthCompMode: e.target.value });
+                    this.ui.ctrl.modalManager?.clearExportPreview?.();
+                });
+            }
         }
 
         /**
@@ -610,8 +682,7 @@
          * lack an A word).
          */
         publishRotaryGates(caps) {
-            const opPanel = this.ui.traceOperationPanel || this.ui.shapeOperationPanel;
-            const paramMgr = this.ui.parameterManager || opPanel?.parameterManager;
+            const paramMgr = this.getParamManager();
             if (!paramMgr) return;
 
             const routes = caps?.routes || [];
@@ -631,7 +702,7 @@
                 }
             });
 
-            opPanel?.refresh?.();
+            this.getOpPanel()?.refresh?.();
         }
 
         /**

@@ -94,7 +94,7 @@
 
             // Close open dropdown on Escape before checking shortcuts
             if (e.key === 'Escape') {
-                const openDropdown = document.querySelector('.dropdown-content.show');
+                const openDropdown = document.querySelector('.dropdown-content.is-open');
                 if (openDropdown) {
                     e.preventDefault();
                     openDropdown.classList.remove('show');

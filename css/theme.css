@@ -49,7 +49,6 @@
     --color-warning: #f59e0b;
     --color-error: #ef4444;
     --color-info: #06b6d4;
-    /* REVIEW - Avoid transparency, update theme .jsons */
     --color-scrim: rgba(0, 0, 0, 0.6);
     --color-scrim-strong: rgba(0, 0, 0, 0.8);
 
@@ -63,20 +62,30 @@
     --color-operation-profile: #6dd3a0;
     --color-operation-pocket: #5a8acf;
     --color-operation-engrave: #c794d6;
-    --color-operation-shape-drill: #d8a44a;
     --color-operation-vcarve: #e07a7a;
     --color-operation-relief: #e0a97a;
     --color-operation-rotary: #7ab8e0;
     --color-operation-pattern: #a8b56d;
 
-    /* Canvas Colors */
-    --color-canvas-background: #0f0f0f;
-    --color-canvas-grid: #aaaaaa;
-    --color-canvas-origin: #aaaaaa;
-    --color-canvas-origin-outline: #000000;
-    --color-canvas-bounds: #aaaaaa;
-    --color-canvas-ruler: #aaaaaa;
-    --color-canvas-ruler-text: #aaaaaa;
+    /* Render2d Colors */
+    --color-render2d-background: #0f0f0f;
+    --color-render2d-grid: #aaaaaa;
+    --color-render2d-origin: #aaaaaa;
+    --color-render2d-origin-outline: #000000;
+    --color-render2d-bounds: #aaaaaa;
+    --color-render2d-ruler: #aaaaaa;
+    --color-render2d-ruler-text: #aaaaaa;
+
+    /* Render3d Colors */
+    --color-render3d-background: #16181c;
+    --color-render3d-grid: #2a2e34;
+    --color-render3d-grid-center: #3a3f46;
+    --color-render3d-rapid: #565b63;
+    --color-render3d-cut-shallow: #4fc3f7;
+    --color-render3d-cut-deep: #e07a7a;
+    --color-render3d-stock: #8a7a5c;
+    --color-render3d-surface: #b0a58e;
+    --color-render3d-tool: #d8dde3;
 
     /* Debug Colors */
     --color-debug-points: #ff00ff;
@@ -104,10 +113,10 @@
     /* Primitives Colors */
     --color-primitive-offset-internal: #00aa00;
     --color-primitive-offset-external: #ff0000;
-    --color-primitive-peck-mark-good: #16d329ff;
-    --color-primitive-peck-mark-warn: #d2cb00ff;
+    --color-primitive-peck-mark-good: #16d329;
+    --color-primitive-peck-mark-warn: #d2cb00;
     --color-primitive-peck-mark-error: #ff0000;
-    --color-primitive-peck-mark-slow: #ff5e00ff;
+    --color-primitive-peck-mark-slow: #ff5e00;
     --color-primitive-reconstructed: #00ffff;
     --color-primitive-reconstructed-path: #ffff00;
     --color-primitive-debug-contour-colors-0: #00ff00;
@@ -122,10 +131,10 @@
     --color-primitive-debug-curve-colors-3: #ffff00;
     --color-primitive-debug-curve-colors-4: #ff00ff;
     --color-primitive-debug-curve-colors-5: #00ffff;
-    --color-primitive-debug-label: #FFFFFF;
+    --color-primitive-debug-label: #ffffff;
     --color-primitive-debug-label-stroke: #000000;
 
-    /* B&W Colors */
+    /* Bw Colors */
     --color-bw-black: #000000;
     --color-bw-white: #ffffff;
 
@@ -138,23 +147,11 @@
     --color-interaction-sponsorship: #6366f1;
     --color-interaction-sponsorship-text: #e9d5ff;
     --color-interaction-kofi: #42d6aa;
-
-    /* Canvas interaction affordances */
     --color-interaction-selection-stroke: #22d3ee;
     --color-interaction-selection-fill: #0a3f47;
     --color-interaction-marquee-stroke: #3b82f6;
     --color-interaction-marquee-fill: #112240;
     --color-interaction-group-bounds: #22d3ee;
-
-    /* 3D preview (renderer3d) */
-    --color-render3d-background: #16181c;
-    --color-render3d-grid: #2a2e34;
-    --color-render3d-grid-center: #3a3f46;
-    --color-render3d-rapid: #565b63;
-    --color-render3d-cut-shallow: #4fc3f7;
-    --color-render3d-cut-deep: #e07a7a;
-    --color-render3d-stock: #8a7a5c;
-    --color-render3d-surface: #b0a58e;
 }
 
 /* ============================================================================
@@ -174,43 +171,20 @@
     color: inherit;
 }
 
-/* Operation-specific icon colors */
-[data-op-type="isolation"] .category-icon {
-    color: var(--color-operation-isolation);
-}
-
-[data-op-type="drill"] .category-icon {
-    color: var(--color-operation-drill);
-}
-
-[data-op-type="clearing"] .category-icon {
-    color: var(--color-operation-clearing);
-}
-
-[data-op-type="cutout"] .category-icon {
-    color: var(--color-operation-cutout);
-}
-
-[data-op-type="stencil"] .category-icon {
-    color: var(--color-operation-stencil);
-}
-
-/* ============================================================================
-   LIGHT THEME ADJUSTMENTS
-   Fine-tuning for light theme if needed
-   ============================================================================ */
-
-[data-theme="light"] .shadow-sm {
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
-}
-
-[data-theme="light"] .shadow-md {
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
-}
-
-[data-theme="light"] .shadow-lg {
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.16);
-}
+/* Operation-specific icon colors REVIEW - This should be extracted from the theme? This needs to be made consistent and added to the theme.jsons */
+[data-op-type="isolation"] .category-icon {color: var(--color-operation-isolation);}
+[data-op-type="drill"] .category-icon {color: var(--color-operation-drill);}
+[data-op-type="clearing"] .category-icon {color: var(--color-operation-clearing);}
+[data-op-type="cutout"] .category-icon {color: var(--color-operation-cutout);}
+[data-op-type="stencil"] .category-icon {color: var(--color-operation-stencil);}
+[data-op="profile"] .bucket-icon, [data-op="profile"] .stage-icon { color: var(--color-operation-profile); }
+[data-op="pocket"]  .bucket-icon, [data-op="pocket"]  .stage-icon { color: var(--color-operation-pocket); }
+[data-op="engrave"] .bucket-icon, [data-op="engrave"] .stage-icon { color: var(--color-operation-engrave); }
+[data-op="drill"]   .bucket-icon, [data-op="drill"]   .stage-icon { color: var(--color-operation-drill); }
+[data-op="vcarve"]  .bucket-icon, [data-op="vcarve"]  .stage-icon { color: var(--color-operation-vcarve); }
+[data-op="relief"]  .bucket-icon, [data-op="relief"]  .stage-icon { color: var(--color-operation-relief); }
+[data-op="rotary"]  .bucket-icon, [data-op="rotary"]  .stage-icon { color: var(--color-operation-rotary); }
+[data-op="pattern"] .bucket-icon, [data-op="pattern"] .stage-icon { color: var(--color-operation-pattern); }
 
 /* ============================================================================
    THEME LOADING STATE

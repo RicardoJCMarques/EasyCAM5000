@@ -255,7 +255,7 @@
             row.className = 'path-row';
             row.style.paddingLeft = `${8 + depth * 14}px`;
             row.dataset.pathId = shape.id;
-            row.dataset.op = shape.operation?.type || 'none';
+            row.dataset.op = this.ui.opsPanel?.getShapeOpType(shape.id) || 'none';
             row.setAttribute('role', 'treeitem');
             row.setAttribute('tabindex', '-1');
             row.setAttribute('aria-level', String(depth + 1));
@@ -359,8 +359,7 @@
 
                 // Operation badge (for shapes with data-op attribute)
                 if (row.dataset.op !== undefined) {
-                    const shape = this.sceneRef.findShape(id);
-                    if (shape) row.dataset.op = shape.operation?.type || 'none';
+                    row.dataset.op = this.ui.opsPanel?.getShapeOpType(id) || 'none';
                 }
             });
         }

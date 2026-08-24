@@ -19,11 +19,10 @@
  *   config.*()       - Helper methods (root level, read from both sections).
  */
 
-// `window` does not exist in a Web Worker, and field-worker.js
-// importScripts this file so the worker-clean geometry modules can read
-// config directly instead of having every value packed into a job
-// payload. The deep-freeze tail below already resolves via globalThis.
-//window.CAMConfig = {
+// `window` does not exist in a Web Worker. field-worker.js does NOT load this
+// file - it installs a function-stripped snapshot of `constants` from the job
+// payload as self.CAMConfig before importScripts, so the worker-clean modules
+// bind to a live object. The deep-freeze tail below resolves via globalThis.
 (typeof self !== 'undefined' ? self : window).CAMConfig = {
 
 
@@ -50,34 +49,26 @@
         //
         // ====================================================================
         precision: {
-            epsilon: 1e-9,              // Floating-point near-zero. Guard divisions, cross-product zero checks.
-            collinear: 1e-12,           // Stricter near-zero for geometric collinearity where even tiny deviations matter.
-
-            coordinate: 0.001,          // Coordinate quantization grid. All coordinates snap to this resolution.
-
-            rdpSimplification: 0.0001  // Douglas-Peucker polygon simplification.
+            epsilon: 1e-9, // Floating-point near-zero. Guard divisions, cross-product zero checks.
+            collinear: 1e-12, // Stricter near-zero for geometric collinearity where even tiny deviations matter.
+            coordinate: 0.001, // Coordinate quantization grid. All coordinates snap to this resolution.
+            rdpSimplification: 0.0001 // Douglas-Peucker polygon simplification.
         },
 
         // ====================================================================
         // 4TH AXIS
         // ====================================================================
-        // ONE block. Split across constants.rotary and constants.geometry.rotary,
-        // half of it was unreachable: FieldParams read a single path and the
-        // other half's values silently fell through to inline defaults.
-        // Shipped to the generators as genOptions.tuning - config cannot cross
-        // postMessage, so FieldParams.tuning() reads these and the job payload
-        // carries them into the worker.
         rotary: {
             // ── Generator tuning (ships in genOptions.tuning) ──
-            edgeRunCells:    2,     // Consecutive covered cells before a row's inward scan calls it the model edge. Rejects single-cell pinholes without trimming genuinely thin tips.
-            minRadiusClip:   0.01,  // Smallest radius any radial target holds.
-            stubDefaultMm:   0.5,   // Drive core radius when none is resolved.
-            autoLipFraction: 0.1,   // Rollover lip depth as a fraction of tool diameter when the user leaves it at 0.
-            padSlackMm:      0.1,   // Grid padding beyond the cutting reach.
+            edgeRunCells: 2, // Consecutive covered cells before a row's inward scan calls it the model edge. Rejects single-cell pinholes without trimming genuinely thin tips.
+            minRadiusClip: 0.01, // Smallest radius any radial target holds.
+            stubDefaultMm: 0.5, // Drive core radius when none is resolved.
+            autoLipFraction: 0.1, // Rollover lip depth as a fraction of tool diameter when the user leaves it at 0.
+            padSlackMm: 0.1, // Grid padding beyond the cutting reach.
+            indexClearance: 2,
 
             // ── Slicer / chain post-filtering (ride genOptions) ──
             minRadialitySin2: 0.05, // Reject faces within ~13° of axial (0 = off).
-            // REVIEW - there are 5 places where simplification happens, realistically the best place to do this may be toolpath optimization?
             simplifyTolerance: 0.01,
             minSegmentLength:  0.2,
 
@@ -89,10 +80,70 @@
         },
 
         // ====================================================================
+        // V-Carving
+        // ====================================================================
+        vcarve: {
+            // Junction-fan prune floors, in multiples of sampleSpacing.
+            branchLengthFactor: 3,
+            branchDepthFactor: 1.5,
+            // Corner-hood gate: minimum SIGNED tangent-direction change across
+            // the corner window for a boundary vertex to be a corner. Signed,
+            // not per-vertex: 0.01mm tessellation on a 0.001mm coordinate grid
+            // carries ~5deg of direction noise per chord, so single vertices on
+            // a smooth wall clear any per-vertex threshold. Those spikes are
+            // zero-mean and cancel across the window; a real corner does not.
+            // Gates BOTH the resampler's keep decision and the spoke pass, which
+            // have to agree or a kept corner never ramps. Deliberately not the
+            // user's vcarveCornerAngle - that is contact separation for rib
+            // classification, a different quantity at a different stage.
+            resampleCornerAngle: 20,
+            // Max angle (deg) a circumcentre may sit off a corner's bisector
+            // and still be chosen as its spoke target.
+            cornerRayMaxAngle: 45,
+            // A vertex is a corner only when it owns this share of the ABSOLUTE
+            // turn inside the window. A tessellated curve spreads its turn over
+            // every sample in the window and fails; a corner concentrates it.
+            cornerTurnShare: .5,
+            // Corner window half-width, in multiples of sampleSpacing. THE knob
+            // for false spokes: too small and a coarsely tessellated curve reads
+            // as a run of corners, too large and a sharp apex between tight
+            // fillets loses its ramp. Sweep this first.
+            cornerWindow: 3,
+            // Ring samples each way whose incident triangles are candidate spoke
+            // targets. The apex's own ear can land outside the part, leaving it
+            // with no candidate of its own.
+            spokeSearchSpan: 2,
+            // Circle fast path: max radial miss from the fitted circle as a
+            // fraction of its radius. This IS the aspect gate: peak deviation
+            // of a best-fit circle over an ellipse is (a - b)/2 at both axis
+            // ends, so a band of tau*R accepts exactly a/b <= (1+tau)/(1-tau).
+            // 0.02 => 1.041. Never floor this with sampleSpacing - that makes
+            // the test absolute and size-independent, and small ellipses then
+            // collapse to a single plunge while their larger twins do not.
+            circleTolerance: 0.02,
+            // Circumcentre ridge projection: max Newton-style steps onto the
+            // locus equidistant from the two nearest boundary SEGMENTS. This is
+            // a centring refinement only - clearance is exact wherever the point
+            // ends up, so an unconverged step under-cuts by a hair and can never
+            // gouge or step. 0 off.
+            ridgeMaxSteps: 6,
+            // Below this |n1 - n2| two contact normals are effectively parallel
+            // (both contacts on one wall): no ridge here. Used to SELECT the
+            // second contact, not to abort. ~20 deg apart.
+            ridgeMinSeparation: .35,
+            // Clearance grid cell, in multiples of sampleSpacing. Segments are
+            // ~sampleSpacing long, so 2 keeps most segments in one or two cells.
+            clearanceGridCell: 2,
+            // Light x/y-only Laplacian over chain interiors after chaining;
+            // t is re-queried from the relaxed positions afterwards.
+            clearanceSmoothPasses: 2
+        },
+
+        // ====================================================================
         // GEOMETRY ENGINE
         // ====================================================================
         geometry: {
-            segments: {                 // Tessellation quality. Tuned for visual fidelity at PCB scale.
+            segments: { // Pipeline tessellation only (Clipper input + arc reconstruction).
                 // REVIEW - these should all be dynamic in terms of size, arcs are either reconstructed (needs highest tessellation values) or segments are simplified. Tessellation is temporary.
                 targetLength: 0.01,
                 minCircle: 256,
@@ -238,66 +289,23 @@
         // STORAGE KEYS
         // ====================================================================
         storageKeys: {
-        // Shared across all apps on this domain
-        theme: 'cam-theme',
-        machine: 'cam-machine-settings',
+            // Shared across all apps on this domain
+            theme: 'cam-theme',
+            machine: 'cam-machine-settings',
 
-        // App-specific - call with app name from profile
-        // e.g. storageKeys.forApp('easyshape5000').parameters
-        forApp: function(appName) {
-            const prefix = appName.toLowerCase().replace(/[^a-z0-9]/g, '');
-            return {
-                settings: `${prefix}-settings`,
-                parameters: `${prefix}-parameters`,
-                pipeline: `${prefix}-pipeline`,
-                hideWelcome: `${prefix}-hide-welcome`
-            };
-        },
-    },
-
-        // ====================================================================
-        // UI SCHEMA
-        // Validation constraints, parameter option enums, category labels,
-        // icon mappings, static text. These define UI structure, not preferences.
-        // ====================================================================
-        ui: {
-            operationPanel: {
-                categories: {
-                    tool: 'Tool Selection',
-                    offset: 'Offset Generation',
-                    depth: 'Depth Settings',
-                    feeds: 'Feeds & Speeds',
-                    strategy: 'Cutting Strategy',
-                    drill: 'Peck Drill Parameters',
-                    cutout: 'Cutout Settings',
-                    stencil: 'Stencil Settings',
-                    machine: 'Machine Configuration',
-                    general: 'General Settings',
-                    laser_tool: 'Laser Tool',
-                    laser_geometry: 'Isolation',
-                    laser_strategy: 'Clearing Strategy',
-                    laser_cutout: 'Cut Settings',
-                    laser_export: 'Export Settings'
-                },
-                textAreaStyle: {
-                    fontFamily: 'monospace',
-                    fontSize: '11px'
-                }
+            // App-specific - call with app name from profile
+            // e.g. storageKeys.forApp('easyshape5000').parameters
+            forApp: function(appName) {
+                const prefix = appName.toLowerCase().replace(/[^a-z0-9]/g, '');
+                return {
+                    settings: `${prefix}-settings`,
+                    parameters: `${prefix}-parameters`,
+                    pipeline: `${prefix}-pipeline`,
+                    hideWelcome: `${prefix}-hide-welcome`
+                };
             },
-
-            text: {
-                noToolsAvailable: 'No tools available',
-                gcodePlaceholder: 'Click "Calculate Toolpaths" to generate G-code',
-                gcodeNoExportAlert: 'No G-code to export',
-                statusReady: 'Ready - Add PCB files to begin - Click here to expand log',
-                statusLoading: 'Loading...',
-                statusProcessing: 'Processing...',
-                statusSuccess: 'Operation completed successfully',
-                statusError: 'An error occurred',
-                statusWarning: 'Warning',
-                logHintViz: 'Toggle verbose debug messages in the Viz Panel.'
-            }
-        }
+        },
+    
     },
 
 
@@ -370,6 +378,9 @@
             // not declare resolves the same way. There is no 'auto' route.
             // See BasePostProcessor.normalizeRotary for the route semantics.
             rotaryRoute: '',
+            // '' = use the active post's declared default. Same contract as
+            // rotaryRoute: only a value the post cannot emit gets overwritten.
+            toolLengthCompMode: '',
             // Rotary index settling dwell, SECONDS. '' = use the selected
             // post's declared indexDwell. This is a property of the rotary
             // HARDWARE (belt vs geared/servo with a brake), not the
@@ -384,24 +395,15 @@
                 arc: 3
             },
 
-            enableOptimization: true,
-
-            // REVIEW - How many are disconnected? How many should be connected?
             optimization: {
-                enableGrouping: true,
-                pathOrdering: true,
                 // Or-opt relocation refinement (refinePlanOrder /
-                // refineRegionOrder) is O(n³) worst case. Above this block/
-                // region count the greedy NN order is kept as-is.
-                orOptMaxBlocks: 500,
-                segmentSimplification: true,
-                leadInOut: true,
-                rapidStrategy: 'adaptive',
-                shortTravelThreshold: 5.0,
-                reducedClearance: 1.0,
-                angleTolerance: 0.1,
-                minSegmentLength: 0.01,
-                planSamplePoints: 20
+                // refineRegionOrder). routeCost is O(blocks), so a pass is
+                // O(blocks^3) - the budget is what bounds it, and the block
+                // count is only a sanity ceiling. Over budget the greedy NN
+                // order stands for whatever was not reached; it is correct,
+                // just not polished, and the optimizer says so in its log.
+                orOptMaxBlocks: 20000,
+                orOptBudgetMs: 250
             }
         },
 
@@ -533,9 +535,6 @@
         geometry: {
             offsetting: {
                 miterLimit: 2.0
-            },
-            fusion: {
-                preserveArcs: true
             }
         },
 
@@ -556,7 +555,7 @@
                         shallowDepthFactor: 0.1
                     }
                 },
-                // Only minHelixDiameter has a reader today. Kept so they are not re-invented as literals later.
+                // Only the commented-out helix constants lack readers. Kept so they are not re-invented as literals later.
                 drilling: {
                     peckRapidClearance: 0.1,
                     // helixPitchFactor: 0.5,
@@ -564,11 +563,15 @@
                     // helixSegmentsPerRev: 16,
                     // slotHelixSegments: 12,
                     // slotHelixMaxPitchFactor: 0.5,
-                    minHelixDiameter: 0.1
+                    minHelixDiameter: 0.1,
+                    millMargin: 0.05, // Hole minus cutter below which milling a ring is not worth it and the feature is pecked at centre instead.
+                    matchTolerance: 0.02 // |bit - hole| within which auto-match calls a library drill an exact fit for that hole.
                 },
                 rapidCost: {
-                    zTravelThreshold: 5.0,
-                    zCostFactor: 1.5,
+                    // Flat surcharge on every rapid link. Constant across
+                    // candidates, so it never changes the nearest-neighbour
+                    // choice - what it does is make any staydown or 3D
+                    // continuation link out-bid a rapid of any length.
                     baseCost: 10000
                 },
                 simplification: {
@@ -593,10 +596,7 @@
                     preTolFactor: 0.25
                 },
 
-                // Single source of truth for the 3D toolpath layer. The
-                // translator, reverse3DPlan and simplify3DSegments ALL read
-                // descentFeedAngleDeg from here - it used to exist as three
-                // independent literals (45 / 45 / 1).
+                // Single source of truth for the 3D toolpath layer.
                 threeD: {
                     // Descents steeper than this angle from horizontal use
                     // plungeRate instead of feedRate. 45deg => |dz| > dxy.
@@ -606,18 +606,18 @@
                     // operation (nothing protrudes above stock top).
                     allowHop: true,
 
-                    // Proximity-clustering margin for 3D chains, in mm.
-                    // stepOver is meaningless for a V-bit and toolDiameter is
-                    // the TIP flat (often ~0.1mm), so the 2D formula
-                    // toolDiameter * (1 - stepOver/100) collapses to ~0 and
-                    // every chain becomes its own region. Effective margin is
-                    // max(clusterMargin, toolDiameter).
-                    clusterMargin: 1.0
+                    // Entry-depth penalty for 3D chains: mm of rapid travel
+                    // charged per mm of depth at the approach end. A chain
+                    // entered at its deep end either plunges into stock or
+                    // climbs out of a junction, so it should be picked only
+                    // when the travel saved is worth more than that. It biases,
+                    // it does not forbid - by the time a deep-entry chain is
+                    // the cheapest option left, its neighbours have usually
+                    // already opened that junction. 0 = pure distance.
+                    entryDepthCost: 10
                 }
             },
             tabs: {
-                cornerMarginFactor: 2.0,
-                minCornerAngle: 30,
                 minTabLength: 5
             }
         },
@@ -640,21 +640,6 @@
         },
 
         // ====================================================================
-        // UI LAYOUT
-        // ====================================================================
-        // REVIEW - Possibly disconnected dead code, consider if worth connecting or letting CSS do it's thing, could be relevant if users are allowed to move it in the future
-        layout: {
-            sidebarLeftWidth: 320,
-            sidebarRightWidth: 380,
-            statusBarHeight: 32,
-            sectionHeaderHeight: 36,
-            ui: {
-                autoTransition: true,
-                transitionDelay: 125
-            }
-        },
-
-        // ====================================================================
         // RENDERING PREFERENCES
         // ====================================================================
         rendering: {
@@ -671,18 +656,13 @@
                 showTraces: true,
                 showDrills: true,
                 showCutouts: true,
-                showHoles: true,
-                holeRenderMode: 'proper',
-                debugHoleWinding: false,
                 showStats: false,
                 debugPoints: false,
                 debugArcs: false,
                 showOffsets: true,
                 showPreviews: true,
                 showPreprocessed: false,
-                showPreprocessedOffsets: false,
-                enableArcReconstruction: false,
-                showDebugInLog: false
+                enableArcReconstruction: false
             },
             // 3D preview (renderer3d/*). Those modules are ESM and
             // dynamically imported, so they read window.CAMConfig at module
@@ -692,7 +672,11 @@
                 // mm per chord when linearizing an arc command or wrapping a
                 // developed rotary segment. Preview fidelity and simulator
                 // timing only; the exported arc is never touched.
-                arcSegmentLength: 0.4
+                arcSegmentLength: 0.4,
+                // Max deviation from the true arc, mm. Baked line geometry
+                // cannot re-flatten on zoom the way ctx.arc() does, so this
+                // is what stops circles reading as polygons when zoomed in.
+                arcSagitta: 0.02
             },
             canvas: {
                 defaultZoom: 10,
@@ -727,7 +711,8 @@
                 modalAnimationDuration: 300,
                 inputDebounceDelay: 300,
                 renderThrottle: 16,
-                propertyDebounce: 500
+                propertyDebounce: 500,
+                uiTransitionDelay: 125
             },
 
             tooltips: {
@@ -737,12 +722,15 @@
                 delayHide: 150
             },
 
-            visualization: {
-                geometryStageTransition: {
-                    enabled: true,
-                    duration: 300
-                }
-            }
+            logHistoryMax: 500,
+
+            // REVIEW - Dead Code?
+            // visualization: {
+            //     geometryStageTransition: {
+            //         enabled: true,
+            //         duration: 300
+            //     }
+            // }
         },
 
         // ====================================================================
@@ -757,15 +745,6 @@
             sections: false,
             // REVIEW - Many are disconnected? Worth connecting?
             logging: {
-                wasmOperations: false,
-                coordinateConversion: false,
-                polarityHandling: false,
-                parseOperations: false,
-                renderOperations: false,
-                fusionOperations: true,
-                fileOperations: false,
-                toolpathGeneration: false,
-                curveRegistration: true,
                 operations: false,
                 toolpaths: false,
                 rendering: false,
@@ -773,24 +752,9 @@
                 cache: false
             },
             visualization: {
+                // REVIEW - Disconnected? Worth connecting?
                 showBounds: false,
                 showStats: false,
-                showCoordinates: false,
-                // REVIEW - Disconnected? Worth connecting?
-                showPrimitiveIndices: false,
-                showWindingDirection: false,
-                highlightHoles: false,
-                showToolpathNodes: false,
-                highlightOffsetSegments: false,
-                showJoinTypes: false
-            },
-            validation: {
-                validateGeometry: true,
-                validateCoordinates: true, // REVIEW - Dead code?
-                warnOnInvalidData: true,
-                // REVIEW - Disconnected? Worth connecting?
-                validatePolarity: true,
-                strictParsing: false
             }
         }
     },

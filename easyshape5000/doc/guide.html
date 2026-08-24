@@ -15,7 +15,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>EasyShape5000 | Workflow Guide</title>
 
-    <meta name="description" content="Step-by-step guide to using EasyShape5000 for CNC routing. Import SVGs, assign operations, generate toolpaths, and export G-code.">
+    <meta name="description" content="Step-by-step CNC router workflow: import SVG or STL, assign operations, generate 2D and 3D toolpaths, set tool numbers, and export G-code with tool changes.">
     <meta name="author" content="Eltryus">
     <meta name="robots" content="index, follow">
     <meta name="theme-color" content="#0f0f0f">
@@ -25,7 +25,7 @@
     <meta property="og:type" content="article">
     <meta property="og:url" content="https://cam.eltryus.design/easyshape5000/doc/guide">
     <meta property="og:title" content="EasyShape5000 | Workflow Guide">
-    <meta property="og:description" content="From SVG to G-code: a complete walkthrough of EasyShape5000's CNC routing workflow.">
+    <meta property="og:description" content="Step-by-step CNC router workflow: import SVG or STL, assign operations, generate 2D and 3D toolpaths, set tool numbers, and export G-code with tool changes.">
     <meta property="og:image" content="https://cam.eltryus.design/images/social-shape.jpg">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
@@ -60,7 +60,7 @@
                 "author": { "@id": "https://www.eltryus.design/#organization" },
                 "publisher": { "@id": "https://www.eltryus.design/#organization" },
                 "datePublished": "2026-06-17",
-                "dateModified": "2026-06-17"
+                "dateModified": "2026-08-24"
             },
             {
                 "@type": "BreadcrumbList",
@@ -124,6 +124,7 @@
                         <li><a href="#op-profile" draggable="false">Profile Cut</a></li>
                         <li><a href="#op-pocket" draggable="false">Pocket Clearing</a></li>
                         <li><a href="#op-drill" draggable="false">Drilling</a></li>
+                        <li><a href="#op-3d" draggable="false">3D Operations</a></li>
                     </ol>
                 </li>
                 <li><a href="#scene-management" draggable="false">Scene Management</a></li>
@@ -259,6 +260,12 @@
                     <dt>Peck Depth</dt>
                     <dd>For peck drilling, controls how deep each peck goes before retracting to clear chips. Shallower pecks are safer for deep holes.</dd>
                 </dl>
+                <p>Multi-tool drilling - one bit per hole diameter with its own T number - is an EasyTrace5000 feature and is not available here: an EasyShape drill operation cuts every hole with the operation's own tool.</p>
+
+                <h3 id="op-3d">3D Operations</h3>
+                <p>V-Carve, Relief and Rotary produce per-point Z toolpaths instead of flat contours. They run on a background worker and report progress in stages, so a large mesh will show several sweeps that each restart at zero - that is the pipeline moving between slicing, compensation and rastering, not a stall.</p>
+                <p>Press <kbd>F2</kbd> to switch the canvas to the 3D preview and inspect the result before exporting. The preview also plays the toolpath back using the same feed maths the exporter uses, so the estimated time it shows matches the program.</p>
+                <p>Relief and Rotary take an <strong>STL</strong> rather than an SVG. Slicing happens at generation time, so resolution, orientation and Z datum are operation parameters you can change and regenerate without re-importing the mesh.</p>
             </section>
 
             <!-- Scene Management -->
@@ -303,12 +310,18 @@
                     <dd>The Z height the tool retracts to when moving between cuts (rapid moves). Must be above all clamps and workholding.</dd>
                     <dt>Travel Z Height (typical: 2-5mm)</dt>
                     <dd>A lower retract height used for short hops between nearby cuts (staydown optimization). Faster than retracting to safe Z for every move.</dd>
+                                        <dt>Stock Thickness &amp; Z-Zero Reference</dt>
+                    <dd>The blank's thickness and whether Z0 sits at the <strong>bed</strong> or the <strong>material surface</strong>. 3D operations bake depth against this at generation time, so changing either after generating stales them - regenerate before exporting.</dd>
+                    <dt>Tool Length Compensation</dt>
+                    <dd>Only shown for posts that declare it. <strong>Table:</strong> emits <code>G43 H…</code> after each swap. <strong>Table (implicit):</strong> emits <code>G43</code> with no H word - the control takes the offset from the active T. <strong>Probe:</strong> the swap emits nothing extra because the post's macro measures the tool and owns Z. <code>G49</code> is emitted before each swap to drop the outgoing tool's offset.</dd>
                 </dl>
 
                 <h3>Per-Operation Parameters</h3>
                 <dl>
                     <dt>Tool Selection</dt>
                     <dd>Selects the cutting tool from the tool library. The tool's diameter is used to compute offset distances. V-bits use their tip diameter.</dd>
+                    <dt>Tool Number</dt>
+                    <dd>The T word your controller receives for this operation. Nothing is derived from geometry: a slot a cutter physically occupies is not something the app can infer, and a wrong T word is a crash. If your machine has no changer, 1 on every operation is correct.</dd>
                     <dt>Cut Depth (total depth, mm)</dt>
                     <dd>How deep to cut in total. For multi-pass operations, this is divided by the depth-per-pass value.</dd>
                     <dt>Depth per Pass (mm)</dt>
@@ -338,12 +351,19 @@
                             <li><strong>Machine Processing:</strong> injects rapids, plunges, retracts, multi-depth passes, tab Z-lifts, and spindle commands</li>
                         </ul>
                     </li>
+                    <li><strong>Output options:</strong>
+                        <ul>
+                            <li><strong>Export as single file:</strong> combines every selected operation into one program. Required for cross-operation tool batching.</li>
+                            <li><strong>Insert tool changes:</strong> emits T/M6 (plus the tool-length mode) whenever the tool number changes. Only available on posts that declare tool-change support.</li>
+                            <li><strong>Group by tool:</strong> reorders operations so each tool is used once, overriding the order you dragged. Never implied by the option above - the sequence you set is assumed deliberate.</li>
+                        </ul>
+                    </li>
                     <li><strong>Preview:</strong> The generated G-code appears in the text preview with line count, operation count, estimated time, and total travel distance.</li>
                     <li><strong>Export:</strong> Click Export Files to download. The filename includes the operation type and post-processor.</li>
                 </ol>
 
                 <h3>Post-Processor Notes</h3>
-                <p><strong>GRBL</strong> is the only post-processor tested on real hardware. All others (grblHAL, Marlin, LinuxCNC, Mach3, UCCNC, Makera, Roland RML) generate syntactically correct output but are considered experimental. Always dry-run G-code on your controller before cutting material.</p>
+                <p><strong>GRBL</strong> is the only post-processor tested on real hardware, and it declares no tool-change support - a multi-tool job must be exported one file per tool on GRBL. The posts that do emit T/M6 are <strong>grblHAL, UCCNC, Mach3, LinuxCNC, Fanuc, WinPC-NC and Makera</strong>; <strong>Marlin</strong> and <strong>Roland RML</strong> are single-tool. All non-GRBL posts generate syntactically correct output but are experimental. Always dry-run G-code on your controller before cutting material.</p>
             </section>
 
             <!-- Tips & Limitations -->

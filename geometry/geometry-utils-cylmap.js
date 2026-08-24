@@ -156,8 +156,7 @@
 
             // Pass A: transform vertices into SoA + gather bounds, fused.
             // Transform3D branch-hoists the null-matrix case and returns the
-            // extents from the same sweep - CylMapBuilder needs both, and
-            // this used to be two passes with an open-coded multiply.
+            // extents from the same sweep.
             const T3 = ROOT.Transform3D;
             const b = T3.transformPointsSoA(triangles, orient, null, vx, vy, vz);
             let minX = b.minX, maxX = b.maxX;

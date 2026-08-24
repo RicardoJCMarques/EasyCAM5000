@@ -658,49 +658,7 @@
 
             if (!primitive.contours || primitive.contours.length === 0) return;
 
-            this.ctx.beginPath();
-
-            for (const contour of primitive.contours) {
-                const points = contour.points;
-                const arcSegments = contour.arcSegments || [];
-                if (!points || points.length === 0) continue;
-
-                if (arcSegments.length > 0) {
-                    const sortedArcs = arcSegments.slice().sort((a, b) => a.startIndex - b.startIndex);
-                    let currentIndex = 0;
-                    this.ctx.moveTo(points[0].x, points[0].y);
-
-                    for (const arc of sortedArcs) {
-                        for (let i = currentIndex + 1; i <= arc.startIndex; i++) {
-                            this.ctx.lineTo(points[i].x, points[i].y);
-                        }
-                        if (arc.sweepAngle !== undefined) {
-                            this.ctx.arc(arc.center.x, arc.center.y, arc.radius,
-                                arc.startAngle, arc.startAngle + arc.sweepAngle,
-                                arc.sweepAngle < 0);
-                        } else {
-                            this.ctx.arc(arc.center.x, arc.center.y, arc.radius,
-                                arc.startAngle, arc.endAngle, arc.clockwise);
-                        }
-                        currentIndex = arc.endIndex;
-                    }
-
-                    if (currentIndex !== 0 || sortedArcs.length === 0) {
-                        for (let i = currentIndex + 1; i < points.length; i++) {
-                            this.ctx.lineTo(points[i].x, points[i].y);
-                        }
-                    }
-                } else {
-                    points.forEach((p, i) => {
-                        if (i === 0) this.ctx.moveTo(p.x, p.y);
-                        else this.ctx.lineTo(p.x, p.y);
-                    });
-                }
-
-                if (primitive.properties?.closed !== false) {
-                    this.ctx.closePath();
-                }
-            }
+            this.drawPrimitivePath(primitive);
 
             if (shouldFill) {
                 if (isPreprocessed && primitive.properties?.polarity === 'clear') {

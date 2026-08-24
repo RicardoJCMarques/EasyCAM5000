@@ -802,8 +802,6 @@
         }
 
         validatePrimitive(primitive) {
-            if (!debugState.validation?.validateGeometry) return true;
-
             try {
                 if (typeof primitive.getBounds !== 'function') return false;
                 const bounds = primitive.getBounds();

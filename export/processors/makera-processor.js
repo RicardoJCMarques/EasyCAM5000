@@ -34,6 +34,11 @@
                 supportsToolChange: true,
                 supportsArcCommands: true,
                 supportsCannedCycles: false,
+                initialToolUsesM6: true,
+                // Carvera's MTC probes every tool against the fixed setter
+                // (M491) and ATC probes internally on M6. Both own Z; a G43
+                // over a probed offset double-applies it.
+                toolLengthComp: { modes: ['probe', 'none'], default: 'probe' },
                 // 4th axis: the Carvera rotary (A) exists, but its firmware's
                 // feed handling for mixed X/A moves is UNVERIFIED and no G93 is
                 // documented - inverseTime stays false and 'wrapped-linear'
@@ -53,8 +58,7 @@
                 maxSpindleSpeed: 24000,
                 maxRapidRate: 3000,
                 defaults: {
-                    // Initial tool assignment - Makera firmware requires M6 before first motion
-                    startCode: 'M6 T1',
+                    startCode: '',
                     // generateFooter() emits the full M5 → retract → G28 park → M30
                     // sequence itself. A default endCode here would run AFTER G28 and
                     // drive the machine back out of the ATC park position.
@@ -96,11 +100,11 @@
             lines.push(this.modalState.feedRateMode);
             lines.push('');
 
-            /** Ignore until a real tool changing system is implemented.
-            lines.push(this.appendComment(`T${initialTool} M6`, c.initialTool, options));
-            const initialTool = options.toolNumber || 1;
-            lines.push('');
-             */
+            // REVIEW - Dead Code?
+            // lines.push(this.appendComment(`T${initialTool} M6`, c.initialTool, options));
+            // const initialTool = options.toolNumber || 1;
+            // lines.push('');
+
 
             // Peripherals
             if (options.coolant === 'mist') lines.push(this.appendComment('M7', c.coolantMist, options));
@@ -138,63 +142,57 @@
             return lines.join('\n');
         }
 
-        generateToolChange(tool, options) {
-            const lines = [''];
+        toolChangeSwap(toolNumber, options) {
             const c = options.comments || {};
-            const targetTool = tool.number || options.toolNumber || 1;
+            const lines = [];
+            const isManual = options.makeraToolChangeMode === 'manual';
 
-            this.pushCommentLine(lines, (c.toolChange || 'Tool change: {name}').replace('{name}', tool.name || tool.id), options);
-            this.pushCommentLine(lines, (c.toolDiameter || 'Diameter: {diameter}mm').replace('{diameter}', tool.diameter), options);
-
-            // Stop spindle
-            const stopGcode = this.setSpindle(0, 0, options);
-            if (stopGcode) {
-                lines.push(stopGcode);
-            } else if (this.currentSpindle > 0) {
-                lines.push(this.appendComment('M5', c.spindleStop, options));
-                this.currentSpindle = 0;
+            // ATC - Carvera handles drop, grab, and probe internally on M6
+            if (!isManual) {
+                lines.push(this.appendComment(`T${toolNumber} M6`,
+                    c.autoToolChange || 'Auto tool change', options));
+                return lines;
             }
 
-            // Retract to safe Z
-            const safeZ = this.formatCoordinate(options.safeZ || this.config.safetyHeight);
-            lines.push(this.appendComment(`G0 Z${safeZ}`, c.retractSafeZ, options));
-            this.currentPosition.z = safeZ;
-            lines.push('');
+            // MTC - Proprietary Makera sequence for manual collet swap with automatic tool length probing.
+            // M27      - Move to park/tool-change position
+            // M600     - Pause execution, wait for user
+            // M490.2   - Open collet (pneumatic release)
+            // M490.1   - Close collet (pneumatic grip)
+            // M493.2   - Set internal calibration state flag
+            // M491     - Execute automatic tool length measurement
+            lines.push(this.appendComment('G28',
+                c.mtcClearance || 'Move to tool change clearance', options));
+            lines.push('M27');
+            lines.push(this.appendComment('M600',
+                c.mtcRelease || 'Paused. Press Play to release collet.', options));
+            lines.push('M490.2');
+            lines.push('M27');
+            lines.push(this.appendComment('M600',
+                c.mtcInsert || 'Paused. Insert tool and press Play to close.', options));
+            lines.push('M490.1');
+            lines.push(this.appendComment(`M493.2 T${toolNumber}`,
+                c.mtcCalibState || 'Set memory state for calibration', options));
+            lines.push(this.appendComment('M491',
+                c.mtcCalibRun || 'Execute Tool Length Calibration', options));
 
-            // ════════════════════════════════════════════════════════
-            // TOOL CHANGE MODE
-            // Future: read from options.processorSettings?.makeraToolChangeMode or from custom parameter when UI supports dynamic fields.
-            const isManualChange = options.makeraToolChangeMode === 'manual';
+            // G28 homes and M27 parks - all three axes are somewhere this
+            // post's tracker does not know. null forces _motionCoords to
+            // re-emit every word on the next move (it treats null/undefined
+            // as "changed"); leaving stale numbers here silently suppresses
+            // an axis word on the first rapid after the change.
+            // REVIEW - Would it be safer to add a safety Zheight movement to XY before plunging down? Splitting this movement to avoid crashed during a straight line to the previous/next position?
+            this.currentPosition = { x: null, y: null, z: null, a: null };
+            return lines;
+        }
 
-            if (!isManualChange) {
-                // ATC - Carvera handles drop, grab, and probe internally on M6
-                lines.push(this.appendComment(`T${targetTool} M6`, c.makera?.autoToolChange || 'Auto tool change', options));
-            } else {
-                // MTC - Proprietary Makera sequence for manual collet swap with automatic tool length probing.
-                // M27      - Move to park/tool-change position
-                // M600     - Pause execution, wait for user
-                // M490.2   - Open collet (pneumatic release)
-                // M490.1   - Close collet (pneumatic grip)
-                // M493.2   - Set internal calibration state flag
-                // M491     - Execute automatic tool length measurement
-                lines.push(this.appendComment('G28', c.makera?.mtcClearance || 'Move to tool change clearance', options));
-                lines.push('M27');
-                lines.push(this.appendComment('M600', c.makera?.mtcRelease || 'Paused. Press Play to release collet.', options));
-                lines.push('M490.2');
-                lines.push('M27');
-                lines.push(this.appendComment('M600', c.makera?.mtcInsert || 'Paused. Insert tool and press Play to close.', options));
-                lines.push('M490.1');
-                lines.push(this.appendComment(`M493.2 T${targetTool}`, c.makera?.mtcCalibState || 'Set memory state for calibration', options));
-                lines.push(this.appendComment('M491', c.makera?.mtcCalibRun || 'Execute Tool Length Calibration', options));
-            }
-
-            lines.push('');
-
-            const spindleSpeed = tool.spindleSpeed || options.spindleSpeed || 12000;
-            const startGcode = this.setSpindle(spindleSpeed, tool.spindleDwell || 0, options);
-            if (startGcode) lines.push(startGcode);
-
-            return lines.join('\n');
+        generateInitialTool(tool, options = {}) {
+            const n = tool?.number ?? options.toolNumber ?? 1;
+            this.currentToolNumber = n;
+            // Carvera firmware ignores TLO without an M6 before first motion.
+            // The ATC/MTC branch belongs to a CHANGE; the initial load is the
+            // bare selection either way.
+            return `M6 T${n}`;
         }
     }
 

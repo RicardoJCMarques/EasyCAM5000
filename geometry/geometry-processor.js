@@ -213,6 +213,24 @@
             }
         }
 
+        /**
+         * Native Clipper2 offsetting. No arc reconstruction, by design.
+         * For 3D tool compensation only; the 2D pipeline uses GeometryOffsetter.
+         */
+        async offsetGeometry(primitives, delta, options = {}) {
+            await this.ensureInitialized();
+            if (!primitives || primitives.length === 0) return [];
+
+            this.debug(`=== OFFSET OPERATION START ===`);
+            this.debug(`Input: ${primitives.length} primitives, delta ${delta}`);
+
+            const result = await this.clipper.offsetPaths(primitives, delta, options);
+
+            this.debug(`=== OFFSET OPERATION COMPLETE ===`);
+            this.debug(`Result: ${result.length} primitives`);
+            return result;
+        }
+
         // Difference geometry for hole cutting
         async difference(subjectPrimitives, clipPrimitives) {
             await this.ensureInitialized();
@@ -228,7 +246,6 @@
             this.debug(`Input: ${subjectPrimitives.length} subjects, ${clipPrimitives.length} clips`);
 
             try {
-                // Use Clipper difference operation
                 const result = await this.clipper.difference(subjectPrimitives, clipPrimitives);
 
                 this.debug(`=== DIFFERENCE OPERATION COMPLETE ===`);
@@ -494,23 +511,6 @@
 
             return true;
         }
-
-        // REVIEW - Dead code?
-        // createPathPrimitive(contours, properties = {}) {
-        //     if (typeof PathPrimitive !== 'undefined' && PathPrimitive) {
-        //         const primitive = new PathPrimitive(contours, properties);
-        // 
-        //         if (properties.hasReconstructableCurves) { 
-        //             primitive.hasReconstructableCurves = true; 
-        //         }
-        // 
-        //         if (!primitive.contours || primitive.contours.length === 0) {
-        //             this.debug(`PathPrimitive created with no contours`);
-        //         }
-        // 
-        //         return primitive;
-        //     }
-        // }
 
         // State management
         clearCachedStates() {

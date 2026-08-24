@@ -14,9 +14,9 @@
         SPDX-License-Identifier: AGPL-3.0-or-later
     -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EasyShape5000 Workspace | Free Browser-Based CAM for CNC Routers</title>
+    <title>EasyShape5000 - Browser CAM for CNC Routers | SVG and STL to G-code</title>
 
-    <meta name="description" content="Convert SVG CAD fabrication files into machine ready files. 100% web-based, client-side, open-source and free to use.">
+    <meta name="description" content="Free online CAM for CNC routers. Turn SVG and STL into G-code in your browser - profile, pocket, drill, engrave, V-carve, relief and 4th-axis rotary.">
     <meta name="keywords" content="CNC CAM, CNC Router CAM, G-code Generator, SVG to G-code, Open Source CAM, Easel alternative, browser CAM, woodworking CAM, pocket milling, profile cutting">
     <meta name="author" content="Eltryus">
     <meta name="robots" content="index, follow">
@@ -28,7 +28,7 @@
     <meta property="og:url" content="https://cam.eltryus.design/easyshape5000/">
     <meta property="og:title" content="EasyShape5000 Workspace | Free Browser-Based CAM for CNC Routers">
     <meta property="og:site_name" content="Eltryus">
-    <meta property="og:description" content="Convert SVG CAD designs into machine ready files. 100% web-based, client-side, open-source and free to use.">
+    <meta property="og:description" content="Free online CAM for CNC routers. Turn SVG and STL into G-code in your browser - profile, pocket, drill, engrave, V-carve, relief and 4th-axis rotary.">
     <meta property="og:image" content="https://cam.eltryus.design/images/social-shape.jpg">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
@@ -54,59 +54,78 @@
     <link rel="preload" href="../geometry/clipper2z.wasm" as="fetch" crossorigin>
 
     <script type="application/ld+json">
-    {
-        "@context": "https://schema.org",
-        "@graph": [
-            {
-                "@type": "WebApplication",
-                "@id": "https://cam.eltryus.design/easyshape5000/#app",
-                "name": "EasyShape5000",
-                "alternateName": "EasyShape",
-                "url": "https://cam.eltryus.design/easyshape5000/",
-                "applicationCategory": "DeveloperApplication",
-                "applicationSubCategory": "CAM Software",
-                "operatingSystem": "Any (Browser-based)",
-                "browserRequirements": "Requires JavaScript and WebAssembly support",
-                "releaseNotes": "https://github.com/RicardoJCMarques/EasyCAM5000/blob/main/CHANGELOG.md",
-                "softwareVersion": "1.0.0",
-                "installUrl": "https://cam.eltryus.design/easyshape5000/",
-                "sameAs": "https://github.com/RicardoJCMarques/EasyCAM5000",
-                "license": "https://www.gnu.org/licenses/agpl-3.0.html",
-                "isAccessibleForFree": true,
-                "description": "Browser-based CAM tool for CNC routers. Import SVG designs, assign profile/pocket/drill/engrave operations, and export optimized G-code.",
-                "isPartOf": { "@id": "https://cam.eltryus.design/#suite" },
-                "author": { "@id": "https://www.eltryus.design/#organization" },
-                "publisher": { "@id": "https://www.eltryus.design/#organization" },
-                "softwareHelp": { "@id": "https://cam.eltryus.design/easyshape5000/doc/#docs" },
-                "subjectOf": { "@id": "https://www.eltryus.design/en/work/easytrace5000/#article" },
-                "featureList": [
-                    "Browser-based, 100% client-side CAM processing with zero cloud dependencies",
-                    "SVG import with hierarchical group preservation",
-                    "Scene graph with group/ungroup, lock, visibility, and undo/redo",
-                    "Per-shape operation assignment (Profile, Pocket, Drill, Engrave)",
-                    "WebAssembly geometry engine for high-performance boolean operations",
-                    "Smart drill strategy with dynamic peck-or-mill selection",
-                    "Optimized toolpaths with staydown clustering and G2/G3 arc reconstruction",
-                    "Multiple CNC post-processors supported (GRBL, Marlin, LinuxCNC, Roland RML)"
-                ],
-                "screenshot": {
-                    "@type": "ImageObject",
-                    "url": "https://cam.eltryus.design/images/social-shape.jpg",
-                    "caption": "EasyShape5000 main workspace"
+        {
+            "@context": "https://schema.org",
+            "@graph": [
+                {
+                    "@type": "Organization",
+                    "@id": "https://www.eltryus.design/#organization",
+                    "name": "Eltryus",
+                    "url": "https://www.eltryus.design/",
+                    "sameAs": [
+                        "https://github.com/RicardoJCMarques",
+                        "https://cam.eltryus.design/"
+                    ]
                 },
-                "potentialAction": [
-                    { "@type": "ViewAction", "target": "https://cam.eltryus.design/easyshape5000/#quickstart", "name": "Quick Start Guide" }
+                {
+                    "@type": "WebApplication",
+                    "@id": "https://cam.eltryus.design/easyshape5000/#app",
+                    "name": "EasyShape5000",
+                    "alternateName": "EasyShape",
+                    "url": "https://cam.eltryus.design/easyshape5000/",
+                    "applicationCategory": "DeveloperApplication",
+                    "applicationSubCategory": "CAM Software",
+                    "operatingSystem": "Any (Browser-based)",
+                    "browserRequirements": "Requires JavaScript and WebAssembly support",
+                    "releaseNotes": "https://github.com/RicardoJCMarques/EasyCAM5000/blob/main/CHANGELOG.md",
+                    "softwareVersion": "1.1.0",
+                    "installUrl": "https://cam.eltryus.design/easyshape5000/",
+                    "sameAs": "https://github.com/RicardoJCMarques/EasyCAM5000",
+                    "license": "https://www.gnu.org/licenses/agpl-3.0.html",
+                    "isAccessibleForFree": true,
+                    "offers": {
+                        "@type": "Offer",
+                        "price": "0",
+                        "priceCurrency": "EUR"
+                    },
+                    "description": "Browser-based CAM tool for CNC routers. Import SVG/STL designs, assign profile/pocket/drill/engrave/v-carve/relief/4th-axis operations, and export optimized G-code.",
+                    "mainEntityOfPage": { "@id": "https://cam.eltryus.design/easyshape5000/#app" },
+                    "isPartOf": { "@id": "https://cam.eltryus.design/#suite" },
+                    "author": { "@id": "https://www.eltryus.design/#organization" },
+                    "publisher": { "@id": "https://www.eltryus.design/#organization" },
+                    "softwareHelp": { "@id": "https://cam.eltryus.design/easyshape5000/doc/#docs" },
+                    "subjectOf": { "@id": "https://www.eltryus.design/en/work/easytrace5000/#article" },
+                    "featureList": [
+                        "Browser-based, 100% client-side CAM processing with zero cloud dependencies",
+                        "SVG import with hierarchical group preservation",
+                        "Scene graph with group/ungroup, lock, visibility, and undo/redo",
+                        "Per-shape operation assignment (Profile, Pocket, Drill, Engrave)",
+                        "WebAssembly geometry engine for high-performance boolean operations",
+                        "Smart drill strategy with dynamic peck-or-mill selection",
+                        "Optimized toolpaths with staydown clustering and G2/G3 arc reconstruction",
+                        "Ten CNC post-processors including GRBL, grblHAL, LinuxCNC, Mach3, Fanuc and Roland RML",
+                        "Automatic tool changes with tool length compensation",
+                        "3D operations: V-carve, relief surfacing, and 4th-axis rotary in radial and indexed 3+1 kinematics",
+                        "3D toolpath preview with playback"
+                    ],
+                    "screenshot": {
+                        "@type": "ImageObject",
+                        "url": "https://cam.eltryus.design/images/social-shape.jpg",
+                        "caption": "EasyShape5000 main workspace"
+                    },
+                    "potentialAction": [
+                        { "@type": "ViewAction", "target": "https://cam.eltryus.design/easyshape5000/#quickstart", "name": "Quick Start Guide" }
+                    ]
+                },
+                {
+                "@type": "BreadcrumbList",
+                "itemListElement": [
+                    { "@type": "ListItem", "position": 1, "name": "Eltryus EasyCAM5000 Suite", "item": "https://cam.eltryus.design/" },
+                    { "@type": "ListItem", "position": 2, "name": "EasyShape5000", "item": "https://cam.eltryus.design/easyshape5000/" }
                 ]
-            },
-            {
-            "@type": "BreadcrumbList",
-            "itemListElement": [
-                { "@type": "ListItem", "position": 1, "name": "Eltryus EasyCAM5000 Suite", "item": "https://cam.eltryus.design/" },
-                { "@type": "ListItem", "position": 2, "name": "EasyShape5000", "item": "https://cam.eltryus.design/easyshape5000/" }
+                }
             ]
-            }
-        ]
-    }
+        }
     </script>
 
     <script type="importmap">
@@ -360,20 +379,20 @@
 
                     <div class="property-section">
                         <div class="property-field">
-                            <label for="post-processor" data-i18n-tooltip="tooltips.machineSettings.postProcessor">Post-Processor</label>
+                            <label for="post-processor" data-i18n="params.postProcessor">Post-Processor</label>
                             <select id="post-processor">
                             </select>
                         </div>
                         <div class="property-field">
-                            <label for="start-code-ta" data-i18n-tooltip="tooltips.parameters.startCode">Start Code</label>
+                            <label for="start-code-ta" data-i18n="params.startCode">Start Code</label>
                             <textarea id="start-code-ta" rows="5"></textarea>
                         </div>
                         <div class="property-field">
-                            <label for="end-code-ta" data-i18n-tooltip="tooltips.parameters.endCode">End Code</label>
+                            <label for="end-code-ta" data-i18n="params.endCode">End Code</label>
                             <textarea id="end-code-ta" rows="5"></textarea>
                         </div>
                         <div class="property-field" data-processor-group="gcode">
-                            <label for="gcode-units" data-i18n-tooltip="tooltips.machineSettings.gcodeUnits">Units</label>
+                            <label for="gcode-units" data-i18n="params.gcodeUnits">Units</label>
                             <select id="gcode-units">
                                 <option value="mm">Millimeters (G21)</option>
                                 <option value="inch">Inches (G20)</option>
@@ -384,7 +403,7 @@
                     <!-- Roland-specific settings -->
                     <div class="property-section" data-processor-group="roland" style="display: none;">
                         <div class="property-field">
-                            <label for="roland-machine-model" data-i18n-tooltip="tooltips.machineSettings.rolandMachineModel">Machine Model</label>
+                            <label for="roland-machine-model" data-i18n="params.rolandMachineModel">Machine Model</label>
                             <select id="roland-machine-model">
                                 <optgroup label="Pro Series">
                                     <option value="mdx540">MDX-540 / MDX-540S</option>
@@ -408,28 +427,28 @@
                             </select>
                         </div>
                         <div class="property-field">
-                            <label for="roland-steps-per-mm" data-i18n-tooltip="tooltips.machineSettings.rolandStepsPerMM">Steps per mm</label>
+                            <label for="roland-steps-per-mm" data-i18n="params.rolandStepsPerMM">Steps per mm</label>
                             <div class="input-unit">
                                 <input type="number" id="roland-steps-per-mm" value="100" step="1" min="1" aria-label="Steps per millimeter resolution">
                                 <span class="unit" aria-hidden="true">steps/mm</span>
                             </div>
                         </div>
                         <div class="property-field">
-                            <label for="roland-z-mode" data-i18n-tooltip="tooltips.machineSettings.rolandZMode">Z Command Mode</label>
+                            <label for="roland-z-mode" data-i18n="params.rolandZMode">Z Command Mode</label>
                             <select id="roland-z-mode">
                                 <option value="3d">3D - Z x,y,z (simultaneous XYZ)</option>
                                 <option value="2.5d">2.5D - PU/PD (pen up/down only)</option>
                             </select>
                         </div>
                         <div class="property-field">
-                            <label for="roland-max-feed" data-i18n-tooltip="tooltips.machineSettings.rolandMaxFeed">Max Feed Rate</label>
+                            <label for="roland-max-feed" data-i18n="params.rolandMaxFeed">Max Feed Rate</label>
                             <div class="input-unit">
                                 <input type="number" id="roland-max-feed" value="60" step="0.1" min="0.1" aria-label="Maximum feed rate in millimeters per second">
                                 <span class="unit" aria-hidden="true">mm/sec</span>
                             </div>
                         </div>
                         <div class="property-field">
-                            <label for="roland-spindle-mode" data-i18n-tooltip="tooltips.machineSettings.rolandSpindleMode">Spindle Control</label>
+                            <label for="roland-spindle-mode" data-i18n="params.rolandSpindleMode">Spindle Control</label>
                             <select id="roland-spindle-mode">
                                 <option value="direct">Direct RPM (!RC + !MC)</option>
                                 <option value="manual">Manual Only (!MC on/off)</option>
@@ -439,7 +458,7 @@
 
                     <div class="property-section">
                         <div class="property-field">
-                            <label for="safe-z" data-i18n-tooltip="tooltips.machineSettings.safeZ">Safe Z</label>
+                            <label for="safe-z" data-i18n="params.safeZ">Safe Z</label>
                             <div class="input-unit">
                                 <input type="number" id="safe-z" step="0.5" aria-label="Safe Z Height in millimeters">
                                 <span class="unit" aria-hidden="true">mm</span>
@@ -447,7 +466,7 @@
                         </div>
 
                         <div class="property-field">
-                            <label for="travel-z" data-i18n-tooltip="tooltips.machineSettings.travelZ">Travel Z</label>
+                            <label for="travel-z" data-i18n="params.travelZ">Travel Z</label>
                             <div class="input-unit">
                                 <input type="number" id="travel-z" step="0.5" aria-label="Travel Z Height in millimeters">
                                 <span class="unit" aria-hidden="true">mm</span>
@@ -457,7 +476,7 @@
 
                     <div class="property-section">
                         <div class="property-field">
-                            <label for="rapid-feed" data-i18n-tooltip="tooltips.machineSettings.rapidFeed">Rapid Feed</label>
+                            <label for="rapid-feed" data-i18n="params.rapidFeed">Rapid Feed</label>
                             <div class="input-unit">
                                 <input type="number" id="rapid-feed" step="100" aria-label="Rapid Feed Rate in millimeters per minute">
                                 <span class="unit" aria-hidden="true">mm/min</span>
@@ -465,6 +484,11 @@
                         </div>
                     </div>
 
+                    <div class="property-field" id="tlc-mode-field" style="display: none;">
+                        <label for="tlc-mode" data-i18n="params.toolLengthCompMode">Tool Length Offset</label>
+                        <select id="tlc-mode"></select>
+                    </div>
+                    <!-- no data-i18n tags on coolant and vacuum? -->
                     <div class="property-section" data-processor-group="gcode">
                         <div class="property-field">
                             <label for="coolant-type">Coolant</label>
@@ -486,12 +510,12 @@
                     <!-- 4th axis. Visibility is owned entirely by MachineSettingsUI.updateRotaryRouteField - deliberately NOT tagged data-processor-group, or the gcode/roland pass and the rotary pass would fight over display. REVIEW - this should probably be in the export modal as it only becomes relevant on 4th axis operations? -->
                     <div class="property-section" id="rotary-section" style="display: none;">
                         <div class="property-field" id="rotary-route-field">
-                            <label for="rotary-route" data-i18n-tooltip="tooltips.machineSettings.rotaryRoute">4th-Axis Route</label>
+                            <label for="rotary-route" data-i18n="params.rotaryRoute">4th-Axis Route</label>
                             <select id="rotary-route"></select>
                         </div>
 
                         <div class="property-field" id="index-dwell-field" style="display: none;">
-                            <label for="index-dwell" data-i18n-tooltip="tooltips.machineSettings.indexDwell">Index Settle Dwell</label>
+                            <label for="index-dwell" data-i18n="params.indexDwell">Index Settle Dwell</label>
                             <div class="input-unit">
                                 <input type="number" id="index-dwell" min="0" max="5" step="0.1" placeholder="Auto" aria-label="Rotary index settling dwell in seconds">
                                 <span class="unit" aria-hidden="true">s</span>
@@ -640,19 +664,19 @@
                 <div class="section-content" id="viz-controls">
                     <div class="control-group">
                         <h3>Display</h3>
-                        <label class="checkbox-control checkbox-label" for="show-grid" data-i18n-tooltip="tooltips.vizPanel.grid">
+                        <label class="checkbox-control checkbox-label" for="show-grid" data-i18n="params.grid">
                             <input type="checkbox" id="show-grid" data-option="showGrid" data-action="render" checked>
                             <span>Grid</span>
                         </label>
-                        <label class="checkbox-control checkbox-label" for="show-wireframe" data-i18n-tooltip="tooltips.vizPanel.wireframe">
+                        <label class="checkbox-control checkbox-label" for="show-wireframe" data-i18n="params.wireframe">
                             <input type="checkbox" id="show-wireframe" data-option="showWireframe" data-action="render">
                             <span>Wireframe</span>
                         </label>
-                        <label class="checkbox-control checkbox-label" for="show-bounds" data-i18n-tooltip="tooltips.vizPanel.boardBounds">
+                        <label class="checkbox-control checkbox-label" for="show-bounds" data-i18n="params.boardBounds">
                             <input type="checkbox" id="show-bounds" data-option="showBounds" data-action="render">
                             <span>Board Bounds</span>
                         </label>
-                        <label class="checkbox-control checkbox-label" for="show-rulers" data-i18n-tooltip="tooltips.vizPanel.rulers">
+                        <label class="checkbox-control checkbox-label" for="show-rulers" data-i18n="params.rulers">
                             <input type="checkbox" id="show-rulers" data-option="showRulers" data-action="render" checked>
                             <span>Rulers</span>
                         </label>
@@ -705,31 +729,27 @@
 
                     <div class="control-group">
                         <h3>Advanced</h3>
-                        <label class="checkbox-control checkbox-label" for="fuse-geometry" data-i18n-tooltip="tooltips.vizPanel.fusionMode">
+                        <label class="checkbox-control checkbox-label" for="fuse-geometry" data-i18n="params.fusionMode">
                             <input type="checkbox" id="fuse-geometry" data-option="fuseGeometry" data-action="update">
                             <span>Fusion Mode</span>
                         </label>
-                        <label class="checkbox-control checkbox-label" for="show-preprocessed" data-i18n-tooltip="tooltips.vizPanel.preprocessed">
+                        <label class="checkbox-control checkbox-label" for="show-preprocessed" data-i18n="params.preprocessed">
                             <input type="checkbox" id="show-preprocessed" data-option="showPreprocessed" data-action="update" data-dependency="fuse-geometry">
                             <span>Preprocessed</span>
                         </label>
-                        <label class="checkbox-control checkbox-label" for="show-preprocessed-offsets">
-                            <input type="checkbox" id="show-preprocessed-offsets" data-option="showPreprocessedOffsets" data-action="render">
-                            <span>Offset Polygons</span>
-                        </label>
-                        <label class="checkbox-control checkbox-label" for="enable-arc-reconstruction" data-i18n-tooltip="tooltips.vizPanel.arcReconstruction">
+                        <label class="checkbox-control checkbox-label" for="enable-arc-reconstruction" data-i18n="params.arcReconstruction">
                             <input type="checkbox" id="enable-arc-reconstruction" data-option="enableArcReconstruction" data-action="update" data-dependency="fuse-geometry">
                             <span>Arc Reconstruction</span>
                         </label>
-                        <label class="checkbox-control checkbox-label" for="debug-points" data-i18n-tooltip="tooltips.vizPanel.debugPoints">
+                        <label class="checkbox-control checkbox-label" for="debug-points" data-i18n="params.debugPoints">
                             <input type="checkbox" id="debug-points" data-option="debugPoints" data-action="render">
                             <span>Debug Points</span>
                         </label>
-                        <label class="checkbox-control checkbox-label" for="debug-arcs" data-i18n-tooltip="tooltips.vizPanel.debugArcs">
+                        <label class="checkbox-control checkbox-label" for="debug-arcs" data-i18n="params.debugArcs">
                             <input type="checkbox" id="debug-arcs" data-option="debugArcs" data-action="render">
                             <span>Debug Arcs</span>
                         </label>
-                        <label class="checkbox-control checkbox-label" for="black-and-white" data-i18n-tooltip="tooltips.vizPanel.bwMode">
+                        <label class="checkbox-control checkbox-label" for="black-and-white" data-i18n="params.bwMode">
                             <input type="checkbox" id="black-and-white" data-option="blackAndWhite" data-action="render">
                             <span>Black & White</span>
                         </label>
@@ -737,7 +757,7 @@
 
                     <div class="control-group">
                         <h3>Log</h3>
-                        <label class="checkbox-control checkbox-label" for="debug-log-toggle" data-i18n-tooltip="tooltips.vizPanel.verboseDebug">
+                        <label class="checkbox-control checkbox-label" for="debug-log-toggle" data-i18n="params.verboseDebug">
                             <input type="checkbox" id="debug-log-toggle" data-action="toggle-debug">
                             <span>Verbose Debug</span>
                         </label>
@@ -755,7 +775,7 @@
         </div>
         <div class="status-right" id="status-right">
             <div class="status-info license-info">
-                <a href="https://github.com/RicardoJCMarques/EasyCAM5000/blob/main/CHANGELOG.md" title="Version" draggable="false">v1.0.0</a> |
+                <a href="https://github.com/RicardoJCMarques/EasyCAM5000/blob/main/CHANGELOG.md" title="Version" draggable="false">v1.1.0</a> |
                 <a href="/" title="Return to Homepage" draggable="false">Home</a> |
                 <a href="../LICENSE" target="_blank" title="View License" draggable="false" aria-label="View AGPLv3 License (opens in a new tab)">AGPLv3</a> |
                 <a href="doc/" target="_blank" title="Documentation" draggable="false" aria-label="Documentation (opens in a new tab)">Doc</a> |
@@ -804,11 +824,9 @@
                 <div class="modal-notice modal-notice--info" id="welcome-firstrelease-notice">
                     <svg class="cam-icon" width="20" height="20"><use href="#icon-warning"></use></svg>
                     <div class="modal-notice-content">
-                        <strong>Initial Stable Release.</strong>
-                        <span>While 2D foundations are shared with <a href="../easytrace5000/" target="_blank" rel="noopener">EasyTrace5000</a>, more testing of the new 3D sub-systems is needed. I'll need help testing post-processors and 4th axis setups. Please
-                            <a href="https://github.com/RicardoJCMarques/EasyCAM5000/issues" target="_blank" rel="noopener">report unexpected behavior</a>.
-                        </span>
-                        <p>Toolpath Optimizations were also fully reworked so double check output (<a href="https://ncviewer.com/" target="_blank" rel="noopener">ncviewer</a>).</p>
+                        <strong>Warning about 3D Operations:</strong>
+                        <p>While 2D foundations are shared with <a href="../easytrace5000/" target="_blank" rel="noopener">EasyTrace5000</a>, more testing of the new 3D sub-systems is needed.</p>
+                        <p>Tool-changing logic was added recently - please <a href="https://github.com/RicardoJCMarques/EasyCAM5000/issues" target="_blank" rel="noopener">report unexpected behavior</a>.</p>
                     </div>
                 </div>
 
@@ -863,7 +881,7 @@
             </div>
             <div class="modal-footer welcome-footer">
                 <div class="welcome-footer-links">
-                    <a href="https://github.com/RicardoJCMarques/EasyCAM5000/blob/main/CHANGELOG.md" title="Version" target="_blank" draggable="false" aria-label="Changelog (opens in a new tab)">v1.0.0</a>
+                    <a href="https://github.com/RicardoJCMarques/EasyCAM5000/blob/main/CHANGELOG.md" title="Version" target="_blank" draggable="false" aria-label="Changelog (opens in a new tab)">v1.1.0</a>
                     <span class="separator" aria-hidden="true"></span>
                     <a href="doc/" target="_blank" draggable="false" aria-label="Documentation (opens in a new tab)">Documentation</a>
                     <span class="separator" aria-hidden="true"></span>
@@ -1071,7 +1089,7 @@
                         </div>
                     </div>
 
-                    <div id="exporter-cnc-options">
+                    <div id="exporter-cnc-options" data-pipeline-group="cnc">
                         <h3>CNC Output Options</h3>
                         <div class="property-field field-group">
                             <label class="checkbox-label">
@@ -1081,10 +1099,20 @@
                         </div>
                         <div class="property-field field-group">
                             <label class="checkbox-label">
-                                <input type="checkbox" id="exporter-tool-changes" disabled>
+                                <input type="checkbox" id="exporter-tool-changes">
                                 <span>Insert tool change commands</span>
                             </label>
                         </div>
+                        <div class="property-field field-group" id="exporter-group-by-tool-field">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="exporter-group-by-tool">
+                                <span>Group operations by tool</span>
+                            </label>
+                        </div>
+                        <label class="file-node-flag split-drills-flag is-hidden">
+                            <input type="checkbox" class="split-drills-toggle">
+                            <span>Split pecks</span>
+                        </label>
                         <div class="property-field field-group">
                             <label class="checkbox-label">
                                 <input type="checkbox" id="exporter-optimize-paths" checked>
@@ -1117,6 +1145,8 @@
                 </div>
             </div>
 
+            <div id="exporter-tool-warning" class="is-hidden"></div>
+
             <div class="modal-footer exporter-footer">
                 <button class="btn btn--secondary" id="exporter-cancel-btn" aria-label="Cancel and close modal">Cancel</button>
                 <div class="exporter-actions">
@@ -1127,7 +1157,26 @@
         </div>
     </div>
 
-    <!-- WARNING / CONFIRMATION MODAL -->
+    <!-- Drill Tooling Modal -->
+    <div id="drill-tooling-modal" class="modal" role="dialog">
+        <div class="modal-content modal--drill-tooling">
+            <div class="modal-header">
+                <div class="header-text-group">
+                    <h2>Drill Tooling</h2>
+                    <span class="modal-subtitle" id="drill-tooling-subtitle"></span>
+                </div>
+                <button class="modal-close" data-modal-close aria-label="Close">
+                    <svg class="cam-icon" width="20" height="20"><use href="#icon-close"></use></svg>
+                </button>
+            </div>
+            <div class="modal-body" id="drill-tooling-body"></div>
+            <div class="modal-footer">
+                <button class="btn btn--primary" id="drill-tooling-done">Done</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Warning / Confirmation Modal -->
     <div id="warning-modal" class="modal" role="dialog">
         <div class="modal-content modal-warning">
             <div class="modal-header">
@@ -1149,7 +1198,7 @@
     <!-- Hidden file inputs -->
     <input type="file" id="file-input-hidden" hidden>
 
-    <!-- SCRIPTS -->
+    <!-- Scripts -->
     <script defer src="../config.js"></script>
     <script defer src="../themes/theme-loader.js"></script>
     <script defer src="../language/language-manager.js"></script>
@@ -1224,6 +1273,7 @@
     <script defer src="../export/processors/mach3-processor.js"></script>
     <script defer src="../export/processors/linuxcnc-processor.js"></script>
     <script defer src="../export/processors/fanuc-processor.js"></script>
+    <script defer src="../export/processors/winpcnc-processor.js"></script>
     <script defer src="../export/gcode-generator.js"></script>
     <script defer src="../export/graphics-exporter.js"></script>
     <script defer src="../utils/transform-math.js"></script>
@@ -1281,7 +1331,7 @@
             }
 
             // App Initialization
-            console.log('EasyShape5000 v1.0.0');
+            console.log('EasyShape5000 v1.1.0');
             const loadingText = document.getElementById('loading-text');
             const loadingProgress = document.getElementById('loading-progress');
             if (loadingText) loadingText.textContent = 'Ready';

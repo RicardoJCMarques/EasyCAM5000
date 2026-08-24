@@ -12,10 +12,8 @@
 (function() {
     'use strict';
 
-    const C = window.CAMConfig.constants;
     const D = window.CAMConfig.defaults;
     const timingConfig = D.ui.timing;
-    const textConfig = C.ui.text;
     const debugState = D.debug;
 
     /**
@@ -73,6 +71,11 @@
             this.render();
         }
 
+        /**
+         * Subclasses observe the task lifecycle; the base owns no log view.
+         */
+        onTaskEvent(evt) {}
+
         isBusy() { return this._task !== null; }
 
         /** THE one formatter - nothing else stringifies progress. */
@@ -120,7 +123,9 @@
 
             this.logHistory = [];
             this.isExpanded = false;
-            this.showDebugMessages = D.rendering.defaultOptions.showDebugInLog;
+
+            // Per-app strings. en.json localizes the app-neutral ones.
+            this.text = ui.ctrl.appProfile.ui.text;
 
             this.footerBar = document.getElementById('footer-bar'); // The whole footer
             this.statusBar = document.getElementById('status-bar'); // The clickable center part
@@ -141,29 +146,10 @@
                 this.toggleLog();
             });
 
-            // Add listener for the debug toggle
-            const debugToggle = document.getElementById('debug-log-toggle');
-            if (debugToggle) {
-                // Set initial state from config
-                debugToggle.checked = this.showDebugMessages;
-                // Add listener
-                debugToggle.addEventListener('change', (e) => {
-                    this.setDebugVisibility(e.target.checked);
-                });
-            }
-
             // Add initial hint message to the log
-            this.addLogEntry(textConfig.logHintViz, 'info');
+            this.addLogEntry(this.lang.get('ui.status.logHintViz', this.text.logHintViz || ''), 'info');
 
             this.statusTextEl = document.getElementById('status-text');
-        }
-
-        setDebugVisibility(isVisible) {
-            this.showDebugMessages = isVisible;
-            // Re-render the log with/without debug messages
-            if (this.isExpanded) {
-                this.renderLog();
-            }
         }
 
         toggleLog() {
@@ -199,7 +185,7 @@
             this.logHistory.push(logEntry);
 
             // Keep log from getting too big
-            if (this.logHistory.length > 500) {
+            if (this.logHistory.length > D.ui.logHistoryMax) {
                 this.logHistory.shift();
             }
 
@@ -212,18 +198,12 @@
         renderLog() {
             if (!this.logHistoryContainer) return;
 
-            // Filter log based on debug setting
-            const showThisDebugMessage = debugState.enabled || this.showDebugMessages;
-            const entriesToRender = this.logHistory.filter(entry => {
-                return entry.type !== 'debug' || showThisDebugMessage;
-            });
-
             const fragment = document.createDocumentFragment();
-            for (const entry of entriesToRender) {
+            for (const entry of this.logHistory) {
                 fragment.appendChild(this.createLogElement(entry));
             }
 
-            this.logHistoryContainer.innerHTML = ''; // Clear old content
+            this.logHistoryContainer.innerHTML = '';
             this.logHistoryContainer.appendChild(fragment);
             this.logHistoryContainer.scrollTop = this.logHistoryContainer.scrollHeight;
         }
@@ -281,15 +261,12 @@
                 let defaultMessage;
                 if (hasOps) {
                     const stats = this.ui.core.getStats();
-                    // Get the string from en.json
-                    defaultMessage = this.lang.get('status.readyDynamic', textConfig.statusReady);
-                    // Replace the placeholders
-                    defaultMessage = defaultMessage
-                                        .replace('{ops}', stats.operations)
-                                        .replace('{prims}', stats.totalPrimitives);
+                    defaultMessage = this.lang
+                        .get('ui.status.readyDynamic', 'Ready: {ops} operations, {prims} primitives')
+                        .replace('{ops}', stats.operations)
+                        .replace('{prims}', stats.totalPrimitives);
                 } else {
-                    // Get the default string:
-                    defaultMessage = this.lang.get('status.default', textConfig.statusReady);
+                    defaultMessage = this.text.statusReady || this.lang.get('ui.status.default', 'Ready');
                 }
 
                 this.statusTextEl.textContent = defaultMessage;

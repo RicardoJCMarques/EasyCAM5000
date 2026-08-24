@@ -16,24 +16,12 @@
 
     class ShapeEngraveHandler extends BaseOperationHandler {
 
-        getToolpathPolicy() {
-            return {
-                staydownPartition: 'shape'
-            };
-        }
-
         /**
          * Orchestrates engrave geometry generation and preview integration.
          * Bypasses offset pipeline validation and Clipper calls.
          */
         async orchestrateGeneration(operation, params, core, options = {}) {
             const token = this.beginRun(operation, options, core);
-
-            // Token first, then wipe - same order as OffsetOperationHandler.
-            // Without the reset a regenerate keeps the previous run's preview,
-            // which isExportReady answers true for.
-            core.resetOperationState(operation.id);
-
             const opParams = core.compileOperationParams(operation, params);
 
             await this.generateGeometry(operation, {
@@ -55,11 +43,7 @@
                 };
             }
 
-            operation.exportMetadata = {
-                generatedAt: Date.now(),
-                sourceOffsets: operation.offsets?.length || 0,
-                strategy: 'engrave'
-            };
+            this.stampExportMetadata(operation, 'engrave');
 
             return {
                 success: true,
@@ -112,10 +96,7 @@
                     offsetDistance: 0,
                     offsetType: 'on_line',
                     hasAnalyticArcs: hasArcs,
-                    preserveDirection: true,
-                    // renderPath reads properties.closed, drawPrimitivePath and
-                    // getPath2D read the field. Keep them agreeing.
-                    closed: processedPrim.closed !== false
+                    preserveDirection: true
                 };
 
                 engravePaths.push(processedPrim);
@@ -123,7 +104,7 @@
 
             operation.offsets = [
                 {
-                    id: `offset_${operation.id}_0`,
+                    id: this.offsetRecordId(operation.id, 0),
                     distance: 0,
                     pass: 1,
                     type: 'engrave',

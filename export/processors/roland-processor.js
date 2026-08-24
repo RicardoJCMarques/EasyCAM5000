@@ -40,11 +40,22 @@
      * Coordinates are integer "steps" (mm x stepsPerMM).
      */
     class RolandPostProcessor {
-        constructor(processorConfig = {}) {
+        constructor(processorConfig = {}) { // REVIEW - processorConfig isn't used.
             this.name = 'roland';
             this.config = {
                 fileExtension: '.rml',
-                supportsToolChange: true,
+                // RML-1 has no tool-select verb and no unconditional pause.
+                // The command set is plotter-derived (PU/PD/Z/!VZ/!PZ/!MC/
+                // !RC/!DW/;;^DF) - there is no T word, no M6 equivalent, and
+                // !DW is a timed dwell, not an operator wait. The MDX-50 has
+                // an automatic tool LENGTH sensor, not a changer.
+                //
+                // Multi-tool Roland work is one file per tool, which the
+                // multi-file and split-drill export paths already produce.
+                // Do not flip this true without a machine-verified in-file
+                // pause: with it true, the export modal offers the operator a
+                // tool-change checkbox that emits nothing.
+                supportsToolChange: false,
                 supportsArcCommands: false,
                 supportsCannedCycles: false
             };
@@ -158,6 +169,7 @@
                     initCommand: ';;^DF',
                     endCommand: '!MC0;\nPU0,0;\n;;^DF',
                     supportsRC: true,
+                    supportsATC: true,
                     supportsDwell: true,
                     workArea: { x: 400, y: 305, z: 135 },
                     warnings: []
@@ -222,10 +234,23 @@
                 label: 'Roland (RML) (Experimental)',
                 fileExtension: '.rml',
                 capabilities: {
-                    supportsToolChange: true,
+                    supportsToolChange: false,
+                    useM6: false,
+                    emitsInitialTool: false,
+                    // RML-1 has no tool-length word. The MDX-50's length sensor
+                    // is a machine-side operation, not a file command.
+                    toolLengthComp: { modes: ['none'], default: 'none' },
+                    supportsToolLengthComp: false,
+                    pauseAfterToolChange: false,
+                    // RML-1 has no comment syntax - ';' terminates a command.
+                    supportsComments: false,
                     supportsArcCommands: false,
                     supportsCannedCycles: false,
                     arcFormat: null,
+                    // No rotary word in this command set. Declared empty rather
+                    // than absent so consumers read a normalized shape.
+                    rotary: { routes: [], axisWords: [], inverseTime: false,
+                              maxInverseTime: 0, indexDwell: 0, continuous: false },
                 },
                 defaults: {
                     startCode: ';;^DF\nPA;',
@@ -234,51 +259,7 @@
                 limits: {
                     maxSpindleSpeed: 15000,
                     maxRapidRate: 60,
-                },
-                customParameters: [
-                    {
-                        key: 'rolandModel',
-                        label: 'Machine Model',
-                        type: 'select',
-                        category: 'machine',
-                        options: Object.entries(this.profiles).map(([id, p]) => ({
-                            value: id, label: p.label
-                        })),
-                        default: 'mdx50'
-                    },
-                    {
-                        key: 'rolandZMode',
-                        label: 'Z Command Mode',
-                        type: 'select',
-                        category: 'machine',
-                        options: [
-                            { value: '3d', label: '3D (Z x,y,z;)' },
-                            { value: '2.5d', label: '2.5D (PU/PD)' }
-                        ],
-                        default: '3d'
-                    },
-                    {
-                        key: 'rolandSpindleMode',
-                        label: 'Spindle Control',
-                        type: 'select',
-                        category: 'machine',
-                        options: [
-                            { value: 'direct', label: 'Software (!RC)' },
-                            { value: 'manual', label: 'Manual (no !RC)' },
-                            { value: 'fixed', label: 'Fixed Speed' }
-                        ],
-                        default: 'direct'
-                    },
-                    {
-                        key: 'rolandStepsPerMM',
-                        label: 'Steps/mm',
-                        type: 'number',
-                        category: 'machine',
-                        default: 100,
-                        min: 1,
-                        max: 1000
-                    }
-                ],
+                }
             };
 
             this.resetState();
@@ -291,9 +272,35 @@
             return this.profiles[modelId] || this.profiles['custom'];
         }
 
+        // GCodeGenerator calls these on whatever post is active. RML has no
+        // feed-rate mode word, no canned cycles and no line numbers, so the
+        // honest answer is "nothing to emit" - not "method missing".
+        setFeedRateMode() { return ''; }
+
+        cancelCannedCycle() { return ''; }
+
+        applyLineNumbers(gcodeText) { return gcodeText; }
+
+        // Machine limits are machine facts, not G-code facts - RML output is
+        // bounded by the same maxFeed and maxSafeDepth as every other post.
+        // RML has no feed-rate mode word and no rotary word, so F is always a
+        // velocity and Z is always flat-stock referenced.
+        validateCommand(cmd, options = {}) {
+            return BasePostProcessor.validateCommandLimits(cmd, options, {
+                maxRapidRate: this.descriptor.limits.maxRapidRate,
+                inverseTime: false,
+                maxInverseTime: 0,
+                rotaryAxisWord: null
+            });
+        }
+
         resetState() {
             this.currentPosition = { x: 0, y: 0, z: 0 };
             this.currentSpindle = 0;
+            // Not a BasePostProcessor subclass - the generator reads this
+            // field on whatever processor is active, so it has to exist here
+            // too even though RML can never change a tool.
+            this.currentToolNumber = null;
             this.currentFeed = null;    // VS value (mm/min internally, for 2.5D XY)
             this.currentVZ = null;      // !VZ value (mm/min internally)
 
@@ -394,8 +401,18 @@
             return options.endCode || '!MC0;';
         }
 
+        /**
+         * RML-1 cannot change tools. Kept as an explicit no-op rather than
+         * omitted: GCodeGenerator reads the method off whichever processor is
+         * active, and supportsToolChange:false already stops it being called.
+         * See the config comment for what would have to be verified on real
+         * hardware before this becomes real.
+         */
         generateToolChange(tool, options) {
-            // Functionality Placeholder
+            return '';
+        }
+
+        generateInitialTool(tool, options) {
             return '';
         }
 

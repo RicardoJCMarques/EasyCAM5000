@@ -96,6 +96,7 @@
 
             // Initial positioning
             const initPlan = new ToolpathPlan('init');
+            initPlan.metadata.synthetic = true;
 
             // Use '<=' to force an explicit Safety Z retract at the start, even if the internal tracker thinks it's already there
             if (this.currentPosition.z <= batchSafeZ) {
@@ -244,28 +245,37 @@
                     const travel3D = this.context.machine.travelZ + cornerZ;
                     const feed3D = this.FEED_HEIGHT + cornerZ;
 
-                    // Connection move to the chain's entry XY.
-                    const conn = new ToolpathPlan(plan.operationId);
-                    if (linkType3D === 'hop') {
-                        if (this.currentPosition.z < feed3D) {
-                            conn.addRapid(null, null, feed3D);
-                            this.currentPosition.z = feed3D;
+                    // 3D continuation: the optimizer proved this chain's entry
+                    // IS the current tool position in X, Y and Z, so there is
+                    // no connection move and no plunge - the chain just carries
+                    // on. The preceding plan skipped its retract for the same
+                    // reason. Every other link retracts first.
+                    const continues3D = (linkType3D === 'staydown');
+
+                    if (!continues3D) {
+                        const conn = new ToolpathPlan(plan.operationId);
+                        conn.metadata.synthetic = true;
+                        if (linkType3D === 'hop') {
+                            if (this.currentPosition.z < feed3D) {
+                                conn.addRapid(null, null, feed3D);
+                                this.currentPosition.z = feed3D;
+                            }
+                        } else {
+                            if (this.currentPosition.z < travel3D) {
+                                conn.addRapid(null, null, travel3D);
+                                this.currentPosition.z = travel3D;
+                            }
                         }
-                    } else { // 'rapid' (3D never staydowns)
-                        if (this.currentPosition.z < travel3D) {
-                            conn.addRapid(null, null, travel3D);
-                            this.currentPosition.z = travel3D;
+                        const dxTo = entry3D.x - this.currentPosition.x;
+                        const dyTo = entry3D.y - this.currentPosition.y;
+                        if ((dxTo * dxTo + dyTo * dyTo) > (PRECISION * PRECISION)) {
+                            conn.addRapid(entry3D.x, entry3D.y, null);
                         }
+                        conn.metadata.type = (linkType3D === 'hop') ? 'hop_link' : 'rapid_link';
+                        machineReadyPlans.push(conn);
+                        this.currentPosition.x = entry3D.x;
+                        this.currentPosition.y = entry3D.y;
                     }
-                    const dxTo = entry3D.x - this.currentPosition.x;
-                    const dyTo = entry3D.y - this.currentPosition.y;
-                    if ((dxTo * dxTo + dyTo * dyTo) > (PRECISION * PRECISION)) {
-                        conn.addRapid(entry3D.x, entry3D.y, null);
-                    }
-                    conn.metadata.type = (linkType3D === 'hop') ? 'hop_link' : 'rapid_link';
-                    machineReadyPlans.push(conn);
-                    this.currentPosition.x = entry3D.x;
-                    this.currentPosition.y = entry3D.y;
 
                     // Spindle + plunge to the chain's FIRST Z, then replay the
                     // chain verbatim (native per-point Z), then retract.
@@ -274,7 +284,7 @@
                     macro.metadata.spindleSpeed = this.context.cutting.spindleSpeed;
                     macro.metadata.spindleDwell = this.context.cutting.spindleDwell;
 
-                    macro.addLinear(null, null, entry3D.z, plungeRate3D);
+                    if (!continues3D) macro.addLinear(null, null, entry3D.z, plungeRate3D);
 
                     for (const cmd of plan.commands) {
                         macro.addCommand({ ...cmd });
@@ -283,14 +293,18 @@
                         if (cmd.z !== null) this.currentPosition.z = cmd.z;
                     }
 
-                    // Retract: hop height if the NEXT plan hop-links back,
-                    // else full travelZ. This is the only place the 3D chain
-                    // Z is allowed to unwind.
-                    const next3D = toolpathPlans[i + 1]?.metadata?.optimization?.linkType;
-                    const retract3DZ = (next3D === 'hop') ? feed3D : travel3D;
-                    macro.addRetract(retract3DZ);
+                    // Retract: skipped entirely when the next chain continues
+                    // from this exact point, feed height when it hops back,
+                    // else full travelZ. This is the only place the 3D chain Z
+                    // is allowed to unwind.
+                    const nextMeta = toolpathPlans[i + 1]?.metadata;
+                    const nextLink = nextMeta?.optimization?.linkType;
+                    if (!(nextMeta?.is3DContour && nextLink === 'staydown')) {
+                        const retract3DZ = (nextLink === 'hop') ? feed3D : travel3D;
+                        macro.addRetract(retract3DZ);
+                        this.currentPosition.z = retract3DZ;
+                    }
                     machineReadyPlans.push(macro);
-                    this.currentPosition.z = retract3DZ;
                     continue;
                 }
 
@@ -301,6 +315,7 @@
 
                 // Connection move to this plan's entry
                 const connectionPlan = new ToolpathPlan('connection');
+                connectionPlan.metadata.synthetic = true;
 
                 if (linkType === 'staydown') {
                     this.debug(`Link ${i}: Staydown move`);
@@ -366,6 +381,7 @@
 
                     if (isFirstDepth && linkType !== 'staydown') {
                         const entryPlan = new ToolpathPlan('entry');
+                        entryPlan.metadata.synthetic = true;
                         entryPlan.metadata.spindleSpeed = this.context.cutting.spindleSpeed;
                         entryPlan.metadata.spindleDwell = this.context.cutting.spindleDwell;
                         const entryType = meta.entryType || 'plunge';
@@ -380,12 +396,14 @@
                     } else if (isFirstDepth && linkType === 'staydown') {
                         if (Math.abs(this.currentPosition.z - plungeZ) > PRECISION) {
                             const plungePlan = new ToolpathPlan('staydown_plunge');
+                            plungePlan.metadata.synthetic = true;
                             plungePlan.addLinear(null, null, plungeZ, plungeRate);
                             machineReadyPlans.push(plungePlan);
                         }
                         this.currentPosition.z = plungeZ;
                     } else {
                         const plungePlan = new ToolpathPlan('depth_plunge');
+                        plungePlan.metadata.synthetic = true;
                         plungePlan.addLinear(entryPoint.x, entryPoint.y, plungeZ, plungeRate);
                         machineReadyPlans.push(plungePlan);
                         this.currentPosition.z = plungeZ;
@@ -444,6 +462,7 @@
 
                 if (!isStayDownSource) {
                     const retractPlan = new ToolpathPlan('retract');
+                    retractPlan.metadata.synthetic = true;
                     // If the next move is a hop, only retract to FEED_HEIGHT
                     const retractZ = isHopSource ? this.FEED_HEIGHT : this.context.machine.travelZ;
 
@@ -456,9 +475,30 @@
             // Final Retract to Safe Z
             if (this.currentPosition.z < batchSafeZ) {
                 const finalPlan = new ToolpathPlan('final');
+                finalPlan.metadata.synthetic = true;
                 finalPlan.addRetract(batchSafeZ);
                 this.currentPosition.z = batchSafeZ;
                 machineReadyPlans.push(finalPlan);
+            }
+
+            // Tool identity for the whole batch. processPlans runs once per
+            // operation, so every synthetic plan here belongs to this
+            // operation - but a synthetic plan belongs to the cutting plan
+            // that FOLLOWS it, not the one before: the connection rapid and
+            // the entry plunge are the new tool's approach. Detecting the
+            // change on the cutting plan would emit T/M6 with the machine
+            // already at depth in the new location holding the old cutter.
+            //
+            // Backward fill, so plans that already carry their own tool
+            // (drill peck marks, one per hole diameter) are left alone and
+            // still hand their tool to the moves that lead into them.
+            if (context.tool) {
+                let pendingTool = context.tool;
+                for (let i = machineReadyPlans.length - 1; i >= 0; i--) {
+                    const md = machineReadyPlans[i].metadata;
+                    if (md.tool) pendingTool = md.tool;
+                    else md.tool = pendingTool;
+                }
             }
 
             // [INDEXED] 3+1 index moves - runs on the fully expanded batch
@@ -567,7 +607,7 @@
             }
 
             if (entryType === 'helix' && !planMetadata.isSimpleCircle) {
-                this.generateHelixEntry(plan, entryPoint, cutDepth, plungeRate);
+                this.generateHelixEntry(plan, entryPoint, cutDepth, plungeRate, planMetadata.toolDiameter);
             // IGNORE RAMP ENTRY UNTIL PROPERLY DEVELOPED AND TESTED
             // } else if (entryType === 'ramp') { 
             //     this.generateRampEntry(plan, planMetadata, cutDepth, plungeRate);
@@ -582,7 +622,7 @@
             }
         }
 
-        generateHelixEntry(plan, entryPoint, targetDepth, plungeRate) {
+        generateHelixEntry(plan, entryPoint, targetDepth, plungeRate, toolDiameter = null) {
             const helixConfig = this.context.config.entry.helix;
             if (!helixConfig) {
                 plan.addLinear(entryPoint.x, entryPoint.y, targetDepth, plungeRate);
@@ -597,8 +637,11 @@
             const arcCW = this.determineWinding(plan.metadata.context);
             const angleDir = arcCW ? -1 : 1;
 
-            const toolDiameter = this.context.tool.diameter;
-            const helixRadius = toolDiameter * helixConfig.radiusFactor;
+            // Per-row cutter, not the operation's. In multi-tool drilling the
+            // sidebar tool is not what enters this hole, and a helix sized to the
+            // wrong diameter either gouges the wall or leaves a ring of stock.
+            const cutterDiameter = toolDiameter > 0 ? toolDiameter : this.context.tool.diameter;
+            const helixRadius = cutterDiameter * helixConfig.radiusFactor;
             const helixPitch = helixConfig.pitch;
             const revolutions = Math.abs(targetDepth) / helixPitch;
             const steps = Math.ceil(revolutions * helixConfig.segmentsPerRevolution);
@@ -662,24 +705,29 @@
         processPeckMark(purePlan) {
             const machinePlan = new ToolpathPlan(purePlan.operationId);
             Object.assign(machinePlan.metadata, purePlan.metadata);
-
             const planContext = purePlan.metadata.context;
             const peckData = purePlan.metadata.peckData;
             const position = peckData.position;
             const finalDepth = purePlan.metadata.cutDepth;
-
             const machine = planContext.machine;
-            const strategy = planContext.strategy.drill;
-            const cutting = planContext.cutting;
+
+            // Per-plan first: one drill operation holds several bits, each with
+            // its own cycle and feeds. The operation's values are the fallback
+            // for a plan the translator left un-overridden.
+            const strategy = { ...planContext.strategy.drill, ...(purePlan.metadata.peckCycle || {}) };
+            const cutting = {
+                ...planContext.cutting,
+                feedRate: purePlan.metadata.feedRate ?? planContext.cutting.feedRate,
+                plungeRate: purePlan.metadata.plungeRate ?? planContext.cutting.plungeRate
+            };
 
             // Check if current post-processor supports canned cycles
-            const postProcessorName = planContext.gcode.postProcessor;
             const supportsCanned = planContext.gcode.supportsCannedCycles;
-
             if (this.currentPosition.z < machine.travelZ) {
                 machinePlan.addRapid(null, null, machine.travelZ);
                 this.currentPosition.z = machine.travelZ;
             }
+
             // Move to XY
             machinePlan.addRapid(position.x, position.y, null);
             this.currentPosition.x = position.x;
@@ -688,7 +736,6 @@
             // Rapid to Feed Height
             machinePlan.addRapid(null, null, this.FEED_HEIGHT);
 
-            // Single plunge
             if (supportsCanned && strategy.cannedCycle !== 'none') {
                 const retractPlane = strategy.retractHeight + (this.context.machine.surfaceZ || 0);
                 // Dispatch to Canned Cycle Primitive, passing the specific cycle type
@@ -698,13 +745,10 @@
                     machinePlan.addCannedSimple(position.x, position.y, finalDepth, retractPlane, cutting.plungeRate, strategy.dwellTime);
                 }
                 this.currentPosition.z = retractPlane;
-
             } else if (strategy.cannedCycle === 'none' || strategy.peckDepth === 0 || strategy.peckDepth >= Math.abs(finalDepth)) {
                 // Standard manual single plunge
                 machinePlan.addPlunge(finalDepth, cutting.plungeRate);
-                if (strategy.dwellTime > 0) {
-                    machinePlan.addDwell(strategy.dwellTime);
-                }
+                if (strategy.dwellTime > 0) machinePlan.addDwell(strategy.dwellTime);
                 machinePlan.addRetract(machine.travelZ);
             } else {
                 // Standard manual pecking loop
@@ -712,27 +756,15 @@
                 let lastCutDepth = surfaceZ;
                 const retractPlane = strategy.retractHeight + surfaceZ;
                 const rapidDownClearance = this.context.config.drilling.peckRapidClearance;
-
                 while (lastCutDepth > finalDepth) {
-                    let targetPeckDepth = lastCutDepth - planContext.strategy.drill.peckDepth;
-                    if (targetPeckDepth < finalDepth) {
-                        targetPeckDepth = finalDepth;
-                    }
-
-                    const rapidDownTo = (lastCutDepth === surfaceZ) ? this.FEED_HEIGHT : (lastCutDepth + rapidDownClearance);
+                    let targetPeckDepth = lastCutDepth - strategy.peckDepth;
+                    if (targetPeckDepth < finalDepth) targetPeckDepth = finalDepth;
+                    const rapidDownTo = lastCutDepth === surfaceZ ? this.FEED_HEIGHT : lastCutDepth + rapidDownClearance;
                     machinePlan.addRapid(undefined, undefined, rapidDownTo);
-
                     machinePlan.addPlunge(targetPeckDepth, cutting.plungeRate);
-
-                    if (strategy.dwellTime > 0) {
-                        machinePlan.addDwell(strategy.dwellTime);
-                    }
-
+                    if (strategy.dwellTime > 0) machinePlan.addDwell(strategy.dwellTime);
                     lastCutDepth = targetPeckDepth;
-
-                    if (lastCutDepth > finalDepth) {
-                        machinePlan.addRetract(retractPlane);
-                    }
+                    if (lastCutDepth > finalDepth) machinePlan.addRetract(retractPlane);
                 }
                 machinePlan.addRetract(machine.travelZ);
             }
@@ -1219,7 +1251,7 @@
             // shape-indexed-handler.js. Destination (config vs user-
             // exposed) decided after bench.
             const ANGLE_EPS_DEG = 1e-6;
-            const INDEX_CLEAR_MM = 2;   // gap above the swept corner
+            const INDEX_CLEAR_MM = C.rotary.indexClearance;;   // gap above the swept corner
 
             const indexed = plans.filter(p => p.metadata?.indexedA != null);
             if (indexed.length === 0) return 0;
@@ -1310,6 +1342,7 @@
 
                 if (currentA === null || Math.abs(a - currentA) > ANGLE_EPS_DEG) {
                     const link = new ToolpathPlan('index');
+                    link.metadata.synthetic = true;
                     link.metadata.rotaryAxisWord = wantWord;
                     link.metadata.rotaryInverseTime = false;
                     link.metadata.indexLink = true;
@@ -1317,6 +1350,10 @@
                     // it even on the pre-face-0 index move (display only).
                     link.metadata.indexedApothem = meta.indexedApothem;
                     link.metadata.rotaryAxisKind = meta.rotaryAxisKind;
+                    // insertIndexMoves runs AFTER processPlans' backward fill,
+                    // so a spliced link would be the only plan in the batch
+                    // with no tool. It belongs to the face it introduces.
+                    link.metadata.tool = meta.tool || null;
                     // Re-assert clearance, then rotate. x/y/z null on the
                     // A block → base-processor emits a pure `G0 A{a}`.
                     link.addRetract(indexZ);

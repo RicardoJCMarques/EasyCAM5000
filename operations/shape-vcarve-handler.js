@@ -1,6 +1,6 @@
 /*!
  * @file        operations/shape-vcarve-handler.js
- * @description V-Carve operation handler - straight-skeleton 3D centerline paths.
+ * @description V-Carve operation handler - medial-axis 3D centerline paths.
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
  * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
@@ -17,21 +17,19 @@
 
     class ShapeVCarveHandler extends BaseOperationHandler {
 
-        // NOTE: descriptive-only for 3D chains. ToolpathOptimizer routes
-        // is3DContour groups via its ordered3D/unordered3D fast paths and
-        // `continue`s BEFORE the toolpathPolicy read - staydownPartition is
-        // never consulted for these plans. Kept for the day the optimizer
-        // branches on policy instead of flags.
-        getToolpathPolicy() {
-            return {
-                staydownPartition: 'proximity',
-                depthOrder: 'featureMajor'
-            };
-        }
-
         // ════════════════════════════════════════════════════════════
         // Validation helpers
         // ════════════════════════════════════════════════════════════
+
+        /**
+         * Clearance at which the V-bit reaches maxDepth. Delegated: the
+         * generator clamps Z against this same number in the worker, and
+         * two copies drifting apart offsets the floor loops to a clearance
+         * the depth map never bottoms out at.
+         */
+        computeFloorClamp(opts) {
+            return VCarveGenerator.computeFloorClamp(opts);
+        }
 
         /**
          * Floor perimeter at the bottom-out clearance: inset the region by
@@ -41,63 +39,48 @@
          */
         async buildFloorLoops(prim, tClamp) {
             try {
-                // The offsetter's boolean path (offsetPathViaBoolean) normalizes
-                // every mask contour to CCW + isHole:false, and the wrapper
-                // differences with NonZero fill - so nested holes read as FILLED
-                // and a compound inset leaves solid islands inside each hole
-                // (loops in the void). Offset within its contract instead: each
-                // hole as its OWN single-contour primitive (external +tClamp →
-                // grows the void), shells internally (-tClamp), then subtract.
-                // Single-contour calls are handled correctly, so this is right
-                // by construction; the void guard below is now just insurance.
-                const shells = [];
-                const holes = [];
-                if (prim.contours && prim.contours.length > 0) {
-                    for (const c of prim.contours) {
-                        const sp = new PathPrimitive([c], { ...prim.properties });
-                        (c.isHole ? holes : shells).push(sp);
-                    }
-                } else {
-                    shells.push(prim);
+                // ONE native offset over the whole nested set. A negative delta
+                // shrinks positive-area outers and grows negative-area holes in
+                // the same pass, so winding carries the sign and no shell/hole
+                // split, union or difference is needed. The input is rebuilt from
+                // the densified loops with the orientation isHole implies: a
+                // mis-wound contour would otherwise offset the wrong way with no
+                // error anywhere.
+                const contours = this.denseLoops(prim)
+                    .filter(l => l.pts && l.pts.length >= 3)
+                    .map(l => {
+                        const cw = GeometryUtils.isClockwise(l.pts);
+                        return {
+                            points: (l.isHole === cw) ? l.pts : [...l.pts].reverse(),
+                            isHole: l.isHole
+                        };
+                    });
+                if (contours.length === 0) return null;
+
+                const floorPolys = await this.core.geometryProcessor
+                    .offsetGeometry([{ type: 'path', contours }], -tClamp, { joinType: 'round' });
+                if (!floorPolys || floorPolys.length === 0) {
+                    // Legitimate outcome: inradius < tClamp, nothing bottoms out.
+                    this.debug(`[ShapeVCarveHandler] Floor inset at -${tClamp.toFixed(3)}mm is empty`);
+                    return null;
                 }
-                if (shells.length === 0) return null;
 
-                const flat = (arr) => arr.flat().filter(Boolean);
-                const insetShells = flat(await Promise.all(
-                    shells.map(s => this.core.geometryOffsetter.offsetBoundary(s, -tClamp))));
-                if (insetShells.length === 0) return null;
-
-                const grownHoles = holes.length
-                    ? flat(await Promise.all(
-                        holes.map(h => this.core.geometryOffsetter.offsetBoundary(h, tClamp))))
-                    : [];
-
-                const shellUnion = await this.core.geometryProcessor.unionGeometry(insetShells);
-                let floorPolys = shellUnion;
-                if (grownHoles.length > 0) {
-                    const holeUnion = await this.core.geometryProcessor.unionGeometry(grownHoles);
-                    floorPolys = await this.core.geometryProcessor.difference(shellUnion, holeUnion);
-                }
-                if (!floorPolys || floorPolys.length === 0) return null;
-
-                // Insurance only (redundant with the in-contract offset above):
-                // reject any loop whose VERTICES land in a hole void. Never test
-                // the centroid - the legitimate grown-hole boundary encircles the
-                // void yet its vertices sit tClamp into the material.
-                // REVIEW - After testing this should be deprecated?
-                const rings = (prim.contours || [])
-                    .map(c => c.points).filter(pts => pts && pts.length >= 3);
+                // Densified, orientation-normalized loops - the same input the
+                // offset above consumed. Reading prim.contours raw gives a
+                // chord-encoded arc contour only its arc endpoints, so a circle
+                // arrives as 2 points, fails the >= 3 filter, and silently
+                // disables the guard; a partly tessellated contour keeps it
+                // enabled on the wrong polygon. Parity is winding-independent,
+                // so the reversal contours carries is irrelevant here.
+                const rings = contours.map(c => c.points);
+                // Even-odd across the ring set: the parity of the total crossing
+                // count is the XOR of the per-ring parities, so holes fall out
+                // without an orientation test.
                 const inMaterial = (x, y) => {
+                    const pt = { x, y };
                     let inside = false;
                     for (const pts of rings) {
-                        const m = pts.length;
-                        for (let i = 0, j = m - 1; i < m; j = i++) {
-                            const yi = pts[i].y, yj = pts[j].y;
-                            if ((yi > y) !== (yj > y)) {
-                                const xInt = pts[i].x + (y - yi) / (yj - yi) * (pts[j].x - pts[i].x);
-                                if (x < xInt) inside = !inside;
-                            }
-                        }
+                        if (GeometryUtils.pointInPolygon(pt, pts)) inside = !inside;
                     }
                     return inside;
                 };
@@ -120,29 +103,83 @@
                 const loops = [];
                 let dropped = 0;
                 for (const p of floorPolys) {
-                    for (const c of (p.contours || [])) {
-                        const dense = (c.arcSegments?.length
-                                    && typeof GeometryUtils !== 'undefined'
-                                    && GeometryUtils.contourArcsToPath)
-                            ? GeometryUtils.contourArcsToPath(c) : c;
-                        const pts = dense.points;
-                        if (!pts || pts.length < 3) continue;
-                        if (!loopOnMaterial(pts)) { dropped++; continue; }
-                        loops.push({
-                            points: pts.map(q => ({ x: q.x, y: q.y })),
-                            isHole: c.isHole === true
-                        });
+                    for (const c of p.contours || []) {
+                    const dense = c.arcSegments?.length ? GeometryUtils.contourArcsToPath(c) : c;
+                    const pts = dense.points;
+                    if (!pts || pts.length < 3) continue;
+                    if (loopOnMaterial(pts)) {
+                        loops.push({ points: pts.map((q) => ({ x: q.x, y: q.y })), isHole: c.isHole === true });
+                    } else {
+                        dropped++;
+                    }
                     }
                 }
-                if (dropped > 0) this.debug(`buildFloorLoops: dropped ${dropped} void loop(s) (guard)`);
+                if (dropped > 0) this.debug(`[ShapeVCarveHandler] buildFloorLoops: dropped ${dropped} void loop(s) (guard)`);
                 return loops.length > 0 ? loops : null;
             } catch (err) {
-                this.debug(`Floor inset failed (${err.message}) - clamp-only floors`);
+                this.debug(`[ShapeVCarveHandler] Floor inset failed (${err.message}) - clamp-only floors`);
                 return null;
             }
         }
 
         // Orchestration
+
+        /**
+         * Counts genuinely overlapping region pairs in a merged set.
+         *
+         * bbox first, then vertex-in-region both ways. The bbox alone means
+         * nothing here - glyph boxes overlap constantly through kerning,
+         * italics and descenders - so it is a prefilter, not the test. Loops
+         * are densified lazily so a set with no bbox collisions pays nothing.
+         */
+        countOverlappingRegions(prims) {
+            if (!prims || prims.length < 2) return 0;
+
+            const bounds = prims.map(p => (p.getBounds ? p.getBounds() : p.bounds) || null);
+            const cache = new Map();
+            const ringsOf = (i) => {
+                let r = cache.get(i);
+                if (!r) {
+                    r = this.denseLoops(prims[i])
+                        .map(l => l.pts).filter(pts => pts && pts.length >= 3);
+                    cache.set(i, r);
+                }
+                return r;
+            };
+            // Even-odd parity across the ring set
+            const inRegion = (pt, rings) => {
+                let v = false;
+                for (const pts of rings) {
+                    if (GeometryUtils.pointInPolygon(pt, pts)) v = !v;
+                }
+                return v;
+            };
+            const anyVertexInside = (rings, other) => {
+                for (const pts of rings) {
+                    const step = Math.max(1, (pts.length / 8) | 0);
+                    for (let i = 0; i < pts.length; i += step) {
+                        if (inRegion(pts[i], other)) return true;
+                    }
+                }
+                return false;
+            };
+
+            let pairs = 0;
+            for (let i = 0; i < prims.length; i++) {
+                const a = bounds[i];
+                if (!a) continue;
+                for (let j = i + 1; j < prims.length; j++) {
+                    const b = bounds[j];
+                    if (!b) continue;
+                    if (a.minX >= b.maxX - PRECISION || b.minX >= a.maxX - PRECISION ||
+                        a.minY >= b.maxY - PRECISION || b.minY >= a.maxY - PRECISION) continue;
+                    const ra = ringsOf(i), rb = ringsOf(j);
+                    if (!ra.length || !rb.length) continue;
+                    if (anyVertexInside(ra, rb) || anyVertexInside(rb, ra)) pairs++;
+                }
+            }
+            return pairs;
+        }
 
         /**
          * Worker-safe loop extraction. The worker has no GeometryUtils, so
@@ -319,16 +356,12 @@
 
             // All V-Carve parameters flow from profile-shape.json via the
             // parameter manager -> compileOperationParams -> settings.
-            // Inline fallbacks mirror the JSON defaults and only fire if a
-            // parameter is ever removed from the profile.
             const vbitAngle = settings.vbitAngle || 90;
             const startDepth = Math.max(0, settings.vcarveStartDepth || 0);
-            // SAFETY clamp only - flat-floor CLEARING (vcarveFlatDepth /
-            // vcarveClearingTool) is still deferred.
-            const maxDepth = Math.abs(settings.vcarveMaxDepth || 3);
-            // V-bit TIP radius. Shifts the whole depth map: the bit cuts
-            // width tipDiameter at the surface, and bottoms out at clearance
-            // (maxDepth - startDepth)·tan(A/2) + tipRadius.
+            // 0 = unconstrained natural V-carve depth (no flat floor clamping)
+            const maxDepth = (settings.vcarveMaxDepth !== undefined && settings.vcarveMaxDepth !== null && settings.vcarveMaxDepth > 0)
+                ? Math.abs(settings.vcarveMaxDepth) : null;
+            // V-bit TIP radius (0 = sharp point)
             const tipRadius = Math.max(0, (settings.vbitTipDiameter || 0) / 2);
 
             // Merge separate-but-nested primitives into compounds with
@@ -339,17 +372,29 @@
             this.debug(`Topology: ${operation.primitives.length} prim(s) → ` +
                 `${merged.length} compound(s) in ${(performance.now() - tTopo).toFixed(0)}ms`);
 
+            
+            // One job = one connected region. resolveContourTopology merges by
+            // CONTAINMENT only, so two OVERLAPPING outers arrive as two jobs and
+            // each computes a medial axis over material the other also covers:
+            // the lap is carved twice, at a depth neither region agrees on, and
+            // nothing downstream can detect it.
+            const overlapPairs = this.countOverlappingRegions(merged);
+            if (overlapPairs > 0) {
+                console.warn(`[ShapeVCarveHandler] ${overlapPairs} overlapping region pair(s) ` +
+                    `in this operation. Shared material will be carved more than once, ` +
+                    `each pass unaware of the other's depth. Union the shapes before ` +
+                    `assigning them to a V-Carve bucket.`);
+            }
+
             const generatorOptions = {
                 vbitAngle,
                 startDepth,
                 maxDepth,
                 tipRadius,
-                simplifyTolerance: settings.vcarveSimplifyTolerance ?? 0,
                 minChainLength: settings.vcarveMinChainLength ?? 0,
                 cornerAngle: settings.vcarveCornerAngle ?? 30,
-                // Internal-only for now (not in profile-shape.json): extra
-                // dimensional erosion gate in mm, 0 = off. Expose as a UI
-                // parameter later if angle-based pruning ever needs help.
+                // Extra dimensional erosion gate in mm on top of the angle
+                // based rib prune. 0 = off, which is the profile default.
                 noiseThreshold: settings.vcarveNoiseThreshold ?? 0,
                 // Boundary sampling step for the Voronoi medial engine.
                 // Must be smaller than the thinnest stroke width; the
@@ -358,10 +403,9 @@
             };
             this.debug('Generator options:', generatorOptions);
 
-            // Floor clamp time (same formula the generator uses). Computed
-            // here so the floor perimeter can be produced by the Clipper
-            // offsetter (async) before the sync generator runs.
-            const tClamp = VCarveGenerator.computeFloorClamp({
+            // Floor clamp clearance calculated locally so Clipper can generate
+            // floor loops on the main thread before worker dispatch.
+            const tClamp = this.computeFloorClamp({
                 vbitAngle, startDepth, maxDepth, tipRadius
             });
 
@@ -412,7 +456,7 @@
             // queueing behind Clipper work they never needed.
             const jobs = new Array(merged.length);
             const wantsFloor = new Uint8Array(merged.length);
-            const canFloor = tClamp !== null && !!this.core.geometryOffsetter;
+            const canFloor = tClamp !== null && !!this.core.geometryProcessor;
 
             if (canFloor) {
                 for (let i = 0; i < merged.length; i++) {
@@ -498,8 +542,15 @@
                 if (s.status === 'rejected') {
                     this.debug(`vcarve job ${i} failed (${s.reason?.message}) - sync retry`);
                 }
-                vcarvePrimitives.push(...VCarveGenerator.generateVCarvePaths(
-                    jobs[i].prim, jobs[i].opts));
+                const generator = typeof VCarveGenerator !== 'undefined'
+                    ? VCarveGenerator
+                    : (typeof window !== 'undefined' ? window.VCarveGenerator : null);
+                if (generator) {
+                    vcarvePrimitives.push(...generator.generateVCarvePaths(
+                        jobs[i].prim, jobs[i].opts));
+                } else {
+                    console.error('[ShapeVCarveHandler] VCarveGenerator is not available for sync fallback');
+                }
                 done++; report(); // sync-run completion is the real progress
             }
 
@@ -508,7 +559,8 @@
                 `dispatchLoop=${prof.dispatchMs.toFixed(0)}ms ` +
                 `(clipper=${prof.clipperMs.toFixed(0)}ms, ` +
                 `pack+post=${prof.packMs.toFixed(0)}ms), ` +
-                `workerOverlap=${(wallMs - prof.dispatchMs).toFixed(0)}ms`);
+                `workerOverlap=${(wallMs - prof.dispatchMs).toFixed(0)}ms` +
+                (prof.skippedFloor ? `, floorSkipped=${prof.skippedFloor} (bbox < 2·tClamp)` : ''));
 
             // Standard offsets container so renderer / preview / export
             // flow untouched. metadata.is3DToolpath flags the group;

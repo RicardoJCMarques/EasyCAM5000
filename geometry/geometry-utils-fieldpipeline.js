@@ -580,7 +580,7 @@
                     });
                     for (const chain of chains) {
                         const pts = simplifyTol > 0
-                            ? FP.simplify3D(chain, simplifyTol) : chain;
+                            ? FP.simplifyPolyline3D(chain, simplifyTol) : chain;
                         if (pts.length >= 2) {
                             primitives.push(FP.toPrimitive(pts, o.emitProps('roughing', li)));
                             chainCount++;

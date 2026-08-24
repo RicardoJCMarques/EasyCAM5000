@@ -29,6 +29,9 @@ node_modules/
 /parsers/parser-gcode.js
 /parsers/gcode-integration.md
 /parsers/gcode-parser.md
+/tests/
+repo-bundle.js
+REPO_BUNDLE.txt
 PROJECT_CONTEXT.txt
 context-gen.js
 package-lock.json

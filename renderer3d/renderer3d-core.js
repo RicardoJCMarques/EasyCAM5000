@@ -66,10 +66,15 @@ export class Renderer3D {
         this.toolpaths = null;
         this.stock = null;
         this.geometry = null;
+        this.simulator = null;
+        this.toolController = null;
+        this.input = null;
 
         this._renderQueued = false;
         this._resizeObserver = null;
         this._disposed = false;
+        this._animating = false;
+        this._animTick = null;
     }
 
     async init() {
@@ -233,6 +238,9 @@ export class Renderer3D {
         }
         const { Orbit3DTool } = await import('./renderer3d-orbit-tool.js');
 
+        // Re-attaching without tearing down the previous stack leaves a
+        // second InputManager listening on the same canvas.
+        if (this.input) { this.input.detach(); this.input = null; }
         if (this.controls) { this.controls.dispose(); this.controls = null; }
 
         const orbit = new Orbit3DTool(this, options);

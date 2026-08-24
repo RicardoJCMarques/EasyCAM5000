@@ -138,6 +138,12 @@
         /** After WASM loads (e.g. laser visibility) */
         onPostWASM() {}
 
+        /**
+         * Push scene-side data (stock, meshes, 2D geometry) into the 3D view.
+         * No-op until an app mounts one.
+         */
+        refresh3D() {}
+
         /** Wire app-specific DOM events (toolbar, file drops, etc) */
         onBindEvents() {}
 
@@ -263,10 +269,9 @@
         }
 
         initGCodeGenerator(languageManager) {
-            if (typeof GCodeGenerator === 'undefined') return;
             this.gcodeGenerator = new GCodeGenerator(D.gcode);
             this.gcodeGenerator.setCore(this.core);
-            if (languageManager) this.gcodeGenerator.setLanguageManager(languageManager);
+            this.gcodeGenerator.setLanguageManager(languageManager);
             this.core.setGCodeGenerator(this.gcodeGenerator);
         }
 
@@ -455,19 +460,10 @@
             });
         }
 
-        /**
-         * Builds { operation, context } pairs for the toolpath pipeline.
-         * @param {Array<string>} [operationIds] - defaults to every export-ready op
-         */
-        // REVIEW - this seems redundant? Look for all links to controller buildOperationContextPairs and just point to core buildOperationContextPairs?
-        buildOperationContextPairs(operationIds = null) {
-            return this.core.buildOperationContextPairs(
-                operationIds, this.parameterManager, { warnLabel: '3D preview' });
-        }
-
-        // Lazy 3D mount: nothing loads until requested. Data (stock, 2D
-        // geometry, relief meshes, machine-ready plans) flows in through
-        // refresh3D() / refresh3DPlans() so the view can never go stale.
+        // Lazy 3D mount: nothing loads until requested. Stock, 2D geometry
+        // and relief meshes flow in through refresh3D() so the view can
+        // never go stale. Machine-ready plans are not mirrored here - the
+        // export path owns toolpath generation.
         async open3DPreview(container) {
             if (!window.Renderer3D) {
                 await import('../renderer3d/renderer3d-core.js');

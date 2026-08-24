@@ -157,11 +157,12 @@ export class Orbit3DTool extends Base {
             this.pinchActive = false;
         }
 
-        // Click (LMB down→up under 5px) = pick, not orbit
+        // Click (down→up inside the dead zone) = pick, not orbit
         if (this.onPick && this.mode === 'orbit' && this.downClient) {
             const dx = data.clientX - this.downClient.x;
             const dy = data.clientY - this.downClient.y;
-            if ((dx * dx + dy * dy) < 25) {
+            const slop = (data.pointerType === 'touch') ? 10 : 5;
+            if ((dx * dx + dy * dy) < slop * slop) {
                 const hit = this.pick(data.cssX, data.cssY);
                 if (hit) this.onPick(hit);
             }

@@ -32,7 +32,7 @@
          * @returns {Promise<{success: boolean, message: string, status: string}>}
          */
         async orchestrateGeneration(operation, params, core, options = {}) {
-            const token = this.beginRun(operation, options);
+            const token = this.beginRun(operation, options, core);
             const onProgress = operation._onProgress;
 
             onProgress?.({ frac: 0.1, label: `Generating ${operation.type}...` });
@@ -194,6 +194,17 @@
         }
 
         /**
+         * Topology resolution that must run on the SOURCE primitives before
+         * the offset pipeline. Called by OffsetOperationHandler after the
+         * stale token is stamped, so a superseded run cannot rewrite
+         * operation.primitives out from under a newer one.
+         * @returns {Array|null} replacement primitives, or null to leave as-is
+         */
+        resolveSourceTopology(operation, params) {
+            return null;
+        }
+
+        /**
          * Default preparation for offset pipeline: strips SVG visual
          * properties and forces machining-intent flags. Primitives that
          * already have fill:true + no stroke pass through unchanged.
@@ -242,6 +253,25 @@
         }
 
         /**
+         * Offset-record id. Pass records are keyed the same way across every
+         * handler so downstream lookups don't need per-handler knowledge.
+         * @param {string} operationId
+         * @param {number|string} pass  pass index, or a label like 'combined'
+         */
+        offsetRecordId(operationId, pass = 0) {
+            return `offset_${operationId}_${pass}`;
+        }
+
+        /** Standard post-generation stamp. */
+        stampExportMetadata(operation, strategy) {
+            operation.exportMetadata = {
+                generatedAt: Date.now(),
+                sourceOffsets: operation.offsets?.length || 0,
+                strategy
+            };
+        }
+
+        /**
          * CNC variant: Generate operation-specific geometry (offsets, drill
          * strategy, stencil apertures). Writes to operation.offsets[].
          */
@@ -265,17 +295,12 @@
         }
 
         /**
-         * Normalizes the options slot into operation._onProgress.
-         * BaseOperationPanel.runGeneration passes its tick either as a BARE
-         * FUNCTION (legacy) or as { onProgress }. Progress is STRUCTURED
-         * ({frac, label}) end to end - never format here, the state manager
-         * owns the one formatter. Every 2D handler used to ignore `options`
-         * entirely, which is why 2D operations emitted no ticks at all.
+         * Binds the panel's progress callback onto the operation. Progress is
+         * STRUCTURED ({frac, label}) end to end - never format here, the state
+         * manager owns the one formatter.
          */
-        // REVIEW - I don't like this, why not just fix the source nomenclature?
         resolveProgress(operation, options) {
-            const fn = (typeof options === 'function') ? options : options?.onProgress;
-            operation._onProgress = fn || null;
+            operation._onProgress = options?.onProgress || null;
             return operation._onProgress;
         }
 

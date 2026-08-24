@@ -452,7 +452,6 @@
             operation.preview = null;
             operation.exportReady = false;
             delete operation.exportMetadata;
-            operation.debugStrokes = [];
             
             operation.isInvalidated = false;
             operation.invalidatedReason = null;
@@ -507,21 +506,20 @@
                 offset.primitives.forEach(prim => {
                     if (!prim.properties) prim.properties = {};
                     prim.properties.isPreview = true;
-                    prim.properties.toolDiameter = toolDiameter;
+                    // Drill primitives carry the diameter of the bit assigned to
+                    // THEIR row. preview.primitives alias these objects, so
+                    // overwriting this erases the per-row cutter before the
+                    // toolpath pass ever reads it.
+                    if (prim.properties.toolDiameter === undefined) prim.properties.toolDiameter = toolDiameter;
                     allPrimitives.push(prim);
                 });
             });
 
             operation.preview = {
                 primitives: allPrimitives,
-                metadata: {
-                    generatedAt: Date.now(),
-                    sourceOffsets: operation.offsets.length,
-                    toolDiameter: toolDiameter
-                },
+                metadata: { generatedAt: Date.now(), sourceOffsets: operation.offsets.length, toolDiameter },
                 ready: true
             };
-
             return true;
         }
 
@@ -569,12 +567,13 @@
             try {
                 this.debug(`[parseOperation] Parsing ${operation.file.name}...`);
 
-                let parseResult;
                 const parser = this.getParser(operation.file.name);
-
-                if (parser) {
-                    parseResult = parser.parse(operation.file.content);
+                if (!parser) {
+                    operation.error = `No parser registered for ${operation.file.name}`;
+                    return false;
                 }
+
+                const parseResult = parser.parse(operation.file.content);
 
                 if (!parseResult.success) {
                     operation.error = parseResult.errors?.join('; ') || 'Parse failed';
@@ -685,10 +684,7 @@
                 this.updateStatistics();
                 operation.processed = true;
 
-                // REVIEW - this check never passes? This doesn't exist any more?
-                if (debugState.logging?.parseOperations) {
-                    console.log(`Parsed ${operation.file.name}: ${operation.primitives.length} primitives`);
-                }
+                this.debug(`Parsed ${operation.file.name}: ${operation.primitives.length} primitives`);
 
                 return true;
 
@@ -786,31 +782,25 @@
             primitives.forEach((primitive, index) => {
                 try {
                     if (typeof primitive.getBounds !== 'function') {
-                        if (debugState.validation?.warnOnInvalidData) {
-                            console.warn(`Primitive ${index} missing getBounds()`);
-                        }
+                        this.debug(`Primitive ${index} missing getBounds()`);
                         return;
                     }
 
                     const bounds = primitive.getBounds();
                     if (!isFinite(bounds.minX) || !isFinite(bounds.minY) ||
                         !isFinite(bounds.maxX) || !isFinite(bounds.maxY)) {
-                        if (debugState.validation?.warnOnInvalidData) {
-                            console.warn(`Primitive ${index} invalid bounds:`, bounds);
-                        }
+                        this.debug(`Primitive ${index} invalid bounds:`, bounds);
                         return;
                     }
 
                     validPrimitives.push(primitive);
 
                 } catch (error) {
-                    if (debugState.validation?.warnOnInvalidData) {
-                        console.warn(`Primitive ${index} validation failed:`, error);
-                    }
+                    this.debug(`Primitive ${index} validation failed:`, error);
                 }
             });
 
-            if (validPrimitives.length !== primitives.length && debugState.enabled) {
+            if (validPrimitives.length !== primitives.length) {
                 console.warn(`Filtered ${primitives.length - validPrimitives.length} invalid primitives`);
             }
 
@@ -998,6 +988,35 @@
                 return { plans: allMachineReadyPlans, endPos: { x: 0, y: 0, z: 0 } };
             }
 
+            // Tool batching. The optimizer can never do this - executePipeline
+            // hands it ONE operation at a time, so cross-operation ordering has
+            // to happen here, before the loop. Gated: with tool changes off, the
+            // export modal's drag order is the user's explicit instruction and
+            // silently resorting it would be surprising.
+            if (options.groupByTool) {
+                // A peck-only drill operation never calls its own number, and a
+                // multi-bit one leads with its lowest. Sorting on the operation
+                // tool would batch it against a cutter no move in it uses.
+                const leadNumber = context => {
+                    const tool = context?.tool;
+                    if (!tool) return Number.MAX_SAFE_INTEGER;
+                    const numbers = [];
+                    if (tool.cutsWithOwnTool !== false && tool.number > 0) numbers.push(tool.number);
+                    for (const n of Object.values(tool.drillNumbers || {})) if (n > 0) numbers.push(n);
+                    return numbers.length > 0 ? Math.min(...numbers) : Number.MAX_SAFE_INTEGER;
+                };
+                operationContextPairs = operationContextPairs
+                    .map((pair, index) => ({ pair, index }))
+                    .sort((a, b) => {
+                        // Unassigned sorts last: an operation with no number
+                        // must not silently lead the program.
+                        const ta = leadNumber(a.pair.context);
+                        const tb = leadNumber(b.pair.context);
+                        return ta !== tb ? ta - tb : a.index - b.index;
+                    })
+                    .map(entry => entry.pair);
+            }
+
             const firstContext = operationContextPairs[0].context;
             let currentMachinePos = options.startPos || { x: 0, y: 0, z: firstContext.machine.safeZ };
 
@@ -1064,6 +1083,194 @@
          */
 
         /**
+         * Full tool descriptor for one operation.
+         *
+         * `number` is null when the user has not assigned one. It STAYS null -
+         * nothing in this pipeline invents a tool number. The slot a cutter
+         * physically occupies is not derivable from geometry, a wrong T word
+         * is a crash, and a plausible auto-assigned default is one the
+         * operator was never prompted to verify. checkToolAssignment()
+         * reports the gaps; the export modal blocks on them.
+         *
+         * @param {Object} operation
+         * @param {Object} params        merged ParameterManager values
+         * @param {Object} [override]    export-modal toolIndexMap entry
+         */
+        resolveToolDescriptor(operation, params, override = null) {
+            const record = this.toolLibrary?.getTool?.(params.tool) || null;
+            const pick = (value) => {
+                const n = Number(value);
+                return Number.isInteger(n) && n > 0 ? n : null;
+            };
+
+            const descriptor = {
+                number: pick(override?.number) ?? pick(params.toolNumber),
+                id: params.tool || null,
+                name: override?.name || record?.name || params.tool || null,
+                type: record?.type || null,
+                diameter: params.toolDiameter,
+                spindleSpeed: params.spindleSpeed,
+                spindleDwell: params.spindleDwell,
+                operationId: operation.id,
+                operationLabel: `${operation.type}: ${operation.file?.name || operation.id}`
+            };
+
+            // Drill: one physical bit per feature size. The map key is the SAME
+            // string DrillHandler.diameterKey produces, so the export table, the
+            // split-drill path and the descriptor agree without re-deriving it.
+            //
+            // Only in multi-tool mode. Single-tool drilling cuts everything with
+            // the operation's own number, and a drillMap that repeats that number
+            // once per diameter reports itself to describeToolSharing as a
+            // collision between a tool and itself.
+            if ('drill' === operation.type
+                && typeof DrillHandler !== 'undefined'
+                && DrillHandler.isMultiTool(params)) {
+                const active = Object.values(operation.drillTable?.rows || {})
+                    .filter(row => 'skip' !== row.strategy);
+
+                // The operation's own tool cuts only the rows that inherit it.
+                // With none, it makes no claim on a number and cannot collide
+                // with the bits it is not holding.
+                descriptor.cutsWithOwnTool = active.some(row => !row.toolId && !(row.toolDiameter > 0));
+
+                if (active.length > 0) {
+                    descriptor.drillMap = {};
+                    for (const row of active) {
+                        const assigned = pick(row.toolNumber);
+                        const effectiveDiam = row.toolDiameter > 0 ? row.toolDiameter : row.diameter;
+                        descriptor.drillMap[row.key] = {
+                            number: assigned ?? descriptor.number,
+                            inherited: null == assigned,
+                            diameter: effectiveDiam,
+                            strategy: row.strategy,
+                            name: row.toolId || `${'mill' === row.strategy ? 'Mill' : 'Drill'} ${effectiveDiam}mm`
+                        };
+                    }
+                }
+            } else {
+                descriptor.cutsWithOwnTool = true;
+            }
+
+            return descriptor;
+        }
+
+        /**
+         * Reports T numbers shared by tools of DIFFERENT sizes.
+         *
+         * Identity is the effective diameter, not the library id. A tool id is
+         * a naming convenience with no enforcement behind it - `drill_1.0mm`
+         * and `em_1.0mm_flat` are different records and very often the same
+         * physical cutter in the same collet, especially since millHoles
+         * defaults to true and most drill work never touches a drill bit.
+         * Comparing ids flagged exactly the case most likely to be correct.
+         *
+         * Same number + same diameter is silent. Same number + different
+         * diameters is the only thing worth saying, and it is a note, not a
+         * refusal: the operator knows their spindle, EasyCAM does not.
+         *
+         * @param {Array} descriptors  from resolveToolDescriptor
+         * @returns {Array<{number:number, entries:Array<{label:string, diameter:number}>}>}
+         */
+        describeToolSharing(descriptors) {
+            // 0.01mm separates 3.175 from 3.0 without splitting 3.175 from a
+            // rounded 3.18. precision.coordinate (0.001) is too tight for a
+            // hand-entered diameter.
+            const DIAMETER_TOLERANCE = 0.01;
+            const byNumber = new Map();
+
+            const record = (label, number, diameter) => {
+                if (number == null || !(diameter > 0)) return;
+                if (!byNumber.has(number)) byNumber.set(number, []);
+                const entries = byNumber.get(number);
+                if (entries.some(e => Math.abs(e.diameter - diameter) < DIAMETER_TOLERANCE)) return;
+                entries.push({ label, diameter });
+            };
+
+            for (const d of descriptors) {
+                if (d.cutsWithOwnTool !== false) {
+                    record(d.drillMap ? `${d.operationLabel} (milled holes)` : d.operationLabel,
+                           d.number, d.diameter);
+                }
+                if (!d.drillMap) continue;
+                for (const [key, entry] of Object.entries(d.drillMap)) {
+                    record(`${d.operationLabel} — ${key}mm holes`, entry.number, entry.diameter);
+                }
+            }
+
+            const shared = [];
+            for (const [number, entries] of byNumber) {
+                if (entries.length > 1) shared.push({ number, entries });
+            }
+            return shared.sort((a, b) => a.number - b.number);
+        }
+
+        /**
+         * Resolves tool descriptors for a set of operations WITHOUT building
+         * contexts or running a pipeline. Lets the export modal validate the
+         * moment a checkbox flips, instead of only at Calculate.
+         */
+        stageToolDescriptors(operationIds, parameterManager, toolIndexMap = {}) {
+            const ids = operationIds
+                || this.operations.filter(op => this.isExportReady(op)).map(op => op.id);
+            const staged = [];
+            for (const opId of ids) {
+                try {
+                    const operation = this.getOperation(opId);
+                    if (!operation) continue;
+                    if (parameterManager.hasUnsavedChanges(opId)) {
+                        parameterManager.commitToOperation(operation);
+                    }
+                    const params = parameterManager.getAllParameters(opId);
+                    staged.push({
+                        opId, operation,
+                        tool: this.resolveToolDescriptor(operation, params, toolIndexMap[opId])
+                    });
+                } catch (err) {
+                    console.warn(`[Core] tool staging skipped ${opId}: ${err.message}`);
+                }
+            }
+            return staged;
+        }
+
+        /**
+         * One-call check for the UI. Same staging the pipeline uses, so the
+         * modal's note and the emitted G-code can never disagree.
+         */
+        checkToolAssignment(operationIds, parameterManager, opts = {}) {
+            const staged = this.stageToolDescriptors(
+                operationIds, parameterManager, opts.toolIndexMap);
+            return this.describeToolSharing(staged.map(s => s.tool));
+        }
+
+        /**
+         * Flattens a resolved descriptor's drillMap to the plain
+         * diameterKey → number lookup the translator wants on the context.
+         * Entries stay null when unassigned.
+         */
+        flattenDrillMap(descriptor) {
+            if (!descriptor.drillMap) return null;
+            const flat = {};
+            for (const [key, entry] of Object.entries(descriptor.drillMap)) {
+                flat[key] = entry.number;
+            }
+            return flat;
+        }
+
+        /**
+         * Drill-milling parameter aliases. JSON can't carry two keys with the
+         * same name and different conditionals, so the profiles prefix the
+         * drill variants. One precedence rule for every alias pair: the
+         * prefixed key wins on a drill operation, the plain key otherwise.
+         */
+        resolveDrillAlias(operation, params, plainKey, drillKey) {
+            if (operation.type === 'drill' && params[drillKey] !== undefined) {
+                return params[drillKey];
+            }
+            return params[plainKey];
+        }
+
+        /**
          * Offset Strategy Builder
          *
          * Translates pipeline-specific UI parameters into a pipeline-agnostic
@@ -1078,6 +1285,7 @@
             const isLaser = this.pipelineType === 'laser' || this.pipelineType === 'hybrid';
             const exportFormat = isLaser ? this.settings.laser.exportFormat : null;
             const isPNG = exportFormat === 'png';
+            const resolveDrillAlias = (a, b) => this.resolveDrillAlias(operation, params, a, b);
 
             // Tool dimension
             const toolDiameter = isLaser
@@ -1092,28 +1300,28 @@
                 if (isPNG) {
                     stepDistance = toolDiameter;
                 } else {
-                    const mode = params.laserSpacingMode || 'stepover';
+                    const mode = params.laserSpacingMode;
                     switch (mode) {
                         case 'lpcm':
-                            stepDistance = 10 / Math.max(params.laserLinesPerCm || 100, 1);
+                            stepDistance = 10 / Math.max(params.laserLinesPerCm, 1);
                             break;
                         case 'lpi':
-                            stepDistance = 25.4 / Math.max(params.laserLinesPerInch || 254, 1);
+                            stepDistance = 25.4 / Math.max(params.laserLinesPerInch, 1);
                             break;
                         case 'stepover':
                         default:
-                            stepDistance = toolDiameter * (1 - (params.laserStepOver || 50) / 100);
+                            stepDistance = toolDiameter * ((params.laserStepOver) / 100);
                             break;
                     }
                 }
             } else {
-                stepOver = params.stepOver !== undefined ? params.stepOver : params.drillStepOver;
+                stepOver = resolveDrillAlias('stepOver', 'drillStepOver');
             }
 
             // Clear strategy
             let clearStrategy = 'offset';
             if (isLaser) {
-                clearStrategy = isPNG ? 'filled' : (params.laserClearStrategy || 'offset');
+                clearStrategy = isPNG ? 'filled' : (params.laserClearStrategy);
             }
 
             // Per-operation-type
@@ -1192,6 +1400,17 @@
         }
 
         /**
+         * Z of the material surface in machine coordinates.
+         * Rotary owns its own Z0 (centreline or blank face), so stock
+         * thickness never applies to it.
+         */
+        resolveSurfaceZ(operation) {
+            const stock = this.settings.machine.stock || {};
+            const isBedZero = stock.zeroReference && stock.zeroReference !== 'material';
+            return (isBedZero && operation.type !== 'rotary') ? (stock.thickness || 0) : 0;
+        }
+
+        /**
          * Calculates the final Z-depth levels for a toolpath.
          */
         calculateDepthLevels(cutDepth, depthPerPass, multiDepth, surfaceZ = 0) {
@@ -1217,6 +1436,28 @@
                 levels.push(finalDepth);
             }
 
+            return levels;
+        }
+
+        /**
+         * Depth ladders for the drill rows that override depth-per-pass or
+         * multi-depth. Built here because calculateDepthLevels is the only
+         * ladder in the app and a second copy in the translator would drift.
+         * Returns null when no row overrides, so the common case allocates
+         * nothing.
+         */
+        buildDrillDepthLevels(operation, params, depthPerPass, multiDepth, surfaceZ) {
+            if (!params?.drillMultiTool) return null;
+            const rows = operation.drillTable?.rows;
+            if (!rows) return null;
+            let levels = null;
+            for (const [key, row] of Object.entries(rows)) {
+                const step = row.mill?.depthPerPass;
+                const multi = row.mill?.multiDepth;
+                if (step == null && multi == null) continue;
+                if (!levels) levels = {};
+                levels[key] = this.calculateDepthLevels(params.cutDepth, step ?? depthPerPass, multi ?? multiDepth, surfaceZ);
+            }
             return levels;
         }
 
@@ -1271,7 +1512,7 @@
          * to the registered handler so the core never checks
          * operation type names for geometric decisions.
          */
-        buildToolpathContext(operationId, parameterManager) {
+        buildToolpathContext(operationId, parameterManager, resolvedTool = null) {
             const operation = this.getOperation(operationId);
             if (!operation) {
                 throw new Error(`Operation ${operationId} not found.`);
@@ -1280,17 +1521,19 @@
             // Get all parameters from manager
             const params = parameterManager.getAllParameters(operationId);
 
+            const resolveDrillAlias = (a, b) => this.resolveDrillAlias(operation, params, a, b);
+
             // Drill milling aliases - JSON can't have duplicate keys with different
             // conditionals, so both apps' profiles uses prefixed names (drillMultiDepth,
             // drillDepthPerPass, drillEntryType) for operation-specific params that
             // share names. Map them to the standard names the pipeline expects.
             // REVIEW - Review if there's a better approach to this - there's already a new per app/operation input defaults override?
-            // More Operations have unique parameter modifiers, might as well just review everything for consistency and keep the system but improve implementation.
+            // More Operations have unique parameter modifiers and defaults now, might as well just review everything for consistency and keep the system but improve implementation?
             const isDrill = operation.type === 'drill';
-            const mappedMultiDepth = isDrill && params.drillMultiDepth !== undefined ? params.drillMultiDepth : params.multiDepth;
-            const mappedDepthPerPass = isDrill && params.drillDepthPerPass !== undefined ? params.drillDepthPerPass : params.depthPerPass;
-            const mappedEntryType = isDrill && params.drillEntryType !== undefined ? params.drillEntryType : params.entryType;
-            const mappedStepOver = isDrill && params.drillStepOver !== undefined ? params.drillStepOver : params.stepOver;
+            const mappedMultiDepth   = resolveDrillAlias('multiDepth', 'drillMultiDepth');
+            const mappedDepthPerPass = resolveDrillAlias('depthPerPass', 'drillDepthPerPass');
+            const mappedEntryType    = resolveDrillAlias('entryType', 'drillEntryType');
+            const mappedStepOver     = resolveDrillAlias('stepOver', 'drillStepOver');
 
             // Get global settings
             const machine = this.settings.machine;
@@ -1308,12 +1551,6 @@
                 || { routes: [], axisWords: [], inverseTime: false, maxInverseTime: 0 };
             // Indexed 3+1 needs a REAL rotary word: there is no arc to
             // substitute, so 'wrapped-linear' is not a valid encoding for it.
-            // Several posts list wrapped-linear first for good reason (safe
-            // feeds without confirmed G93 on CONTINUOUS rotary), which made
-            // auto-resolution hand indexed jobs a route they cannot use -
-            // insertIndexMoves then patched it after the fact with a warning.
-            // Resolve it correctly the first time; an explicit user pick is
-            // still honoured, and the downstream check still catches it.
             // REVIEW - this sounds like an overcomplication?
             const isIndexedOp = operation.offsets?.[0]?.metadata?.indexed === true;
             const preferred = (isIndexedOp && rotaryCaps.routes.includes('a-word'))
@@ -1334,14 +1571,7 @@
             // Transform Values
             const transforms = this.getTransforms();
 
-            const stock = this.settings.machine.stock || {};
-            const isBedZero = stock.zeroReference && stock.zeroReference !== 'material';
-            // 4th-axis rotary (continuous AND indexed share operation.type
-            // 'rotary') owns its own Z0 - centerline or blank-face-top -
-            // protected downstream by Toolpath3DTranslator's machineFrame
-            // gate.
-            const surfaceZ = (isBedZero && operation.type !== 'rotary')
-                ? (stock.thickness || 0) : 0;
+            const surfaceZ = this.resolveSurfaceZ(operation);
 
             const depthLevels = this.calculateDepthLevels(
                 params.cutDepth, mappedDepthPerPass, mappedMultiDepth, surfaceZ);
@@ -1395,10 +1625,27 @@
                 processorSettings: { ...(this.settings.processorSettings || {}) },
 
                 // Operation Parameters
-                tool: {
-                    id: params.tool,
-                    diameter: params.toolDiameter
-                },
+                //
+                // `number` is machine-resolved and always >= 1. `drillNumbers`
+                // maps originalDiameter.toFixed(3) → tool number for peck
+                // groups; null on every non-drill operation.
+                tool: (() => {
+                    const t = resolvedTool || this.resolveToolDescriptor(operation, params, null);
+                    return {
+                        number: t.number,   // null = unassigned, on purpose
+                        id: t.id,
+                        name: t.name,
+                        type: t.type,
+                        diameter: params.toolDiameter,
+                        spindleSpeed: params.spindleSpeed,
+                        spindleDwell: params.spindleDwell,
+                        drillNumbers: this.flattenDrillMap(t),
+                        // False when the operation mills nothing of its own, so
+                        // tool batching can sort it by the bits it actually calls
+                        // rather than by a number no move in it ever uses.
+                        cutsWithOwnTool: t.cutsWithOwnTool !== false
+                    };
+                })(),
                 cutting: {
                     feedRate: params.feedRate,
                     plungeRate: params.plungeRate,
@@ -1427,21 +1674,26 @@
                     },
                     vcarve: {
                         vbitAngle: params.vbitAngle,
+                        vbitTipDiameter: params.vbitTipDiameter,
                         vcarveMaxDepth: params.vcarveMaxDepth,
-                        vcarveStartDepth: params.vcarveStartDepth,
-                        vcarveFlatDepth: params.vcarveFlatDepth,
-                        useVcarveClearingTool: params.useVcarveClearingTool
+                        vcarveStartDepth: params.vcarveStartDepth
                     }
                 },
 
                 // Computed Values
                 computed: {
-                    offsetDistances: offsetDistances,
-                    depthLevels: depthLevels,
-                    toolpathPolicy: this.handlers.has(operation.type)
-                        ? this.getHandler(operation.type).getToolpathPolicy()
-                        : null
+                    offsetDistances,
+                    depthLevels,
+                    drillDepthLevels: this.buildDrillDepthLevels(operation, params, mappedDepthPerPass, mappedMultiDepth, surfaceZ),
+                    toolpathPolicy: this.handlers.has(operation.type) ? this.getHandler(operation.type).getToolpathPolicy() : null
                 },
+
+                // Authoritative for everything per-diameter that is NOT baked
+                // into geometry - tool number, feeds, peck cycle. The
+                // geometry-affecting fields were resolved at generation and are
+                // stamped on the primitives themselves. Null in single-tool mode
+                // so the translator falls through to the operation's values.
+                drillTable: isDrill && params.drillMultiTool ? (operation.drillTable || null) : null,
 
                 // Transform Values
                 transforms: transforms,
@@ -1632,7 +1884,7 @@
 
                     fused.forEach(p => {
                         if (!p.properties) p.properties = {};
-                        p.properties.sourceOperationId = operation.id;
+                        // p.properties.sourceOperationId = operation.id;
                         p.properties.operationType = operation.type;
                     });
 
@@ -1710,9 +1962,12 @@
                 includeComments: intent.includeComments,
                 singleFile: intent.singleFile,
                 toolChanges: intent.toolChanges,
+                groupByTool: intent.groupByTool,
+                toolIndexMap: intent.toolIndexMap,
                 userStartCode: gcodeConfig.userStartCode,
                 userEndCode: gcodeConfig.userEndCode,
                 units: gcodeConfig.units,
+                toolLengthCompMode: gcodeConfig.toolLengthCompMode,
                 ...customPostParams,
                 safeZ: this.settings.machine.heights.safeZ,
                 travelZ: this.settings.machine.heights.travelZ,
@@ -1738,15 +1993,15 @@
                     if (!op) continue;
 
                     if (!op.preview || !op.preview.ready) {
-                        this.debug(`Skipping ${op.file.name}: preview not ready`);
+                        this.debug(`Skipping ${op.sourceLabel || op.file?.name || op.id}: preview not ready`);
                         continue;
                     }
 
                     const isDrill = op.type === 'drill';
-                    const shouldSplitDrill = isDrill && intent.splitDrills;
+                    const shouldSplitDrill = isDrill && true === intent.splitDrillOpIds?.includes(opId);
 
                     if (shouldSplitDrill && typeof DrillHandler !== 'undefined') {
-                        const { milledPrimitives, peckGroups } = DrillHandler.groupPrimitivesByDiameter(op);
+                        const { milledGroups, peckGroups } = DrillHandler.groupPrimitivesByDiameter(op);
 
                         const runWithPrimitives = async (primitives, resultKey, label) => {
                             const savedPreview = op.preview;
@@ -1755,8 +2010,10 @@
                             op.offsets = [{ ...savedOffsets[0], primitives }];
                             try {
                                 const result = await this.runCNCPipeline([op.id], intent.optimize !== false, genOptions, parameterManager);
-                                if (result?.gcode && !result.gcode.startsWith('; Generation Failed')) {
+                                if (result?.gcode) {
                                     results[resultKey] = { ...result, label };
+                                } else {
+                                    console.warn(`[Core] no G-code produced for ${resultKey} - operation omitted from the export.`);
                                 }
                             } finally {
                                 op.preview = savedPreview;
@@ -1764,18 +2021,26 @@
                             }
                         };
 
-                        if (milledPrimitives.length > 0) {
-                            await runWithPrimitives(milledPrimitives, `${opId}_milled`,
-                                `drill milled: ${op.file.name} (${milledPrimitives.length} paths)`);
+                        for (const group of milledGroups) {
+                            await runWithPrimitives(
+                                group.primitives,
+                                `${opId}_milled_${group.diameter}mm`,
+                                `drill milled ${group.diameter}mm: ${op.file.name} (${group.primitives.length} paths)`
+                            );
                         }
                         for (const group of peckGroups) {
-                            await runWithPrimitives(group.primitives, `${opId}_drill_${group.diameter}mm`,
-                                `drill ${group.diameter}mm: ${op.file.name} (${group.primitives.length} holes)`);
+                            await runWithPrimitives(
+                                group.primitives,
+                                `${opId}_drill_${group.diameter}mm`,
+                                `drill ${group.diameter}mm: ${op.file.name} (${group.primitives.length} holes)`
+                            );
                         }
                     } else {
                         const result = await this.runCNCPipeline([op.id], intent.optimize !== false, genOptions, parameterManager);
-                        if (result?.gcode && !result.gcode.startsWith('; Generation Failed')) {
+                        if (result?.gcode) {
                             results[opId] = { ...result, label: `${op.type}: ${op.file.name}` };
+                        } else {
+                            console.warn(`[Core] no G-code produced for ${opId} - operation omitted from the export.`);
                         }
                     }
                 }
@@ -1786,26 +2051,32 @@
 
         /**
          * Assembles { operation, context } pairs for the toolpath pipeline.
+         *
+         * Tool numbers are resolved for the WHOLE batch before any context is
+         * built: buildToolpathContext ends in Object.freeze, so a descriptor
+         * assembled per-operation could not see its siblings' claims, and a
+         * post-hoc `context.tool = …` would throw under 'use strict'.
+         *
          * @param {string[]|null} operationIds  null = every export-ready op
          * @param {ParameterManager} parameterManager
-         * @param {{warnLabel?:string}} [options]
+         * @param {{warnLabel?:string, toolIndexMap?:Object}} [options]
          */
         buildOperationContextPairs(operationIds, parameterManager, options = {}) {
-            const ids = operationIds
-                || this.operations.filter(op => this.isExportReady(op)).map(op => op.id);
             const label = options.warnLabel || 'pipeline';
+
+            // Commit params and resolve descriptors
+            const staged = this.stageToolDescriptors(
+                operationIds, parameterManager, options.toolIndexMap);
+
+            // Build contexts against the resolved descriptors
             const pairs = [];
-            for (const opId of ids) {
+            for (const entry of staged) {
                 try {
-                    const operation = this.getOperation(opId);
-                    if (!operation) continue;
-                    if (parameterManager.hasUnsavedChanges(opId)) {
-                        parameterManager.commitToOperation(operation);
-                    }
-                    const context = this.buildToolpathContext(opId, parameterManager);
-                    pairs.push({ operation, context });
+                    const context = this.buildToolpathContext(
+                        entry.opId, parameterManager, entry.tool);
+                    pairs.push({ operation: entry.operation, context });
                 } catch (err) {
-                    console.warn(`[${label}] skipping operation ${opId}: ${err.message}`);
+                    console.warn(`[${label}] skipping operation ${entry.opId}: ${err.message}`);
                 }
             }
             return pairs;
@@ -1815,14 +2086,24 @@
          * Internal: buildContext → executePipeline → generate G-code → metrics.
          */
         async runCNCPipeline(operationIds, optimize, genOptions, parameterManager) {
-            const operationContextPairs =
-                this.buildOperationContextPairs(operationIds, parameterManager, { warnLabel: 'CNC' });
+            const operationContextPairs = this.buildOperationContextPairs(
+                operationIds, parameterManager, {
+                    warnLabel: 'CNC',
+                    toolIndexMap: genOptions?.toolIndexMap
+                });
 
             if (operationContextPairs.length === 0) {
                 return { gcode: '; No valid operations to process', lineCount: 1, planCount: 0, estimatedTime: 0, totalDistance: 0 };
             }
 
-            const { plans, warnings } = await this.executePipeline(operationContextPairs, { optimize });
+            const { plans, warnings } = await this.executePipeline(operationContextPairs, {
+                optimize,
+                // Reordering is the user's call, not a side effect of asking
+                // for tool-change commands: it overrides the drag order they
+                // set in the export list.
+                groupByTool: genOptions?.groupByTool === true
+                    && genOptions?.singleFile === true
+            });
             if (warnings?.length) {
                 // executePipeline collects these (dropped rotary plans, etc.)
                 console.warn(`[Core] Pipeline warnings:\n  ${warnings.join('\n  ')}`);
@@ -1838,7 +2119,8 @@
             return {
                 gcode, lineCount, planCount: plans.length,
                 estimatedTime, totalDistance,
-                warnings: warnings || []
+                toolChanges: this.gcodeGenerator.lastToolChangeCount || 0,
+                warnings: [...(warnings || []), ...(this.gcodeGenerator.lastWarnings || [])]
             };
         }
 
@@ -1893,7 +2175,7 @@
          * @param {string[]} [intent.stencilOperationIds]
          * @param {boolean} intent.singleFile
          * @param {string} intent.baseName
-         * @param {boolean} [intent.splitDrills]
+         * @param {string[]} [intent.splitDrillOpIds]
          * @param {boolean} [intent.optimize]
          * @param {boolean} [intent.includeComments]
          * @param {boolean} [intent.toolChanges]
@@ -1922,13 +2204,15 @@
                         splitDrills: intent.splitDrills,
                         optimize: intent.optimize ?? true,
                         includeComments: intent.includeComments,
-                        toolChanges: intent.toolChanges
+                        toolChanges: intent.toolChanges,
+                        groupByTool: intent.groupByTool,
+                        toolIndexMap: intent.toolIndexMap
                     }, parameterManager);
                 }
 
                 if (intent.singleFile) {
                     const combined = gcodeResults['__combined__'];
-                    if (combined?.gcode && !combined.gcode.startsWith('; Generation Failed')) {
+                    if (combined?.gcode) {
                         allFiles.push({
                             blob: new Blob([combined.gcode], { type: 'text/plain' }),
                             filename: `${intent.baseName}${cncExt}`
@@ -1940,7 +2224,7 @@
                         if (splitKeys.length > 0) {
                             for (const key of splitKeys) {
                                 const result = gcodeResults[key];
-                                if (result?.gcode && !result.gcode.startsWith('; Generation Failed')) {
+                                if (result?.gcode) {
                                     const opCleanName = op.file.name.replace(/\.[^/.]+$/, '');
                                     const suffix = key.substring(op.id.length + 1).replace(/_/g, '-');
                                     allFiles.push({
@@ -1951,7 +2235,7 @@
                             }
                         } else {
                             const result = gcodeResults[op.id];
-                            if (result?.gcode && !result.gcode.startsWith('; Generation Failed')) {
+                            if (result?.gcode) {
                                 const opCleanName = op.file.name.replace(/\.[^/.]+$/, '');
                                 allFiles.push({
                                     blob: new Blob([result.gcode], { type: 'text/plain' }),

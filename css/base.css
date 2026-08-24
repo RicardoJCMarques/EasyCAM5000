@@ -72,9 +72,9 @@ html {
     --radius-lg: 0.5rem;      /* 8px */
 
     /* Shadows */
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-    --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.3);
-    --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.4);
+    --shadow-sm: 0 1px 2px color-mix(in srgb, var(--color-bw-black) 30%, transparent);
+    --shadow-md: 0 2px 8px color-mix(in srgb, var(--color-bw-black) 30%, transparent);
+    --shadow-lg: 0 4px 16px color-mix(in srgb, var(--color-bw-black) 40%, transparent);
 
     /* Typography */
     --font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
@@ -88,6 +88,13 @@ html {
     --line-height-tight: 1.25;
     --line-height-base: 1.6;
     --line-height-relaxed: 1.75;
+    
+    /* Breakpoint Scale - documented here, restated literally in @media
+       (custom properties are not valid inside media queries).
+         --bp-lg  1000px  sidebars collapse
+         --bp-md   768px  single-column workspace
+         --bp-sm   600px  compact toolbar
+         --bp-xs   480px  phone portrait */
 
     /* Z-Index Scale */
     --z-base: 1;
@@ -185,7 +192,7 @@ a:not([class]):hover {
     top: -3rem;
     left: 0;
     background: var(--color-accent-primary);
-    color: white;
+    color: var(--color-bw-white);
     padding: var(--spacing-sm) var(--spacing-md);
     z-index: calc(var(--z-modal) + 10); /* Above modals */
     text-decoration: none;

@@ -16,7 +16,7 @@
  *                spiralFinish()     - continuous helix (wrapped views):
  *                                     one chain, one plunge, no stepover
  *                                     witness lines
- *                simplify3D()       - 3D Douglas-Peucker
+ *                simplifyPolyline3D()       - 3D Douglas-Peucker
  *                toPrimitive()      - Polyline3DPrimitive / PathPrimitive
  *                                     emission (is3DContour contract)
  *
@@ -275,7 +275,7 @@
                     const flushLine = () => {
                         if (line.length >= 2) {
                             chains.push(simplifyTol > 0
-                                ? this.simplify3D(line, simplifyTol) : line);
+                                ? this.simplifyPolyline3D(line, simplifyTol) : line);
                         }
                         line = [];
                     };
@@ -310,7 +310,7 @@
                         if (span && span.length >= 2) {
                             if (edgePt) span.push(edgePt);
                             chains.push(simplifyTol > 0
-                                ? this.simplify3D(span, simplifyTol) : span);
+                                ? this.simplifyPolyline3D(span, simplifyTol) : span);
                         }
                         span = null;
                     };
@@ -378,7 +378,7 @@
                     turns++;
                 }
                 const simplified = simplifyTol > 0
-                    ? this.simplify3D(line, simplifyTol) : line;
+                    ? this.simplifyPolyline3D(line, simplifyTol) : line;
 
                 const start = (prevLine >= 0) ? 1 : 0;
                 for (let i = start; i < simplified.length; i++) out.push(simplified[i]);
@@ -476,19 +476,16 @@
             }
             cur = helixTo(c1, cur);
 
-            const chain = simplifyTol > 0 ? this.simplify3D(points, simplifyTol) : points;
+            const chain = simplifyTol > 0 ? this.simplifyPolyline3D(points, simplifyTol) : points;
             return chain.length >= 2 ? [chain] : [];
         },
 
         // ════════════════════════════════════════════════════════════
         // 3D Douglas-Peucker (point-to-segment distance in XYZ).
         // ════════════════════════════════════════════════════════════
-        // REVIEW - Five independent polyline simplifiers ship in this repo:
-        // GeometryUtils.simplifyDouglasPeucker, VCarveGenerator.simplifyRDP/rdpOpen,
-        // FieldPaths.simplify3D, ToolpathOptimizer.simplifyCollinearPoints and
-        // GerberParser.simplifyRDP. Consolidation is blocked on the worker boundary
-        // (vcarve and fieldpaths cannot reach GeometryUtils). Fix all five together.
-        simplify3D(points, tolerance) {
+        // REVIEW - Consider moving to a dedicated 3d utils module.
+        //          Separation of concerns in geometry-utils.js has become messy and it may be worth refactoring some of the files now that geometry is working consistently.
+        simplifyPolyline3D(points, tolerance) {
             if (points.length <= 2) return points;
             const keep = new Uint8Array(points.length);
             keep[0] = 1;

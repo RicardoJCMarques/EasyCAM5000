@@ -32,7 +32,7 @@
                     continuous: true
                 },
                 useM6: false,
-                supportsToolLengthComp: false,
+                toolLengthComp: { modes: ['none'], default: 'none' },
                 pauseAfterToolChange: false,
                 arcFormat: 'IJ',
                 coordinateDecimals: 3,
@@ -42,7 +42,7 @@
                 maxSpindleSpeed: 30000,
                 maxRapidRate: 2000,
                 defaults: {
-                    startCode: 'T1\n',
+                    startCode: '',
                     endCode: 'M5\nG0 X0Y0\nM2',
                 }
             });

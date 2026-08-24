@@ -26,6 +26,27 @@
 import * as THREE from 'three/webgpu';
 
 const ARC_SEGMENT_LENGTH = window.CAMConfig?.defaults?.rendering?.preview3D?.arcSegmentLength ?? 0.4;
+const ARC_SAGITTA = window.CAMConfig?.defaults?.rendering?.preview3D?.arcSagitta ?? 0.02;
+const MIN_ARC_SEGS = 8;
+const MAX_ARC_SEGS = 2048;
+
+/**
+ * Segment count for an arc, bounded by max deviation from the true curve
+ * (sagitta), not chord length. Baked geometry cannot re-flatten on zoom
+ * the way ctx.arc() does, so the bound has to be a visual-error bound.
+ * @param {number} radius mm
+ * @param {number} sweep  signed radians
+ */
+export function arcSegmentCount(radius, sweep) {
+    const s = Math.abs(sweep);
+    if (!(radius > 0) || !(s > 0)) return MIN_ARC_SEGS;
+    const ratio = Math.max(-1, Math.min(1, 1 - ARC_SAGITTA / radius));
+    const maxStep = 2 * Math.acos(ratio);
+    const bySagitta = maxStep > 1e-9 ? s / maxStep : MAX_ARC_SEGS;
+    const byChord = (s * radius) / ARC_SEGMENT_LENGTH;
+    return Math.min(MAX_ARC_SEGS,
+           Math.max(MIN_ARC_SEGS, Math.ceil(Math.min(bySagitta, byChord))));
+}
 
 /**
  * Walks plans/commands, resolving null coordinates against the running
@@ -119,12 +140,10 @@ export function walkPlans(plans, emit) {
 
     for (const plan of (plans || [])) {
         const m = plan.metadata;
-        // Wrap frame, re-read from every indexed plan that carries one
-        // (NOT latch-once - the comment used to claim first-sight, the code
-        // has always been last-wins). Safe because executePipeline runs one
-        // operation per batch, so every plan in `plans` shares a frame;
-        // index-link plans are stamped to match in insertIndexMoves so the
-        // very first A rapid wraps too.
+        // Wrap frame: last-wins, re-read from every indexed plan that carries
+        // one. Safe because executePipeline runs one operation per batch, so
+        // every plan in `plans` shares a frame; index-link plans are stamped
+        // to match in insertIndexMoves so the very first A rapid wraps too.
         if (m && m.indexedApothem != null) {
             apothem = m.indexedApothem;
             wrapAxis = (m.rotaryAxisKind === 'y') ? 'y' : 'x';
@@ -187,8 +206,7 @@ export function walkPlans(plans, emit) {
                         sweep = (cmd.type === 'ARC_CW') ? -2 * Math.PI : 2 * Math.PI;
                     }
 
-                    const steps = Math.max(2,
-                        Math.ceil((Math.abs(sweep) * radius) / ARC_SEGMENT_LENGTH));
+                    const steps = Math.max(2, arcSegmentCount(radius, sweep));
                     for (let s = 1; s <= steps; s++) {
                         const a = a0 + (sweep * s) / steps;
                         const zi = sz + ((tz - sz) * s) / steps;

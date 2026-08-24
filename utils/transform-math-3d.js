@@ -375,25 +375,30 @@
             let minY = Infinity, maxY = -Infinity;
             let minZ = Infinity, maxZ = -Infinity;
 
-            const m0 = m ? m[0] : 1, m1 = m ? m[1] : 0, m2 = m ? m[2] : 0;
-            const m3 = m ? m[3] : 0, m4 = m ? m[4] : 1, m5 = m ? m[5] : 0;
-            const m6 = m ? m[6] : 0, m7 = m ? m[7] : 0, m8 = m ? m[8] : 1;
-
-            for (let v = 0; v < nVerts; v++) {
-                const b = v * 3;
-                const sx = src[b], sy = src[b + 1], sz = src[b + 2];
-                let x, y, z;
-                if (m) {
-                    x = m0 * sx + m1 * sy + m2 * sz - ox;
-                    y = m3 * sx + m4 * sy + m5 * sz - oy;
-                    z = m6 * sx + m7 * sy + m8 * sz - oz;
-                } else {
-                    x = sx - ox; y = sy - oy; z = sz - oz;
+            if (m) {
+                const m0 = m[0], m1 = m[1], m2 = m[2];
+                const m3 = m[3], m4 = m[4], m5 = m[5];
+                const m6 = m[6], m7 = m[7], m8 = m[8];
+                for (let v = 0; v < nVerts; v++) {
+                    const b = v * 3;
+                    const sx = src[b], sy = src[b + 1], sz = src[b + 2];
+                    const x = m0 * sx + m1 * sy + m2 * sz - ox;
+                    const y = m3 * sx + m4 * sy + m5 * sz - oy;
+                    const z = m6 * sx + m7 * sy + m8 * sz - oz;
+                    vx[v] = x; vy[v] = y; vz[v] = z;
+                    if (x < minX) minX = x; if (x > maxX) maxX = x;
+                    if (y < minY) minY = y; if (y > maxY) maxY = y;
+                    if (z < minZ) minZ = z; if (z > maxZ) maxZ = z;
                 }
-                vx[v] = x; vy[v] = y; vz[v] = z;
-                if (x < minX) minX = x; if (x > maxX) maxX = x;
-                if (y < minY) minY = y; if (y > maxY) maxY = y;
-                if (z < minZ) minZ = z; if (z > maxZ) maxZ = z;
+            } else {
+                for (let v = 0; v < nVerts; v++) {
+                    const b = v * 3;
+                    const x = src[b] - ox, y = src[b + 1] - oy, z = src[b + 2] - oz;
+                    vx[v] = x; vy[v] = y; vz[v] = z;
+                    if (x < minX) minX = x; if (x > maxX) maxX = x;
+                    if (y < minY) minY = y; if (y > maxY) maxY = y;
+                    if (z < minZ) minZ = z; if (z > maxZ) maxZ = z;
+                }
             }
 
             if (nVerts === 0) {

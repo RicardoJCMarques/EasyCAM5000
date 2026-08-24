@@ -65,6 +65,10 @@ const CONFIG = {
         'fiveserver.config.js',
         'licensepasta.txt',
         'other',
+        'context-gen.js',
+        'repo-bundle.js',
+        'PROJECT_CONTEXT.txt',
+        'REPO_BUNDLE.txt',
         // Analytic offsetting files
         'geometry-offsetter-analytic.js',
         'geometry-utils-math.js',
@@ -105,16 +109,16 @@ const CONFIG = {
 // UTILITY FUNCTIONS
 // ============================================================================
 
-function stripComments(content, fileType) {
+function stripComments(content, fileType, keep = false) {
     // Remove comment new lines
     content = content.replace(/\r\n?/g, '\n');
+
+    if (keep) return content.trim();
 
     // Remove block comments (/* ... */) - works for both JS and CSS
     content = content.replace(/\/\*[\s\S]*?\*\//g, '');
 
-    // Remove single-line comments (// ...) - JS only // REVIEW - I don't think this is working? At least for config.js comments like:
-    // epsilon: 1e-9,              // Floating-point near-zero. Guard divisions, cross-product zero checks.
-    // collinear: 1e-12,           // Stricter near-zero for geometric collinearity where even tiny deviations matter.
+    // Note: Trailing comments survive on purpose: stripping them safely needs a tokenizer, and terser handles them under --minify.
     if (fileType === 'js') {
         content = content.replace(/^[ \t]*\/\/.*$/gm, '');
     }
@@ -212,11 +216,18 @@ function buildHeader(title, subtitle, format = 'js') {
 // ============================================================================
 
 class Builder {
-    constructor(srcDir, distDir) {
+    constructor(srcDir, distDir, options = {}) {
         this.srcDir = path.resolve(srcDir);
         this.distDir = path.resolve(distDir);
+        this.keepComments = options.keepComments === true;
+        this.minifyMode = options.minifyMode || 'full';
         this.stats = { css: 0, js: 0, html: 0 };
         this.processedFiles = new Set();
+    }
+
+    /** Bundle markers name files by repo path, not by the <script src> path. */
+    repoPath(absPath) {
+        return path.relative(this.distDir, absPath).split(path.sep).join('/');
     }
 
     run() {
@@ -503,10 +514,10 @@ class Builder {
             if (!fs.existsSync(p)) {
                 throw new Error(`field-worker importScripts dep not found in dist: ${dep}`);
             }
-            bundle += `\n// --- ${dep} ---\n${stripComments(readFile(p), 'js')}\n`;
+            bundle += `\n/*! --- ${this.repoPath(p)} --- */\n${stripComments(readFile(p), 'js', this.keepComments)}\n`;
         }
         worker = worker.replace(m[0], '// importScripts inlined by build');
-        writeFile(workerPath, bundle + '\n' + stripComments(worker, 'js'));
+        writeFile(workerPath, bundle + `\n/*! --- ${this.repoPath(workerPath)} --- */\n` + stripComments(worker, 'js', this.keepComments));
         // Inlining succeeded - the standalone dep copies are now dead weight
         for (const dep of deps) {
             const p = path.join(this.distDir, 'geometry', path.basename(dep));
@@ -520,8 +531,7 @@ class Builder {
         for (const app of CONFIG.apps) {
             const htmlPath = path.join(this.distDir, app.html);
             if (!fs.existsSync(htmlPath)) {
-                log(`  Warning: Entry point ${app.html} not found, skipping.`);
-                continue;
+                throw new Error(`App entry point not found in dist: ${app.html}`);
             }
 
             let htmlContent = readFile(htmlPath).replace(/\0/g, '');
@@ -547,7 +557,7 @@ class Builder {
                 if (!fs.existsSync(item.absPath)) {
                     throw new Error(`${app.html}: <link> ${item.relPath} not found in dist`);
                 }
-                cssContents += `/* ${item.relPath} */\n${stripComments(readFile(item.absPath), 'css')}\n\n`;
+                cssContents += `/* ${this.repoPath(item.absPath)} */\n${stripComments(readFile(item.absPath), 'css', this.keepComments)}\n\n`;
                 this.processedFiles.add(item.absPath);
                 htmlContent = htmlContent.split(item.tag).join('');
             }
@@ -561,11 +571,11 @@ class Builder {
                 if (!fs.existsSync(item.absPath)) {
                     throw new Error(`${app.html}: <script> ${item.relPath} not found in dist`);
                 }
-                let content = stripComments(readFile(item.absPath), 'js');
+                let content = stripComments(readFile(item.absPath), 'js', this.keepComments);
                 if (item.relPath.includes('clipper2z')) {
                     content = content.replace(/["'](\.?\/)?(geometry\/)?clipper2z\.wasm["']/g, '"../geometry/clipper2z.wasm"');
                 }
-                jsContents += `\n// --- ${item.relPath} ---\n${content}\n`;
+                jsContents += `\n/*! --- ${this.repoPath(item.absPath)} --- */\n${content}\n`;
                 this.processedFiles.add(item.absPath);
                 htmlContent = htmlContent.split(item.tag).join('');
             }
@@ -612,7 +622,7 @@ class Builder {
             let cssContents = buildHeader('Documentation', 'Bundled Styles', 'css');
             for (const item of deps.css) {
                 if (fs.existsSync(item.absPath)) {
-                    cssContents += `/* ${item.relPath} */\n${stripComments(readFile(item.absPath), 'css')}\n\n`;
+                    cssContents += `/* ${this.repoPath(item.absPath)} */\n${stripComments(readFile(item.absPath), 'css', this.keepComments)}\n\n`;
                     htmlContent = htmlContent.split(item.tag).join('');
                 }
             }
@@ -746,8 +756,16 @@ class Builder {
                 '  npm install terser html-minifier-terser --no-save');
         }
 
-        // /^!/ is what preserves the AGPL banner buildHeader injected.
-        const jsOpts = { compress: true, mangle: true, format: { comments: /^!/ } };
+        const names = this.minifyMode === 'names';
+
+        // /^!/ is what preserves the AGPL banner and the /*! --- path --- */ markers.
+        // names mode keeps identifiers; compress still runs, so an unreferenced
+        // helper inside an IIFE can be dropped.
+        const jsOpts = {
+            compress: true,
+            mangle: !names,
+            format: { comments: this.keepComments ? 'all' : /^!/ }
+        };
 
         const jsTargets = [
             ...CONFIG.apps.map(a => a.jsBundle),
@@ -789,7 +807,7 @@ class Builder {
             removeComments: true,
             ignoreCustomComments: [/^!/],
             minifyCSS: true,
-            minifyJS: true
+            minifyJS: names ? { mangle: false } : true
         };
         const htmlFiles = all.filter(f => f.endsWith('.html'));
         for (const p of htmlFiles) writeFile(p, await htmlMin.minify(readFile(p), htmlOpts));
@@ -816,28 +834,50 @@ async function main() {
     let srcDir = '.';
     let distDir = './dist';
     let doMinify = false;
+    let minifyMode = 'full';
+    let keepComments = false;
 
     for (let i = 0; i < args.length; i++) {
         if (args[i] === '--src' && args[i + 1]) srcDir = args[++i];
         else if (args[i] === '--dist' && args[i + 1]) distDir = args[++i];
         else if (args[i] === '--minify') doMinify = true;
+        else if (args[i].startsWith('--minify=')) {
+            doMinify = true;
+            minifyMode = args[i].slice('--minify='.length);
+            if (minifyMode !== 'full' && minifyMode !== 'names') {
+                console.error(`Error: --minify must be 'full' or 'names', got '${minifyMode}'`);
+                process.exit(1);
+            }
+        }
+        else if (args[i].startsWith('--comments=')) {
+            const mode = args[i].slice('--comments='.length);
+            if (mode !== 'keep' && mode !== 'strip') {
+                console.error(`Error: --comments must be 'keep' or 'strip', got '${mode}'`);
+                process.exit(1);
+            }
+            keepComments = mode === 'keep';
+        }
         else if (args[i] === '--help' || args[i] === '-h') {
             console.log(`
-EasyTrace5000 Build Script
+EasyCAM5000 Build Script
 
 Usage: node build.js [options]
 
 Options:
-    --src <dir>     Source directory (default: current directory)
-    --dist <dir>    Output directory (default: ./dist)
-    --minify        Minify JS/JSON/HTML in place (same as deployment).
-                    Needs: npm install terser html-minifier-terser --no-save
-    --help, -h      Show this help
+    --src <dir>       Source directory (default: current directory)
+    --dist <dir>      Output directory (default: ./dist)
+    --comments=MODE   strip (default) or keep. Keep produces a readable
+                      bundle for review; deployment uses strip.
+    --minify[=MODE]   full (default, deployment) or names. names keeps
+                      identifiers readable while still compressing.
+                      Needs: npm install terser html-minifier-terser --no-save
+    --help, -h        Show this help
 
 Examples:
-    node build.js                      # Build from . to ./dist
-    node build.js --dist ./build       # Build from . to ./build
-    node build.js --src ../src --dist ./dist
+    node build.js                                  # Build from . to ./dist
+    node build.js --dist ./build                   # Build from . to ./build
+    node build.js --comments=keep --dist ./llm     # Readable bundle
+    node build.js --minify=names --dist ./llm      # Compressed, names intact
 `);
             process.exit(0);
         }
@@ -850,7 +890,7 @@ Examples:
     }
 
     // Run build
-    const builder = new Builder(srcDir, distDir);
+    const builder = new Builder(srcDir, distDir, { keepComments, minifyMode });
     builder.run();
     if (doMinify) await builder.minify();
 }

@@ -55,7 +55,6 @@ function ensureModules(constants, debug) {
             // is validation-only (stage 2) and envelopeTop has no caller, so
             // importing it costs a fetch + parse per worker boot for nothing.
             // Re-add it with the survey stage.
-            // REVIEW - Does this affect built deployment bundles?
             // 'geometry-utils-sections.js',
             'geometry-utils-relief.js',
             'geometry-utils-rotary.js'
@@ -116,8 +115,10 @@ function flattenPrimitives(prims, transfer) {
 
 /** V-Carve: one job = ONE primitive, polygonized and arc-densified by the
  *  handler (GeometryUtils is main-thread only) and packed into typed
- *  arrays. */
-// REVIEW - Is this splitting closed primitives properly?
+ *  arrays. The one-job-one-connected-region invariant is established by the
+ *  nesting merge before packing; nothing here can verify it, and the
+ *  medial-axis split/parity tests cannot distinguish overlapping wedges of
+ *  unrelated regions if it is broken. */
 function runVCarve(id, data, transfer) {
     // NOT the stage scaler. STAGE_BANDS describes the FIELD pipeline
     // (slice → compensate → upsample → emit); V-Carve has none of those

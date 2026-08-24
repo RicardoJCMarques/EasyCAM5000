@@ -83,10 +83,9 @@
         async orchestrateGeneration(operation, params, core, options = {}) {
             // Stale-run token + structured progress + state reset
             const token = this.beginRun(operation, options, core);
-            this.resolveProgress(operation, options);
 
-            // Wipe all previous generation state
-            core.resetOperationState(operation.id);
+            const resolved = this.resolveSourceTopology(operation, params);
+            if (resolved) operation.primitives = resolved;
 
             // Compile parameters
             const opParams = core.compileOperationParams(operation, params);
@@ -114,11 +113,7 @@
 
                 // CORE handles its own state
                 operation.exportReady = true;
-                operation.exportMetadata = {
-                    generatedAt: Date.now(),
-                    sourceOffsets: operation.offsets?.length || 0,
-                    strategy: strategy
-                };
+                this.stampExportMetadata(operation, strategy);
                 
                 return { success: true, message: `Generated ${total} laser path(s) [${strategy}]`, status: 'success' };
             }
@@ -215,19 +210,41 @@
             return bestId;
         }
 
+        /**
+         * Copper handlers keep stroke metadata only on primitives that are
+         * ACTUALLY strokes - Gerber traces. An SVG import in the same
+         * operation still gets normalized to a filled boundary, otherwise a
+         * stroked-but-closed region gets thickened as a centerline instead of
+         * offset as a boundary.
+         */
         preparePrimitivesForOffset(primitives) {
-            if (this.isCopperOperation()) return primitives; // preserve stroke metadata
-            return super.preparePrimitivesForOffset(primitives);
+            if (!this.isCopperOperation()) {
+                return super.preparePrimitivesForOffset(primitives);
+            }
+            const traces = [];
+            const filled = [];
+            for (const prim of primitives) {
+                (this.isStrokePrimitive(prim) ? traces : filled).push(prim);
+            }
+            if (traces.length === 0) return super.preparePrimitivesForOffset(primitives);
+            return [...traces, ...super.preparePrimitivesForOffset(filled)];
+        }
+
+        /**
+         * One definition of "this is a centerline to thicken", shared by
+         * preparePrimitivesForOffset and offsetSinglePrimitive so the two
+         * can never disagree about the same primitive.
+         */
+        isStrokePrimitive(prim) {
+            const props = prim.properties || {};
+            if (!(props.strokeWidth > 0)) return false;
+            return props.isTrace === true || (props.stroke === true && !props.fill);
         }
 
         async offsetSinglePrimitive(primitive, distance) {
-            if (this.isCopperOperation()) {
-                const props = primitive.properties || {};
-                const isStroke = (props.stroke && !props.fill) || props.isTrace;
-                if (isStroke && props.strokeWidth > 0) {
-                    const combinedWidth = props.strokeWidth + distance * 2;
-                    return this.core.geometryOffsetter.expandStroke(primitive, combinedWidth);
-                }
+            if (this.isCopperOperation() && this.isStrokePrimitive(primitive)) {
+                const combinedWidth = primitive.properties.strokeWidth + distance * 2;
+                return this.core.geometryOffsetter.expandStroke(primitive, combinedWidth);
             }
             return super.offsetSinglePrimitive(primitive, distance);
         }
@@ -237,8 +254,6 @@
         async generateGeometry(operation, settings) {
             // Clone to prevent mutating shared state
             settings = { ...settings };
-
-            operation.debugStrokes = [];
 
             this.debug('=== OFFSET PIPELINE START ===');
             this.debug(`Operation: ${operation.id} (${operation.type})`);
@@ -311,8 +326,6 @@
             const levelBuckets = [];
             const complexRegions = [];
             const simpleGeometry = [];
-
-            const isLaserPipeline = settings.clearStrategy !== undefined;
 
             primitivesToProcess.forEach(prim => {
                 if (this.shouldSkipPrimitive(prim, settings)) return;
@@ -556,7 +569,7 @@
             if (settings.combineOffsets && passResults.length > 1) {
                 const allPassPrimitives = passResults.flatMap(p => p.primitives);
                 operation.offsets = [{
-                    id: `offset_combined_${operation.id}`,
+                    id: this.offsetRecordId(operation.id, 'combined'),
                     distance: passResults[0].distance,
                     pass: 1,
                     primitives: allPassPrimitives,
@@ -578,7 +591,7 @@
                 }];
             } else {
                 operation.offsets = passResults.map((passResult, index) => ({
-                    id: `offset_${operation.id}_${index}`,
+                    id: this.offsetRecordId(operation.id, index),
                     ...passResult,
                     settings: { ...settings }
                 }));

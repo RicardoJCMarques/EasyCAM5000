@@ -4,9 +4,6 @@
  *              needing undo/redo). Commands store deltas, not snapshots,
  *              so memory cost stays flat regardless of scene size.
  *
- *              Coalescing: same-type commands within 500ms collapse into
- *              one entry. Tunable via constructor options.
- *
  *              The controller is passed into each command's execute/undo
  *              so commands can reach scene, selection, and trigger UI
  *              refresh via controller.afterMutation().
@@ -27,8 +24,6 @@
         execute(ctrl) {}
         undo(ctrl) {}
         get label() { return 'Action'; }
-        /** Return true if `other` was merged into `this`. */
-        coalesceWith(other) { return false; }
     }
 
     /** Multiple commands as one undoable unit. Used for multi-action gestures. */
@@ -164,7 +159,6 @@
                 ctrl.scene.removeNode(snap.shape.id);
             }
             ctrl.selection.clear();
-            ctrl.scene.recomputeBoardBoundsFromShapes?.();
             ctrl.afterMutation();
         }
         undo(ctrl) {
@@ -187,8 +181,6 @@
             this.undoStack = [];
             this.redoStack = [];
             this.maxSize = options.maxSize || 200;
-            this.coalesceWindowMs = options.coalesceWindowMs ?? 500;
-            this.lastTime = 0;
             this.listeners = [];
         }
 
@@ -200,18 +192,9 @@
 
         /** For mutations already applied externally (e.g. live drag). */
         record(cmd) {
-            const now = performance.now();
-            const top = this.undoStack[this.undoStack.length - 1];
-            const fresh = (now - this.lastTime) < this.coalesceWindowMs;
-
-            if (top && fresh && top.coalesceWith && top.coalesceWith(cmd)) {
-                // Merged - no new entry.
-            } else {
-                this.undoStack.push(cmd);
-                if (this.undoStack.length > this.maxSize) this.undoStack.shift();
-            }
-            this.redoStack.length = 0;   // any new mutation kills redo future
-            this.lastTime = now;
+            this.undoStack.push(cmd);
+            if (this.undoStack.length > this.maxSize) this.undoStack.shift();
+            this.redoStack.length = 0;  // any new mutation kills old redo future branch
             this.fire();
         }
 
@@ -278,7 +261,6 @@
             }
             ctrl.scene.removeNode(this.groupId);
             ctrl.selection.replace(this.nodeSnapshots.map(s => s.nodeId));
-            ctrl.scene.recomputeBoardBoundsFromShapes?.();
             ctrl.afterMutation();
         }
         get label() { return `Group ${this.nodeSnapshots.length} item(s)`; }
@@ -321,7 +303,6 @@
             }
             ctrl.scene.removeNode(this.groupSnapshot.nodeId);
             ctrl.selection.replace(this.childrenSnapshots.map(s => s.nodeId));
-            ctrl.scene.recomputeBoardBoundsFromShapes?.();
             ctrl.afterMutation();
         }
         undo(ctrl) {
@@ -423,7 +404,6 @@
         get label() { return 'Edit transform'; }
     }
 
-    // REVIEW - Are all these classes necessary?
     window.Command = Command;
     window.CompositeCommand = CompositeCommand;
     window.TranslateCommand = TranslateCommand;

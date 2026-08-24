@@ -23,10 +23,10 @@
 
     // Machining phase → sort rank. The optimizer orders plan groups by
     // ascending phaseRank BEFORE any proximity/nearest-neighbor pass, so
-    // roughing groups always run before finishing regardless of insertion
-    // order. 'default' (V-Carve, single-phase) ranks with finishing because a
-    // single-phase op has nothing to precede.
-    // REVIEW - This silent logic is bad, an explicit UI replacement is necessary.
+    // roughing always precedes finishing regardless of insertion order.
+    // INVARIANT: every phase a generator can emit needs an entry here, or it
+    // silently inherits 'default'. V-Carve is single-phase and ranks with
+    // finishing because it has nothing to precede.
     const PHASE_RANK = {
         'roughing': 0,
         'finishing': 1,
@@ -39,20 +39,6 @@
             this.parent = parent;
             // Reusable read cursor - avoids one allocation per point
             this._pt = { x: 0, y: 0, z: 0 };
-        }
-
-        /**
-         * tan(descentFeedAngle). Exported as a static so ToolpathOptimizer
-         * can classify feeds identically after a reversal or a simplify
-         * pass.
-         */
-        static slopeGate() {
-            return Math.tan((T3D.descentFeedAngleDeg * Math.PI) / 180);
-        }
-
-        /** Feed for a segment whose delta is (dz, dxy). */
-        static feedFor(dz, dxy, feedRate, plungeRate, gate) {
-            return (dz < 0 && Math.abs(dz) > dxy * gate) ? plungeRate : feedRate;
         }
 
         /**
@@ -106,15 +92,7 @@
             // Stock thickness is meaningless in both frames; adding
             // surfaceZ let bed-zero stock settings silently shift depths.
             const surfaceZ = machineFrame ? 0 : (ctx.machine?.surfaceZ || 0);
-            const slopeGate = Toolpath3DTranslator.slopeGate();
-
-            // stepOver is meaningless for a V-bit and tool.diameter is the
-            // TIP flat, so the optimizer's 2D margin formula collapses to
-            // ~0 and every chain becomes its own region.
-            const clusterMargin = Math.max(
-                T3D.clusterMargin ?? 1.0,
-                tool.diameter || 0
-            );
+            const slopeGate = ToolpathFeeds.slopeGate();
 
             for (const chain of this.extractChains(primitive)) {
                 const count = chain.count;
@@ -174,17 +152,18 @@
                 plan.metadata.spindleDwell = cutting.spindleDwell;
                 plan.metadata.toolDiameter = tool.diameter;
                 plan.metadata.stepOver = 0;
-                // Explicit proximity margin - consumed by
-                // ToolpathOptimizer.buildRegions/subdivideByProximity.
-                plan.metadata.clusterMargin = clusterMargin;
                 plan.metadata.entryType = 'plunge';
-                // The handler's getToolpathPolicy() reaches the optimizer ONLY
-                // through plan metadata. createPurePlan stamps it for 2D plans.
+                // Stamped for parity with createPurePlan's 2D plans and read by
+                // nothing on this path: both 3D fast paths (ordered3D,
+                // unordered3D) continue before the optimizer's policy read, so
+                // neither staydownPartition nor any other key here has an effect
+                // on a 3D group.
                 plan.metadata.toolpathPolicy = ctx.computed?.toolpathPolicy ?? null;
                 // Phase suffix keeps optimizer groups phase-local even if
                 // it only groups by key and ignores phaseRank.
                 plan.metadata.groupKey =
-                    `T:${tool.diameter.toFixed(3)}_OP:${operationId}` +
+                    this.parent.stampToolMetadata(plan, ctx) +
+                    `_T:${tool.diameter.toFixed(3)}_OP:${operationId}` +
                     `_TYPE:${ctx.operationType}_PH:${phaseRank}` +
                     // [INDEXED] Faces can never share an optimizer group:
                     // the _IX: wall guarantees proximity/NN ordering can't
@@ -215,7 +194,7 @@
                     // surfaceZ offset cancels out of the slope test.)
                     const dz = raw.z - prevZ;
                     const dxy = Math.hypot(raw.x - prevX, raw.y - prevY);
-                    const feed = Toolpath3DTranslator.feedFor(
+                    const feed = ToolpathFeeds.feedFor(
                         dz, dxy, feedRate, plungeRate, slopeGate);
 
                     prevX = raw.x; prevY = raw.y; prevZ = raw.z;

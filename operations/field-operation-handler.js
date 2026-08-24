@@ -290,7 +290,7 @@
         // stops mattering because the STUB defines the end. It would also
         // make the workholding visible in the preview before cutting.
         // REVIEW - There used to be a termination with the reach set as "reach = kernelR + raw;" and it produced interesting termination geometry as the final fallback instead of just raw.
-        //          Confirm in the future if it's worth implementing as an extra stretegy.
+        //          Confirm in the future if it's worth implementing as an extra strategy.
         workholding(p) {
             const holdingMode = p.rotaryHoldingMode ?? 'between_centers';
             const toolD = Math.max(0.02, p.toolDiameter || 3);
@@ -301,9 +301,13 @@
                 (window.CAMConfig?.constants?.rotary?.autoLipFraction ?? 0.1);
 
             const end = (mode, mm) => {
-                // Legacy: 'rollover' was the lip's old mode name.
+                // profile-shape.json labels this end mode 'rollover'; the
+                // pipeline calls the material it composes 'lip'. Renaming the
+                // profile value would invalidate every saved parameter state
+                // holding 'rollover', so the translation lives here.
+                // REVIEW - Sounds like this is an easy syntax problem to fix somewhere else? Either rollover or lip should take precedence and all other mentions updated/removed?
                 let m = mode || 'stop';
-                if (m === 'rollover') m = 'lip'; // REVIEW - Double check if this fallback is still necessary
+                if (m === 'rollover') m = 'lip';
                 const raw = Number(mm) || 0;
                 const len = Math.abs(raw);
                 let material, reach, amount;
@@ -624,15 +628,15 @@
         // ── Orchestration ────────────────────────────────────────────
 
         async orchestrateGeneration(operation, params, core, options = {}) {
+            const guard = this.validateSource(operation);
+            if (guard) return guard;
+
             // Monotonic per-operation token: each run stamps a new value; any
             // earlier run still in flight sees the mismatch and discards its
             // result instead of clobbering the newer field.
             const token = this.beginRun(operation, options, core);
             const opParams = core.compileOperationParams(operation, params);
             const merged = { ...params, ...opParams };
-
-            const guard = this.validateSource(operation);
-            if (guard) return guard;
 
             await this.generateGeometry(operation, merged);
 

@@ -13,21 +13,429 @@
     'use strict';
 
     const C = window.CAMConfig.constants;
+    const D = window.CAMConfig.defaults;
     const EPSILON = C.precision.epsilon;
     const PRECISION = C.precision.coordinate;
+
+    // Row fields baked into primitive geometry at generation. Editing one
+    // stales the operation; everything else resolves at translation.
+    const GEOMETRY_FIELDS = new Set(['strategy', 'toolId', 'toolDiameter', 'mill']);
 
     class DrillHandler extends BaseOperationHandler {
 
         /**
-         * SVG Drill Classification
-         * Called from postParsePrimitives after operation.primitives is set.
-         * For Excellon files, the plotter already assigns roles - no action needed.
+         * Post-parse classification. SVG needs role tags derived from shape;
+         * the Excellon plotter already assigns them, but only this hook builds
+         * the per-diameter taxonomy every downstream consumer reads.
          */
-
         postParsePrimitives(operation) {
             if (operation.file.name.toLowerCase().endsWith('.svg')) {
                 this.classifySVGDrillPrimitives(operation);
+                return;
             }
+            this.refreshDrillSummary(operation, 'excellon');
+        }
+
+        /**
+         * True when the per-diameter table is authoritative. The drillMultiTool
+         * checkbox is the ONLY writer of this decision. table.preset records how
+         * the rows were SEEDED and must never be read as authority - a feed edit
+         * in the modal sets preset='custom', which would otherwise move the
+         * operation out of single-tool mode behind the operator's back.
+         */
+        static isMultiTool(settings) {
+            return Boolean(settings?.drillMultiTool);
+        }
+
+        /**
+         * The one place a diameter becomes a map key. The export table, the
+         * split-drill path and the tool descriptor all match on this string;
+         * change the rounding here and they stop agreeing silently.
+         */
+        static diameterKey(diameter) {
+            return Number(diameter).toFixed(3);
+        }
+
+        /**
+         * Feature taxonomy for one drill operation, keyed by feature size.
+         * A slot's width takes the same bit as a hole of that diameter, so
+         * both share a row. Excellon header tool ids ride along as advisory
+         * text only: a header T index is a file index, not a magazine slot.
+         */
+        static summarizePrimitives(primitives, source) {
+            const quantize = value => Math.round(value / PRECISION) * PRECISION;
+            const sizes = new Map();
+            const slotSizes = new Map();
+            let totalHoles = 0;
+            let totalSlots = 0;
+
+            for (const prim of primitives || []) {
+                const props = prim.properties;
+                const role = props?.role;
+                const diameter = props?.diameter;
+                if (!diameter || (role !== 'drill_hole' && role !== 'drill_slot')) continue;
+
+                const key = DrillHandler.diameterKey(diameter);
+                let size = sizes.get(key);
+                if (!size) {
+                    size = { key, diameter: parseFloat(key), holes: 0, slots: 0, nativeTools: [] };
+                    sizes.set(key, size);
+                }
+                if (props.tool && !size.nativeTools.includes(props.tool)) size.nativeTools.push(props.tool);
+
+                if (role === 'drill_hole') {
+                    size.holes++;
+                    totalHoles++;
+                    continue;
+                }
+
+                size.slots++;
+                totalSlots++;
+                const slot = props.originalSlot;
+                if (!slot) continue;
+                const len = Math.hypot(slot.end.x - slot.start.x, slot.end.y - slot.start.y);
+                const slotKey = `${key}x${quantize(len + diameter).toFixed(3)}`;
+                slotSizes.set(slotKey, (slotSizes.get(slotKey) || 0) + 1);
+            }
+
+            const ordered = [...sizes.values()].sort((a, b) => a.diameter - b.diameter);
+            return {
+                sizes: ordered,
+                holes: ordered.filter(s => s.holes > 0).map(s => ({ diameter: s.diameter, count: s.holes })),
+                slots: [...slotSizes.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([key, count]) => {
+                    const [width, length] = key.split('x').map(parseFloat);
+                    return { width, length, count };
+                }),
+                totalHoles,
+                totalSlots,
+                source
+            };
+        }
+
+        /**
+         * Rebuilds the summary from the CURRENT primitive set, preserving the
+         * rejection record the SVG classifier produced. EasyShape re-syncs
+         * primitives without re-parsing, so this has to be cheap and repeatable.
+         */
+        refreshDrillSummary(operation, source = null) {
+            const previous = operation.drillSummary;
+            operation.drillSummary = {
+                ...DrillHandler.summarizePrimitives(operation.primitives, source || previous?.source || 'primitives'),
+                totalAccepted: operation.primitives?.length || 0,
+                totalRejected: previous?.totalRejected || 0,
+                rejected: previous?.rejected || []
+            };
+            return operation.drillSummary;
+        }
+
+        /**
+         * Builds a fresh drill table from the current summary.
+         * null in a row means INHERIT the operation - that is what keeps the
+         * single-tool desktop path one click, and it is also why nothing here
+         * writes toolNumber: a slot number is not derivable from a diameter,
+         * and enumerating T1/T2/T3 across rows is exactly the invention the
+         * tool contract forbids. Rows stay on the operation's number until the
+         * operator assigns one, which checkToolAssignment then reports as the
+         * collision it is.
+         */
+        buildDrillTable(operation, settings, preset = 'flatten') {
+            const table = { preset, rows: {}, generatedAt: Date.now() };
+            const sizes = operation.drillSummary?.sizes;
+            if (!sizes?.length) return table;
+
+            const library = this.core?.toolLibrary || null;
+            const useLibrary = preset === 'match' && library;
+            const millOversize = settings?.millHoles !== false;
+
+            for (const size of sizes) {
+                const row = {
+                    key: size.key,
+                    diameter: size.diameter,
+                    holes: size.holes,
+                    slots: size.slots,
+                    nativeTools: size.nativeTools || [],
+                    strategy: millOversize ? 'mill' : 'peck',
+                    toolId: null,
+                    toolDiameter: null,
+                    toolNumber: null,
+                    cutting: null,
+                    peck: null,
+                    mill: null
+                };
+                if (useLibrary) this.matchLibraryTool(row, library);
+                table.rows[size.key] = row;
+            }
+            return table;
+        }
+
+        /**
+         * Auto-match for one row: an exact drill bit pecks, otherwise the
+         * largest end mill that still leaves a millable ring bores it, otherwise
+         * the row is skipped and says so. Assigns tools and cutting data only.
+         */
+        matchLibraryTool(row, library) {
+            const tolerance = D.toolpath.generation.drilling.matchTolerance;
+            const margin = D.toolpath.generation.drilling.millMargin;
+
+            const drill = (library.getToolsByType('drill') || [])
+                .filter(t => Math.abs((t.geometry?.diameter ?? 0) - row.diameter) <= tolerance)
+                .sort((a, b) => Math.abs(a.geometry.diameter - row.diameter) - Math.abs(b.geometry.diameter - row.diameter))[0];
+            if (drill) {
+                row.strategy = 'peck';
+                this.applyLibraryTool(row, drill);
+                return;
+            }
+
+            const mill = (library.getToolsByType('end_mill') || [])
+                .filter(t => (t.geometry?.diameter ?? 0) > 0 && t.geometry.diameter <= row.diameter - margin)
+                .sort((a, b) => b.geometry.diameter - a.geometry.diameter)[0];
+            if (mill) {
+                row.strategy = 'mill';
+                this.applyLibraryTool(row, mill);
+                return;
+            }
+
+            row.strategy = 'skip';
+        }
+
+        /**
+         * Assigns the cutter and the feeds the modal actually shows. Fields
+         * with no column stay null on purpose: Auto-match used to write
+         * mill.stepOver, mill.depthPerPass and peck.dwellTime, all three of
+         * which are read downstream (buildDrillDepthLevels builds a per-key
+         * depth ladder from depthPerPass; processPeckMark takes dwellTime as
+         * the G82 dwell word) and none of which the operator can see or clear.
+         * Surface them before writing them again.
+         * TODO(drill-tool-numbers) - ToolLibrary.importTools already accepts and
+         * dedups tool.toolNumber, so a custom library could seed row.toolNumber
+         * here. The shipped tools.json declares none, and inventing one is what
+         * the tool contract forbids.
+         */
+        applyLibraryTool(row, tool) {
+            const cut = tool.cutting || {};
+            row.toolId = tool.id;
+            row.toolDiameter = tool.geometry?.diameter ?? null;
+            row.cutting = {
+                feedRate: cut.feedRate ?? null,
+                plungeRate: cut.plungeRate ?? null,
+                spindleSpeed: cut.spindleSpeed ?? null
+            };
+            if (row.strategy === 'peck') {
+                row.peck = { peckDepth: cut.peckDepth ?? null, dwellTime: null, cannedCycle: null, retractHeight: null };
+                row.mill = null;
+            } else {
+                row.peck = null;
+                row.mill = { stepOver: null, depthPerPass: null, multiDepth: null, entryType: null };
+            }
+        }
+
+        /**
+         * Re-derives the row set from the current geometry while keeping every
+         * choice the operator made. Strategy is preserved unconditionally:
+         * single-tool mode does not read the rows at all - resolveDrillRow
+         * answers from the operation - so rewriting them here to track a
+         * checkbox would only destroy per-size work on the way past. New keys
+         * still seed from millHoles through buildDrillTable.
+         */
+        reconcileDrillTable(operation, settings) {
+            const preset = operation.drillTable?.preset || 'flatten';
+            const previous = operation.drillTable?.rows;
+            const table = this.buildDrillTable(operation, settings, preset);
+
+            if (previous) {
+                for (const [key, row] of Object.entries(table.rows)) {
+                    const prior = previous[key];
+                    if (!prior) continue;
+                    table.rows[key] = {
+                        ...prior,
+                        key,
+                        diameter: row.diameter,
+                        holes: row.holes,
+                        slots: row.slots,
+                        nativeTools: row.nativeTools
+                    };
+                }
+            }
+
+            operation.drillTable = table;
+            return table;
+        }
+
+        /**
+         * Modal write path. Returns true when the patch touched something the
+         * generated geometry depends on, which is the caller's signal to stale
+         * the operation. A tool number or a feed rate resolves at translation
+         * and must not discard generated paths.
+         */
+        updateDrillRow(operation, key, patch) {
+            const row = operation.drillTable?.rows?.[key];
+            if (!row) return false;
+            Object.assign(row, patch);
+            operation.drillTable.preset = 'custom';
+            return Object.keys(patch).some(field => GEOMETRY_FIELDS.has(field));
+        }
+
+        /**
+         * Builds the table on demand from the summary that already exists after
+         * parsing, so the modal has rows the moment multi-tool is switched on
+         * rather than only after a generation. Re-classifies first when the
+         * primitives carry no roles: EasyShape's syncPrimitives copies them raw,
+         * and summarizePrimitives would otherwise report zero sizes.
+         */
+        ensureDrillTable(operation, settings) {
+            if (!operation) return null;
+            const hasRoles = operation.primitives?.some(p => p.properties?.role);
+            if (operation.primitives?.length > 0 && !hasRoles) this.classifySVGDrillPrimitives(operation);
+            else this.refreshDrillSummary(operation);
+            return this.reconcileDrillTable(operation, settings || {});
+        }
+
+        /**
+         * Rebuilds every row from a preset, discarding manual assignments.
+         */
+        applyDrillPreset(operation, settings, preset) {
+            operation.drillTable = this.buildDrillTable(operation, settings, preset);
+            return operation.drillTable;
+        }
+
+        /**
+         * One read of the drill table for every consumer that needs to know what
+         * it says: the sidebar card, the action-button gate and the export
+         * checks. Mode comes from the parameter, never from the preset.
+         * Single-tool mode has nothing to gate on - the operation's own tool and
+         * number cut everything and the rows are dormant.
+         * A row with no CUTTER blocks: generation cannot compute a path without
+         * a diameter. A row with no T NUMBER does not - it inherits the
+         * operation's number exactly as resolveToolDescriptor's drillMap does
+         * (`assigned ?? descriptor.number`), so refusing here would block
+         * geometry the pipeline can already emit. It reports as a note, and the
+         * inherited number joins `numbers` so the card's tool list stays honest.
+         * An empty table never blocks. EasyShape has no operation until its
+         * first generation, so blocking there would block the run that builds
+         * the rows in the first place.
+         */
+        static describeTable(operation, settings) {
+            const multiTool = DrillHandler.isMultiTool(settings);
+            const rows = operation?.drillTable?.rows ? Object.values(operation.drillTable.rows) : [];
+            const sizes = operation?.drillSummary?.sizes || [];
+            const counts = { peck: 0, mill: 0, skip: 0 };
+            const numbers = new Set();
+            const unassigned = [];
+            const unnumbered = [];
+
+            if (multiTool) {
+                for (const row of rows) {
+                    counts[row.strategy] = (counts[row.strategy] || 0) + 1;
+                    if (row.strategy === 'skip') continue;
+                    const hasTool = (row.toolDiameter !== null && row.toolDiameter > 0) || Boolean(row.toolId);
+                    if (!hasTool) unassigned.push(row.key);
+                    if (row.toolNumber > 0) numbers.add(row.toolNumber);
+                    else unnumbered.push(row.key);
+                }
+            } else {
+                counts[settings?.millHoles !== false ? 'mill' : 'peck'] = sizes.length || rows.length;
+            }
+
+            const list = keys => keys.map(k => `⌀${k}`).join(', ');
+            const opNumber = Number(settings?.toolNumber) > 0 ? Number(settings.toolNumber) : null;
+            if (unnumbered.length > 0 && opNumber) numbers.add(opNumber);
+
+            let reason = null;
+            let note = null;
+            if (multiTool && rows.length > 0) {
+                if (counts.peck + counts.mill === 0) reason = 'Every size is set to Skip - nothing would be cut.';
+                else if (unassigned.length > 0) reason = `No tool assigned for ${list(unassigned)}.`;
+
+                if (unnumbered.length > 0) {
+                    note = opNumber
+                        ? `${list(unnumbered)} inherit the operation's T${opNumber} - assign a number to give them their own.`
+                        : `${list(unnumbered)} have no T number - no tool change is emitted for them.`;
+                }
+            }
+
+            return {
+                mode: multiTool ? 'perSize' : 'single',
+                preset: operation?.drillTable?.preset || null,
+                rows,
+                sizeCount: sizes.length || rows.length,
+                counts,
+                numbers: [...numbers].sort((a, b) => a - b),
+                unassigned,
+                unnumbered,
+                reason,
+                note,
+                complete: reason === null
+            };
+        }
+
+        /**
+         * Collapses one row plus the operation defaults into the identity a
+         * primitive carries downstream. In single-tool mode the row is NOT read:
+         * the operation answers everything, so per-size assignments survive a
+         * round trip through the checkbox untouched instead of being rebuilt.
+         * 
+         * In multi-tool mode cutting/peck/mill stay as the row wrote them - null
+         * means inherit, and the translator resolves that against the operation
+         * context. Only the cutter geometry resolves here, because generation
+         * needs it to compute paths.
+         */
+        resolveDrillRow(row, settings, key) {
+            const operationDiameter = parseFloat(settings.toolDiameter);
+
+            if (!DrillHandler.isMultiTool(settings)) {
+                const strategy = false !== settings.millHoles ? 'mill' : 'peck';
+                return {
+                    key: row?.key || key,
+                    strategy,
+                    toolDiameter: operationDiameter,
+                    stepOver: settings.stepOver,
+                    tool: {
+                        number: null,
+                        id: settings.tool ?? null,
+                        name: settings.tool ?? null,
+                        diameter: operationDiameter,
+                        type: 'mill' === strategy ? 'end_mill' : 'drill'
+                    },
+                    cutting: null,
+                    peck: null,
+                    mill: null
+                };
+            }
+
+            const toolDiameter = row?.toolDiameter > 0 ? row.toolDiameter : operationDiameter;
+            return {
+                key: row?.key || key,
+                strategy: row?.strategy || 'peck',
+                toolDiameter,
+                stepOver: row?.mill?.stepOver ?? settings.stepOver,
+                tool: {
+                    number: row?.toolNumber ?? null,
+                    id: row?.toolId ?? null,
+                    name: row?.toolId ?? null,
+                    diameter: toolDiameter,
+                    type: 'mill' === row?.strategy ? 'end_mill' : 'drill'
+                },
+                cutting: row?.cutting || null,
+                peck: row?.peck || null,
+                mill: row?.mill || null
+            };
+        }
+
+        /**
+         * Tool identity every generated drill primitive carries, resolved at
+         * creation so no consumer re-derives it from a diameter string.
+         */
+        stampDrillProps(action, extra) {
+            const entry = action.entry;
+            return {
+                drillKey: entry.key,
+                drillTool: entry.tool,
+                drillCutting: entry.cutting,
+                drillPeck: entry.peck,
+                drillMill: entry.mill,
+                toolDiameter: entry.toolDiameter,
+                ...extra
+            };
         }
 
         classifySVGDrillPrimitives(operation) {
@@ -186,26 +594,15 @@
 
             operation.primitives = accepted;
             operation.bounds = this.core.recalculateBounds(accepted);
-
             operation.drillSummary = {
-                holes: Array.from(holeSizes.entries())
-                    .sort((a, b) => parseFloat(a[0]) - parseFloat(b[0]))
-                    .map(([diameter, count]) => ({ diameter: parseFloat(diameter), count })),
-                slots: Array.from(slotSizes.entries())
-                    .sort((a, b) => a[0].localeCompare(b[0]))
-                    .map(([key, count]) => {
-                        const [w, l] = key.split('x').map(parseFloat);
-                        return { width: w, length: l, count };
-                    }),
+                ...DrillHandler.summarizePrimitives(accepted, 'svg'),
                 totalAccepted: accepted.length,
                 totalRejected: rejected.length,
-                rejected: rejected,
-                source: 'svg'
+                rejected
             };
 
             if (!operation.warnings) operation.warnings = [];
             operation.warnings.push(...warnings);
-
             this.debug(`Classified ${accepted.length} accepted, ${rejected.length} rejected from ${accepted.length + rejected.length} primitives`);
         }
 
@@ -369,22 +766,12 @@
             }
 
             operation.drillSummary = {
-                holes: Array.from(holeSizes.entries())
-                    .sort((a, b) => parseFloat(a[0]) - parseFloat(b[0]))
-                    .map(([diameter, count]) => ({ diameter: parseFloat(diameter), count })),
-                slots: Array.from(slotSizes.entries())
-                    .sort((a, b) => a[0].localeCompare(b[0]))
-                    .map(([key, count]) => {
-                        const [w, l] = key.split('x').map(parseFloat);
-                        return { width: w, length: l, count };
-                    }),
+                ...DrillHandler.summarizePrimitives(operation.primitives, 'svg'),
                 totalAccepted: operation.primitives.length,
                 totalRejected: 0,
                 rejected: [],
-                source: 'svg',
-                promoted: promoted
+                promoted
             };
-
             this.debug(`Promoted ${promoted} recoverable shape(s)`);
         }
 
@@ -423,7 +810,7 @@
 
             // Assign the result to the operation's offsets array
             operation.offsets = [{
-                id: `laser_drill_${operation.id}`,
+                id: this.offsetRecordId(operation.id, 0),
                 distance: offsetDist,
                 pass: 1,
                 type: 'drill',
@@ -451,11 +838,7 @@
                 const count = operation.offsets?.[0]?.primitives?.length || 0;
                 if (count > 0) {
                     operation.exportReady = true;
-                    operation.exportMetadata = {
-                        generatedAt: Date.now(),
-                        sourceOffsets: operation.offsets?.length || 0,
-                        strategy: opParams.clearStrategy || 'filled'
-                    };
+                    this.stampExportMetadata(operation, opParams.clearStrategy || 'filled');
                 }
                 return { success: count > 0, message: `Generated ${count} laser drill marks`, status: 'success' };
             }
@@ -470,59 +853,82 @@
                 return { success: true, message: `Generated with ${operation.warnings.length} warning(s)`, status: 'warning', refreshPanel: true };
             }
 
+            const drill = operation.offsets?.[0]?.metadata?.drill;
             const count = operation.offsets?.[0]?.primitives?.length || 0;
-            const mode = params.millHoles ? 'milling paths' : 'peck positions';
-            return { success: count > 0, message: `Generated ${count} ${mode}`, status: 'success' };
+            const parts = [];
+            if (drill?.peckCount) parts.push(`${drill.peckCount} peck position${drill.peckCount > 1 ? 's' : ''}`);
+            if (drill?.millCount) parts.push(`${drill.millCount} milling path${drill.millCount > 1 ? 's' : ''}`);
+            const detail = parts.length > 0 ? parts.join(', ') : `${count} feature(s)`;
+            return { success: count > 0, message: `Generated ${detail} across ${drill?.groups || 0} tool group(s)`, status: 'success' };
         }
 
         /**
-         * Separates a drill operation's preview into milled paths and peck groups by diameter.
-         * Works regardless of millHoles setting - a milled operation still generates pecks
-         * for holes too small to mill.
+         * Separates a drill operation's preview into milled and pecked groups,
+         * both keyed on the string generation stamped. Milled paths group the
+         * same way pecks do because they carry the same per-size cutter: lumping
+         * every diameter into one file emitted them under a single T word, so a
+         * 1.5mm and a 3.2mm end mill cut the same program.
+         * Falls back to the hole diameter for operations generated before the
+         * drill table.
          */
         static groupPrimitivesByDiameter(operation) {
-            if (!operation.preview?.primitives) return { milledPrimitives: [], peckGroups: [] };
+            if (!operation.preview?.primitives) return { milledGroups: [], peckGroups: [] };
 
-            const milledPrimitives = [];
-            const pecksByDiameter = new Map();
+            const millsByKey = new Map();
+            const pecksByKey = new Map();
 
             for (const prim of operation.preview.primitives) {
-                if (prim.properties?.role === 'peck_mark') {
-                    const dia = parseFloat(
-                        (prim.properties?.originalDiameter || prim.properties?.diameter || 0).toFixed(3)
-                    );
-                    if (!pecksByDiameter.has(dia)) pecksByDiameter.set(dia, []);
-                    pecksByDiameter.get(dia).push(prim);
-                } else {
-                    milledPrimitives.push(prim);
-                }
+                const props = prim.properties;
+                const key = props?.drillKey || DrillHandler.diameterKey(props?.originalDiameter || props?.diameter || 0);
+                const target = props?.role === 'peck_mark' ? pecksByKey : millsByKey;
+                if (!target.has(key)) target.set(key, []);
+                target.get(key).push(prim);
             }
 
-            const peckGroups = Array.from(pecksByDiameter.entries())
-                .sort((a, b) => a[0] - b[0])
-                .map(([diameter, primitives]) => ({ diameter, primitives }));
+            const toGroups = map => [...map.entries()]
+                .map(([key, primitives]) => ({ key, diameter: parseFloat(key), primitives }))
+                .sort((a, b) => a.diameter - b.diameter);
 
-            return { milledPrimitives, peckGroups };
+            return { milledGroups: toGroups(millsByKey), peckGroups: toGroups(pecksByKey) };
         }
 
         /**
          * Drill Strategy & Geometry Generation
          */
-
         async generateGeometry(operation, settings) {
-            // Clone to prevent mutating shared state
             settings = { ...settings };
+            this.debug('=== DRILL STRATEGY GENERATION ===');
 
-            this.debug(`=== DRILL STRATEGY GENERATION ===`);
-            this.debug(`Mode: ${settings.millHoles ? 'milling' : 'pecking'}`);
+            const table = this.ensureDrillTable(operation, settings);
+            this.debug(`Drill table (${table.preset}): ${Object.keys(table.rows).length} diameter group(s)`);
 
             const { plan, warnings } = this.determineDrillStrategy(operation, settings);
-            operation.warnings = warnings;
+
+            // Replace only this pass's warnings - parse-time rejections and
+            // recovery notes must survive a regenerate.
+            const kept = (operation.warnings || []).filter(w => w?.source !== 'drill-strategy');
+            operation.warnings = [...kept, ...warnings];
 
             const strategyGeometry = await this.generateGeometryFromPlan(plan, operation, settings);
+            const peckCount = strategyGeometry.filter(p => p.properties?.role === 'peck_mark').length;
+            const millCount = strategyGeometry.filter(p => p.properties?.role === 'drill_milling_path').length;
+
+            // Layer/preview width and the generateCNCPreview gate read this.
+            // In per-size mode the sidebar tool is hidden and its value is
+            // whatever it was last set to, so the widest bit the table
+            // actually calls is the honest figure. settings.toolDiameter is
+            // deliberately NOT touched: it is still the fallback a row that
+            // inherits resolves against.
+            let recordDiameter = settings.toolDiameter || settings.tool?.diameter;
+            if (DrillHandler.isMultiTool(settings)) {
+                const assigned = Object.values(table.rows)
+                    .filter(row => 'skip' !== row.strategy && row.toolDiameter > 0)
+                    .map(row => row.toolDiameter);
+                if (assigned.length > 0) recordDiameter = Math.max(...assigned);
+            }
 
             operation.offsets = [{
-                id: `drill_strategy_${operation.id}`,
+                id: this.offsetRecordId(operation.id, 0),
                 distance: 0,
                 pass: 1,
                 primitives: strategyGeometry,
@@ -531,11 +937,12 @@
                     sourceCount: operation.primitives.length,
                     finalCount: strategyGeometry.length,
                     generatedAt: Date.now(),
-                    toolDiameter: settings.toolDiameter || settings.tool?.diameter,
+                    toolDiameter: recordDiameter,
                     drill: {
-                        mode: settings.millHoles ? 'milling' : 'pecking',
-                        peckCount: strategyGeometry.filter(p => p.properties?.role === 'peck_mark').length,
-                        millCount: strategyGeometry.filter(p => p.properties?.role === 'drill_milling_path').length
+                        preset: table.preset,
+                        groups: Object.keys(table.rows).length,
+                        peckCount,
+                        millCount
                     }
                 },
                 settings: { ...settings }
@@ -544,11 +951,23 @@
             return operation.offsets;
         }
 
+        /**
+         * Resolves every feature against ITS row in the drill table rather
+         * than one global cutter. A row that inherits resolves to the
+         * operation tool, which is what makes the flatten preset identical to
+         * the single-tool behaviour.
+         */
         determineDrillStrategy(operation, settings) {
             const plan = [];
             const warnings = [];
-            const toolDiameter = parseFloat(settings.toolDiameter);
-            const minMillingMargin = 0.05; // Slightly arbitrary safeguard for helixes that are too tight
+            const rows = operation.drillTable?.rows || {};
+            const minMillingMargin = D.toolpath.generation.drilling.millMargin;
+
+            // Counted per diameter - one warning per row, not one per hole.
+            const skipped = new Map();
+            const unmillable = new Map();
+            const oversize = new Map();
+            const bump = (map, key) => map.set(key, (map.get(key) || 0) + 1);
 
             for (const primitive of operation.primitives) {
                 const role = primitive.properties?.role;
@@ -559,31 +978,39 @@
                         continue;
                     }
                 } else if (role === 'drill_slot') {
-                    if (!primitive.properties?.originalSlot) {
-                        console.warn(`[DrillHandler] Drill slot ${primitive.id} missing originalSlot data`);
-                        continue;
-                    }
-                    const slot = primitive.properties.originalSlot;
-                    if (!slot.start || !slot.end) {
-                        console.warn(`[DrillHandler] Drill slot ${primitive.id} has invalid originalSlot`);
+                    const slot = primitive.properties?.originalSlot;
+                    if (!slot || !slot.start || !slot.end) {
+                        console.warn(`[DrillHandler] Drill slot ${primitive.id} missing or invalid originalSlot data`);
                         continue;
                     }
                 } else {
                     continue;
                 }
 
-                let isSlot = role === 'drill_slot';
-                let featureSize = primitive.properties.diameter;
+                const featureSize = primitive.properties.diameter;
+                const key = DrillHandler.diameterKey(featureSize);
+                const entry = this.resolveDrillRow(rows[key], settings, key);
 
+                if (entry.strategy === 'skip') {
+                    bump(skipped, key);
+                    continue;
+                }
+
+                const toolDiameter = entry.toolDiameter;
+                if (!(toolDiameter > 0)) {
+                    bump(skipped, key);
+                    continue;
+                }
+
+                // A zero-length slot is a hole the plotter wrote as a route.
+                let isSlot = role === 'drill_slot';
                 if (isSlot) {
                     const slot = primitive.properties.originalSlot;
-                    if (slot) {
-                        const len = Math.hypot(slot.end.x - slot.start.x, slot.end.y - slot.start.y);
-                        if (len < PRECISION) {
-                            isSlot = false;
-                            primitive.center = slot.start;
-                            if (!primitive.radius) primitive.radius = featureSize / 2;
-                        }
+                    const length = Math.hypot(slot.end.x - slot.start.x, slot.end.y - slot.start.y);
+                    if (length < PRECISION) {
+                        isSlot = false;
+                        primitive.center = slot.start;
+                        if (!primitive.radius) primitive.radius = featureSize / 2;
                     }
                 }
 
@@ -592,64 +1019,52 @@
                 if (diff < -PRECISION) toolRelation = 'oversized';
                 else if (diff > PRECISION) toolRelation = 'undersized';
 
-                if (!isSlot) {
-                    if (settings.millHoles &&
-                        toolRelation === 'undersized' &&
-                        diff >= (minMillingMargin - EPSILON)) {
-                        plan.push({ type: 'mill', primitiveToOffset: primitive, toolRelation });
-                    } else {
-                        plan.push({
-                            type: 'peck',
-                            position: primitive.center,
-                            toolDiameter: toolDiameter,
-                            originalDiameter: featureSize,
-                            toolRelation: toolRelation
-                        });
-                    }
-                } else {
+                const wantsMill = entry.strategy === 'mill';
+                const canMill = toolRelation === 'undersized' && diff >= minMillingMargin - EPSILON;
+
+                if (isSlot) {
                     const slot = primitive.properties.originalSlot;
-                    if (!slot) continue;
-
-                    const isCenterline =
-                        toolRelation === 'exact' ||
-                        toolRelation === 'oversized' ||
-                        (toolRelation === 'undersized' && diff < minMillingMargin);
-
-                    if (settings.millHoles) {
-                        if (isCenterline) {
-                            plan.push({
-                                type: 'centerline',
-                                primitiveToOffset: primitive,
-                                isCenterline: true,
-                                toolRelation: toolRelation,
-                                originalSlot: slot
-                            });
-                        } else {
-                            plan.push({ type: 'mill', primitiveToOffset: primitive, toolRelation: 'undersized' });
-                        }
-                    } else {
-                        const proximityRisk = Math.hypot(slot.end.x - slot.start.x, slot.end.y - slot.start.y) < toolDiameter;
-                        plan.push(
-                            { type: 'peck', position: slot.start, toolDiameter, originalDiameter: featureSize, toolRelation },
-                            { type: 'peck', position: slot.end, toolDiameter, originalDiameter: featureSize, toolRelation, reducedPlunge: proximityRisk }
-                        );
+                    if (wantsMill) {
+                        if (canMill) plan.push({ type: 'mill', primitiveToOffset: primitive, toolRelation: 'undersized', entry });
+                        else plan.push({ type: 'centerline', primitiveToOffset: primitive, isCenterline: true, toolRelation, entry });
+                        continue;
                     }
+                    if (toolRelation === 'oversized') bump(oversize, key);
+                    const proximityRisk = Math.hypot(slot.end.x - slot.start.x, slot.end.y - slot.start.y) < toolDiameter;
+                    plan.push(
+                        { type: 'peck', position: slot.start, originalDiameter: featureSize, toolRelation, entry },
+                        { type: 'peck', position: slot.end, originalDiameter: featureSize, toolRelation, entry, reducedPlunge: proximityRisk }
+                    );
+                    continue;
                 }
+
+                if (wantsMill && canMill) {
+                    plan.push({ type: 'mill', primitiveToOffset: primitive, toolRelation, entry });
+                    continue;
+                }
+                if (wantsMill) bump(unmillable, key);
+                if (toolRelation === 'oversized') bump(oversize, key);
+                plan.push({ type: 'peck', position: primitive.center, originalDiameter: featureSize, toolRelation, entry });
             }
+
+            for (const [key, count] of skipped) {
+                warnings.push({ message: `⌀${key}mm: ${count} feature(s) skipped - no usable tool assigned`, severity: 'warning', source: 'drill-strategy' });
+            }
+            for (const [key, count] of unmillable) {
+                warnings.push({ message: `⌀${key}mm: cutter too large to mill - ${count} feature(s) pecked at centre instead`, severity: 'warning', source: 'drill-strategy' });
+            }
+            for (const [key, count] of oversize) {
+                warnings.push({ message: `⌀${key}mm: assigned cutter is wider than the feature - ${count} hole(s) will cut oversize`, severity: 'warning', source: 'drill-strategy' });
+            }
+
             return { plan, warnings };
         }
 
         async generateGeometryFromPlan(plan, operation, settings) {
             const strategyPrimitives = [];
-            const toolDiameter = parseFloat(settings.toolDiameter);
-
-            if (!toolDiameter || isNaN(toolDiameter) || toolDiameter <= 0) {
-                console.error(`[DrillHandler] Invalid tool diameter (${toolDiameter})`);
-                return [];
-            }
-
             const onProgress = operation._onProgress || null;
             const total = plan.length;
+            const minFeatureSize = 0.01;
 
             for (let actionIdx = 0; actionIdx < total; actionIdx++) {
                 // Chunked: the loop is synchronous, so a tick without a
@@ -664,87 +1079,69 @@
                 }
 
                 const action = plan[actionIdx];
+                const entry = action.entry;
+                const toolDiameter = entry.toolDiameter;
+                const toolRadius = toolDiameter / 2;
 
                 if (action.type === 'peck') {
-                    strategyPrimitives.push(new CirclePrimitive(
-                        action.position,
-                        toolDiameter / 2,
-                        {
-                            role: 'peck_mark',
-                            holeIndex: actionIdx,
-                            originalDiameter: action.originalDiameter,
-                            toolDiameter: toolDiameter,
-                            toolRelation: action.toolRelation,
-                            reducedPlunge: action.reducedPlunge,
-                            slotPart: action.slotPart,
-                            operationId: operation.id
-                        }
-                    ));
+                    strategyPrimitives.push(new CirclePrimitive(action.position, toolRadius, this.stampDrillProps(action, {
+                        role: 'peck_mark',
+                        holeIndex: actionIdx,
+                        originalDiameter: action.originalDiameter,
+                        toolRelation: action.toolRelation,
+                        reducedPlunge: action.reducedPlunge,
+                        slotPart: action.slotPart,
+                        operationId: operation.id
+                    })));
+                    continue;
+                }
 
-                } else if (action.type === 'mill') {
+                if (action.type === 'mill') {
                     const source = action.primitiveToOffset;
-                    const toolRadius = toolDiameter / 2;
-                    const minFeatureSize = 0.01; // Slightly arbitrary safeguard REVIEW - can't remember what for though? force plunge entry instead of milling?
+                    const stepDist = toolDiameter * (entry.stepOver / 100);
 
                     if (source.type === 'circle') {
                         const holeRadius = source.radius;
                         const pathRadius = holeRadius - toolRadius;
 
                         if (pathRadius > minFeatureSize) {
-                            const stepOverPct = settings.stepOver;
-                            const stepDist = toolDiameter * (1.0 - (stepOverPct / 100.0));
-
                             const concentricPasses = [];
                             let currentRadius = pathRadius;
                             let p = 1;
-
                             while (currentRadius >= minFeatureSize) {
-                                concentricPasses.push(new CirclePrimitive(
-                                    source.center,
-                                    currentRadius,
-                                    {
-                                        role: 'drill_milling_path',
-                                        holeIndex: actionIdx,
-                                        operationId: operation.id,
-                                        toolDiameter: toolDiameter,
-                                        originalDiameter: holeRadius * 2,
-                                        toolRelation: action.toolRelation || 'undersized',
-                                        isOffset: true,
-                                        offsetType: 'internal',
-                                        pass: p++
-                                    }
-                                ));
-
+                                concentricPasses.push(new CirclePrimitive(source.center, currentRadius, this.stampDrillProps(action, {
+                                    role: 'drill_milling_path',
+                                    holeIndex: actionIdx,
+                                    operationId: operation.id,
+                                    originalDiameter: 2 * holeRadius,
+                                    toolRelation: action.toolRelation || 'undersized',
+                                    isOffset: true,
+                                    offsetType: 'internal',
+                                    pass: p++
+                                })));
                                 if (currentRadius <= toolRadius) break;
                                 currentRadius -= stepDist;
-                                if (currentRadius < minFeatureSize && currentRadius > 0) {
-                                    currentRadius = minFeatureSize;
-                                }
+                                if (currentRadius < minFeatureSize && currentRadius > 0) currentRadius = minFeatureSize;
                             }
-
                             strategyPrimitives.push(...concentricPasses.reverse());
                         } else {
-                            strategyPrimitives.push(new CirclePrimitive(
-                                source.center,
-                                toolDiameter / 2,
-                                {
-                                    role: 'peck_mark',
-                                    holeIndex: actionIdx,
-                                    originalDiameter: source.radius * 2,
-                                    toolDiameter: toolDiameter,
-                                    toolRelation: 'undersized_too_small',
-                                    operationId: operation.id
-                                }
-                            ));
+                            strategyPrimitives.push(new CirclePrimitive(source.center, toolRadius, this.stampDrillProps(action, {
+                                role: 'peck_mark',
+                                holeIndex: actionIdx,
+                                originalDiameter: 2 * source.radius,
+                                toolRelation: 'undersized_too_small',
+                                operationId: operation.id
+                            })));
                         }
-                    } else if (source.properties?.originalSlot) {
+                        continue;
+                    }
+
+                    if (source.properties?.originalSlot) {
                         const originalSlot = source.properties.originalSlot;
                         const slotWidth = source.properties.diameter || source.properties.width;
-
                         const dx = originalSlot.end.x - originalSlot.start.x;
                         const dy = originalSlot.end.y - originalSlot.start.y;
                         const slotLength = Math.hypot(dx, dy);
-
                         const pathThickness = slotWidth - toolDiameter;
 
                         if (pathThickness > minFeatureSize) {
@@ -752,9 +1149,6 @@
                             const centerX = (originalSlot.start.x + originalSlot.end.x) / 2;
                             const centerY = (originalSlot.start.y + originalSlot.end.y) / 2;
                             const isHorizontal = Math.abs(dx) > Math.abs(dy);
-                            const stepOverPct = settings.stepOver; // REVIEW - Is this logic flipped? 90% step-over is only doing less passes 10%?
-                            const stepDist = toolDiameter * (1.0 - (stepOverPct / 100.0));
-
                             const concentricPasses = [];
                             let currentShort = pathThickness;
                             let currentLong = pathLength;
@@ -762,7 +1156,6 @@
 
                             while (currentShort >= minFeatureSize && currentLong >= currentShort) {
                                 let obroundWidth, obroundHeight, cornerX, cornerY;
-
                                 if (isHorizontal) {
                                     obroundWidth = currentLong;
                                     obroundHeight = currentShort;
@@ -774,65 +1167,55 @@
                                     cornerX = centerX - currentShort / 2;
                                     cornerY = centerY - currentLong / 2;
                                 }
-
-                                concentricPasses.push(new ObroundPrimitive(
-                                    { x: cornerX, y: cornerY },
-                                    obroundWidth,
-                                    obroundHeight,
-                                    {
-                                        role: 'drill_milling_path',
-                                        holeIndex: actionIdx,
-                                        originalDiameter: slotWidth,
-                                        toolDiameter: toolDiameter,
-                                        originalSlot: originalSlot,
-                                        toolRelation: 'undersized',
-                                        operationId: operation.id,
-                                        isOffset: true,
-                                        offsetType: 'internal',
-                                        pass: p++
-                                    }
-                                ));
-
+                                concentricPasses.push(new ObroundPrimitive({ x: cornerX, y: cornerY }, obroundWidth, obroundHeight, this.stampDrillProps(action, {
+                                    role: 'drill_milling_path',
+                                    holeIndex: actionIdx,
+                                    originalDiameter: slotWidth,
+                                    originalSlot,
+                                    toolRelation: 'undersized',
+                                    operationId: operation.id,
+                                    isOffset: true,
+                                    offsetType: 'internal',
+                                    pass: p++
+                                })));
                                 if (currentShort <= toolDiameter) break;
-                                currentShort -= (2 * stepDist);
-                                currentLong -= (2 * stepDist);
+                                currentShort -= 2 * stepDist;
+                                currentLong -= 2 * stepDist;
                                 if (currentShort < minFeatureSize && currentShort > 0) {
                                     currentShort = minFeatureSize;
                                     currentLong = Math.max(currentLong, currentShort);
                                 }
                             }
-
                             strategyPrimitives.push(...concentricPasses.reverse());
                         } else {
                             console.warn(`[DrillHandler] Slot path too thin (${pathThickness.toFixed(3)}mm), skipping milling`);
                         }
                     }
-                } else if (action.type === 'centerline') {
+                    continue;
+                }
+
+                if (action.type === 'centerline') {
                     const source = action.primitiveToOffset;
                     const originalSlot = source.properties?.originalSlot;
-
-                    if (originalSlot) {
-                        const millingPath = new PathPrimitive([{
-                            points: [originalSlot.start, originalSlot.end],
-                            isHole: false,
-                            nestingLevel: 0,
-                            parentId: null,
-                            arcSegments: [],
-                            curveIds: []
-                        }], {
-                            role: 'drill_milling_path',
-                            holeIndex: actionIdx,
-                            isCenterlinePath: true,
-                            isDrillMilling: true,
-                            toolRelation: action.toolRelation,
-                            originalDiameter: source.properties.diameter,
-                            toolDiameter: toolDiameter,
-                            operationId: operation.id,
-                            originalSlot: originalSlot,
-                            closed: false,
-                        });
-                        strategyPrimitives.push(millingPath);
-                    }
+                    if (!originalSlot) continue;
+                    strategyPrimitives.push(new PathPrimitive([{
+                        points: [originalSlot.start, originalSlot.end],
+                        isHole: false,
+                        nestingLevel: 0,
+                        parentId: null,
+                        arcSegments: [],
+                        curveIds: []
+                    }], this.stampDrillProps(action, {
+                        role: 'drill_milling_path',
+                        holeIndex: actionIdx,
+                        isCenterlinePath: true,
+                        isDrillMilling: true,
+                        toolRelation: action.toolRelation,
+                        originalDiameter: source.properties.diameter,
+                        operationId: operation.id,
+                        originalSlot,
+                        closed: false
+                    })));
                 }
             }
 

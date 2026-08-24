@@ -89,8 +89,47 @@
             return resolved;
         }
 
-        /** Called when millHoles checkbox toggles - requires full panel rebuild */
-        onMillHolesToggle(value) {}
+        /** Label and enablement for the panel's primary action button.
+         * @param {string} stage current stage id
+         * @param {string} opType operation type
+         * @returns {{text: string, disabled: boolean}}
+         */
+        getActionButtonInfo(stage, opType) { return { text: 'Generate', disabled: false } }
+
+        /**
+         * millHoles and drillMultiTool both move which surface owns tool
+         * identity, so the table is re-derived and the whole panel rebuilt.
+         * Shared by both apps deliberately: a per-app copy is how EasyShape
+         * ended up toggling millHoles without invalidating anything.
+         */
+        onDrillToolingChange(name, value) {
+            const operation = this.resolveDrillOperation();
+            if (operation) {
+                const settings = this.parameterManager.getAllParameters(this.currentOperationId) || {};
+                try {
+                    this.core.getHandler('drill').ensureDrillTable(operation, settings);
+                } catch (e) {
+                    this.debug(`Drill table refresh skipped: ${e.message}`);
+                }
+            }
+            this.refreshOperationPanel(operation);
+            this.ui.setStatus('drillMultiTool' === name
+                ? (value
+                    ? 'Multi-tool drilling on - assign a tool per hole size.'
+                    : 'Single-tool drilling - the operation tool cuts every hole.')
+                : `Switched to ${value ? 'milling' : 'pecking'} mode`, 'info');
+        }
+
+        /**
+         * The core operation behind whatever the panel is editing. EasyTrace
+         * edits the operation directly; EasyShape edits a shape or a bucket and
+         * only the bucket's id is an operation id, so a shape-context toggle
+         * resolves to null and simply skips the table refresh.
+         */
+        resolveDrillOperation() {
+            if (this.currentBucket) return this.currentBucket.getOperation(this.core); // REVIEW - Does this make sense?
+            return this.core?.getOperation?.(this.currentOperationId) || null;
+        }
 
         /** Called after a successful parameter change to check if generated geometry should be invalidated */
         checkInvalidation(paramName) {}
@@ -159,13 +198,11 @@
             const pm = this.parameterManager;
             const getStage = paramName => pm.parameterDefinitions[paramName]?.stage || this.currentStage;
 
-            // Tool diameter resolution
-            if ((name === 'tool' || name.endsWith('Tool')) && this.toolLibrary) {
-                const resolvedDiam = ParameterManager.resolveToolDiameter(value, this.toolLibrary);
-                if (resolvedDiam !== null) {
-                    pm.setParameter(this.currentOperationId, getStage('toolDiameter'), 'toolDiameter', resolvedDiam);
-                    const diamInput = document.getElementById(`${this.getIdPrefix()}toolDiameter`);
-                    if (diamInput) diamInput.value = resolvedDiam;
+            // Tool selection change - sync all tool attributes
+            if (inputEl?.tagName === 'SELECT' && (name === 'tool' || name.endsWith('Tool')) && this.toolLibrary) {
+                const tool = this.toolLibrary.getTool(value);
+                if (tool) {
+                    this.syncToolParameters(tool, opType);
                 }
             }
 
@@ -183,11 +220,16 @@
                 if (result.error) this.ui.setStatus(result.error, 'error');
             }
 
-            // millHoles requires full panel rebuild (switches peck↔mill UI)
-            if (name === 'millHoles') {
+            // millHoles and drillMultiTool both move which surface owns tool
+            // identity, so the panel is rebuilt rather than patched.
+            // checkInvalidation is called here because the early return skips
+            // the shared call below it.
+            if ('millHoles' === name || 'drillMultiTool' === name) {
                 clearTimeout(this.changeTimeout);
                 this.saveCurrentState();
-                return void this.onMillHolesToggle(value);
+                this.checkInvalidation(name);
+                this.onDrillToolingChange(name, value);
+                return;
             }
 
             // Invalidate generated geometry when source params change
@@ -203,8 +245,58 @@
             // Debounced auto-save
             if (result.success) {
                 clearTimeout(this.changeTimeout);
-                const debounceDelay = CAMConfig.defaults.ui.timing.propertyDebounce;
-                this.changeTimeout = setTimeout(() => this.saveCurrentState(), debounceDelay);
+                this.changeTimeout = setTimeout(
+                    () => this.saveCurrentState(), D.ui.timing.propertyDebounce);
+            }
+        }
+
+        syncToolParameters(tool, opType) {
+            if (!tool || !this.currentOperationId) return;
+            const pm = this.parameterManager;
+            const prefix = this.getIdPrefix();
+            const setField = (paramName, val) => {
+                if (val === undefined || val === null) return;
+                const def = pm.parameterDefinitions[paramName];
+                if (!def) return;
+                if (def.operationTypes && !def.operationTypes.includes(opType)) return;
+                pm.setParameter(this.currentOperationId, def.stage || this.currentStage, paramName, val);
+                const el = document.getElementById(`${prefix}${paramName}`);
+                if (el) {
+                    if (el.type === 'checkbox') el.checked = !!val;
+                    else el.value = val;
+                }
+            };
+
+            const diam = this.toolLibrary.getToolDiameter(tool.id) ?? tool.geometry?.diameter ?? tool.geometry?.maxDiameter;
+            setField('toolDiameter', diam);
+
+            if (tool.geometry) {
+                if (tool.geometry.angle !== undefined) setField('vbitAngle', tool.geometry.angle);
+                if (tool.geometry.tipDiameter !== undefined) setField('vbitTipDiameter', tool.geometry.tipDiameter);
+                if (tool.geometry.cornerRadius !== undefined) {
+                    setField('reliefCornerRadius', tool.geometry.cornerRadius);
+                    setField('rotaryCornerRadius', tool.geometry.cornerRadius);
+                }
+                if (tool.geometry.tipType !== undefined) {
+                    setField('reliefToolShape', tool.geometry.tipType);
+                    setField('rotaryToolShape', tool.geometry.tipType);
+                }
+            }
+
+            if (tool.cutting) {
+                if (tool.cutting.feedRate !== undefined) setField('feedRate', tool.cutting.feedRate);
+                if (tool.cutting.plungeRate !== undefined) setField('plungeRate', tool.cutting.plungeRate);
+                if (tool.cutting.spindleSpeed !== undefined) setField('spindleSpeed', tool.cutting.spindleSpeed);
+                if (tool.cutting.spindleDwell !== undefined) setField('spindleDwell', tool.cutting.spindleDwell);
+                if (tool.cutting.cutDepth !== undefined) setField('cutDepth', tool.cutting.cutDepth);
+                if (tool.cutting.maxDepthPerPass !== undefined || tool.cutting.depthPerPass !== undefined) {
+                    setField('depthPerPass', tool.cutting.maxDepthPerPass ?? tool.cutting.depthPerPass);
+                    setField('drillDepthPerPass', tool.cutting.maxDepthPerPass ?? tool.cutting.depthPerPass);
+                }
+                if (tool.cutting.stepOver !== undefined) {
+                    setField('stepOver', tool.cutting.stepOver);
+                    setField('drillStepOver', tool.cutting.stepOver);
+                }
             }
         }
 
@@ -256,7 +348,7 @@
          * Returns the handler's result object { success, message, status }.
          */
         async runGeneration(operationId) {
-            const operation = this.core.operations.find(op => op.id === operationId);
+            const operation = this.core.getOperation(operationId);
             if (!operation) {
                 return { success: false, message: `Operation ${operationId} not found`, status: 'error' };
             }
@@ -279,6 +371,34 @@
             const taskId = sm?.beginTask?.(
                 this.getSpinnerLabel?.('geometry', operation.type) || 'Generating');
             const onProgress = (p) => sm?.tick?.(taskId, p);
+
+            // Tool number is the operator's responsibility and it is taken
+            // HERE, at generation, not at export. Scope matters: the check
+            // must ask whether toolNumber applies to THIS operation type, not
+            // whether it exists in the profile at all. Stencil is not in
+            // toolNumber's operationTypes, so loadFromOperation skips the key,
+            // getAllParameters returns undefined, and a global check blocks
+            // stencil generation outright.
+            const toolNumDef = this.parameterManager.parameterDefinitions.toolNumber;
+            // In multi-tool drilling the sidebar's number is hidden and the table
+            // carries one per size, so the gate that applies is describeTable's,
+            // not this one.
+            const multiToolDrill = 'drill' === operation.type && true === params.drillMultiTool;
+            const toolNumApplies = toolNumDef && !multiToolDrill
+                && (!toolNumDef.operationTypes || toolNumDef.operationTypes.includes(operation.type));
+            if (toolNumApplies) {
+                const toolNum = Number(params.toolNumber);
+                if (!Number.isInteger(toolNum) || toolNum < 1) {
+                    if (taskId != null) sm?.endTask?.(taskId);
+                    return {
+                        success: false,
+                        status: 'warning',
+                        message: 'Enter a tool number (the T word your controller ' +
+                            'receives) before generating. If your machine has no ' +
+                            'tool changer, 1 is correct.'
+                    };
+                }
+            }
 
             // Let the overlay paint before any main-thread-blocking work.
             await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
@@ -313,7 +433,7 @@
          * Returns { success, message, status }.
          */
         async runPreview(operationId) {
-            const operation = this.core.operations.find(op => op.id === operationId);
+            const operation = this.core.getOperation(operationId);
             if (!operation) {
                 return { success: false, message: `Operation ${operationId} not found`, status: 'error' };
             }
@@ -328,16 +448,10 @@
             }
 
             operation.exportReady = true;
-
-            // preview.ready is what refresh3DPlans filters on, so this is the
-            // only moment a new toolpath can reach the 3D plan layer. The
-            // refresh is reentrancy-guarded and coalescing, so a generation-
-            // side call and this one collapse into one pipeline run.
-            this.ui.ctrl?.refresh3DPlans?.();
-
             return this.withDepthWarning(
                 { success: true, message: 'Preview generated', status: 'success' },
-                operation, this.parameterManager.getAllParameters(operationId));
+                operation, this.parameterManager.getAllParameters(operationId)
+            );
         }
 
         /** Appends a depth warning to a successful result, if there is one. */
@@ -350,24 +464,16 @@
 
         /**
          * cutDepth against the machine's configured floor. The only other
-         * check in the codebase is BasePostProcessor.validateCommand, which
-         * runs per command at G-code emission and reaches the user as a
-         * console.warn - after the file is written. surfaceZ mirrors
-         * buildToolpathContext exactly; if the two ever diverge this warning
-         * describes a depth the export never cuts.
+         * check is BasePostProcessor.validateCommand, which runs per command
+         * at emission and reaches the user after the file is written.
          * @returns {string|null}
          */
         checkDepthLimits(operation, params) {
             if (params.cutDepth == null) return null;   // 3D ops own their depths
-            const machine = this.core.settings?.machine;
-            const maxSafe = machine?.heights?.maxSafeDepth;
+            const maxSafe = this.core.settings?.machine?.heights?.maxSafeDepth;
             if (typeof maxSafe !== 'number') return null;
 
-            const stock = machine.stock || {};
-            const bedZero = stock.zeroReference && stock.zeroReference !== 'material'
-                && operation.type !== 'rotary';
-            const surfaceZ = bedZero ? (stock.thickness || 0) : 0;
-            const deepestZ = surfaceZ - Math.abs(params.cutDepth);
+            const deepestZ = this.core.resolveSurfaceZ(operation) - Math.abs(params.cutDepth);
 
             if (deepestZ < maxSafe) {
                 return `cut reaches Z ${deepestZ.toFixed(2)}mm, past the machine's max ` +
@@ -395,24 +501,107 @@
             return titles[category] || category.charAt(0).toUpperCase() + category.slice(1);
         }
 
-        createActionButton(text, disabled = false) {
+        createActionButton(text, disabled = false, title = '') {
             const wrapper = document.createElement('div');
             wrapper.className = 'property-actions';
-
             const button = document.createElement('button');
             button.className = 'btn btn--primary btn--block';
             button.id = 'action-button';
             button.textContent = text;
             button.disabled = disabled;
+            // A disabled button with no reason on it is a dead end - the card
+            // above says which sizes are unanswered, this repeats it on hover.
+            if (title) button.title = title;
             button.addEventListener('click', () => this.handleAction());
-
             wrapper.appendChild(button);
             return wrapper;
         }
 
+        /**
+         * Drill tooling card. The mode itself is the drillMultiTool checkbox in
+         * the form above - this card only reports what that choice means and
+         * opens the table. The Configure button is present in both modes so the
+         * surface never moves; it is inert in single-tool mode because the table
+         * is not read there.
+         */
+        createDrillToolingCard(operation, settings) {
+            const info = DrillHandler.describeTable(operation, settings);
+            const multiTool = 'perSize' === info.mode;
+
+            const section = document.createElement('div');
+            section.className = 'property-section drill-tooling-card';
+
+            const h3 = document.createElement('h3');
+            h3.textContent = this.lang?.get('drill.tooling.title', 'Drill Tooling') || 'Drill Tooling';
+            section.appendChild(h3);
+
+            const parts = [];
+            if (info.counts.peck) parts.push(`${info.counts.peck} pecked`);
+            if (info.counts.mill) parts.push(`${info.counts.mill} milled`);
+            if (info.counts.skip) parts.push(`${info.counts.skip} skipped`);
+
+            const summary = document.createElement('div');
+            summary.className = 'summary-line';
+            summary.innerHTML = info.sizeCount > 0
+                ? `<strong>${info.sizeCount} size${info.sizeCount > 1 ? 's' : ''}:</strong> ${parts.join(', ')}`
+                : '<strong>No hole sizes detected yet.</strong>';
+            section.appendChild(summary);
+
+            const detail = document.createElement('div');
+            detail.className = 'summary-line summary-secondary';
+            detail.textContent = multiTool
+                ? (info.numbers.length > 0
+                    ? `Tools: ${info.numbers.map(n => `T${n}`).join(', ')}`
+                    : 'No tool numbers assigned yet.')
+                : 'Every size is cut with the operation tool selected above.';
+            section.appendChild(detail);
+
+            if (info.reason) {
+                const warn = document.createElement('div');
+                warn.className = 'summary-line summary-warning';
+                warn.textContent = info.reason;
+                section.appendChild(warn);
+            }
+            if (info.note) {
+                const hint = document.createElement('div');
+                hint.className = 'summary-line summary-secondary';
+                hint.textContent = info.note;
+                section.appendChild(hint);
+            }
+
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'btn btn--block ' + (multiTool ? 'btn--primary' : 'btn--secondary');
+            button.textContent = this.lang?.get('drill.tooling.configure', 'Configure Drill Tooling...')
+                || 'Configure Drill Tooling...';
+            button.disabled = !multiTool || 0 === info.rows.length;
+            button.title = multiTool
+                ? (info.rows.length
+                    ? 'Assign a tool, a T number and a strategy per hole size.'
+                    : 'No hole sizes detected yet - generate once to build the table.')
+                : 'Enable Multi-Tool Drilling to assign a tool per hole size.';
+            button.addEventListener('click', () => {
+                this.ui.ctrl.modalManager?.showModal('drillTooling', {
+                    operationId: operation.id,
+                    // Full re-render: a modal edit can change the field set and
+                    // whether Generate is allowed, so swapping the card alone
+                    // would leave two of those three stale.
+                    onChange: () => this.refreshOperationPanel(operation)
+                });
+            });
+            section.appendChild(button);
+
+            return section;
+        }
+
+        /**
+         * Re-renders the form after a tooling change. Subclasses override.
+         */
+        refreshOperationPanel(operation) {}
+
         createWarningPanel(warnings) {
             const panel = document.createElement('div');
-            panel.className = 'warning-panel';
+            panel.className = 'parameter-warning-panel';
 
             const icon = `<svg class="cam-icon" width="14" height="14"><use href="#icon-warning"></use></svg>`;
 
@@ -426,14 +615,12 @@
             });
 
             const header = document.createElement('div');
-            header.style.fontWeight = 'bold';
-            header.style.marginBottom = 'var(--spacing-sm)';
+            header.className = 'parameter-warning-header';
             header.innerHTML = `${icon} ${unique.length} Warning${unique.length > 1 ? 's' : ''}`;
             panel.appendChild(header);
 
             const list = document.createElement('ul');
-            list.style.margin = '0';
-            list.style.paddingLeft = 'var(--spacing-md)';
+            list.className = 'parameter-warning-list';
 
             for (const w of unique) {
                 const item = document.createElement('li');
@@ -450,11 +637,9 @@
         // ═══════════════════════════════════════════════════════════════
 
         /**
-         * Shared stage-based action dispatch. Subclasses override hooks:
-         *   getActionStageLabel(stage, opType) - returns spinner text
-         *   onGenerationSuccess(operationId)   - post-generation UI update
-         *   onPreviewSuccess(operationId)      - post-preview UI update
-         *   getExportModalOptions(opType)      - data for export modal
+         * Stage-based action dispatch. Subclass hooks: getSpinnerLabel,
+         * onGenerationSuccess, onGenerationFailure, onPreviewSuccess,
+         * onStageTransition, onExportStage.
          */
         async handleAction() {
             this.saveCurrentState();
@@ -468,16 +653,13 @@
             if (!operation) return;
 
             const opType = this.resolveOperationType(operation);
-            const transitionDelay = D.layout.ui.transitionDelay;
+            const transitionDelay = D.ui.timing.uiTransitionDelay;
 
             const yieldToRender = () => new Promise(resolve => {
                 requestAnimationFrame(() => requestAnimationFrame(resolve));
             });
 
             if (stage === 'geometry') {
-                // this.ui.showCanvasSpinner?.(this.getSpinnerLabel?.('geometry', opType) || 'Generating...');
-                await yieldToRender(); // REVIEW - Is this still necessary now that the spinner is managed directly by the state manager?
-
                 try {
                     const result = await this.runGeneration(opId);
                     this.ui.setStatus(result.message, result.status);
@@ -497,8 +679,6 @@
                 } catch (e) {
                     console.error(`[${this.constructor.name}] Generation failed:`, e);
                     this.ui.setStatus('Failed: ' + e.message, 'error');
-                } finally {
-                    this.ui.hideCanvasSpinner?.();
                 }
                 this.returnFocusToTree();
                 return;

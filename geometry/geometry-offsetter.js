@@ -86,7 +86,6 @@
                 }
                 if (!converted.properties) converted.properties = {};
                 converted.properties.originalType = primitive.type;
-                converted.properties.wasConverted = true;
                 primitive = converted;
             }
 
@@ -128,6 +127,19 @@
             }
 
             if (primitive.type === 'path' && primitive.contours?.[0]) {
+                if (primitive.contours.length > 1) {
+                    // traceToPolygon is single-contour. A compound path
+                    // reaching here would lose every contour past the first.
+                    console.warn(`[Offsetter] expandStroke: ${primitive.contours.length}-contour path ` +
+                        `(id ${primitive.id}) - expanding each contour separately.`);
+                    const out = [];
+                    for (const c of primitive.contours) {
+                        const poly = GeometryUtils.traceToPolygon(c, width, primitive.properties || {});
+                        if (Array.isArray(poly)) out.push(...poly);
+                        else if (poly) out.push(poly);
+                    }
+                    return out.length ? out : null;
+                }
                 return GeometryUtils.traceToPolygon(
                     primitive.contours[0], width, primitive.properties || {}
                 );
@@ -275,14 +287,6 @@
                 p.properties.isOffset = true;
                 p.properties.offsetDistance = distance;
                 p.properties.offsetType = isInternal ? 'internal' : 'external';
-                // Smuggle raw polygonized strokes out ONLY when debugging:
-                // otherwise this pins the full stroke point set on every
-                // offset primitive for the operation's lifetime, and every
-                // downstream {...properties} spread copies the reference.
-                // REVIEW - This may force verbose debug to be turned on before toggling works (Gate toggle to need verbose?) but could limit metadata clutter.
-                if (debugState.enabled) {
-                    p.properties._preprocessedStrokes = boundaryStrokes;
-                }
             });
 
             this.debug(`Boolean offset result: ${resultPrimitives.length} primitive(s) (${isInternal ? 'internal' : 'external'})`);

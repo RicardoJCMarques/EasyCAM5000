@@ -13,7 +13,7 @@
     'use strict';
 
     const C = window.CAMConfig.constants;
-    const D = window.CAMConfig.defaults;;
+    const D = window.CAMConfig.defaults;
     const PRECISION = C.precision.coordinate;
     const debugState = D.debug;
 
@@ -73,7 +73,7 @@
 
         // Tessellation helpers
         tessellateCubicBezier(p0, p1, p2, p3) {
-            const a = [], t = C.geometry.tessellation.bezierSegments || 32; // 't' is segment count
+            const a = [], t = C.geometry.tessellation.bezierSegments ?? 32; // 't' is segment count
             // This loop starts at 0, so it *includes* the start point
             for (let s = 0; s <= t; s++) {
                 const e = s / t, o = 1 - e;
@@ -86,7 +86,7 @@
         },
 
         tessellateQuadraticBezier(p0, p1, p2) {
-            const a = [], t = C.geometry.tessellation.bezierSegments || 32;
+            const a = [], t = C.geometry.tessellation.bezierSegments ?? 32;
             // This loop starts at 0, so it *includes* the start point
             for (let s = 0; s <= t; s++) {
                 const e = s / t, o = 1 - e;
@@ -416,6 +416,13 @@
             );
         },
 
+        /**
+         * PIPELINE tessellation. Feeds Clipper and then ArcReconstructor,
+         * which recovers analytic arcs from these points - the 0.01mm
+         * targetLength is an input contract for that recovery, not a quality
+         * preference. Display tessellation is a different rule entirely:
+         * see renderer3d-toolpath.js arcSegmentCount (sagitta-bounded).
+         */
         getOptimalSegments(radius, type) {
             const config = C.geometry.segments;
             const finalTargetLength = config.targetLength;
@@ -1798,13 +1805,7 @@
          * @param {Set} [protectedIndices] - Indices that must survive (e.g. arc endpoints).
          * @returns {Object} { points, indexMap } where indexMap[oldIndex] = newIndex or -1.
          */
-        // REVIEW - Five independent polyline simplifiers ship in this repo:
-        // GeometryUtils.simplifyDouglasPeucker, VCarveGenerator.simplifyRDP/rdpOpen,
-        // FieldPaths.simplify3D, ToolpathOptimizer.simplifyCollinearPoints and
-        // GerberParser.simplifyRDP. Consolidation is blocked on the worker boundary
-        // (vcarve and fieldpaths cannot reach GeometryUtils). Fix all five together
-        // or none.
-        simplifyDouglasPeucker(points, sqTolerance, protectedIndices = null) {
+        simplifyPolyline2D(points, sqTolerance, protectedIndices = null) {
             const len = points.length;
             if (len < 3) return { points: points.slice(), indexMap: points.map((_, i) => i) };
 
@@ -2258,6 +2259,21 @@
          * Expands arc segments in a contour into tessellated polyline points.
          * Returns a new contour with no arc metadata — pure polygon suitable for Clipper2.
          * The original contour is not modified.
+         *
+         * contour.arcSegments carries TWO encodings and they are not
+         * interchangeable - they state different things about contour.points:
+         *   SPAN  (obroundToPath, primitiveToPath 'arc', circleToPath):
+         *         endIndex is beyond startIndex + 1. points is a COMPLETE
+         *         tessellated polygon; arcSegments is analytic annotation on top.
+         *         Safe to hand straight to Clipper, computeBounds, canvas fill
+         *         and the SVG exporters.
+         *   CHORD (parsers, ArcReconstructor.reconstructSingleContour):
+         *         endIndex === startIndex + 1, no points between. The
+         *         tessellation was DROPPED. points alone is lossy and every
+         *         consumer must come through here or read arcSegments itself.
+         * This function accepts both and re-tessellates either way, so a span's
+         * interior points are redundant for this consumer specifically - that is
+         * not a licence to emit chord where a raw points reader is downstream.
          */
         // TODO [ARC-ENCODING] - contour.arcSegments has two encodings: CHORD
         // (endIndex === startIndex + 1, no points between) and SPAN (endIndex

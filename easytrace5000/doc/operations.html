@@ -59,7 +59,7 @@
                 "author": { "@id": "https://www.eltryus.design/#organization" },
                 "publisher": { "@id": "https://www.eltryus.design/#organization" },
                 "datePublished": "2025-01-16",
-                "dateModified": "2026-03-02"
+                "dateModified": "2026-08-24"
             },
             {
             "@type": "BreadcrumbList",
@@ -148,6 +148,8 @@
                 <h2><svg class="cam-icon" width="22" height="22" aria-hidden="true"><use href="#icon-op-drilling"></use></svg> Drilling <span class="doc-badge doc-badge--stable">Stable</span></h2>
                 <p>Handles holes from Excellon files or SVG circles/obrounds. The handler measures each hole against the tool diameter and chooses a strategy automatically: a <strong>peck/plunge</strong> drill when the tool matches the hole, or a <strong>circular milling</strong> path when the hole is larger than the tool (enable <em>Mill Holes</em>).</p>
                 <p><strong>Use it for:</strong> through-holes, vias, and slotted mounting holes.</p>
+                <p><strong>Multi-tool drilling.</strong> Turn on <em>Multi-Tool Drilling</em> to open a per-diameter table: every hole size gets its own strategy (peck, mill or skip), its own cutter diameter and its own T number. <em>Auto-match Tool Library</em> fills strategy and cutter from the tool library; <em>Copy Excellon T numbers</em> pulls the file's header indices, which are file indices and not magazine slots - check them against the machine. A size left without a T number inherits the operation's number rather than blocking.</p>
+                <p>On export, a single-file job emits the swaps inline. In multi-file mode, <em>Split drill files by hole diameter</em> writes one program per size so each file loads exactly one tool.</p>
                 <p><strong>Key parameters:</strong> mill holes + mill step-over (for oversize holes); canned cycle (G81/G82/G83/G73), peck depth, dwell time, retract height, and entry type for the drilling pass.</p>
             </section>
 

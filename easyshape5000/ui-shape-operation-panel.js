@@ -15,9 +15,8 @@
 (function() {
     'use strict';
 
-    /** Operation title colour, resolved through the app's CSS operation map. */
-    // REVIEW - EasyTrace5000 needs this too? Resolve inconsistency and fix --op-color vs --color-operation mismatches.
-    const opColorVar = (opType) => `var(--op-color-${opType})`;
+    /** Operation title colour, from the theme's operation palette. */
+    const opColorVar = (opType) => `var(--color-operation-${opType})`;
 
     const COMING_SOON_OPS = new Set(['pattern']);
 
@@ -49,37 +48,55 @@
             this.initBase(core, paramManager, appProfile, lang);
         }
 
+        /**
+         * The {id, type, settings} view ParameterManager wants, with
+         * userOverrides forwarded to the object that actually OWNS it.
+         *
+         * onParameterChange records overrides on the scene node or the
+         * bucket; commitToOperation and loadFromOperation read them off
+         * whatever object they are handed. A plain literal makes those two
+         * different objects, and the failure is silent in both directions:
+         * commit sees an empty set and takes its purge branch, deleting
+         * every saved key, and load sees an empty set and resolves every
+         * field from defaults. EasyTrace hands over the live operation, so
+         * it never had the problem.
+         */
+        paramSourceFor(owner, type, settings) {
+            return {
+                id: owner.id,
+                type,
+                settings,
+                get userOverrides() { return owner.userOverrides; },
+                set userOverrides(value) { owner.userOverrides = value; }
+            };
+        }
+
         normalizeForCommit(resolved) {
             // Shape panel: resolved is the shape node, operation is nested
             const shape = resolved;
             if (!shape?.operation) return null;
             // Also persist to the shape's local params via saveToSelection
             this.saveToSelection(shape.operation.type);
-            return {
-                id: shape.id,
-                type: shape.operation.type,
-                settings: shape.operation.params || {}
-            };
+            // Must be the LIVE params object - `|| {}` hands commit a
+            // throwaway and the write goes nowhere.
+            if (!shape.operation.params) shape.operation.params = {};
+            return this.paramSourceFor(shape, shape.operation.type, shape.operation.params);
         }
 
         /**
          * Two contexts, two persistence targets.
          *  - shape context: the base behaviour (commit into the shape's
          *    operation.params via normalizeForCommit).
-         *  - bucket context: write the bucket's own settings. Until now
-         *    OperationBucket.settings was initialised to {} and assigned
-         *    NOWHERE, so showBucketStage's loadFromOperation always seeded
-         *    from empty and the bucket's parameters lived only in the
-         *    ParameterManager's in-memory state.
+         *  - bucket context: write the bucket's own settings.
          */
         saveCurrentState() {
             if (!this.currentOperationId) return;
 
             if (this.currentBucket) {
-                this.currentBucket.settings = {
-                    ...this.currentBucket.settings,
-                    ...this.parameterManager.getAllParameters(this.currentOperationId)
-                };
+                // Through commitToOperation, not a blind spread: save and
+                // load have to agree on what userOverrides means, or the
+                // load side reverts everything the spread just wrote.
+                this.parameterManager.commitToOperation(this.currentBucket.toParamSource());
                 this.debug(`Saved bucket state for ${this.currentOperationId}`);
                 return;
             }
@@ -110,6 +127,9 @@
 
             const def = this.parameterManager.parameterDefinitions[paramName];
             if (!def || def.stage !== 'geometry') return;
+            // Identity-carrying geometry-stage fields (tool number) change no
+            // geometry; invalidating would discard offsets on every keystroke.
+            if (def.invalidates === false) return;
 
             const op = this.core.getOperation(bucket.id);
             if (!op || !op.offsets || op.offsets.length === 0) return;
@@ -122,14 +142,20 @@
             this.ui.setStatus(op.invalidatedReason, 'warning');
         }
 
-        onMillHolesToggle(value) {
+        /**
+         * A tooling change moves which fields exist and whether Generate is
+         * allowed. Only the bucket context has a core operation behind it, so
+         * the shape context just re-renders the form.
+         */
+        refreshOperationPanel() {
             const container = this.getFormContainer();
-            if (container) {
-                const values = this.parameterManager.getAllParameters(this.currentOperationId);
-                ParameterManager.evaluateConditionals(container, values,
-                    this.parameterManager.optionGates);
+            if (!container) return;
+            if (this.currentBucket) {
+                this.showBucketStage(container, this.currentBucket, 'geometry');
+                return;
             }
-            this.ui.setStatus(`Switched to ${value ? 'milling' : 'pecking'} mode`, 'info');
+            const shape = this.resolveCurrentOperation();
+            if (shape) this.showOperationProperties(container, shape);
         }
 
         // ═══════════════════════════════════════════════════════════════
@@ -162,11 +188,9 @@
                 this.currentOperationId = shape.id;
 
                 // Load incoming shape's params into ParameterManager
-                this.parameterManager.loadFromOperation({
-                    id: shape.id,
-                    type: shape.operation.type,
-                    settings: shape.operation.params || {}
-                });
+                if (!shape.operation.params) shape.operation.params = {};
+                this.parameterManager.loadFromOperation(
+                    this.paramSourceFor(shape, shape.operation.type, shape.operation.params));
             }
 
             if (!container) return;
@@ -203,11 +227,10 @@
             // Seed PM state with full default cascade so captureFormStateForId
             // can read toolDiameter and all other defaults. Without this,
             // getAllParameters() returns {} and offset distances become NaN.
-            this.parameterManager.loadFromOperation({
-                id: shapeId,
-                type: opType,
-                settings: {}
-            });
+            const node = this.scene.findShape(shapeId);
+            this.parameterManager.loadFromOperation(
+                node ? this.paramSourceFor(node, opType, {})
+                     : { id: shapeId, type: opType, settings: {} });
 
             const values = this.parameterManager.getAllParameters(shapeId);
             this.renderParameterForm(container, opType, 'geometry', values);
@@ -255,9 +278,7 @@
             this.currentStage = paramStage;
 
             // Load bucket settings into parameter manager
-            this.parameterManager.loadFromOperation({
-                id: bucket.id, type: opType, settings: bucket.settings
-            });
+            this.parameterManager.loadFromOperation(bucket.toParamSource());
 
             // Header
             const header = document.createElement('div');
@@ -273,6 +294,14 @@
             const values = this.parameterManager.getAllParameters(bucket.id);
             this.renderParameterForm(container, opType, paramStage, values);
 
+            // Drill tooling sits directly above the action button, same as
+            // EasyTrace. Bucket context only: the shape context has no core
+            // operation yet, so there is no summary to describe.
+            if ('drill' === opType && 'geometry' === stage) {
+                const operation = this.core.getOperation(bucket.id);
+                if (operation) container.appendChild(this.createDrillToolingCard(operation, values));
+            }
+
             // Stage-appropriate action button
             const actionInfo = this.getBucketActionInfo(stage, bucket);
             if (actionInfo) {
@@ -283,6 +312,7 @@
                 btn.id = 'action-button';
                 btn.textContent = actionInfo.text;
                 btn.disabled = actionInfo.disabled;
+                if (actionInfo.title) btn.title = actionInfo.title;
                 btn.addEventListener('click', () => this.emit('bucketAction', { bucketId: bucket.id, stage }));
                 wrapper.appendChild(btn);
                 container.appendChild(wrapper);
@@ -290,12 +320,16 @@
         }
 
         /**
-         * Shape context has no core operation - the id in currentOperationId is
-         * a SHAPE id, and runGeneration resolves against core.operations. The
-         * generate action there is bucket creation; only the bucket context has
-         * an operation to regenerate, and it dispatches through 'bucketAction'
-         * from showBucketStage. The base implementation is EasyTrace5000's.
-         * REVIEW - EasyTrace5000 doesn't have a handleAction() method though?
+         * Two entry points, deliberately separate. In the SHAPE context there
+         * is no core operation yet - currentOperationId is a shape id and the
+         * action is bucket CREATION, so it emits 'createAndGenerate'. In the
+         * BUCKET context showBucketStage builds its own button and dispatches
+         * 'bucketAction' directly, so the super call below is a safety net for
+         * any base-built button that reaches here with a bucket loaded.
+         *
+         * EasyTrace has no override: TraceOperationPanel builds its buttons
+         * with createActionButton, which wires the base handleAction.
+         * REVIEW - If EasyTrace5000 extends the base handleAction, why is it shared like that? Shouldn't it be an extendable stub with the EasyTrace5000 code in ui-trace-operation-panel.js?
          */
         async handleAction() {
             if (this.currentBucket) return super.handleAction();
@@ -313,9 +347,16 @@
         // Action Dispatch
         // ═══════════════════════════════════════════════════════════════
 
+        /**
+         * The object that owns userOverrides for whatever is being edited.
+         * A BUCKET is its own owner - its id is not a scene node id, so
+         * findShape returned null and onParameterChange recorded no override
+         * at all for every parameter edited through a bucket.
+         */
         resolveCurrentOperation() {
-            const shape = this.scene.findShape(this.currentOperationId);
-            return shape?.operation ? shape : null;
+            if (this.currentBucket) return this.currentBucket;
+            const node = this.scene.findShape(this.currentOperationId);
+            return node?.operation ? node : null;
         }
 
         resolveOperationType(operation) {
@@ -336,7 +377,7 @@
 
         async onGenerationSuccess(opId, operation) {
             if (this.ui.rebuildLayers) this.ui.rebuildLayers();
-            this.ui.ctrl.refresh3DPlans?.();
+            this.ui.ctrl.refresh3DPlans();
         }
 
         onGenerationFailure(opId, operation, stage) { // EasyTrace5000 uses the base ,stage parameter.
@@ -346,7 +387,7 @@
 
         async onPreviewSuccess(opId, operation) {
             if (this.ui.rebuildLayers) this.ui.rebuildLayers();
-            this.ui.ctrl.refresh3DPlans?.();
+            this.ui.ctrl.refresh3DPlans();
         }
 
         onStageTransition(newStage) {
@@ -385,8 +426,17 @@
         }
 
         getBucketActionInfo(stage, bucket) {
-            if (stage === 'geometry') {
-                return { text: bucket.hasOffsets ? 'Regenerate Offsets' : 'Generate Offsets', disabled: false };
+            if ('geometry' === stage) {
+                const text = bucket.hasOffsets ? 'Regenerate Offsets' : 'Generate Offsets';
+                if ('drill' === bucket.type) {
+                    const operation = this.core.getOperation(bucket.id);
+                    const settings = this.parameterManager.getAllParameters(bucket.id);
+                    const info = operation ? DrillHandler.describeTable(operation, settings) : null;
+                    if (info && 'perSize' === info.mode) {
+                        return { text, disabled: !info.complete, title: info.complete ? '' : info.reason };
+                    }
+                }
+                return { text, disabled: false };
             }
             const stages = this.parameterManager.getStagesForPipeline(
                 this.getPipelineType(), bucket.type);

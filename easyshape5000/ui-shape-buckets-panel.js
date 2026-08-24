@@ -140,10 +140,30 @@
         }
 
         /**
-         * Reads current state from the real operation in core.
+         * Parameter-manager source for this bucket.
+         *
+         * bucket.settings is a FULL snapshot (saveCurrentState and
+         * captureFormStateForId write the whole merged param set), unlike a
+         * core operation's settings which holds only sparse overrides. So
+         * every key in it is authoritative and must be declared as an
+         * override - loadFromOperation reads opSettings ONLY inside the
+         * userOverrides branch, and passing a bare literal made it fall
+         * through to profile defaults and silently discard everything the
+         * user had entered.
          */
+        toParamSource() {
+            const settings = this.settings || {};
+            return {
+                id: this.id,
+                type: this.type,
+                settings,
+                userOverrides: Object.keys(settings)
+            };
+        }
+
+       /** Reads current state from the real operation in core. */
         getOperation(core) {
-            return core.operations.find(op => op.id === this.id) || null;
+            return core.getOperation(this.id) || null;
         }
 
         get hasOffsets() { return this.cachedHasOffsets; }
@@ -151,30 +171,14 @@
         get hasPreview() { return this.cachedHasPreview; }
 
         /**
-         * Refreshes cached flags from the real operation. Invalidation is NOT
-         * mirrored here - it lives on the operation, and resetOperationState
-         * clears it at the start of every generation.
+         * Invalidation is NOT mirrored here - it lives on the operation, and
+         * resetOperationState clears it at the start of every generation.
          */
         syncStateFromOperation(core) {
             const op = this.getOperation(core);
             if (!op) return;
             this.cachedHasOffsets = op.offsets && op.offsets.length > 0;
             this.cachedHasPreview = op.preview?.ready === true;
-        }
-
-        /**
-         * Updates cached flags from the real operation. Called after generation.
-         */
-        syncStateFromOperation(core) {
-            const op = this.getOperation(core);
-            if (!op) return;
-            this.cachedHasOffsets = op.offsets && op.offsets.length > 0;
-            this.cachedHasPreview = op.preview?.ready === true;
-            // Clear invalidation after successful generation
-            if (this.cachedHasOffsets) {
-                this.isInvalidated = false;
-                this.invalidatedReason = null;
-            }
         }
     }
 
@@ -228,7 +232,7 @@
             const bucket = new OperationBucket(operation.id, type, label, shapeRefs);
             bucket.syncPrimitives(core, scene);
             this.buckets.set(operation.id, bucket);
-            this.renderBucket(bucket);
+            this.renderBucket(bucket, core);
             this.updateEmptyState();
             return operation.id;
         }
@@ -362,31 +366,43 @@
             this.emit('stageCleared', { bucketId, stage });
         }
 
-        // Selection
-        selectStage(bucketId, stage) {
-            // Clear all selection highlights
+        /**
+         * Selects a bucket node and publishes it. The 'select' event is the
+         * ONLY path to the right panel so an early return here silently
+         * freezes the workflow rather than failing visibly.
+         * @param {string} bucketId
+         * @param {'geometry'|'offsets'|'preview'} stage
+         * @param {Event} [e] - click event, when the node is already known
+         */
+        selectStage(bucketId, stage, e = null) {
+            const row = this.container?.querySelector(`.bucket-row[data-bucket-id="${bucketId}"]`);
+            if (!row) return;
+
+            let target;
+            if (stage === 'geometry') {
+                target = row.querySelector('.bucket-header');
+            } else {
+                target = e?.target
+                    ? e.target.closest('.stage-node')
+                    : row.querySelector(`.stage-node[data-stage="${stage}"]`);
+
+                if (target?.classList.contains('is-gated')) return;
+
+                // Stage node is gone (data was deleted) - fall back to geometry.
+                if (!target) {
+                    target = row.querySelector('.bucket-header');
+                    stage = 'geometry';
+                }
+            }
+            if (!target) return;
+
+            // Single selection across the whole panel.
             this.container.querySelectorAll('.bucket-header.selected, .stage-node.selected')
                 .forEach(el => el.classList.remove('selected'));
 
+            target.classList.add('selected');
             this.selectedNode = { bucketId, stage };
-
-            const row = this.container.querySelector(`.bucket-row[data-bucket-id="${bucketId}"]`);
-            if (!row) return;
-
-            if (stage === 'geometry') {
-                row.querySelector('.bucket-header')?.classList.add('selected');
-            } else {
-                const stageNode = row.querySelector(`.stage-node[data-stage="${stage}"]`);
-                if (stageNode) {
-                    stageNode.classList.add('selected');
-                } else {
-                    // Stage doesn't exist in DOM (data was deleted) - fall back to header
-                    row.querySelector('.bucket-header')?.classList.add('selected');
-                    this.selectedNode.stage = 'geometry';
-                }
-            }
-
-            this.emit('select', { bucketId, stage: this.selectedNode.stage });
+            this.emit('select', { bucketId, stage });
         }
 
         getSelectedBucketId() {
@@ -395,6 +411,25 @@
 
         getSelectedStage() {
             return this.selectedNode?.stage || null;
+        }
+
+        /**
+         * Prerequisite gating for a stage NODE. Takes the intrinsic node name
+         * ('offsets' | 'preview'), not the parameter-stage name - buildStages
+         * is the only caller and that is the vocabulary it iterates. Mixing
+         * the two is what gated every freshly generated bucket's Offsets node
+         * on a preview that had not been built yet.
+         *
+         * buildStages already skips nodes with no data, so this is currently
+         * never true; it stays as the explicit invariant, and as the hook if
+         * unmet stages are ever rendered greyed instead of hidden.
+         * @param {Object} bucket
+         * @param {'offsets'|'preview'} stage
+         */
+        isStageGated(bucket, stage) {
+            if (stage === 'offsets') return !bucket.hasOffsets;
+            if (stage === 'preview') return !bucket.hasPreview;
+            return false;
         }
 
         // DOM Rendering
@@ -417,10 +452,14 @@
                 const stageLabel = stage.charAt(0).toUpperCase() + stage.slice(1);
 
                 const node = document.createElement('div');
-                node.className = 'stage-node';
                 node.dataset.stage = stage;
-                node.setAttribute('tabindex', '-1');
-                node.setAttribute('role', 'treeitem');
+                node.className = 'stage-node';
+
+                // Prerequisite gating.
+                if (this.isStageGated(bucket, stage)) {
+                    node.classList.add('is-gated');
+                    node.setAttribute('aria-disabled', 'true');
+                }
 
                 const isInvalidated = stage === 'offsets' && core &&
                     bucket.getOperation(core)?.isInvalidated && bucket.hasOffsets;
@@ -453,7 +492,7 @@
             }
         }
 
-        renderBucket(bucket) {
+        renderBucket(bucket, core = null) {
             const row = document.createElement('div');
             row.className = 'bucket-row';
             row.dataset.bucketId = bucket.id;
@@ -499,7 +538,7 @@
             const stages = document.createElement('div');
             stages.className = 'bucket-stages';
 
-            this.buildStages(bucket, stages, null);
+            this.buildStages(bucket, stages, core);
 
             row.appendChild(stages);
 
@@ -511,7 +550,7 @@
                 this.container.appendChild(row);
             }
 
-            this.updateStageInfo(bucket, row, null);
+            this.updateStageInfo(bucket, row, core);
         }
 
         updateBucketDOM(bucket, core) {
@@ -569,13 +608,12 @@
             }
         }
 
-        refreshPanel() {
-            if (!this.container) return;
-            this.container.querySelectorAll('.bucket-row').forEach(r => r.remove());
+        /** Operation type assigned to a shape via bucket membership, or null. */
+        getShapeOpType(shapeId) {
             for (const bucket of this.buckets.values()) {
-                this.renderBucket(bucket);
+                if (bucket.shapeRefs.includes(shapeId)) return bucket.type;
             }
-            this.updateEmptyState();
+            return null;
         }
 
         // Keyboard Navigation
@@ -584,7 +622,7 @@
             const focused = document.activeElement;
             if (!this.container.contains(focused)) return;
 
-            const rows = Array.from(this.container.querySelectorAll('.bucket-header, .stage-node:not(.is-gated)'));
+            const rows = Array.from(this.container.querySelectorAll('.bucket-header, .stage-node'));
             const idx = rows.indexOf(focused);
             if (idx === -1) return;
 
@@ -619,10 +657,6 @@
 
         // Queries
         getAllBuckets() { return Array.from(this.buckets.values()); }
-
-        getExportReadyBuckets() {
-            return this.getAllBuckets().filter(b => b.exportReady);
-        }
     }
 
     window.NavOperationsPanel = NavOperationsPanel;

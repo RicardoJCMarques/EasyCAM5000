@@ -10,39 +10,6 @@
  */
 
 /* ============================================================================
-   EASYSHAPE OPERATION MAP
-   Maps this app's operation TYPE strings to palette entries. The palette lives
-   in theme.css; nothing here invents a colour. JS reads the same names through
-   BaseAppUI.resolveOperationColor.
-
-   `drill` points at the shape-drill amber rather than the PCB blue: same type
-   string, different operation, different colour. This file is the only place
-   that mapping exists, so it no longer depends on stylesheet order.
-   ============================================================================ */
-
-/* REVIEW - fix --op-color vs --color-operation mismatching once and for all. */
-:root {
-    --op-color-profile: var(--color-operation-profile);
-    --op-color-pocket:  var(--color-operation-pocket);
-    --op-color-drill:   var(--color-operation-shape-drill);
-    --op-color-engrave: var(--color-operation-engrave);
-    --op-color-vcarve:  var(--color-operation-vcarve);
-    --op-color-relief:  var(--color-operation-relief);
-    --op-color-rotary:  var(--color-operation-rotary);
-    --op-color-pattern: var(--color-operation-pattern);
-}
-
-/* One accent local for every op-tagged row, set once for both row kinds. */
-.path-row[data-op="profile"],   .bucket-row[data-op="profile"]   { --op-accent: var(--op-color-profile); }
-.path-row[data-op="pocket"],    .bucket-row[data-op="pocket"]    { --op-accent: var(--op-color-pocket); }
-.path-row[data-op="drill"],     .bucket-row[data-op="drill"]     { --op-accent: var(--op-color-drill); }
-.path-row[data-op="engrave"],   .bucket-row[data-op="engrave"]   { --op-accent: var(--op-color-engrave); }
-.path-row[data-op="vcarve"],    .bucket-row[data-op="vcarve"]    { --op-accent: var(--op-color-vcarve); }
-.path-row[data-op="relief"],    .bucket-row[data-op="relief"]    { --op-accent: var(--op-color-relief); }
-.path-row[data-op="rotary"],    .bucket-row[data-op="rotary"]    { --op-accent: var(--op-color-rotary); }
-.path-row[data-op="pattern"],   .bucket-row[data-op="pattern"]   { --op-accent: var(--op-color-pattern); }
-
-/* ============================================================================
    TREE VIEW PADDING OVERRIDE
    ============================================================================ */
 
@@ -77,13 +44,23 @@
     background: var(--color-bg-hover);
 }
 
-.path-row.selected {
-    background: color-mix(in srgb, var(--op-accent, var(--color-accent-primary)) 15%, var(--color-bg-active));
-    border-left-color: var(--op-accent, var(--color-accent-primary));
+.path-row.selected,
+.bucket-header.selected {
+    background: color-mix(in srgb, var(--color-accent-primary) 15%, var(--color-bg-active));
+    border-left-color:  var(--color-accent-primary);
+}
+
+.bucket-header.selected {
+    background: var(--color-bg-active);
+}
+
+.group-row.selected {
+    background: var(--color-bg-active);
+    border-left: 2px solid var(--color-accent-primary);
 }
 
 .path-row[data-op] {
-    border-left-color: var(--op-accent, transparent);
+    border-left-color: var(--color-accent-primary, transparent);
 }
 
 .path-row .path-name {
@@ -96,6 +73,11 @@
 
 .path-row .btn--compact {
     opacity: 0.5;
+}
+
+.path-row.selected {
+    background: var(--color-bg-active);
+    border-left-color: var(--color-accent-primary);
 }
 
 .path-row:hover .btn--compact,
@@ -173,13 +155,6 @@
     color: var(--color-text-secondary);
 }
 
-/* Selected rows */
-.path-row.selected,
-.group-row.selected {
-    background: var(--color-bg-active);
-    border-left: 2px solid var(--color-accent-primary);
-}
-
 .path-row.selected .path-name,
 .group-row.selected .group-name {
     color: var(--color-accent-primary);
@@ -193,7 +168,15 @@
     position: absolute;
     inset: 0;
     overflow: hidden;
-    background: var(--color-canvas-background);
+    background: var(--color-render3d-background);
+    touch-action: none;
+    user-select: none;
+}
+
+/* three.js creates this canvas at mount; it has no id to target. */
+.viewport-3d canvas {
+    display: block;
+    touch-action: none;
 }
 
 .viewport-3d[hidden] {
@@ -234,7 +217,7 @@
     margin-bottom: var(--spacing-xs);
     border: 1px solid var(--color-border-primary);
     border-radius: var(--radius);
-    border-left: 3px solid var(--op-accent, var(--color-border-secondary));
+    border-left: 3px solid var(--color-border-secondary);
     overflow: hidden;
 }
 
@@ -252,10 +235,6 @@
 
 .bucket-header:hover {
     background: var(--color-bg-hover);
-}
-
-.bucket-header.selected {
-    background: color-mix(in srgb, var(--op-accent, var(--color-accent-primary)) 15%, var(--color-bg-active));
 }
 
 .bucket-toggle {
@@ -309,7 +288,7 @@
 
 .stage-node.selected {
     background: var(--color-bg-active);
-    border-left: 2px solid var(--bucket-op-color, var(--color-accent-primary));
+    border-left: 2px solid var(--color-accent-primary);
     padding-left: calc(var(--spacing-lg) - 2px);
 }
 

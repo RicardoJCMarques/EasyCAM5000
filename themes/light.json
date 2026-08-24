@@ -1,16 +1,32 @@
 {
-  "_projectInfo": {
-    "file": "light.json",
-    "description": "Light Theme",
-    "author": "Eltryus - Ricardo Marques",
-    "see": "https://github.com/RicardoJCMarques/EasyCAM5000",
-    "license": "AGPL-3.0-or-later",
-    "copyright": "Copyright (C) 2025-2026 Eltryus - Ricardo Marques"
-  },
+  "_readme": [
+    "Companion to dark.json. Both shipped themes are kept COMPLETE (full key",
+    "parity with the reference) so sync-theme.js's parity gate can lint them",
+    "against each other. Drop-in themes are the partial case: once the loader",
+    "merges over dark.json, a user theme may define as few keys as it likes.",
+    "",
+    "base: 'light' -> the loader emits data-theme-base=\"light\". CSS that must",
+    "branch on light vs dark (icon assets, image filters) keys off THAT, never",
+    "off data-theme, which carries the theme id and cannot be enumerated once",
+    "themes are user-supplied.",
+    "",
+    "Values are NOT a mechanical inversion of dark.json. Anything drawn over",
+    "the 2D canvas (render2d.background #cdcdcd) or the 3D viewport",
+    "(render3d.background #e8eaed) needs luminance well below the surface it",
+    "sits on, so saturated high-luminance hues from the dark palette (#00ffff,",
+    "#ffff00, #44ff88) are darkened here rather than copied."
+  ],
 
-  "version": "0.9",
-  
   "id": "light",
+  "label": "Light",
+  "base": "light",
+  "description": "Default light theme.",
+  "author": "Eltryus - Ricardo Marques",
+  "license": "AGPL-3.0-or-later",
+  "homepage": "https://github.com/RicardoJCMarques/EasyCAM5000",
+
+  "tokens": {},
+
   "colors": {
     "background": {
       "primary": "#ffffff",
@@ -54,12 +70,12 @@
       "profile": "#6dd3a0",
       "pocket": "#5a8acf",
       "engrave": "#c794d6",
-      "shapeDrill": "#d8a44a",
       "vcarve": "#e07a7a",
       "relief": "#e0a97a",
       "rotary": "#7ab8e0",
       "pattern": "#a8b56d"
     },
+
     "render2d": {
       "background": "#cdcdcd",
       "grid": "#909090",
@@ -69,6 +85,7 @@
       "ruler": "#909090",
       "rulerText": "#909090"
     },
+
     "render3d": {
       "background": "#e8eaed",
       "grid": "#c4c8cd",
@@ -77,13 +94,15 @@
       "cutShallow": "#0284c7",
       "cutDeep": "#b45309",
       "stock": "#b9a77f",
-      "surface": "#8a8168"
+      "surface": "#8a8168",
+      "tool": "#6b7280"
     },
+
     "geometry": {
       "source": {
         "isolation": "#ff9555",
         "drill": "#5588bb",
-        "clearing": "#44ff88",
+        "clearing": "#2eb872",
         "cutout": "#b0b0b0",
         "unassigned": "#228b9d",
         "stencil": "#90177d"
@@ -94,43 +113,48 @@
         "on": "#bcbc02"
       },
       "preview": "#0060dd",
-      "toolpath": "#00ffff",
-      "selection": "#00ffff",
+      "toolpath": "#0891b2",
+      "selection": "#0891b2",
       "laser": {
         "filled": "#0060dd"
       }
     },
-    
+
     "primitives": {
       "offsetInternal": "#00aa00",
       "offsetExternal": "#ff0000",
-      "peckMarkGood": "#16d329",
-      "peckMarkWarn": "#d2cb00",
+      "peckMarkGood": "#15a02a",
+      "peckMarkWarn": "#b38600",
       "peckMarkError": "#ff0000",
       "peckMarkSlow": "#ff5e00",
-      "reconstructedPath": "#ffff00",
-      "debugContourColors": ["#00ff00", "#ff0000", "#0000ff", "#ffff00", "#ff00ff", "#00ffff"],
-      "debugCurveColors": ["#ff0000", "#00ff00", "#0000ff", "#ffff00", "#ff00ff", "#00ffff"],
-      "debugLabel": "#FFFFFF",
-      "debugLabelStroke": "#000000"
+      "reconstructed": "#0891b2",
+      "reconstructedPath": "#7a6f00",
+      "debugContourColors": ["#00a600", "#ff0000", "#0000ff", "#b38600", "#ff00ff", "#0891b2"],
+      "debugCurveColors":   ["#ff0000", "#00a600", "#0000ff", "#b38600", "#ff00ff", "#0891b2"],
+      "debugLabel": "#000000",
+      "debugLabelStroke": "#ffffff"
     },
+
     "debug": {
       "points": "#ff00ff",
-      "arcs": "#00ffff",
+      "arcs": "#0891b2",
       "wireframe": "#00aa00",
       "bounds": "#ff0000",
-      "preprocessed-stroke": "#00ffff",
-      "preprocessed-fill": "#0a3333"
+      "preprocessedStroke": "#0891b2",
+      "preprocessedFill": "#cfe9ec"
     },
-    "bw":{
+
+    "bw": {
       "black": "#000000",
       "white": "#ffffff"
     },
+
     "pipelines": {
-    "cnc": "#cc6600",
-    "laser": "#9333ea",
-    "3d": "#0e7490"
+      "cnc": "#cc6600",
+      "laser": "#9333ea",
+      "3d": "#0e7490"
     },
+
     "interaction": {
       "sponsorship": "#4f46e5",
       "sponsorshipText": "#5b21b6",

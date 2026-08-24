@@ -29,7 +29,6 @@
             this.renderer3D = null;
             this._renderMode = '2d';
             this._modeSwitching = false;
-            this._plansRefreshing = false;
             this._plansQueued = false;
         }
 
@@ -165,10 +164,9 @@
             this._renderMode = '3d';
 
             try {
-                const view = await this.open3DPreview(container);  // mount + input stack only
-                this.refresh3D();            // stock + relief mesh + 2D geometry mirror
-                await this.refresh3DPlans(); // machine-ready toolpath plans
-                view.fitToContent();         // frame ONCE, on entry only
+                const view = await this.open3DPreview(container); // mount + input stack only
+                this.refresh3D(); // stock + relief mesh + 2D geometry mirror
+                view.fitToContent(); // frame ONCE, on entry only
                 container.focus();
 
                 // Update button active class and switch icon to 2D
@@ -394,41 +392,6 @@
         }
 
         /**
-         * Rebuilds machine-ready plans and pushes them to the 3D toolpath
-         * layer. Uses the SAME pair assembly as export (params committed →
-         * buildToolpathContext → executePipeline), so what renders IS what
-         * exports. Reentrancy-guarded: a refresh requested mid-run
-         * coalesces into one rerun. Never touches the camera.
-         */
-        async refresh3DPlans() {
-            if (this._renderMode !== '3d' || !this.renderer3D) return;
-            if (this._plansRefreshing) { this._plansQueued = true; return; }
-            this._plansRefreshing = true;
-            try {
-                const readyOps = this.core.operations.filter(op => this.core.isExportReady(op));
-                this.ensureBucketParamsLoaded(readyOps);
-                const pairs = this.buildOperationContextPairs(readyOps.map(op => op.id));
-                const { plans } = await this.core.executePipeline(pairs, { convertRotary: false });
-                // Developed (rotary) plans carry y = θ·refR - drawing them
-                // as machine XYZ paints the flat strip through the scene.
-                // The wrapped preview lives in GeometryLayer3D; plans join
-                // once the θ→A machine pass exists.
-                const displayable = plans.filter(p => !p.metadata?.developedSpace);
-                if (displayable.length < plans.length) {
-                    console.info('[EasyShape] 3D plans preview: ' +
-                        `${plans.length - displayable.length} rotary plan(s) hidden ` +
-                        '(developed space, θ→A stage pending).');
-                }
-                this.renderer3D?.setPlans(displayable);   // no fit - camera stays put
-            } catch (err) {
-                console.warn('3D plan refresh failed:', err.message);
-            } finally {
-                this._plansRefreshing = false;
-                if (this._plansQueued) { this._plansQueued = false; this.refresh3DPlans(); }
-            }
-        }
-
-        /**
          * Maps a 3D raycast hit back to a scene node and drives the SAME
          * selection set the tree and 2D tools use, so the parameter panel
          * reacts identically. Batched layers aren't node-addressable and
@@ -466,8 +429,8 @@
         /**
          * Guarded because enter3DMode awaits a dynamic import: a second
          * toggle mid-load would exit while the first entry is still in
-         * flight, leaving refresh3D/refresh3DPlans skipped and the status
-         * line claiming 3D over a 2D canvas.
+         * flight, leaving refresh3D skipped and the status line claiming
+         * 3D over a 2D canvas.
          */
         async toggle3DMode() {
             if (this._modeSwitching) return;
@@ -867,9 +830,7 @@
             for (const op of operations) {
                 const bucket = this.ui.opsPanel?.getBucket(op.id);
                 if (bucket) {
-                    this.parameterManager.loadFromOperation({
-                        id: op.id, type: op.type, settings: bucket.settings || {}
-                    });
+                    this.parameterManager.loadFromOperation(bucket.toParamSource());
                 }
             }
         }

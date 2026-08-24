@@ -21,7 +21,7 @@
                 supportsArcCommands: true,
                 supportsCannedCycles: true,
                 useM6: true,
-                supportsToolLengthComp: true,
+                toolLengthComp: { modes: ['table', 'none'], default: 'table' },
                 // 4th-axis: LinuxCNC handles both CAM-side substitution
                 // (A in degrees) and a linearly-calibrated axis replacement.
                 // G93 inverse time is native, and trajectory planning has no

@@ -1,6 +1,6 @@
 {
   "_projectInfo": {
-    "file": "profile-trace.json",
+    "file": "ui/profile-trace.json",
     "description": "EasyTrace5000 profile",
     "author": "Eltryus - Ricardo Marques",
     "see": "https://github.com/RicardoJCMarques/EasyCAM5000",
@@ -215,11 +215,33 @@
       "version": "0.2",
       "description": "Operation parameter definitions (Tool data delegated to ToolLibrary)"
     },
+    "drillMultiTool": {
+      "type": "checkbox",
+      "label": "Multi-Tool Drilling",
+      "stage": "geometry",
+      "category": "tool",
+      "operationTypes": "drill",
+      "default": false
+    },
     "tool": {
       "type": "select",
       "label": "Tool",
       "stage": "geometry",
       "category": "tool",
+      "conditional": "!drillMultiTool",
+      "operationTypes": ["isolation", "clearing", "cutout", "drill"]
+    },
+    "toolNumber": {
+      "type": "number",
+      "label": "Tool Number",
+      "stage": "geometry",
+      "category": "tool",
+      "default": 1,
+      "min": 1,
+      "max": 99,
+      "step": 1,
+      "invalidates": false,
+      "conditional": "!drillMultiTool",
       "operationTypes": ["isolation", "clearing", "cutout", "drill"]
     },
     "toolDiameter": {
@@ -328,7 +350,8 @@
       "stage": "geometry",
       "category": "drill",
       "operationTypes": "drill",
-      "default": true
+      "default": true,
+      "conditional": "!drillMultiTool"
     },
     "drillStepOver": {
       "type": "number",
@@ -341,7 +364,7 @@
       "min": 10,
       "max": 90,
       "step": 5,
-      "conditional": "millHoles"
+      "conditional": "!drillMultiTool && millHoles"
     },
     "_comment_drill_mill_strat": "═══ DRILL MILLING DEPTH (strategy, conditional on millHoles) ═══",
 
@@ -492,6 +515,7 @@
       "unit": "RPM",
       "min": 100,
       "max": 30000,
+      "default": 10000,
       "step": 1,
       "stage": "machine",
       "category": "feeds"

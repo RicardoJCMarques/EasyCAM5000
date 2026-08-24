@@ -13,9 +13,9 @@
         SPDX-License-Identifier: AGPL-3.0-or-later
     -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>Eltryus EasyCAM5000 Suite | Free Browser-Based Manufacturing Tools</title>
+    <title>EasyCAM5000 | Free Browser-Based CAM Software - PCB and CNC Router</title>
 
-    <meta name="description" content="Free, open-source, client-side CAM software for makers. Featuring EasyTrace5000 for PCB fabrication and EasyShape5000 for 2.5-3D routing tools.">
+    <meta name="description" content="Free, open-source, client-side CAM software for makers. Featuring EasyTrace5000 for PCB fabrication and EasyShape5000 for 2.5D, 3D and 4th-axis CNC routing.">
     <meta name="keywords" content="CAM Suite, PCB CAM, CNC Router software, browser CAM tool, open source CAM, G-code generator">
     <meta name="author" content="Eltryus">
     <meta name="robots" content="index, follow">
@@ -25,9 +25,9 @@
 
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://cam.eltryus.design/">
-    <meta property="og:title" content="Eltryus EasyCAM5000 Suite | Free Browser-Based Manufacturing Tools">
+    <meta property="og:title" content="EasyCAM5000 | Free Browser-Based CAM Software - PCB and CNC Router">
     <meta property="og:site_name" content="Eltryus EasyCAM5000 Suite">
-    <meta property="og:description" content="Free, open-source, client-side CAM software for makers. Featuring EasyTrace5000 for PCB fabrication and EasyShape5000 for 2.5-3D routing tools.">
+    <meta property="og:description" content="Free, open-source, client-side CAM software for makers. Featuring EasyTrace5000 for PCB fabrication and EasyShape5000 for 2.5D, 3D and 4th-axis CNC routing.">
     <meta property="og:image" content="https://cam.eltryus.design/images/social-preview.jpg">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
@@ -47,59 +47,75 @@
     <link rel="stylesheet" href="css/doc.css">
 
     <script type="application/ld+json">
-    {
-        "@context": "https://schema.org",
-        "@graph": [
-            {
-                "@type": "WebSite",
-                "@id": "https://cam.eltryus.design/#website",
-                "name": "Eltryus EasyCAM5000 Suite",
-                "url": "https://cam.eltryus.design/",
-                "inLanguage": "en",
-                "publisher": { "@id": "https://www.eltryus.design/#organization" }
-            },
-            {
-                "@type": "WebApplication",
-                "@id": "https://cam.eltryus.design/#suite",
-                "name": "Eltryus EasyCAM5000 Suite",
-                "alternateName": "EasyCAM5000",
-                "url": "https://cam.eltryus.design/",
-                "applicationCategory": "DeveloperApplication",
-                "applicationSubCategory": "CAM Software",
-                "operatingSystem": "Any (Browser-based)",
-                "browserRequirements": "Requires JavaScript and WebAssembly support",
-                "isAccessibleForFree": true,
-                "license": "https://www.gnu.org/licenses/agpl-3.0.html",
-                "description": "Free, open-source, client-side CAM software for makers. Featuring EasyTrace5000 for PCB fabrication and EasyShape5000 for 2.5-3D routing tools",
-                "isPartOf": { "@id": "https://cam.eltryus.design/#website" },
-                "author": { "@id": "https://www.eltryus.design/#organization" },
-                "publisher": { "@id": "https://www.eltryus.design/#organization" },
-                "subjectOf": { "@id": "https://www.eltryus.design/en/work/easytrace5000/#article" },
-                "sameAs": [
-                    "https://github.com/RicardoJCMarques/EasyCAM5000"
-                ],
-                "hasPart": [
-                        { "@id": "https://cam.eltryus.design/easytrace5000/#app" },
-                        { "@id": "https://cam.eltryus.design/easyshape5000/#app" }
-                ],
-                "potentialAction": [
-                    { "@type": "ViewAction", "target": "https://cam.eltryus.design/easytrace5000/", "name": "Launch EasyTrace5000" },
-                    { "@type": "ViewAction", "target": "https://cam.eltryus.design/easyshape5000/", "name": "Launch EasyShape5000" }
-                ],
-                "screenshot": {
-                    "@type": "ImageObject",
-                    "url": "https://cam.eltryus.design/images/social-trace.jpg",
-                    "caption": "Eltryus EasyCAM5000 Suite"
+        {
+            "@context": "https://schema.org",
+            "@graph": [
+                {
+                    "@type": "Organization",
+                    "@id": "https://www.eltryus.design/#organization",
+                    "name": "Eltryus",
+                    "url": "https://www.eltryus.design/",
+                    "sameAs": [
+                        "https://github.com/RicardoJCMarques",
+                        "https://cam.eltryus.design/"
+                    ]
+                },
+                {
+                    "@type": "WebSite",
+                    "@id": "https://cam.eltryus.design/#website",
+                    "name": "Eltryus EasyCAM5000 Suite",
+                    "url": "https://cam.eltryus.design/",
+                    "inLanguage": "en",
+                    "publisher": { "@id": "https://www.eltryus.design/#organization" }
+                },
+                {
+                    "@type": "WebApplication",
+                    "@id": "https://cam.eltryus.design/#suite",
+                    "name": "Eltryus EasyCAM5000 Suite",
+                    "alternateName": "EasyCAM5000",
+                    "url": "https://cam.eltryus.design/",
+                    "applicationCategory": "DeveloperApplication",
+                    "applicationSubCategory": "CAM Software",
+                    "operatingSystem": "Any (Browser-based)",
+                    "browserRequirements": "Requires JavaScript and WebAssembly support",
+                    "isAccessibleForFree": true,
+                    "offers": {
+                        "@type": "Offer",
+                        "price": "0",
+                        "priceCurrency": "EUR"
+                    },
+                    "license": "https://www.gnu.org/licenses/agpl-3.0.html",
+                    "description": "Free, open-source, client-side CAM software for makers. Featuring EasyTrace5000 for PCB fabrication and EasyShape5000 for 2.5D, 3D and 4th-axis CNC routing",
+                    "mainEntity": { "@id": "https://cam.eltryus.design/#suite" },
+                    "isPartOf": { "@id": "https://cam.eltryus.design/#website" },
+                    "author": { "@id": "https://www.eltryus.design/#organization" },
+                    "publisher": { "@id": "https://www.eltryus.design/#organization" },
+                    "subjectOf": { "@id": "https://www.eltryus.design/en/work/easytrace5000/#article" },
+                    "sameAs": [
+                        "https://github.com/RicardoJCMarques/EasyCAM5000"
+                    ],
+                    "hasPart": [
+                            { "@id": "https://cam.eltryus.design/easytrace5000/#app" },
+                            { "@id": "https://cam.eltryus.design/easyshape5000/#app" }
+                    ],
+                    "potentialAction": [
+                        { "@type": "ViewAction", "target": "https://cam.eltryus.design/easytrace5000/", "name": "Launch EasyTrace5000" },
+                        { "@type": "ViewAction", "target": "https://cam.eltryus.design/easyshape5000/", "name": "Launch EasyShape5000" }
+                    ],
+                    "screenshot": {
+                        "@type": "ImageObject",
+                        "url": "https://cam.eltryus.design/images/social-trace.jpg",
+                        "caption": "Eltryus EasyCAM5000 Suite"
+                    }
+                },
+                {
+                    "@type": "BreadcrumbList",
+                    "itemListElement": [
+                        { "@type": "ListItem", "position": 1, "name": "Eltryus EasyCAM5000 Suite", "item": "https://cam.eltryus.design/" }
+                    ]
                 }
-            },
-            {
-                "@type": "BreadcrumbList",
-                "itemListElement": [
-                    { "@type": "ListItem", "position": 1, "name": "Eltryus EasyCAM5000 Suite", "item": "https://cam.eltryus.design/" }
-                ]
-            }
-        ]
-    }
+            ]
+        }
     </script>
 </head>
 <body>
@@ -158,7 +174,7 @@
                             EasyTrace5000
                             <span class="doc-badge doc-badge--stable">Live</span>
                         </h3>
-                        <p>A PCB CAM tool. Convert Gerber, Excellon, and SVG files into CNC G-Code or Laser compatible files. Client-side replacement for FlatCAM.</p>
+                        <p>A PCB CAM tool. Converts Gerber, Excellon and SVG into CNC G-code, or into laser-ready SVG/PNG for copper ablation and paste stencils. Client-side replacement for FlatCAM.</p>
                         <span class="btn btn--primary btn--block" aria-hidden="true">Launch EasyTrace5000 Workspace</span>
                     </a>
 
@@ -171,7 +187,7 @@
                             EasyShape5000
                             <span class="doc-badge doc-badge--dev">Beta</span>
                         </h3>
-                        <p>A 2.5-3D CAM tool for basic cnc routing. Woodworking, furniture/sign making and 3D reliefs. Client-side replacement for Easel.</p>
+                        <p>A CNC router CAM tool for SVG and STL. Profile, pocket, drill and engrave, plus V-carving, 3D relief and 4th-axis rotary with a 3D toolpath preview. Client-side replacement for Easel.</p>
                         <span class="btn btn--primary btn--block" aria-hidden="true">Launch EasyShape5000 Workspace</span>
                     </a>
 
@@ -188,6 +204,18 @@
                 </figure>
                 <p>The entire application runs client-side in your browser using WebAssembly-powered geometry processing. Your board files never leave your machine - there are no cloud servers, no accounts, and no subscriptions. Open the workspace, drop your files in, configure your tool and machine parameters, and export ready-to-run G-code.</p>
                 <p>EasyTrace5000 has been developed and tested with files from KiCad and EasyEDA. It supports GRBL-based CNC controllers out of the box, with experimental post-processors for GrblHAL, Marlin, LinuxCNC, Mach3, and Roland RML machines.</p>
+            </section>
+
+            <!-- What is EasyShape5000 -->
+            <section id="about-shape">
+                <h2>EasyShape5000 CNC Router CAM Tool</h2>
+                <p>EasyShape5000 is the router side of the suite. It takes SVG artwork and STL meshes, arranges them on a scene graph you can move, group and transform non-destructively, and assigns a CAM operation per shape.</p>
+                <figure>
+                    <img src="images/EasyShape5000_workspace.webp" width="1152" height="648" alt="EasyShape5000 Workspace" loading="lazy">
+                    <figcaption>The EasyShape5000 workspace with a loaded scene</figcaption>
+                </figure>
+                <p>Four 2.5D operations are stable - profile cutting with holding tabs, pocket clearing, drilling, and centreline engraving. Three 3D operations are in beta: V-carving driven by a medial-axis solver, relief surfacing from a sliced mesh, and 4th-axis rotary in both continuous radial and indexed 3+1 kinematics. Generated toolpaths can be inspected and played back in a 3D preview before export.</p>
+                <p>It shares the parser, geometry engine, toolpath pipeline and every post-processor with EasyTrace5000 - the difference is the interface and the operation set.</p>
             </section>
 
             <!-- Manufacturing Workflows -->
@@ -228,35 +256,35 @@
                 <div class="feature-grid">
                     <div class="feature-card">
                         <h3>Multi-Operation Workflow</h3>
-                        <p>A non-destructive workflow supporting multi-pass trace isolation, internal copper clearing, and board cutouts with optional holding tabs.</p>
+                        <p>Non-destructive operations across both apps: trace isolation, copper clearing, drilling, board cutouts and paste stencils in EasyTrace; profile, pocket, drill and engrave in EasyShape. Each stage regenerates independently.</p>
                     </div>
                     <div class="feature-card">
                         <h3>Advanced Geometry Engine</h3>
-                        <p>Analytic parsing of Gerber RS-274X, Excellon, and full SVG paths (including Béziers). Powered by a WebAssembly compilation of Clipper2 for high-performance boolean operations.</p>
+                        <p>Analytic parsing of Gerber RS-274X, Excellon, full SVG paths (including Béziers) and binary/ASCII STL. Powered by a WebAssembly compilation of Clipper2 for high-performance boolean operations.</p>
                     </div>
                     <div class="feature-card">
                         <h3>True Arc Reconstruction</h3>
                         <p>Reconstructs true arcs (G2/G3) from polygonized post-Clipper2 data. This prevents the machine stuttering and poor surface finishes inherent to highly segmented toolpaths.</p>
                     </div>
                     <div class="feature-card">
-                        <h3>Smart Drill Strategy</h3>
-                        <p>Analyzes hole and slot diameters against your selected tool size to dynamically generate standard peck drilling or helical milling paths.</p>
+                        <h3>3D & 4th-Axis Toolpaths</h3>
+                        <p>V-carving from a medial-axis solver, relief surfacing from a sliced mesh with real tool-shape compensation, and rotary machining in both continuous radial and indexed 3+1 kinematics - with a 3D preview and playback.</p>
                     </div>
                     <div class="feature-card">
-                        <h3>Laser Geometry Engine</h3>
-                        <p>Dedicated laser pipeline generating physical kerf-compensated paths. Supports concentric offsets, alternating zig-zag hatching for ablation, and solid polygon fills for raster rendering.</p>
+                        <h3>Tool Changes & Length Offsets</h3>
+                        <p>Automatic <code>T/M6</code> blocks with retract, spindle stop and <code>G49</code>, plus explicit, implicit or probe-based tool length compensation - whichever your controller declares. Per-diameter drill tooling assigns one bit per hole size.</p>
                     </div>
                     <div class="feature-card">
                         <h3>100% Client-Side Privacy</h3>
-                        <p>Your proprietary board files never leave your computer. EasyTrace5000 runs entirely in the browser memory with no cloud processing, no accounts, and broad post-processor support (GRBL, Marlin, LinuxCNC).</p>
+                        <p>Your proprietary files never leave your computer. Everything runs in browser memory with no cloud processing and no accounts, exporting through ten post-processors from GRBL to Fanuc and Roland RML.</p>
                     </div>
                 </div>
             </section>
 
             <!-- Supported File Formats -->
             <section id="formats">
-                <h2>Supported File Formats</h2>
-                <p>EasyTrace5000 reads the standard fabrication file formats exported by PCB design tools like KiCad, EasyEDA, Altium, Eagle, and others.</p>
+                <h2>Formats In and Out</h2>
+                <p>The suite reads the standard fabrication files exported by PCB tools like KiCad, EasyEDA, Altium and Eagle, and the vector and mesh formats used by design and modelling software.</p>
                 <div class="feature-grid">
                     <div class="feature-card">
                         <h3>Gerber (RS-274X)</h3>
@@ -264,11 +292,23 @@
                     </div>
                     <div class="feature-card">
                         <h3>Excellon Drill</h3>
-                        <p>Drill files with hole positions, sizes, and slot definitions. Supports <code>.drl</code>, <code>.xln</code>, <code>.txt</code>, <code>.drill</code>, <code>.exc</code> extensions. The system automatically analyzes each hole against your tool diameter and selects the optimal drilling strategy.</p>
+                        <p>Drill files with hole positions, sizes, and slot definitions. Supports <code>.drl</code>, <code>.xln</code>, <code>.txt</code>, <code>.drill</code>, <code>.exc</code> extensions. Each diameter can be assigned its own cutter and tool number, or left to a single bit.</p>
                     </div>
                     <div class="feature-card">
                         <h3>SVG (Scalable Vector Graphics)</h3>
-                        <p>Full SVG path support including lines, arcs, quadratic and cubic Bézier curves. Useful for custom board outlines, decorative traces, or designs created outside traditional EDA tools.</p>
+                        <p>Full SVG path support including lines, arcs, quadratic and cubic Bézier curves. Group hierarchies from Inkscape, Illustrator or Figma are preserved. Useful for board outlines, decorative traces, and every EasyShape5000 2.5D operation.</p>
+                    </div>
+                    <div class="feature-card">
+                        <h3>STL (Mesh)</h3>
+                        <p>Binary and ASCII STL drives the relief and rotary operations. Slicing happens at generation time, so resolution, orientation and Z datum stay editable parameters rather than import settings.</p>
+                    </div>
+                    <div class="feature-card">
+                        <h3>G-code Out</h3>
+                        <p>Ten post-processors covering GRBL, grblHAL, UCCNC, Mach3, LinuxCNC, Fanuc, WinPC-NC, Makera, Marlin and Roland RML - each with its own file extension, tool-change dialect and machine limits.</p>
+                    </div>
+                    <div class="feature-card">
+                        <h3>Vector &amp; Raster Out</h3>
+                        <p>High-precision SVG with colour-coded hairline strokes and layers, or high-DPI PNG, ready for LightBurn or EZCAD. Used for laser copper ablation and solder-paste stencils.</p>
                     </div>
                 </div>
             </section>
@@ -286,15 +326,15 @@
 
                     <div class="step-card">
                         <h3>2 - Generate Geometry</h3>
-                        <p>The WebAssembly-powered geometry engine processes your files locally. Apply dynamic multi-pass offsets for trace isolation, calculate smart peck/mill strategies for drilling, or generate cross-hatch fills for laser ablation.</p>
+                        <p>The WebAssembly-powered geometry engine processes your files locally. Apply dynamic multi-pass offsets for trace isolation, calculate smart peck/mill strategies for drilling, carve variable-depth V-paths, or slice a mesh into a compensated relief surface.</p>
                     </div>
 
                     <div class="step-card">
                         <h3>3 - Preview & Export</h3>
                         <p>Choose your target pipeline:</p>
                         <ul class="sub-feature-list">
-                            <li><strong>CNC:</strong> Simulate 3D tool reach, set feeds and speeds, and export optimized <strong>G-code</strong>.</li>
-                            <li><strong>Laser:</strong> Assign layer colors, fuse colinear hatch segments, and export high-precision <strong>SVG or PNG</strong> files.</li>
+                            <li><strong>CNC:</strong> inspect the toolpath in 2D or 3D, set feeds, speeds and tool numbers, and export optimized <strong>G-code</strong> with automatic tool changes.</li>
+                            <li><strong>Laser:</strong> assign layer colors, fuse colinear hatch segments, and export high-precision <strong>SVG or PNG</strong> files.</li>
                         </ul>
                     </div>
                 </div>
@@ -302,8 +342,8 @@
 
             <!-- Sponsors -->
             <section id="support" class="sponsors-section">
-                <h2>Support EasyTrace5000</h2>
-                <p>This project is free and open-source (AGPLv3). Your support helps cover development time, hosting costs, and the test hardware needed for upcoming features like the laser processing pipeline.</p>
+                <h2>Support EasyCAM5000</h2>
+                <p>This project is free and open-source (AGPLv3). Your support helps cover development time, hosting costs, and the test hardware needed for upcoming features - including controllers for the post-processors that still have no real-machine coverage.</p>
 
                 <div class="sponsor-grid">
                     <a href="https://ko-fi.com/eltryus" target="_blank" class="sponsor-slot" title="Support on Ko-fi" draggable="false" aria-label="Support development on Ko-fi (opens in a new tab)">
@@ -339,7 +379,7 @@
         <!-- Footer -->
         <footer class="doc-footer" aria-label="Footer">
             <p>
-                <a href="https://github.com/RicardoJCMarques/EasyCAM5000/blob/main/CHANGELOG.md" title="Version" draggable="false">Version 1.4.9</a> |
+                <a href="https://github.com/RicardoJCMarques/EasyCAM5000/blob/main/CHANGELOG.md" title="Version" draggable="false">Version 1.5.0</a> |
                 <a href="easytrace5000/" draggable="false">Open EasyTrace5000</a> |
                 <a href="easyshape5000/" draggable="false">Open EasyShape5000</a> |
                 <a href="https://github.com/RicardoJCMarques/EasyCAM5000/issues" target="_blank" title="Repo" draggable="false" aria-label="GitHub Issues (opens in new tab)">Help</a> |

@@ -20,12 +20,22 @@
 
     // Centralized Layer Naming
     window.LayerNaming = {
+        // EasyTrace: one layer set per operation
         source: (opId) => `source_${opId}`,
         fused: (opId) => `fused_${opId}`,
         preprocessed: (opId) => `preprocessed_${opId}`,
         offsetCombined: (opId) => `offset_${opId}_combined`,
         offsetPass: (opId, passNumber) => `offset_${opId}_pass_${passNumber}`,
-        preview: (opId) => `preview_${opId}`
+        preview: (opId) => `preview_${opId}`,
+
+        // EasyShape: per-shape layers, per-op-type batches, per-bucket output
+        shape: (shapeId) => `shape_${shapeId}`,
+        batch: (opType) => `batch_${opType}`,
+        bucketOffset: (bucketId) => `bucket_offset_${bucketId}`,
+        bucketPreview: (bucketId) => `bucket_preview_${bucketId}`,
+
+        // Shared
+        stock: () => '__stock__'
     };
 
     class RendererCore {
@@ -79,19 +89,17 @@
                 showOffsets: renderingOptions.showOffsets,
                 showPreviews: renderingOptions.showPreviews,
                 showPreprocessed: renderingOptions.showPreprocessed,
-                showPreprocessedOffsets: renderingOptions.showPreprocessedOffsets,
                 enableArcReconstruction: renderingOptions.enableArcReconstruction,
                 blackAndWhite: renderingOptions.blackAndWhite,
                 debugPoints: renderingOptions.debugPoints,
                 debugArcs: renderingOptions.debugArcs,
-                showToolPreview: renderingOptions.showToolPreview,
-                theme: renderingOptions.theme,
+                theme: 'dark', // replaced by BaseAppUI.initRenderer
                 showStats: renderingOptions.showStats,
                 primitiveFilter: null
             };
 
             // LOD threshold (screen pixels)
-            this.lodThreshold = C.renderer.lodThreshold || 0.5;
+            this.lodThreshold = C.renderer.lodThreshold ?? 0.5;
 
             // Color schemes
             // Geometry colors are managed by the UI via options.resolveLayerColor, 
@@ -213,6 +221,7 @@
                 isHatch: options.isHatch,
                 operationId: options.operationId,
                 operationType: options.operationType,
+                role: options.role || null,
                 offsetType: options.offsetType,
                 distance: options.distance,
                 metadata: options.metadata,
@@ -454,9 +463,7 @@
                     maxY = Math.max(maxY, bounds.maxY);
                     validCount++;
                 } catch (error) {
-                    if (debugState.validation?.warnOnInvalidData) {
-                        console.warn(`[RendererCore] Primitive ${index} bounds failed:`, error);
-                    }
+                    this.debug(`[RendererCore] Primitive ${index} bounds failed:`, error);
                 }
             });
 
@@ -542,7 +549,7 @@
 
             // Shift the effective canvas area inward by the ruler size so geometry isn't hidden behind them
             const rulerSize = this.options.showRulers
-                ? (D.rendering.canvas.rulerSize || 20) * (this.devicePixelRatio || 1)
+                ? D.rendering.canvas.rulerSize * (this.devicePixelRatio || 1)
                 : 0;
 
             if (includeOrigin) {
@@ -585,7 +592,8 @@
                 scale = availableHeight / (bounds.height * fitPadding);
             }
 
-            this.viewScale = Math.max(0.1, scale);
+            this.viewScale = Math.max(C.renderer.zoom.min,
+                             Math.min(C.renderer.zoom.max, scale));
             this.viewOffset = {
                 x: rulerSize + availableWidth / 2 - bounds.centerX * this.viewScale,
                 y: rulerSize + availableHeight / 2 + bounds.centerY * this.viewScale

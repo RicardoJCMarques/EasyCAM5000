@@ -409,9 +409,8 @@
 
             // Global workspace transform
             // Applied to every shape during rendering and to all coordinates
-            // before G-code emission. Replaces the old CoordinateSystemManager
-            // entirely. UI modules write to it via the methods below; the
-            // renderer reads it via getters on RendererCore.
+            // before G-code emission.UI modules write to it via the methods
+            // below; the renderer reads it via getters on RendererCore.
             //
             // origin         : file-space point that becomes world (0,0)
             // rotation       : degrees CCW, applied around rotationCenter
@@ -444,7 +443,6 @@
             // matrix never includes origin (G-code ground truth).
             this.wsMatrix = null;
             this.wsInverse = null;
-            this.wsRotOnly = null;
 
             // Per-source-file index of group UID → GroupNode.
             this.fileRoots = new Map();
@@ -917,18 +915,7 @@
             else this.setBoardBounds(null);
         }
 
-        // REVIEW - Why have a rotated board bounds method? If there's no rotation the bounds will pop-out as is now that there's a consistent system?
         getBoardBounds() { return this.boardBounds; }
-
-        /**
-         * Board AABB after rotation (effective angle, no mirror), file space.
-         * Used by zoomFit and the centre/bottom-left origin calculations.
-         */
-        getRotatedBoardBounds() {
-            const b = this.boardBounds;
-            if (!b || this.transform.rotation === 0) return b;
-            return TransformMath.transformBounds(this.getRotationOnlyMatrix(), b);
-        }
 
         /** Board AABB after rotation AND mirror. Drives Center / Bottom-Left. */
         getVisualBounds() {
@@ -957,14 +944,6 @@
                     || TransformMath.identity();
             }
             return this.wsInverse;
-        }
-
-        /** Rotation component only (effective angle, mirrors excluded). */
-        getRotationOnlyMatrix() {
-            if (!this.wsRotOnly) {
-                this.wsRotOnly = TransformMath.rotationOnlyWorkspace(this.transform);
-            }
-            return this.wsRotOnly;
         }
 
         /** True when arc/contour winding must flip under the workspace transform. */
@@ -1042,7 +1021,6 @@
         notifyTransformChange(action) {
             this.wsMatrix = null;
             this.wsInverse = null;
-            this.wsRotOnly = null;
             if (this.transformListeners.size === 0) return;
             const payload = { action, transform: this.getTransform(), boardBounds: this.boardBounds };
             for (const fn of this.transformListeners) {
@@ -1077,29 +1055,22 @@
                 children.splice(index, 0, node);
             }
 
-            // Re-index any internal lookup tables you maintain (id→node map).
-            // If you have something like this.nodeIndex, add it back here:
-            if (this.nodeIndex && typeof this.nodeIndex.set === 'function') {
-                this.nodeIndex.set(node.id, node);
-                // Re-index descendants too in case the removed subtree had children.
-                const walk = (n) => {
-                    if (n.children) for (const c of n.children) {
-                        this.nodeIndex.set(c.id, c);
-                        walk(c);
-                    }
-                };
-                walk(node);
-            }
+            // Descendants come too - a re-inserted subtree keeps its children.
+            this.nodeIndex.set(node.id, node);
+            const walk = (n) => {
+                if (n.children) for (const c of n.children) {
+                    this.nodeIndex.set(c.id, c);
+                    walk(c);
+                }
+            };
+            walk(node);
 
-            this.fireChange?.('reinsert', node);
             return true;
         }
 
     }
 
     // Primitive containment - internal, used by ShapeNode.containsWorldPoint.
-    // This is the v1 controller's hit-test logic, lifted intact and made into
-    // a free function so it can be reused without instantiating a shape.
     // Lives at module scope (private) - not exported on window because the
     // public hit-test API is shape.containsWorldPoint / scene.pick.
     /**
@@ -1229,29 +1200,6 @@
             }
         }
         return inside;
-    }
-
-    function pointNearPolyline(p, points, tol) {
-        if (!points || points.length < 2) return false;
-        const tolSq = tol * tol;
-        for (let i = 1; i < points.length; i++) {
-            if (distSqToSegment(p, points[i - 1], points[i]) <= tolSq) return true;
-        }
-        return false;
-    }
-
-    function distSqToSegment(p, a, b) {
-        const dx = b.x - a.x, dy = b.y - a.y;
-        const lenSq = dx * dx + dy * dy;
-        if (lenSq < 1e-12) {
-            const ddx = p.x - a.x, ddy = p.y - a.y;
-            return ddx * ddx + ddy * ddy;
-        }
-        let t = ((p.x - a.x) * dx + (p.y - a.y) * dy) / lenSq;
-        t = Math.max(0, Math.min(1, t));
-        const cx = a.x + t * dx, cy = a.y + t * dy;
-        const ex = p.x - cx, ey = p.y - cy;
-        return ex * ex + ey * ey;
     }
 
     window.SceneNode = SceneNode;

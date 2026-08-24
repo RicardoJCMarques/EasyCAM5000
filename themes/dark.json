@@ -1,16 +1,40 @@
 {
-  "_projectInfo": {
-    "file": "dark.json",
-    "description": "Dark Theme",
-    "author": "Eltryus - Ricardo Marques",
-    "see": "https://github.com/RicardoJCMarques/EasyCAM5000",
-    "license": "AGPL-3.0-or-later",
-    "copyright": "Copyright (C) 2025-2026 Eltryus - Ricardo Marques"
-  },
+  "_readme": [
+    "REFERENCE THEME. dark.json defines the complete token surface; every other",
+    "theme is applied as a deep merge OVER this file, so a partial theme is legal",
+    "and a key it omits can never inherit a stale value from whatever was applied",
+    "before it. Keys added here must be added here FIRST - the loader validates",
+    "other themes against this one.",
+    "",
+    "css/theme.css is generated from this file by .github/scripts/sync-theme.js.",
+    "It is the pre-fetch fallback and must never be hand-edited in its :root block.",
+    "",
+    "colors.<group>.<key> -> --color-<prefix>-<kebab-key>. Group prefixes are fixed",
+    "in the loader's mapping table; do not rename a group without updating both the",
+    "loader and sync-theme.js.",
+    "",
+    "tokens.<name> -> --<name>, emitted verbatim with NO prefix. Structure and",
+    "sizing live in css/base.css; this block exists so an accessibility or custom",
+    "theme can override a specific structural token (shadows, radii, focus ring)",
+    "without a second mechanism. The reference theme leaves it empty on purpose -",
+    "populating it here would duplicate base.css and drift.",
+    "",
+    "Colours are opaque by policy: the palette is composited, and overlapping",
+    "transparency is unmanageable. The loader trims 8-digit hex to 6 and warns.",
+    "semantic.scrim/scrimStrong are the sanctioned exception - a modal backdrop",
+    "must be see-through - which is why rgb()/hsl() functional forms are accepted."
+  ],
 
-  "version": "0.9",
-  
   "id": "dark",
+  "label": "Dark",
+  "base": "dark",
+  "description": "Default dark theme. Reference schema for all other themes.",
+  "author": "Eltryus - Ricardo Marques",
+  "license": "AGPL-3.0-or-later",
+  "homepage": "https://github.com/RicardoJCMarques/EasyCAM5000",
+
+  "tokens": {},
+
   "colors": {
     "background": {
       "primary": "#0f0f0f",
@@ -43,7 +67,7 @@
       "scrim": "rgba(0, 0, 0, 0.6)",
       "scrimStrong": "rgba(0, 0, 0, 0.8)"
     },
-  
+
     "operations": {
       "isolation": "#ff8844",
       "drill": "#4488ff",
@@ -54,12 +78,12 @@
       "profile": "#6dd3a0",
       "pocket": "#5a8acf",
       "engrave": "#c794d6",
-      "shapeDrill": "#d8a44a",
       "vcarve": "#e07a7a",
       "relief": "#e0a97a",
       "rotary": "#7ab8e0",
       "pattern": "#a8b56d"
     },
+
     "render2d": {
       "background": "#0f0f0f",
       "grid": "#aaaaaa",
@@ -69,6 +93,7 @@
       "ruler": "#aaaaaa",
       "rulerText": "#aaaaaa"
     },
+
     "render3d": {
       "background": "#16181c",
       "grid": "#2a2e34",
@@ -77,8 +102,10 @@
       "cutShallow": "#4fc3f7",
       "cutDeep": "#e07a7a",
       "stock": "#8a7a5c",
-      "surface": "#b0a58e"
+      "surface": "#b0a58e",
+      "tool": "#d8dde3"
     },
+
     "geometry": {
       "source": {
         "isolation": "#ff8844",
@@ -100,7 +127,7 @@
         "filled": "#0060dd"
       }
     },
-    
+
     "primitives": {
       "offsetInternal": "#00aa00",
       "offsetExternal": "#ff0000",
@@ -111,33 +138,37 @@
       "reconstructed": "#00ffff",
       "reconstructedPath": "#ffff00",
       "debugContourColors": ["#00ff00", "#ff0000", "#0000ff", "#ffff00", "#ff00ff", "#00ffff"],
-      "debugCurveColors": ["#ff0000", "#00ff00", "#0000ff", "#ffff00", "#ff00ff", "#00ffff"],
-      "debugLabel": "#FFFFFF",
+      "debugCurveColors":   ["#ff0000", "#00ff00", "#0000ff", "#ffff00", "#ff00ff", "#00ffff"],
+      "debugLabel": "#ffffff",
       "debugLabelStroke": "#000000"
     },
+
     "debug": {
       "points": "#ff00ff",
       "arcs": "#00ffff",
       "wireframe": "#00aa00",
       "bounds": "#ff0000",
-      "preprocessed-stroke": "#00ffff",
-      "preprocessed-fill": "#0a3333"
+      "preprocessedStroke": "#00ffff",
+      "preprocessedFill": "#0a3333"
     },
-    "bw":{
+
+    "bw": {
       "black": "#000000",
       "white": "#ffffff"
     },
+
     "pipelines": {
       "cnc": "#ff8844",
       "laser": "#a855f7",
       "3d": "#22d3ee"
     },
+
     "interaction": {
       "sponsorship": "#6366f1",
       "sponsorshipText": "#e9d5ff",
       "kofi": "#42d6aa",
       "selectionStroke": "#22d3ee",
-      "selectionFill": "#0A3F47",
+      "selectionFill": "#0a3f47",
       "marqueeStroke": "#3b82f6",
       "marqueeFill": "#112240",
       "groupBounds": "#22d3ee"

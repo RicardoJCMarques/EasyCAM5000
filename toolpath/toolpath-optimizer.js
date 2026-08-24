@@ -20,13 +20,7 @@
 
     class ToolpathOptimizer {
         constructor(options = {}) {
-            this.options = {
-                enablePathOrdering: D.gcode.optimization.pathOrdering,
-                enableSegmentSimplification: D.gcode.optimization.segmentSimplification,
-                angleTolerance: 1.0,
-                minSegmentLength: 0.05,
-                ...options
-            };
+            this.options = { ...options };
 
             this.stats = {
                 originalPathCount: 0,
@@ -36,7 +30,6 @@
                 travelDistanceSaved: 0,
                 pointsRemoved: 0,
                 optimizationTime: 0,
-                clustersFound: 0,
                 staydownLinksUsed: 0
             };
         }
@@ -71,37 +64,31 @@
             // stamped by Toolpath3DTranslator (roughing=0, finishing=1);
             // 2D plans have no phaseRank and sort as 0 - stable order kept.
             //
-            // Rank is precomputed per group with a plain loop. The previous
-            // Math.min(...g.map(...)) inside the comparator recomputed the
-            // min on every comparison AND spread the whole group as call
-            // arguments - a dense 3D finishing group (one plan per raster
-            // span) overflows the call stack and crashes the optimization.
+            // Unnumbered sorts LAST, matching executePipeline's leadNumber. A
+            // seed of 0 put it first, which is the opposite of the cross-operation
+            // rule and the only place the two disagreed. 1e6 clears every legal T
+            // number and stays exact under the 1e3 multiplier.
+            const UNNUMBERED_TOOL_RANK = 1e6;
             const groupRank = new Map();
             for (const [k, g] of plansByGroupKey) {
                 let r = Infinity;
+                let toolRank = UNNUMBERED_TOOL_RANK;
                 for (const p of g) {
                     const m = p.metadata;
                     let pr = m.phaseRank ?? 0;
-                    // [INDEXED] Face-order policy folds into the SAME
-                    // scalar (this is a numeric sort, not a tuple
-                    // comparator). Groups are face-homogeneous (_IX: in
-                    // groupKey) and phase-homogeneous (_PH:), so min()
-                    // over the group stays exact.
-                    //   'sequential' - complete each face before the next
-                    //     (minimizes index moves): indexOrder·4 + phaseRank
-                    //     (4 > max phaseRank + 1, collision-safe headroom).
-                    //   'phase' - rough all faces, then finish all: the
-                    //     bare phaseRank already yields this - the stable
-                    //     sort keeps insertion (= face) order within each
-                    //     phase, and _Z: roughing layers likewise.
-                    // Non-indexed plans (indexOrder undefined) rank
-                    // exactly as before under either mode.
-                    if (m.indexOrder != null && m.indexedFaceOrder !== 'phase') {
-                        pr = m.indexOrder * 4 + pr;
-                    }
+                    if (m.indexOrder != null && m.indexedFaceOrder !== 'phase') pr = 4 * m.indexOrder + pr;
                     if (pr < r) r = pr;
+                    // Groups are tool-homogeneous (_TN: / _D: in groupKey), so
+                    // reading any member is exact.
+                    if (m.tool?.number > 0) toolRank = m.tool.number;
                 }
-                groupRank.set(k, r === Infinity ? 0 : r);
+                const base = r === Infinity ? 0 : r;
+                // Tool is the MOST significant term: a tool change costs a
+                // physical swap, a phase reorder costs nothing. The 1000
+                // multiplier clears indexOrder*4 + phaseRank for any plausible
+                // face count; assert rather than silently interleave.
+                if (base >= 1e3) console.warn('[Optimizer] group rank overflow - tool ordering may interleave.');
+                groupRank.set(k, 1e3 * toolRank + base);
             }
             const groupEntries = [...plansByGroupKey.entries()]
                 .sort((a, b) => groupRank.get(a[0]) - groupRank.get(b[0]));
@@ -116,14 +103,6 @@
             // Process each group
             for (const [groupKey, groupPlans] of plansByGroupKey) {
                 this.debug(`Optimizing Tool Group: ${groupKey} (${groupPlans.length} plans)`);
-
-                if (!this.options.enablePathOrdering) {
-                    finalOrderedPlans.push(...groupPlans);
-                    if (groupPlans.length > 0) {
-                        currentMachinePos = groupPlans[groupPlans.length - 1].metadata.exitPoint;
-                    }
-                    continue;
-                }
 
                 // ── Ordered 3D fast path ─────────────────────────────
                 // Field generators (relief/rotary) emit chains in
@@ -203,7 +182,7 @@
                     let seq = this.optimizePathOrder(groupPlans, currentMachinePos, {
                         allowStaydown: false
                     });
-                    // refinePlanOrder self-caps at orOptMaxBlocks (200): a
+                    // refinePlanOrder self-caps at orOptMaxBlocks: a
                     // 7000-chain group skips it, a small one gets polished.
                     if (seq.length > 3) {
                         seq = this.refinePlanOrder(seq, currentMachinePos);
@@ -251,11 +230,9 @@
                     }
                 }
 
-                // Look-ahead or-opt, scoped to THIS group.
-                //
-                // It used to run once over the concatenation of every group.
-                // Its cost model is pure XY distance, so it happily relocated a
-                // finishing plan ahead of a roughing plan (groupKey carries the
+                // Look-ahead or-opt, scoped to THIS group. Must stay per-group: its
+                // cost model is pure XY distance, so run across groups it would
+                // relocate a finishing plan ahead of a roughing plan (groupKey carries the
                 // phase rank) and interleaved tool groups. It also relocated
                 // plans carrying optimization.linkType === 'staydown', which is
                 // a CONTRACT with the immediate predecessor - MachineProcessor
@@ -277,24 +254,22 @@
             }
 
             // Segment simplification
-            if (this.options.enableSegmentSimplification) {
-                this.debug(`Simplifying ${finalOrderedPlans.length} paths...`);
-                // Simplify after ordering to preserve entry/exit points
-                let totalPointsRemoved = 0;
-                let total3DPointsRemoved = 0;
-                for (const plan of finalOrderedPlans) {
-                    const originalCount = plan.commands.length;
-                    if (plan.metadata?.is3DContour) {
-                        this.simplify3DSegments(plan);
-                        total3DPointsRemoved += (originalCount - plan.commands.length);
-                    } else {
-                        this.simplifySegments(plan);
-                    }
-                    totalPointsRemoved += (originalCount - plan.commands.length);
+            this.debug(`Simplifying ${finalOrderedPlans.length} paths...`);
+            // Simplify after ordering to preserve entry/exit points
+            let totalPointsRemoved = 0;
+            let total3DPointsRemoved = 0;
+            for (const plan of finalOrderedPlans) {
+                const originalCount = plan.commands.length;
+                if (plan.metadata?.is3DContour) {
+                    this.simplify3DSegments(plan);
+                    total3DPointsRemoved += (originalCount - plan.commands.length);
+                } else {
+                    this.simplifySegments(plan);
                 }
-                this.stats.pointsRemoved = totalPointsRemoved;
-                this.debug(`Removed ${totalPointsRemoved} collinear points (${total3DPointsRemoved} from 3D paths).`);
+                totalPointsRemoved += (originalCount - plan.commands.length);
             }
+            this.stats.pointsRemoved = totalPointsRemoved;
+            this.debug(`Removed ${totalPointsRemoved} collinear points (${total3DPointsRemoved} from 3D paths).`);
 
             this.stats.optimizedPathCount = finalOrderedPlans.length;
             this.stats.optimizationTime = performance.now() - startTime;
@@ -344,7 +319,7 @@
                 }
             }
 
-            // Find all connected components using DFS // Review - DFS is Depth-first search?
+            // Find all connected components using DFS
             while (planIndices.size > 0) {
                 const cluster = [];
                 const startNode = planIndices.values().next().value;
@@ -510,21 +485,7 @@
             const subdivideByProximity = (groupPlans, usePassAdjacency) => {
                 if (groupPlans.length <= 1) return [groupPlans];
                 const md = groupPlans[0].metadata;
-
-                // 3D chains carry an explicit clusterMargin. stepOver is
-                // meaningless for a V-bit and toolDiameter is the TIP flat
-                // (often ~0.1mm), so toolDiameter * (1 - stepOver/100)
-                // collapsed to ~0 and every chain became its own region:
-                // hundreds of regions, O(N^2) or-opt, and a cluster ordering
-                // that carried no information.
-                let margin = md.clusterMargin;
-                if (!Number.isFinite(margin) || margin <= 0) {
-                    margin = md.toolDiameter * (1.0 - (md.stepOver / 100.0));
-                }
-                if (!Number.isFinite(margin) || margin <= 0) {
-                    margin = md.toolDiameter || 1;
-                }
-
+                let margin = md.toolDiameter * (1.0 - (md.stepOver / 100.0));
                 return this.buildStaydownClusters(
                     groupPlans, margin + EPSILON, usePassAdjacency
                 );
@@ -623,22 +584,30 @@
             }
             if (blocks.length < 4 || blocks.length > orOptMax) return plans;
 
+            // Direction is free on a single 3D chain: the V-cone is symmetric
+            // and raster lines are direction-agnostic. What decides the end is
+            // the approach COST, which charges entry depth as travel - the same
+            // model findClosestPointOnPlan uses, and the two have to agree or
+            // the NN pass and this one fight over every chain. A glued staydown
+            // block is never flipped: its internal links are XYZ-coincident
+            // contracts with a specific neighbour.
             const reversible = (b) => b.length === 1 && b[0].metadata?.is3DContour === true;
+
             const entryOf = (b) => b[0].metadata.entryPoint;
             const exitOf  = (b) => b[b.length - 1].metadata.exitPoint
                                 || b[b.length - 1].metadata.entryPoint;
             const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+            const approach = (from, p, is3D) =>
+                dist(from, p) + this.entryDepthPenalty(p, is3D);
 
             // Cost to travel from machine position `from` into block `b`,
             // choosing the cheaper end when the block is reversible. Returns
             // the leave position (the OTHER end).
             const step = (from, b) => {
                 const e = entryOf(b), x = exitOf(b);
-                if (reversible(b)) {
-                    const dE = dist(from, e), dX = dist(from, x);
-                    return dX < dE ? { cost: dX, leave: e } : { cost: dE, leave: x };
-                }
-                return { cost: dist(from, e), leave: x };
+                if (!reversible(b)) return { cost: approach(from, e, false), leave: x };
+                const cE = approach(from, e, true), cX = approach(from, x, true);
+                return cX < cE ? { cost: cX, leave: e } : { cost: cE, leave: x };
             };
 
             const routeCost = (seq) => {
@@ -650,15 +619,24 @@
             let best = blocks.slice();
             let bestCost = routeCost(best);
             let improved = true, guard = 0;
-            const GUARD_MAX = 8;
+            const GUARD_MAX = 8; // REVIEW - Magic number, should it go on config.js?
+            const deadline = performance.now() + (D.gcode.optimization.orOptBudgetMs);
+            let trials = 0, budgetHit = false;
 
-            while (improved && guard++ < GUARD_MAX) {
+            while (improved && guard++ < GUARD_MAX && !budgetHit) {
                 improved = false;
-                for (let i = 0; i < best.length && !improved; i++) {
+                for (let i = 0; i < best.length && !improved && !budgetHit; i++) {
                     const without = best.slice();
                     const [moved] = without.splice(i, 1);
                     for (let j = 0; j <= without.length; j++) {
                         if (j === i) continue;
+                        // routeCost is O(blocks), so a full pass is O(blocks^3).
+                        // The budget is what bounds it; partial polish beats the
+                        // all-or-nothing bail a block-count cap gives.
+                        if ((++trials & 0xFF) === 0 && performance.now() > deadline) {
+                            budgetHit = true;
+                            break;
+                        }
                         const trial = without.slice();
                         trial.splice(j, 0, moved);
                         const c = routeCost(trial);
@@ -667,6 +645,10 @@
                         }
                     }
                 }
+            }
+            if (budgetHit) {
+                this.debug(`refinePlanOrder: or-opt budget reached after ${trials} trial(s) ` +
+                    `over ${blocks.length} block(s) - greedy order kept for the remainder`);
             }
 
             // Apply the direction decisions from the winning route.
@@ -743,6 +725,14 @@
 
             let totalOriginalTravel = 0;
             let totalOptimizedTravel = 0;
+
+            // exitPoint is what currentPos advances to after every pick, so a
+            // plan missing one inherits its entry HERE - not inside the O(N^2)
+            // cost call, which used to re-stamp it once per candidate per step.
+            for (const item of plans) {
+                const md = item.metadata;
+                if (md && !md.exitPoint) md.exitPoint = md.entryPoint;
+            }
 
             // Calculate original travel distance
             let pos = { ...startPos };
@@ -841,7 +831,7 @@
                 const dx = bestPoint.x - fromPos.x;
                 const dy = bestPoint.y - fromPos.y;
                 const closestXYDist = Math.sqrt(dx * dx + dy * dy);
-                const rapidCost = this.calculateRapidCost(fromPos, bestPoint, closestXYDist);
+                const rapidCost = this.calculateRapidCost(closestXYDist);
                 return {
                     cost: rapidCost,
                     realDistance: closestXYDist,
@@ -852,10 +842,35 @@
             }
 
             const planMetadata = toPlan.metadata || {};
-            planMetadata.exitPoint = planMetadata.exitPoint || planMetadata.entryPoint;
-            planMetadata.isPeckMark = planMetadata.isPeckMark || false;
-            planMetadata.isDrillMilling = planMetadata.isDrillMilling || false;
-            planMetadata.isCenterlinePath = planMetadata.isCenterlinePath || false;
+
+            // ── 3D continuation link ─────────────────────────────
+            // This chain's end IS the current tool position in X, Y and Z, so
+            // the connection is a zero-length move: nothing traverses material
+            // and no cleared-path proof is needed - which is the only reason
+            // lateral staydown is barred from 3D. Fires wherever two chains
+            // share an endpoint: a medial junction, or a groove fragment
+            // meeting the flat-zone spine it was split at. MachineProcessor
+            // then drops the retract, the rapid and the plunge.
+            if (planMetadata.is3DContour && !this.isFirstLink && Number.isFinite(fromPos.z)) {
+                const tol = 2 * PRECISION;
+                const meets = (p) => !!p &&
+                    Math.abs(p.x - fromPos.x) <= tol &&
+                    Math.abs(p.y - fromPos.y) <= tol &&
+                    Math.abs((p.z ?? fromPos.z) - fromPos.z) <= tol;
+                // Entry first: continuing forward costs no reversal.
+                if (meets(planMetadata.entryPoint)) {
+                    return {
+                        cost: 0, realDistance: 0, linkType: 'staydown',
+                        bestPoint: planMetadata.entryPoint, commandIndex: 0
+                    };
+                }
+                if (meets(planMetadata.exitPoint)) {
+                    return {
+                        cost: 0, realDistance: 0, linkType: 'staydown',
+                        bestPoint: planMetadata.exitPoint, commandIndex: -2
+                    };
+                }
+            }
 
             // Stay-down safety checks.
             // sameShape: prevents the tool from dragging across open material
@@ -932,17 +947,11 @@
             }
 
             // Rapid link
-            const { point: bestRapidPoint, distance: closestRapidXYDist, commandIndex: rapidCommandIndex } =
+            const { point: bestRapidPoint, distance: closestRapidXYDist,
+                    approachCost, commandIndex: rapidCommandIndex } =
                 this.findClosestPointOnPlan(fromPos, toPlan);
 
-            const rapidCost = this.calculateRapidCost(fromPos, bestRapidPoint, closestRapidXYDist);
-
-            // REVIEW - Dead/Useless Code?
-            // if (debugState.enabled && !options.isClusterRun) {
-            //     const o = chosen.metadata.optimization;
-            //     this.debug(`Placed ${chosen.metadata.operationId}: ${o?.linkType || 'rapid'} ` +
-            //         `d=${bestResult.realDistance.toFixed(2)} idx=${o?.entryCommandIndex}`);
-            // }
+            const rapidCost = this.calculateRapidCost(approachCost ?? closestRapidXYDist);
 
             const isHop = planMetadata.is3DContour && planMetadata.allow3DHop;
             const linkType = isHop ? 'hop' : 'rapid';
@@ -957,13 +966,18 @@
         }
 
         /**
-         * Helper for rapid cost calculation
+         * Travel-equivalent cost of entering a 3D chain at `p`. Zero for 2D
+         * plans and for any point with no Z.
          */
-        calculateRapidCost(fromPos, toPos, xyDist) {
-            const rapidConfig = D.toolpath.generation.rapidCost || {};
-            const baseCost = rapidConfig.baseCost || 10000;
+        entryDepthPenalty(p, is3D) {
+            if (!is3D || !p || !Number.isFinite(p.z)) return 0;
+            const k = D.toolpath.generation.threeD?.entryDepthCost ?? 0;
+            return k > 0 ? Math.max(0, -p.z) * k : 0;
+        }
 
-            return xyDist + baseCost;
+        /** Flat surcharge so any staydown or continuation link out-bids a rapid. */
+        calculateRapidCost(approachCost) {
+            return approachCost + (D.toolpath.generation.rapidCost.baseCost);
         }
 
         /**
@@ -1008,28 +1022,27 @@
             if (!canRotate) {
                 const entry = meta.entryPoint;
                 const exit = meta.exitPoint || entry;
-
                 const dxE = entry.x - fromPos.x, dyE = entry.y - fromPos.y;
-                const dxX = exit.x - fromPos.x,  dyX = exit.y - fromPos.y;
+                const dxX = exit.x - fromPos.x, dyX = exit.y - fromPos.y;
                 const distSqE = dxE * dxE + dyE * dyE;
                 const distSqX = dxX * dxX + dyX * dyX;
 
-                // Return commandIndex -2 to signal reversal if approach from exitPoint is shorter
-                if (distSqX < distSqE - EPSILON) {
-                    return {
-                        point: exit,
-                        distanceSq: distSqX,
-                        distance: Math.sqrt(distSqX),
-                        commandIndex: -2
-                    };
-                }
+                // Approach cost, not travel: a 3D chain entered at its deep end
+                // plunges into stock or climbs out of a junction, so depth is
+                // charged as travel and the shallow end wins unless the detour
+                // is genuinely long. distance / distanceSq stay pure XY - the
+                // staydown thresholds and the travel stats both read them.
+                // refinePlanOrder's step() uses this same model; the two have
+                // to agree or the two passes fight over direction.
+                const distE = Math.sqrt(distSqE);
+                const distX = Math.sqrt(distSqX);
+                const costE = distE + this.entryDepthPenalty(entry, is3D);
+                const costX = distX + this.entryDepthPenalty(exit, is3D);
 
-                return {
-                    point: entry,
-                    distanceSq: distSqE,
-                    distance: Math.sqrt(distSqE),
-                    commandIndex: 0
-                };
+                // commandIndex -2 signals reversal.
+                return (costX < costE - EPSILON)
+                    ? { point: exit, distanceSq: distSqX, distance: distX, approachCost: costX, commandIndex: -2 }
+                    : { point: entry, distanceSq: distSqE, distance: distE, approachCost: costE, commandIndex: 0 };
             }
 
             // ── Closed Loop Strategy ──────────
@@ -1141,7 +1154,7 @@
                     if (cmd.x !== null && cmd.x !== undefined &&
                         cmd.z !== null && cmd.z !== undefined &&
                         px !== undefined && pz !== undefined) {
-                        cmd.f = Toolpath3DTranslator.feedFor(
+                        cmd.f = ToolpathFeeds.feedFor(
                             cmd.z - pz, Math.hypot(cmd.x - px, cmd.y - py),
                             feedRate, plungeRate, gate);
                     }
@@ -1256,12 +1269,12 @@
         }
 
         /**
-         * tan(descentFeedAngle). Delegates to the translator so the feed
-         * classification used at generation, at reversal and at simplification
-         * is provably the same number.
+         * tan(descentFeedAngle). One implementation so the feed classification
+         * used at generation, at reversal and at simplification is provably the
+         * same number.
          */
         slopeGate() {
-            return Toolpath3DTranslator.slopeGate();
+            return ToolpathFeeds.slopeGate();
         }
 
         /** Squared 3D distance from p to the CLAMPED segment a→b. */
@@ -1291,12 +1304,10 @@
          * Total deviation is bounded by tolerance3D * (1 + preTolFactor).
          *
          * Forced anchors (never removed):
-         *   - first / last point
-         *   - any non-LINEAR command (arcs, dwells)
-         *   - feed-class transitions (cut ↔ plunge). Removing the point that
-         *     carries a transition silently slides the plunge feed onto a
-         *     neighbouring segment. The old code claimed to preserve these
-         *     and did not.
+         *  - first / last point. Chains break at every junction, so a junction
+         *    and a corner apex are already terminal on the chains that reach
+         *    them and need no anchor of their own.
+         *  - any non-LINEAR command (arcs, dwells)
          *
          * Feeds are REBUILT from the surviving geometry with the shared slope
          * gate, so a simplified chain and a reversed chain classify identically.
@@ -1305,7 +1316,7 @@
             const cmds = plan.commands;
             if (!cmds || cmds.length < 2 || !plan.metadata.entryPoint) return;
 
-            const s = D.toolpath.generation.simplification || {};
+            const s = D.toolpath.generation.simplification;
             const tol       = s.tolerance3D ?? 0.01;
             const tolSq     = tol * tol;
             const preTolSq  = Math.pow(tol * (s.preTolFactor ?? 0.25), 2);
@@ -1335,22 +1346,12 @@
             const n = P.length;
             if (n < 3) return;
 
-            // ── Feed class of the segment ENTERING each point (1 = plunge) ──
-            const feedClass = new Uint8Array(n);
-            for (let i = 1; i < n; i++) {
-                const a = P[i - 1], b = P[i];
-                const dz = b.z - a.z;
-                const dxy = Math.hypot(b.x - a.x, b.y - a.y);
-                feedClass[i] = (dz < 0 && Math.abs(dz) > dxy * gate) ? 1 : 0;
-            }
-
             // Hard anchors
             const forced = new Uint8Array(n);
             forced[0] = 1;
             forced[n - 1] = 1;
-            for (let i = 1; i < n; i++) if (T[i] !== 'LINEAR') forced[i] = 1;
-            for (let i = 1; i < n - 1; i++) {
-                if (feedClass[i] !== feedClass[i + 1]) forced[i] = 1;
+            for (let i = 1; i < n; i++) {
+                if (T[i] !== 'LINEAR') forced[i] = 1;
             }
 
             // ── Stage 1: micro-segment + collinearity pre-pass ──
@@ -1602,7 +1603,7 @@
                     }
                 }
 
-                const simplifiedPoints = this.simplifyCollinearPoints(points);
+                const simplifiedPoints = this.mergeCollinearPoints(points);
                 for (const pt of simplifiedPoints) {
                     if (pt.cmd) { 
                         simplified.push(pt.cmd);
@@ -1621,14 +1622,7 @@
         /**
          * Simplifies a point sequence by removing collinear points based on deviation and angle.
          */
-        // REVIEW - Five independent polyline simplifiers ship in this repo:
-        // GeometryUtils.simplifyDouglasPeucker, VCarveGenerator.simplifyRDP/rdpOpen,
-        // FieldPaths.simplify3D, ToolpathOptimizer.simplifyCollinearPoints and
-        // GerberParser.simplifyRDP. Consolidation is blocked on the worker boundary
-        // (vcarve and fieldpaths cannot reach GeometryUtils). Fix all five together
-        // or none.
-        // This Simplifier takes precedence over others. The whole pipeline should be as lossless as possible until export time.
-        simplifyCollinearPoints(points) {
+        mergeCollinearPoints(points) {
             if (points.length <= 2) {
                 return points; // Not enough points to simplify
             }
@@ -1756,7 +1750,6 @@
                 travelDistanceSaved: 0,
                 pointsRemoved: 0,
                 optimizationTime: 0,
-                clustersFound: 0,
                 staydownLinksUsed: 0
             };
         }

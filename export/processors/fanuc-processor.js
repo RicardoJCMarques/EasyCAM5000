@@ -46,6 +46,9 @@
      *   - G12.1 / G13.1 polar interpolation (mill-turn face work).
      *   - G41/G42 cutter comp: all offsetting is done in CAM.
      */
+
+    // REVIEW - Add a safety check for machines with absolute Z0 coordinates that can't have negative Z values in operations since that can mean plunging dangerously into the perfectly leveled spoil-board.
+    
     class FanucPostProcessor extends BasePostProcessor {
         constructor() {
             super('Fanuc', {
@@ -56,7 +59,7 @@
                 supportsArcCommands: true,
                 supportsCannedCycles: true,
                 useM6: true,
-                supportsToolLengthComp: true,
+                toolLengthComp: { modes: ['table', 'table-implicit', 'none'], default: 'table' },
                 pauseAfterToolChange: false,
                 arcFormat: 'IJ',
                 coordinateDecimals: 4,
@@ -283,80 +286,48 @@
             return lines.join('\n');
         }
 
-        // ════════════════════════════════════════════════════════════
-        // Tool change - DRAFT
-        //
-        // When it IS wired, note the ordering below is load-bearing:
-        //   G40 G80  cancel comp and any live cycle
-        //   G91 G28 Z0.  retract in MACHINE Z, clear of the part
-        //   G90 G49  drop the OLD tool's length offset BEFORE the swap -
-        //            a live H with the wrong tool in the spindle is the
-        //            classic Z crash
-        //   T.. M06  swap
-        //   G43 H.. Z..  apply the NEW offset on the way down
-        // ════════════════════════════════════════════════════════════
-
-        generateToolChange(tool, options) {
+        // G40 G80      cancel comp and any live cycle
+        // G91 G28 Z0.  retract in MACHINE Z, clear of the part and independent
+        //              of the active work offset
+        // G90 G49      drop the OLD tool's length offset BEFORE the swap - a
+        //              live H with the wrong tool in the spindle is the
+        //              classic Z crash
+        toolChangeRetract(options) {
             const c = options.comments || {};
-            const lines = [''];
-            const num = tool.number || options.toolNumber || 1;
-            const tn = String(num).padStart(2, '0');
+            // G28 parks Z in MACHINE coordinates, which has no work-frame value
+            // to record. null forces _motionCoords to re-emit Z on the next
+            // move; a stale number silently suppresses it.
+            this.currentPosition.z = null;
+            return [
+                'G40 G80',
+                this.appendComment('G91 G28 Z0.', c.retractSafeZ, options),
+                'G90 G49'
+            ];
+        }
 
-            this.pushCommentLine(lines,
-                (c.toolChange || 'Tool change: {name}').replace('{name}', tool.name || tool.id),
-                options);
-            this.pushCommentLine(lines,
-                (c.toolDiameter || 'Diameter: {diameter}mm').replace('{diameter}', tool.diameter),
-                options);
+        toolChangeSwap(toolNumber, options) {
+            const c = options.comments || {};
+            const mode = this.resolveTLCMode(options);
+            const tn = String(toolNumber).padStart(2, '0');
+            const lines = [];
 
-            const stop = this.setSpindle(0, 0, options);
-            if (stop) lines.push(stop);
-            else if (this.currentSpindle > 0) {
-                lines.push(this.appendComment('M05', c.spindleStop, options));
-                this.currentSpindle = 0;
-            }
-            if (options.coolant && options.coolant !== 'none') {
-                lines.push(this.appendComment('M09', c.coolantOff, options));
-            }
+            // 'table-implicit': G43 rides the change block and the control takes
+            // H from the active T - no H word anywhere in the program.
+            lines.push(mode === 'table-implicit'
+                ? this.appendComment(`T${tn} M06 G43`, c.toolLengthComp, options)
+                : `T${tn} M06`);
 
-            lines.push('G40 G80');
-            lines.push(this.appendComment('G91 G28 Z0.', c.retractSafeZ, options));
-            lines.push('G90 G49');
-            lines.push('');
-
-            // Simple T/M06 pair. Machines with a carousel run faster if the
-            // next tool is pre-staged on an earlier block, but that needs
-            // lookahead the generator does not have - this works everywhere.
-            lines.push(`T${tn} M06`);
-
-            if (this.config.supportsToolLengthComp) {
-                // Track the REAL number, not the formatted string: currentPosition
-                // is compared numerically in generateRapid/generateLinear, and a
-                // string there makes every Math.abs() NaN, which silently
-                // suppresses the next Z word.
+            if (mode === 'table') {
+                // Apply the NEW offset on the way down. Track the REAL number:
+                // currentPosition is compared numerically in generateRapid /
+                // generateLinear, and a formatted string makes every Math.abs()
+                // NaN, which silently suppresses the next Z word.
                 const safeZ = options.safeZ ?? this.config.safetyHeight;
                 lines.push(this.appendComment(
                     `G43 H${tn} Z${this.formatCoordinate(safeZ)}`, c.toolLengthComp, options));
                 this.currentPosition.z = safeZ;
             }
-
-            if (this.config.pauseAfterToolChange) {
-                lines.push(this.appendComment('M00', c.toolChangePause, options));
-            }
-            lines.push('');
-
-            const rpm = tool.spindleSpeed || options.spindleSpeed || 12000;
-            const start = this.setSpindle(rpm, tool.spindleDwell || 0, options);
-            if (start) lines.push(start);
-
-            if (options.coolant === 'mist') {
-                lines.push(this.appendComment('M07', c.coolantMist, options));
-            } else if (options.coolant === 'flood') {
-                lines.push(this.appendComment('M08', c.coolantFlood, options));
-            }
-
-            lines.push('');
-            return lines.join('\n');
+            return lines;
         }
     }
 

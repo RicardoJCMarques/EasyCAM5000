@@ -21,7 +21,7 @@
                 supportsArcCommands: true,
                 supportsCannedCycles: true,
                 useM6: true,
-                supportsToolLengthComp: true,
+                toolLengthComp: { modes: ['table', 'none'], default: 'table' },
                 // 4th axis: drives A/B/C and supports G93 inverse time. DRAFT -
                 // verify G93 on your build, and confirm the axis is configured
                 // ROTATIONAL (degrees) rather than linear, or 'a-word' degrees

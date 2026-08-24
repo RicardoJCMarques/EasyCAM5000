@@ -28,7 +28,9 @@
             this.machineSettings = null;
             this.canvasExporter = null;
 
-            this._legacyTaskId = null; // REVIEW - This looks like a fallback?
+            // Task id for callers that hand a message instead of owning a task
+            // (BaseOperationPanel.runGeneration owns its own).
+            this._shimTaskId = null; // REVIEW - This looks like a fallback? Couldn't this be guaranteed somewhere else?
 
             // Resolved custom properties, cleared whenever the theme changes.
             // getComputedStyle forces a style recalc and resolveLayerColor runs
@@ -73,17 +75,11 @@
         }
 
         /**
-         * Subclasses override to supply app-specific renderer options.
-         * Base provides the universal defaults.
+         * Universal renderer options
          */
         getDefaultRendererOptions(theme) {
             return {
-                showGrid: true,
-                showOrigin: true,
-                showRulers: true,
-                showBounds: false,
-                showOffsets: true,
-                showPreviews: true,
+                ...window.CAMConfig.defaults.rendering.defaultOptions,
                 theme,
                 primitiveFilter: (prim, layerType) => this.shouldRenderPrimitive(prim, layerType),
                 resolveLayerColor: (layer) => this.resolveLayerColor(layer)
@@ -170,19 +166,16 @@
             if (!this.lang || !window.TooltipManager) return;
             const processed = new Set();
 
-            document.querySelectorAll('[data-i18n-tooltip]').forEach(el => {
+            document.querySelectorAll('[data-i18n]').forEach(el => {
                 if (processed.has(el)) return;
                 processed.add(el);
 
-                const tooltipKey = el.dataset.i18nTooltip;
-                const text = this.lang.get(tooltipKey);
-                if (!text) return;
+                const { label, help } = this.lang.entry(el.dataset.i18n);
+                if (!help) return;
 
-                // Derive a title from the sibling parameter key or fall back to element text
-                const titleKey = tooltipKey.replace('tooltips.', 'parameters.');
-                const title = this.lang.get(titleKey, el.textContent?.trim() || '');
-
-                window.TooltipManager.attachWithIcon(el, { title, text }, { showOnFocus: true });
+                window.TooltipManager.attachWithIcon(el,
+                    { title: label || el.textContent?.trim() || '', text: help },
+                    { showOnFocus: true });
             });
         }
 
@@ -205,23 +198,21 @@
         // Canvas Spinner
 
         /**
-         * Spinner shim over the StatusManager task API. Owns the task id for
-         * callers that only have a message, so repeated show calls relabel the
-         * live task instead of stacking. Callers that own their own task
-         * (runGeneration) go straight to beginTask/endTask.
+         * Spinner over the StatusManager task API. Repeated calls relabel the
+         * live task instead of stacking.
          */
         showCanvasSpinner(message) {
             const sm = this.statusManager;
-            if (sm.isBusy() && this._legacyTaskId != null) {
-                sm.tick(this._legacyTaskId, { label: message });
+            if (sm.isBusy() && this._shimTaskId != null) {
+                sm.tick(this._shimTaskId, { label: message });
             } else {
-                this._legacyTaskId = sm.beginTask(message);
+                this._shimTaskId = sm.beginTask(message);
             }
         }
 
         hideCanvasSpinner() {
-            this.statusManager.endTask(this._legacyTaskId);
-            this._legacyTaskId = null;
+            this.statusManager.endTask(this._shimTaskId);
+            this._shimTaskId = null;
         }
 
         // Layer color/z-index resolution
@@ -241,16 +232,14 @@
             return value || fallback;
         }
 
-        /**
-         * Colour for an operation TYPE, via the app's CSS operation map
-         * (--op-color-<type>, declared in that app's layout stylesheet).
-         * Returns null when the app has not mapped that type, so callers can
-         * fall through to a role colour. No app operation list lives in JS.
-         * REVIEW - Fix --op-color vs --color-operation mismatches
+       /**
+         * Colour for an operation TYPE, from the theme's operation palette.
+         * Returns null when the theme has not mapped that type, so callers
+         * can fall through to a role colour.
          */
         resolveOperationColor(opType) {
             if (!opType) return null;
-            return this.readCSSVar(`--op-color-${opType}`, null);
+            return this.readCSSVar(`--color-operation-${opType}`, null);
         }
 
         resolveLayerColor(layer) {

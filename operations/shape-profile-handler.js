@@ -31,6 +31,11 @@
 
         // Orchestration
 
+        resolveSourceTopology(operation, params) {
+            return this.resolveContourTopology(
+                operation.primitives, { mergeNesting: params.detectNesting === true });
+        }
+
         async orchestrateGeneration(operation, params, core, options = {}) {
             const token = this.beginRun(operation, options, core);
 
@@ -43,15 +48,6 @@
                     status: 'warning'
                 };
             }
-
-            // Resolve compound contours (tier 1) and merge separate
-            // shapes that nest inside each other (tier 2).
-            // `=== true`, not `!== false`: getAllParameters merges only stages the
-            // panel actually rendered, so an absent key must fall back to the JSON
-            // default (false), not turn Tier 2 on.
-            operation.primitives = this.resolveContourTopology(
-                operation.primitives, { mergeNesting: params.detectNesting === true }
-            );
 
             const opParams = core.compileOperationParams(operation, params);
 

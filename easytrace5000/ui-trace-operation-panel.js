@@ -37,45 +37,34 @@
         }
 
         checkInvalidation(paramName) {
-            const operation = this.core.operations.find(op => op.id === this.currentOperationId);
+            const operation = this.resolveCurrentOperation();
             if (!operation) return;
 
             const paramDef = this.parameterManager.parameterDefinitions[paramName];
             if (!paramDef || (paramDef.stage !== 'geometry' && paramDef.stage !== 'strategy')) return;
+            if (paramDef.invalidates === false) return;
 
             if (!this.ui.ctrl.core?.isExportReady(operation)) return;
 
             this.core.invalidateOperationState(operation.id);
+            operation.isInvalidated = true;
+            operation.invalidatedReason = `'${paramDef.label || paramName}' changed after generation - regenerate before exporting.`;
             if (this.ui.navTreePanel) {
                 const fileNode = this.ui.navTreePanel.getNodeByOperationId(operation.id);
                 if (fileNode) this.ui.navTreePanel.updateFileGeometries(fileNode.id, operation);
             }
-            this.ui.setStatus('Parameters changed - regenerate paths before exporting.', 'warning');
+            this.ui.setStatus(operation.invalidatedReason, 'warning');
         }
 
-        // REVIEW - EasyShape5000 deals with this differently, especially now that it's taking cues from the post-processors directly. Update here.
         /**
-        onMillHolesToggle(value) {
-            const container = this.getFormContainer();
-            if (container) {
-                const values = this.parameterManager.getAllParameters(this.currentOperationId);
-                ParameterManager.evaluateConditionals(container, values,
-                    this.parameterManager.optionGates);
-            }
-            this.ui.setStatus(`Switched to ${value ? 'milling' : 'pecking'} mode`, 'info');
-        }
+         * A tooling change can move the mode, which changes which fields
+         * exist and whether Generate is allowed - all of it rebuilds here.
          */
-        async onMillHolesToggle(value) {
-            if (this.currentOperationId) {
-                this.core.resetOperationState(this.currentOperationId);
-            }
+        refreshOperationPanel(operation) {
             const container = this.getFormContainer();
-            const operation = this.core.operations.find(op => op.id === this.currentOperationId);
             if (container && operation) {
                 this.showOperationProperties(container, operation, this.currentStage);
             }
-            await this.ui.updateRendererAsync();
-            this.ui.setStatus(`Switched to ${value ? 'milling' : 'pecking'} mode`, 'info');
         }
 
         returnFocusToTree() {
@@ -162,11 +151,17 @@
             const values = this.parameterManager.getAllParameters(operation.id);
             this.renderParameterForm(container, operation.type, stage, values);
 
-            // Add action button
-            const actionText = this.getActionButtonText(stage, operation.type);
-            if (actionText) {
-                container.appendChild(this.createActionButton(actionText));
+            // Drill tooling, immediately above the action button: it reports what
+            // the button will cut with, and it gates whether the button is
+            // allowed to run at all. Field visibility is the profile's job
+            // (conditional "!drillMultiTool"), not this method's.
+            if ('drill' === operation.type && 'geometry' === stage) {
+                container.appendChild(this.createDrillToolingCard(operation, values));
             }
+
+            // Add action button
+            const actionInfo = this.getActionButtonInfo(stage, operation.type);
+            if (actionInfo) container.appendChild(this.createActionButton(actionInfo.text, actionInfo.disabled, actionInfo.title));
 
             // Disable Drill Exclude if no drill operation is loaded
             if (operation.type === 'stencil' && stage === 'geometry') {
@@ -188,7 +183,7 @@
         // ═══════════════════════════════════════════════════════════════
 
         resolveCurrentOperation() {
-            return this.core.operations.find(op => op.id === this.currentOperationId);
+            return this.core.getOperation(this.currentOperationId);
         }
 
         resolveOperationType(operation) {
@@ -238,7 +233,7 @@
         }
 
         onStageTransition(newStage) {
-            const operation = this.core.operations.find(op => op.id === this.currentOperationId);
+            const operation = this.resolveCurrentOperation();
             const container = this.getFormContainer();
             if (container && operation) {
                 this.showOperationProperties(container, operation, newStage);
@@ -262,7 +257,7 @@
 
         switchToStageAndRender(newStage) {
             this.currentStage = newStage;
-            const operation = this.core.operations.find(op => op.id === this.currentOperationId);
+            const operation = this.resolveCurrentOperation();
             const container = this.getFormContainer();
             if (container && operation) {
                 this.showOperationProperties(container, operation, newStage);
@@ -273,36 +268,57 @@
         // Action Button Text
         // ═══════════════════════════════════════════════════════════════
 
-        getActionButtonText(stage, operationType) {
-            // Stencil - always 2-stage regardless of pipeline
-            if (operationType === 'stencil') {
-                if (stage === 'geometry') return 'Generate Stencil';
-                if (stage === 'export_summary') return 'Export Manager';
-                return null;
-            }
-
-            const isLaser = this.ui.ctrl.isLaserPipeline?.() || false;
-
-            // Laser stages
-            if (isLaser) {
-                if (stage === 'geometry') {
-                    if (operationType === 'cutout') return 'Generate Laser Cut Path';
-                    if (operationType === 'drill') return 'Generate Drill Marks';
-                    return 'Generate Laser Paths';
+        getActionButtonInfo(stage, opType) {
+            const text = (() => {
+                // Stencil - always 2-stage regardless of pipeline
+                if (opType === 'stencil') {
+                    if (stage === 'geometry') return 'Generate Stencil';
+                    if (stage === 'export_summary') return 'Export Manager';
+                    return null;
                 }
-                if (stage === 'export_summary') return 'Export Manager';
-                return null;
-            }
 
-            // CNC stages
-            if (stage === 'geometry') {
-                if (operationType === 'drill') return 'Generate Drill Strategy';
-                if (operationType === 'cutout') return 'Generate Cutout Path';
-                return 'Generate Offsets';
+                const isLaser = this.ui.ctrl.isLaserPipeline?.() || false;
+
+                // Laser stages
+                if (isLaser) {
+                    if (stage === 'geometry') {
+                        if (opType === 'cutout') return 'Generate Laser Cut Path';
+                        if (opType === 'drill') return 'Generate Drill Marks';
+                        return 'Generate Laser Paths';
+                    }
+                    return stage === 'export_summary' ? 'Export Manager' : null;
+                }
+                // CNC stages
+                if (stage === 'geometry') {
+                    if (opType === 'drill') return 'Generate Drill Strategy';
+                    if (opType === 'cutout') return 'Generate Cutout Path';
+                    return 'Generate Offsets';
+                }
+                if (stage === 'strategy') return 'Generate Preview';
+                if (stage === 'machine') return 'Export Manager';
+                return null;
+            })();
+
+            if (!text) return null;
+
+            // Multi-tool with an unanswered row would generate paths against a
+            // cutter nobody chose. The card above names the sizes; the button
+            // carries the reason on hover so a disabled button is never a dead
+            // end with no explanation.
+            if ('drill' === opType && 'geometry' === stage) {
+                const operation = this.resolveCurrentOperation();
+                const settings = operation ? this.parameterManager.getAllParameters(operation.id) : null;
+                const info = operation ? DrillHandler.describeTable(operation, settings) : null;
+                if (info && 'perSize' === info.mode) {
+                    const count = info.numbers.length;
+                    return {
+                        text: count > 0 ? `${text} (${count} tool${count > 1 ? 's' : ''})` : text,
+                        disabled: !info.complete,
+                        title: info.complete ? '' : info.reason
+                    };
+                }
             }
-            if (stage === 'strategy') return 'Generate Preview';
-            if (stage === 'machine') return 'Export Manager';
-            return null;
+            return { text, disabled: false };
         }
 
         // ═══════════════════════════════════════════════════════════════
@@ -520,10 +536,8 @@
             container.appendChild(section);
 
             // Action button
-            const actionText = this.getActionButtonText('export_summary', operation.type);
-            if (actionText) {
-                container.appendChild(this.createActionButton(actionText));
-            }
+            const actionInfo = this.getActionButtonInfo('export_summary', operation.type);
+            if (actionInfo) container.appendChild(this.createActionButton(actionInfo.text, actionInfo.disabled));
         }
     }
 

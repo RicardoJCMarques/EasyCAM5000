@@ -14,6 +14,28 @@
 
     const PRECISION = window.CAMConfig.constants.precision.coordinate;
 
+    /**
+     * The contract every post-processor descriptor satisfies, whether it
+     * extends this class or builds the object by hand (Roland). Consumers
+     * read these keys directly, so an absent key is not "default" - it is
+     * `undefined` reaching a `!==` test.
+     *
+     * @typedef {Object} PostCapabilities
+     * @property {boolean} supportsToolChange
+     * @property {boolean} useM6
+     * @property {boolean} emitsInitialTool
+     * @property {{modes: string[], default: string}} toolLengthComp
+     * @property {boolean} supportsToolLengthComp - derived from toolLengthComp.modes
+     * @property {boolean} pauseAfterToolChange
+     * @property {boolean} supportsComments
+     * @property {boolean} supportsArcCommands
+     * @property {boolean} supportsCannedCycles
+     * @property {'IJ'|'R'|null} arcFormat
+     * @property {{routes: string[], axisWords: string[], inverseTime: boolean,
+     *             maxInverseTime: number, indexDwell: number,
+     *             continuous: boolean}} rotary - normalizeRotary() shape;
+     *            declare it empty rather than omitting it.
+     */
     class BasePostProcessor {
         constructor(name, config = {}) {
             // REVIEW - LinuxCNC post-processor has partial initial parameter syntax for rotary operations so Base needs defaults now.
@@ -25,8 +47,29 @@
                 supportsArcCommands: true,
                 supportsCannedCycles: false,
                 useM6: false,
-                supportsToolLengthComp: false,
+                // Where the Z offset comes from. A boolean could only express
+                // "table" vs "nothing"; there are four real behaviours and
+                // the operator's machine decides which, not us.
+                //
+                //   'none'           Nothing emitted. Operator re-zeros Z on
+                //                    the new bit. Plain Grbl, Marlin, any
+                //                    collet spindle without a setter.
+                //   'table'          G43 H<n>. Offsets pre-measured into the
+                //                    control's tool table; H names the
+                //                    register. Fixed toolholders (TTS, BT30).
+                //   'table-implicit' G43 rides the change line and H is taken
+                //                    from the active T by the control:
+                //                    `T7 M06 G43`, no H word anywhere. Fanuc
+                //                    with comp-by-tool-number, Brother, OKK.
+                //   'probe'          A controller macro measures the tool at
+                //                    change time and owns Z. Emit no G43 at
+                //                    all. Makera MTC, sender touch-off macros.
+                //
+                // Posts declare what they can do; Machine Settings picks.
+                toolLengthComp: { modes: ['none'], default: 'none' },
                 pauseAfterToolChange: false,
+                emitsInitialTool: true,
+                initialToolUsesM6: false,
                 arcFormat: 'IJ',
                 coordinateDecimals: 3,
                 feedDecimals: 0,
@@ -60,8 +103,15 @@
                 fileExtension: this.config.fileExtension || '.nc',
                 capabilities: {
                     supportsToolChange: this.config.supportsToolChange || false,
+                    useM6: this.config.useM6 || false,
+                    toolLengthComp: this.config.toolLengthComp || { modes: ['none'], default: 'none' },
+                    supportsToolLengthComp:
+                        (this.config.toolLengthComp?.modes || ['none']).some(m => m !== 'none'),
+                    pauseAfterToolChange: this.config.pauseAfterToolChange || false,
+                    emitsInitialTool: this.config.emitsInitialTool !== false,
                     supportsArcCommands: this.config.supportsArcCommands !== false,
                     supportsCannedCycles: this.config.supportsCannedCycles || false,
+                    supportsComments: this.config.supportsComments !== false,
                     arcFormat: this.config.arcFormat || null,
                     // 4th-axis capability. Normalized object.
                     rotary: BasePostProcessor.normalizeRotary(this.config.rotary),
@@ -179,6 +229,9 @@
 
         // Abstract methods
         generateHeader(options) {
+            // Resolve TLC mode once per run across header, footer, retract, and swap
+            this.tlcMode = this.resolveTLCMode(options);
+
             const headerLines = [];
             const c = options.comments || {};
 
@@ -200,14 +253,20 @@
             headerLines.push(this.modalState.units);
             headerLines.push(this.modalState.plane);
             headerLines.push(this.modalState.feedRateMode);
+            // Safe-start cancel. A program that applies tool length must also
+            // start from a known-cancelled state - the control may still be
+            // holding the last program's offset.
+            const headerTLC = this.tlcMode;
+            if (headerTLC === 'table' || headerTLC === 'table-implicit') {
+                headerLines.push(this.appendComment('G49', c.toolLengthCancel, options));
+            }
             headerLines.push('');
 
             // Get the template from the options, or a default
             let startCode = options.startCode;
 
             // Replace placeholders
-            const toolNum = options.toolNumber ?? 1;
-            startCode = startCode.replace(/{toolNumber}/g, toolNum);
+            startCode = startCode.replace(/{toolNumber}/g, options.toolNumber ?? 1); // Every control refuses motion until a T word arrives, changer or not. T1 is a safe default for a single-tool job.
 
             // Conditionally add coolant/vacuum commands
             if (options.coolant && options.coolant !== 'none' && !startCode.includes('M7') && !startCode.includes('M8')) {
@@ -241,6 +300,14 @@
             }
             if (options.vacuum && !endCode.includes('M11')) {
                 endCode = this.appendComment('M11', c.vacuumOff, options) + '\n' + endCode; // Vacuum Off
+            }
+
+            // Leave the control with no tool length applied, for the same
+            // reason the header cancels: the next program must not inherit it.
+            const footerTLC = this.tlcMode;
+            if ((footerTLC === 'table' || footerTLC === 'table-implicit')
+                && !endCode.includes('G49')) {
+                endCode = this.appendComment('G49', c.toolLengthCancel, options) + '\n' + endCode;
             }
 
             return endCode;
@@ -281,73 +348,162 @@
             return lines.join('\n');
         }
 
-        // TEST DRAFT - DO NOT CONNECT
-        /*
-        generateToolChange(tool, options) {
-            if (!this.config.supportsToolChange) return '';
+        /**
+         * Declares the tool in the spindle before any motion. NOT a change.
+         *
+         * Emitted on every job, tool changes on or off: a control with a
+         * changer must be TOLD to load the first tool (latching a tracker
+         * and emitting nothing ran the first operation with whatever was
+         * already in the spindle and whatever length offset was live), and a
+         * control without one still refuses motion until a T word arrives.
+         *
+         * When the post uses M6 this routes through toolChangeSwap so the
+         * first load takes the same audited T/M6 + G43 path as every later
+         * change - minus the retract and spindle stop, which have no previous
+         * tool to protect at program start.
+         */
+        generateInitialTool(tool, options = {}) {
+            if (this.config.emitsInitialTool === false) return '';
+
+            const assigned = tool?.number ?? options.toolNumber ?? null;
+            const n = assigned ?? 1; // Every control refuses motion until a T word arrives, changer or not. T1 is a safe default for a single-tool job.
+            this.currentToolNumber = n;
 
             const lines = [];
-            const c = options.comments || {};
-            const safeZ = options.safeZ || this.config.safetyHeight;
-            const toolNumber = tool.number || options.toolNumber || 1;
-
-            lines.push('');
-            this.pushCommentLine(lines, (c.toolChange || 'Tool change: {name}').replace('{name}', tool.name || tool.id), options);
-            this.pushCommentLine(lines, (c.toolDiameter || 'Diameter: {diameter}mm').replace('{diameter}', tool.diameter), options);
-
-            // Stop Spindle and Coolant
-            const stopGcode = this.setSpindle(0, 0, options);
-            if (stopGcode) {
-                lines.push(stopGcode);
-            } else if (this.currentSpindle > 0) {
-                lines.push(this.appendComment('M5', c.spindleStop, options));
-                this.currentSpindle = 0;
+            if (assigned == null) {
+                this.pushCommentLine(
+                    lines,
+                    (options.comments?.toolFallback || 'No tool number assigned - defaulting to T{n}').replace('{n}', n),
+                    options
+                );
             }
 
+            if (this.config.useM6 && this.config.supportsToolChange) {
+                lines.push(...this.toolChangeSwap(n, options));
+            } else {
+                lines.push(this.config.initialToolUsesM6 ? `M6 T${n}` : `T${n}`);
+            }
+            return lines.join('\n');
+        }
+
+        /**
+         * The effective tool-length mode for this run: the user's Machine
+         * Settings pick when this post declares it, otherwise the post's own
+         * default. Never trusts an option this post cannot emit.
+         */
+        resolveTLCMode(options = {}) {
+            const declared = this.config.toolLengthComp?.modes || ['none'];
+            const want = options.toolLengthCompMode;
+            if (want && declared.includes(want)) return want;
+            return this.config.toolLengthComp?.default || declared[0] || 'none';
+        }
+
+        /**
+         * Retract before a swap. Work-coordinate G0 by default. Overridden by
+         * posts whose Z is offset-relative (Fanuc: G91 G28 Z0 is the only
+         * retract independent of the active work offset and a live TLO).
+         *
+         * G49 drops the OUTGOING tool's offset before the swap. Without it a
+         * control holds the old tool's length while the new one is loaded -
+         * the classic Z crash, and the reason real Fanuc safe-start lines read
+         * `G40 G17 G80 G49`.
+         * @returns {string[]}
+         */
+        toolChangeRetract(options) {
+            const c = options.comments || {};
+            const mode = this.tlcMode;
+            const safeZ = options.safeZ ?? this.config.safetyHeight;
+            const lines = [this.appendComment(
+                `G0 Z${this.formatCoordinate(safeZ)}`, c.retractSafeZ, options)];
+            this.currentPosition.z = safeZ;   // NUMBER: currentPosition is
+                                              // compared with Math.abs()
+            if (mode === 'table' || mode === 'table-implicit') {
+                lines.push(this.appendComment('G49', c.toolLengthCancel, options));
+            }
+            return lines;
+        }
+
+        /**
+         * The swap itself plus length compensation. Overridden by posts with
+         * proprietary sequences (Makera ATC/MTC).
+         * @returns {string[]}
+         */
+        toolChangeSwap(toolNumber, options) {
+            const c = options.comments || {};
+            const mode = this.tlcMode;
+            const lines = [];
+
+            if (this.config.useM6) {
+                // 'table-implicit': G43 rides the change block and the control
+                // takes H from the active T. Real output looks like
+                // `T7 M06 G43` with no H word in the whole program.
+                lines.push(mode === 'table-implicit'
+                    ? this.appendComment(`T${toolNumber} M06 G43`, c.toolLengthComp, options)
+                    : `T${toolNumber} M6`);
+            }
+
+            if (mode === 'table') {
+                lines.push(this.appendComment(
+                    `G43 H${toolNumber}`, c.toolLengthComp, options));
+            }
+            // 'probe' emits nothing here on purpose - the post's macro (Makera
+            // M491, a sender touch-off) measures the tool and owns Z. A G43
+            // over a probed offset double-applies it.
+            return lines;
+        }
+
+        /**
+         * Full mid-program tool change. Emitted by GCodeGenerator on the FIRST
+         * plan of a transition - the connection rapid and the entry plunge
+         * carry the incoming tool (MachineProcessor's backward fill), so the
+         * swap always precedes any motion with the new cutter.
+         */
+        generateToolChange(tool, options = {}) {
+            if (!this.config.supportsToolChange) return '';
+            const c = options.comments || {};
+            const n = tool?.number ?? options.toolNumber ?? null;
+            if (n == null) return ''; // caller gates on number > 0; nothing to emit
+
+            const lines = [''];
+
+            this.pushCommentLine(lines,
+                (c.toolChange || 'Tool change: {name}')
+                    .replace('{name}', tool?.name || tool?.id || `Tool ${n}`), options);
+            this.pushCommentLine(lines,
+                (c.toolDiameter || 'Diameter: {diameter}mm')
+                    .replace('{diameter}', tool?.diameter ?? '?'), options);
+
+            const stop = this.setSpindle(0, 0, options);
+            if (stop) lines.push(stop);
             if (options.coolant && options.coolant !== 'none') {
                 lines.push(this.appendComment('M9', c.coolantOff, options));
             }
 
-            // Retract to Safe Z
-            lines.push(this.appendComment(`G0 Z${this.formatCoordinate(safeZ)}`, c.retractSafeZ, options));
-            this.currentPosition.z = safeZ;
+            lines.push(...this.toolChangeRetract(options));
+            lines.push(...this.toolChangeSwap(n, options));
 
-            // Tool Change Command
-            if (this.config.useM6) {
-                lines.push(`T${toolNumber} M6`);
-            }
-
-            // Tool Length Compensation
-            if (this.config.supportsToolLengthComp) {
-                lines.push(this.appendComment(`G43 H${toolNumber}`, c.toolLengthComp, options));
-            }
-
-            // Pause for Manual Change
             if (this.config.pauseAfterToolChange) {
                 lines.push(this.appendComment('M0', c.toolChangePause, options));
             }
-            lines.push('');
 
-            // Restart Spindle
-            const spindleSpeed = tool.spindleSpeed || options.spindleSpeed || 12000;
-            const startGcode = this.setSpindle(spindleSpeed, tool.spindleDwell || 0, options);
-            if (startGcode) {
-                lines.push(startGcode);
-            }
+            const rpm = tool?.spindleSpeed || options.spindleSpeed;
+            const start = this.setSpindle(rpm, tool?.spindleDwell || 0, options);
+            if (start) lines.push(start);
 
-            // Restart Coolant
-            if (options.coolant && options.coolant !== 'none') {
-                if (options.coolant === 'mist') {
-                    lines.push(this.appendComment('M7', c.coolantMist, options));
-                } else if (options.coolant === 'flood') {
-                    lines.push(this.appendComment('M8', c.coolantFlood, options));
-                }
+            if (options.coolant === 'mist') {
+                lines.push(this.appendComment('M7', c.coolantMist, options));
+            } else if (options.coolant === 'flood') {
+                lines.push(this.appendComment('M8', c.coolantFlood, options));
             }
 
             lines.push('');
+            this.currentToolNumber = n;
+            // Modal cache is a GUESS after a swap. The spindle is re-asserted
+            // above, but F is not, and a probe/pause macro (Makera M491, a
+            // sender touch-off) runs at its own feed and leaves it modal.
+            this.currentFeed = null;
             return lines.join('\n');
         }
-        */
 
         // Base formatter that safely strips trailing zeros and handles -0
         formatNumberSafe(value, precision, scale = 1.0) {
@@ -812,58 +968,85 @@
                 options);
         }
 
-        validateCommand(cmd, options = {}) {
+        /** Machine-limit validation, instance-free. Roland does not extend this
+         * class but drives the same hardware limits, so the checks live here as a
+         * static and both posts pass their own state in.
+         * @param {Object} cmd MotionCommand
+         * @param {Object} options generator options (maxFeed, maxSafeDepth)
+         * @param {Object} ctx { maxRapidRate, inverseTime, maxInverseTime, rotaryAxisWord }
+         * @returns {{warnings: string[], errors: string[]}}
+         */
+        static validateCommandLimits(cmd, options = {}, ctx = {}) {
             const warnings = [];
             const errors = [];
 
-             // Grab limits from the options context passed by the generator
-            const maxFeed = options.maxFeed || this.descriptor.limits.maxRapidRate;
-            // REVIEW - double check maxSafeDepth is wired properly, there's a limit on the parameter manager that may not let this trip. It could be made a per app value?
+            const maxFeed = options.maxFeed || ctx.maxRapidRate;
+
+            // THREE independent depth limits exist, deliberately:
+            //  1. profile-*.json max on the depth parameter - stops the user
+            //     typing a value the machine cannot reach.
+            //  2. BaseOperationPanel.checkDepthLimits - warns pre-generation
+            //     using resolveSurfaceZ, so stock thickness and Z-zero are in
+            //     the maths. This is the one the operator actually reads.
+            //  3. here - the last gate, per command at emission, and the only
+            //     one that sees post-processor and 3D-generator output.
+            // (2) is authoritative for user feedback; (3) is authoritative for
+            // correctness. (1) can mask (2) if its max is tighter than the
+            // machine's - check the profile before suspecting this method.
+            // REVIEW - maxSafeDepth needs to be managed per app since valid depths
+            // aren't the same. Single source of truth, or 1 warning + 1 validation.
             const maxSafeDepth = options.maxSafeDepth;
 
             // Feed rate check - UNIT-AWARE. Under G93 F is 1/minutes (the
             // reciprocal of the move's duration), not mm/min:
-            // convertDevelopedToRotary emits F = feed / pathLength, so a
-            // 0.3mm segment at 1500mm/min is a legitimate F5000. Testing
-            // that against maxRapidRate compared a duration to a velocity
-            // and warned on nearly every short rotary move. The real G93
-            // ceiling is the post's declared maxInverseTime - which
-            // convertDevelopedToRotary already clamps to.
+            // convertDevelopedToRotary emits F = feed / pathLength, so a 0.3mm
+            // segment at 1500mm/min is a legitimate F5000. Testing that against
+            // maxRapidRate compared a duration to a velocity and warned on nearly
+            // every short rotary move. The real G93 ceiling is the post's declared
+            // maxInverseTime - which convertDevelopedToRotary already clamps to.
             if (cmd.f !== undefined && cmd.f !== null) {
-                const invTime = this.modalState.feedRateMode === 'G93';
-                const limit = invTime
-                    ? (this.rotaryCaps?.maxInverseTime || 9999.99)
-                    : maxFeed;
+                const invTime = ctx.inverseTime === true;
+                const limit = invTime ? (ctx.maxInverseTime || 9999.99) : maxFeed;
                 if (cmd.f > limit) {
                     warnings.push(invTime
-                        ? `Inverse-time F${cmd.f.toFixed(2)} exceeds the post's ` +
-                          `maximum of ${limit}.`
+                        ? `Inverse-time F${cmd.f.toFixed(2)} exceeds the post's maximum of ${limit}.`
                         : `Feed rate F${cmd.f} exceeds machine maximum of ${maxFeed}.`);
                 }
             }
 
-            // Critical Z-Plunge Check (catch dangerous plunges). FLAT-STOCK
-            // ONLY: a 4th-axis plan's Z is referenced to the rotary
-            // centerline or blank/face surface - stock thickness has no
-            // meaning there, and a legitimate 'surface'-datum rotary job
-            // cuts far past any flat-stock limit. rotaryAxisWord is set per
-            // plan by the generator exactly when a plan is 4th-axis.
-            if (!this.rotaryAxisWord &&
-                cmd.z !== undefined && cmd.z !== null) {
-                if (typeof maxSafeDepth === 'number' && cmd.z < maxSafeDepth) {
-                    warnings.push(`Commanded Z depth (${cmd.z.toFixed(3)}mm) exceeds the machine's configured max safe depth (${maxSafeDepth}mm). Verify your stock thickness and Z-zero.`);
-                }
+            // Critical Z-Plunge Check. FLAT-STOCK ONLY: a 4th-axis plan's Z is
+            // referenced to the rotary centerline or blank/face surface - stock
+            // thickness has no meaning there, and a legitimate 'surface'-datum
+            // rotary job cuts far past any flat-stock limit. rotaryAxisWord is set
+            // per plan by the generator exactly when a plan is 4th-axis.
+            if (!ctx.rotaryAxisWord
+                && cmd.z !== undefined && cmd.z !== null
+                && typeof maxSafeDepth === 'number' && cmd.z < maxSafeDepth) {
+                warnings.push(`Commanded Z depth (${cmd.z.toFixed(3)}mm) exceeds the machine's configured max safe depth (${maxSafeDepth}mm). Verify your stock thickness and Z-zero.`);
             }
 
-            return { warnings, errors };
+            return { warnings: warnings, errors: errors };
+        }
+
+        validateCommand(cmd, options = {}) {
+            return BasePostProcessor.validateCommandLimits(cmd, options, {
+                maxRapidRate: this.descriptor.limits.maxRapidRate,
+                inverseTime: this.modalState.feedRateMode === 'G93',
+                maxInverseTime: this.rotaryCaps?.maxInverseTime,
+                rotaryAxisWord: this.rotaryAxisWord
+            });
         }
 
         resetState() {
             this.currentPosition = { x: 0, y: 0, z: 0, a: null };
             this.currentFeed = null;
             this.currentSpindle = 0;
+            // null, not 0: 0 is a legal T word on some controls and would
+            // suppress the first real selection.
+            this.currentToolNumber = null;
             this.rotaryAxisWord = null;
             this.rotaryWordUsed = null;
+            this.tlcMode = 'none';
             // Canned cycle modal state - tracks last-emitted parameters
             this.cannedState = {
                 cycleType: null,

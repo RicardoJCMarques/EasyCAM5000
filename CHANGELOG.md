@@ -4,6 +4,27 @@ All notable changes to the **EasyTrace5000** project will be documented in this 
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2026-08-24
+
+### Added
+- **Tool Changing:** An initial draft that allows tool changing commands to be exported inside gcode programs was added throughout but it may have broken stuff. [#25](https://github.com/RicardoJCMarques/EasyCAM5000/issues/25) [#27](https://github.com/RicardoJCMarques/EasyCAM5000/issues/27)
+- **WinPC-NC Post:** A VERY experimental post-processor draft for WinPC-NC variants controllers has been added. Proceed with extreme caution.
+
+### Changed
+- **Tool Assignment:** Because of tool changing logic, assigning a single tool (or none) may look different.
+- **3D Toolpath Preview:** Toolpath previews have been temporarily disabled until they fit better in the work-flow.
+
+### Fixed
+- **V-Carving Operation:** Geometry generation and toolpath planning were greatly improved. Generation time is an order of magnitude faster. [#26](https://github.com/RicardoJCMarques/EasyCAM5000/issues/26)
+- **User Parameters:** Small bugs were causing big problems in EasyShape5000.
+- **Tooltip Inconsistencies:** Plus initial steps for multi-lingual.
+- **Theme Inconsistencies:** Plus initial steps for custom themes.
+
+### Known Problems
+- **Drill Size:** False alarms are triggering warnings that tool is too big to mill when it's not.
+- **Circle Stay-down:** Stay-down optimizations for full circles seems to be broken. May be related to rotate optimizations.
+- **Mold Mode:** The inversion on 3D flat reliefs is sort of working but not in a usable way yet.
+
 ## [1.4.9] - 2026-08-09
 
 ### Added

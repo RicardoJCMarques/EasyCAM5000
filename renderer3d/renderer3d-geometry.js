@@ -19,10 +19,9 @@
  */
 
 import * as THREE from 'three/webgpu';
+import { arcSegmentCount } from './renderer3d-toolpath.js'; // REVIEW - Wouldn't it be better to leave all these in the renderer3d-core to avoid down-stream modules from talking to each other?
 
-const ARC_SEGMENT_LENGTH = window.CAMConfig?.defaults?.rendering?.preview3D?.arcSegmentLength ?? 0.4; // mm per tessellated arc segment
-const MIN_ARC_SEGS = 12;
-const MAX_ARC_SEGS = 128;
+const ARC_SEGMENT_LENGTH = window.CAMConfig?.defaults?.rendering?.preview3D?.arcSegmentLength ?? 0.4;
 const BASE_LIFT = 0.02;       // mm above stock top (z-fight guard vs stock face)
 const TIER_LIFT = 0.00008;    // mm per zIndex unit (zIndex 0..850 → +0..0.068)
 
@@ -30,8 +29,7 @@ const TIER_LIFT = 0.00008;    // mm per zIndex unit (zIndex 0..850 → +0..0.068
 
 /** Samples an arc from a0 over a signed sweep (Y-up: +sweep = CCW). */
 function sampleArc(center, radius, a0, sweep, skipFirst) {
-    const segs = Math.min(MAX_ARC_SEGS, Math.max(MIN_ARC_SEGS,
-        Math.ceil((Math.abs(sweep) * radius) / ARC_SEGMENT_LENGTH)));
+    const segs = arcSegmentCount(radius, sweep);
     const pts = [];
     for (let s = skipFirst ? 1 : 0; s <= segs; s++) {
         const a = a0 + (sweep * s) / segs;
@@ -166,10 +164,19 @@ function primitiveToLoops(prim) {
         case 'obround':
             loops.push({ points: obroundPoints(prim), closed: true });
             break;
-        default:
-            if (prim.points && prim.points.length >= 2) {
-                loops.push({ points: prim.points, closed: false });
+        default: {
+            // Anything the switch above does not model analytically goes
+            // through the canonical tessellator.
+            const path = (typeof GeometryUtils !== 'undefined')
+                ? GeometryUtils.primitiveToPath(prim)
+                : null;
+            for (const c of (path?.contours || [])) {
+                const dense = contourToPoints(c);
+                if (dense.length >= 2) {
+                    loops.push({ points: dense, closed: path.closed !== false });
+                }
             }
+        }
     }
     return loops;
 }
@@ -291,10 +298,10 @@ export class GeometryLayer3D {
                 //   1. ShapeIndexedHandler.buildFaceSliceOptions  rotAboutAxis(+θk)
                 //   2. walkPlans' wrapPt      (renderer3d-toolpath.js)  R(-A)
                 //   3. this block                                       R(-A)
-                // (1) reads primitive PROPERTIES, (2) reads plan METADATA, and
-                // both render at once (refresh3D + refresh3DPlans), so a
-                // desync shows as correctly-wrapped toolpaths over
-                // wrongly-wrapped offset geometry.
+                // (1) reads primitive PROPERTIES, (2) reads plan METADATA. Only
+                // (1) and (3) are live today - the plan layer has no producer -
+                // but (2) is what the export frame is checked against, so a flip
+                // in either without the other desyncs screen from G-code.
                 const ip = prim.properties;
                 if (prim.type === 'path3d' && ip?.indexed &&
                     prim.positions && prim.positions.length >= 6) {

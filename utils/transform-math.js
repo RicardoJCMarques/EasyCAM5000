@@ -37,9 +37,6 @@
 
         identity() { return { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 }; },
 
-        /** Shared read-only identity. Use for defaults/comparisons; call identity() when you need a mutable copy. */
-        IDENTITY: Object.freeze({ a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 }),
-
         clone(m) { return { a: m.a, b: m.b, c: m.c, d: m.d, e: m.e, f: m.f }; },
 
         translation(tx, ty) { return { a: 1, b: 0, c: 0, d: 1, e: tx, f: ty }; },
@@ -98,18 +95,6 @@
                 x: m.a * p.x + m.c * p.y + m.e,
                 y: m.b * p.x + m.d * p.y + m.f
             };
-        },
-
-        /**
-         * In-place variant: mutates p and returns it. Use ONLY on points
-         * you own (fresh clones, scratch objects) - never on source
-         * geometry. Eliminates per-point allocation in hot loops.
-         */
-        applyToPointMut(m, p) {
-            const x = p.x, y = p.y;
-            p.x = m.a * x + m.c * y + m.e;
-            p.y = m.b * x + m.d * y + m.f;
-            return p;
         },
 
         det(m) { return m.a * m.d - m.b * m.c; },
@@ -209,17 +194,6 @@
                 m = this.multiply(this.mirrorAbout(!!t.mirrorX, !!t.mirrorY, mc.x, mc.y), m);
             }
             return m;
-        },
-
-        /**
-         * Rotation-only component of the workspace transform (effective angle
-         * preserved, mirrors excluded). Used by zoomFit-style "rotated board
-         * bounds" that handle the mirror flip separately or not at all.
-         */
-        rotationOnlyWorkspace(t) {
-            if (!t || !t.rotation) return this.identity();
-            const rc = t.rotationCenter || { x: 0, y: 0 };
-            return this.rotationAbout(this.effectiveRotationDeg(t), rc.x, rc.y);
         },
 
         // Bounds

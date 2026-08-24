@@ -23,21 +23,21 @@
             };
         }
 
-        // Resolve compound contours before offset pipeline
-        async orchestrateGeneration(operation, params, core, options = {}) {
-            // Tier 1 only - isolation can have thousands of primitives,
-            // so skip the O(n²) inter-primitive merge.
-            operation.primitives = this.resolveContourTopology(operation.primitives);
-
-            return super.orchestrateGeneration(operation, params, core, options);
+        /**
+         * Tier 1 only - isolation can have thousands of primitives, so skip
+         * the O(n²) inter-primitive merge.
+         */
+        resolveSourceTopology(operation) {
+            return this.resolveContourTopology(operation.primitives);
         }
 
         /**
          * Laser clearance zone: expanded copper minus original copper (halo around traces).
          */
         async getClearanceZone(operation, settings) {
+            const step = settings.toolDiameter * (settings.stepOver / 100);
             const isolationWidth = settings.isolationWidth
-                || (settings.toolDiameter * settings.passes * (1 - (settings.stepOver || 50) / 100))
+                || (settings.toolDiameter + Math.max(0, (settings.passes || 1) - 1) * step)
                 || 0.3;
             this.debug(`Isolation clearance width: ${isolationWidth.toFixed(3)}mm`);
             return this.generateClearancePolygon(operation, isolationWidth);

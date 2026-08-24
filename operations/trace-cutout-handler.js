@@ -73,11 +73,16 @@
             return { primitives, warnings };
         }
 
-        async orchestrateGeneration(operation, params, core, options = {}) {
-            // Tier 1 & 2 - Ensure newly closed orphans from the closure prompt are topologically merged
-            // so they are correctly classified as internal holes rather than independent board outlines.
-            operation.primitives = this.resolveContourTopology(operation.primitives, { mergeNesting: true });
+        /**
+         * Tier 1 & 2 - newly closed orphans from the closure prompt must be
+         * topologically merged so they classify as internal holes rather than
+         * independent board outlines.
+         */
+        resolveSourceTopology(operation) {
+            return this.resolveContourTopology(operation.primitives, { mergeNesting: true });
+        }
 
+        async orchestrateGeneration(operation, params, core, options = {}) {
             const result = await super.orchestrateGeneration(operation, params, core, options);
             // Override CNC message for cutout
             if (result.success && !options.isLaser) {

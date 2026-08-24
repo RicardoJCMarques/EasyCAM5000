@@ -9,22 +9,6 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
- /* ============================================================================
-   EASYTRACE OPERATION MAP
-   Maps this app's operation TYPE strings to palette entries. The palette lives
-   in theme.css; nothing here invents a colour. JS reads the same names through
-   BaseAppUI.resolveOperationColor.
-   ============================================================================ */
-
-/* REVIEW - fix --op-color vs --color-operation mismatching once and for all. */
-:root {
-    --op-color-isolation: var(--color-operation-isolation);
-    --op-color-clearing:  var(--color-operation-clearing);
-    --op-color-cutout:    var(--color-operation-cutout);
-    --op-color-drill:     var(--color-operation-drill);
-    --op-color-stencil:   var(--color-operation-stencil);
-}
-
 /* ============================================================================
    TREE VIEW PADDING OVERRIDE
    ============================================================================ */
@@ -306,10 +290,10 @@
     background: var(--color-bg-hover);
 }
 
-.file-drop-zone.dragging {
+.file-drop-zone.is-dragging {
     border-color: var(--color-accent-primary);
     background: var(--color-bg-active);
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    box-shadow: color-mix(in srgb, var(--color-accent-hover) 10%, transparent);
 }
 
 .file-types {
@@ -345,7 +329,7 @@
         padding-left: calc(var(--spacing-md) - 3px);
     }
 
-    .operation-category.expanded .category-header {
+    .operation-category.is-expanded .category-header {
         border-left-color: var(--color-accent-primary);
     }
 }

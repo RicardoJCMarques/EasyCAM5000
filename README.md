@@ -22,7 +22,7 @@ EasyTrace5000 is a browser-based CAM workspace that converts standard fabricatio
 
 ## EasyShape5000
 
-EasyShape5000 is a browser-based CAM workspace for CNC router milling of SVG files. Currently it has 3x 2D operations (Profile, Pocket and Drilling) and more are planned, including 3D operations (V-Carving & 3D Relief Maps). It shares all foundations with EasyTrace5000 but with it's own UI/tweaked work-flow and operation handlers. EasyShape5000 was born after I noticed I was getting better toolpaths from EasyTrace than from Easel and it grew into an alternative, dedicated app from there.
+EasyShape5000 is a browser-based CAM workspace for CNC router milling of SVG and STL files. It ships four 2.5D operations (Profile, Pocket, Drilling, Engraving) and three 3D ones (V-Carve, Relief and 4th-axis Rotary — both continuous radial and indexed 3+1), with a 3D toolpath preview and playback. It shares all foundations with EasyTrace5000 but with it's own UI/tweaked work-flow and operation handlers. EasyShape5000 was born after I noticed I was getting better toolpaths from EasyTrace than from Easel and it grew into an alternative, dedicated app from there.
 
 <div align="center">
   <img src="./images/EasyShape5000_workspace.webp" width="830" height="467" alt="EasyShape5000 Workspace screenshot">
@@ -74,6 +74,8 @@ EasyShape5000 is a browser-based CAM workspace for CNC router milling of SVG fil
    * **Multi-Stage Visualization:** Clearly and distinctly renders **Source** (Gerber/SVG), **Offset** (generated paths), and **Preview** (tool-reach simulation) layers. Plus optional Debug features.
    * **Smart Drill Rendering:** Visually distinguishes source drill holes/slots, offset-stage peck marks, and final preview simulations with color-coded warnings for tool relation (exact/undersized/oversized).
 
+* **Tool Changes:** Automatic tool changes (T/M6) are supported on posts that declare them — grblHAL, UCCNC, Mach3, LinuxCNC, Fanuc, WinPC-NC and Makera. GRBL, Marlin and Roland RML do not, so jobs using more than one tool must be exported as one file per tool on those controllers.
+
 # Tech Stack
 
 * **Frontend:** Vanilla JavaScript (ES6+), HTML5, CSS3
@@ -81,7 +83,7 @@ EasyShape5000 is a browser-based CAM workspace for CNC router milling of SVG fil
 * **Rendering:** Custom 2D Canvas-based layer renderer with an overlay system for grids, rulers, and origin points.
 * **File Parsing:** Native parsers for Gerber (RS-274X), Excellon and SVG formats.
 * **Toolpath Generation:** A three-stage pipeline (Translate, Optimize, Process) to convert geometry into machine-ready plans.
-* **Post-Processors:** GRBL, Makera (Less Experimental), GrblHAL (Less Experimental), Marlin (Less Experimental), LinuxCNC (Less Experimental), UCCNC (Less Experimental), Mach3 (Less Experimental), Roland RM (Experimental).
+* **Post-Processors:** GRBL, grblHAL, Makera, UCCNC, Mach3, LinuxCNC, Marlin (all Less Experimental), Roland RML (Experimental) and Fanuc, WinPC-NC (Radioactive)
 
 Note: Experimental post-processors need more testing. I only have access to GRBL and Roland machines. I have to assume things are working until someone tell me otherwise so please report issues so I know and can plan accordingly.
 
@@ -92,6 +94,7 @@ The application has been developed and tested with files generated from **KiCAD*
 * **Gerber:** `.gbr`, `.ger`, `.gtl`, `.gbl`, `.gts`, `.gbs`, `.gko`, `.gm1`
 * **Excellon:** `.drl`, `.xln`, `.txt`, `.drill`, `.exc`
 * **SVG**
+* **STL:** binary and ASCII (EasyShape5000 relief / rotary sources)
 
 Note 1: Exporting Gerber files with Protel file extensions allows drag'n'drop to automatically assign files to the expected operation.
 
@@ -361,7 +364,6 @@ window.pcbcam.getStats()                // Display pipeline statistics
 * **Laser Pipeline (Beta):** The laser toolpath generation and export features are in active testing. Please verify all exported SVG/PNG files in your laser control software before firing.
 * **Hybrid Pipeline Locked:** The ability to automatically mix CNC operations (like drilling) and Laser operations in a single workspace is currently locked while standalone laser operations are tested.
 * **Bézier Offsetting:** While Bézier curves from SVGs are parsed analytically, they are interpolated (converted to line segments) by the plotter. True analytic offsetting and booleans of Béziers is not yet supported.
-* **Tool Changes:** The application does not currently generate tool change commands (M6). Operations using different tools must be exported as separate G-code files.
 
 **Known Bugs:**
 * **Arc-Reconstruction:** Arc-Arc interactions have overlapping edge points fighting to be attached to arcs and 1 always loses.
@@ -372,7 +374,6 @@ window.pcbcam.getStats()                // Display pipeline statistics
 - Tool library import/export
 - Theme import/export
 - Multi-lingual UI
-- Automatic tool change (M6) support
 - 3D G-code preview/simulation
 - Multi-sided PCB support
 - Service Worker for offline caching/work
@@ -466,4 +467,4 @@ While I'm not actively seeking major code contributions, please help me test it 
 
 ---
 
-**Status**: Active Development | **Version**: 1.4.9 | **Platform**: Client-side Web
+**Status**: Active Development | **Version**: 1.5.0 | **Platform**: Client-side Web

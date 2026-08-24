@@ -1111,12 +1111,21 @@
             }
 
             // ── Pass 3: Ramer-Douglas-Peucker simplification ──
+            // REVIEW - Consider moving this to the plotter, for a lossless pipeline simplification and spike removal should be user managed during geometry generation. Parser shouldn't be making decisions.
             // Collapses near-collinear vertex runs and over-tessellated curve approximations that the spike detector doesn't catch (forward-progressing zigzags where dot > 0). This is the industry-standard algorithm for polyline simplification in GIS/CNC/CAD.
             // Tolerance rationale: the smallest meaningful PCB feature (trace-to-trace clearance) is typically ≥ 0.1mm.
             // A simplification tolerance of 0.005-0.01mm is invisible on copper but eliminates thousands of noise vertices that otherwise get amplified into sawtooth artifacts by the Clipper offset pipeline.
             const rdpTolerance = C.precision.rdpSimplification;
-
-            const simplified = this.simplifyRDP(cleaned, rdpTolerance);
+            // Arc endpoints must survive: a curveId point is the anchor the
+            // reconstructor matches against, and losing one silently converts
+            // an arc into a chord.
+            const protectedIdx = new Set();
+            for (let i = 0; i < cleaned.length; i++) {
+                if (cleaned[i].curveId > 0) protectedIdx.add(i);
+            }
+            // Squared tolerance - GeometryUtils takes the square.
+            const { points: simplified } = GeometryUtils.simplifyPolyline2D(
+                cleaned, rdpTolerance * rdpTolerance, protectedIdx);
 
             if (simplified.length < 3) {
                 this.warnings.push(`Region collapsed to ${simplified.length} points after RDP simplification`);
@@ -1182,101 +1191,6 @@
             this.layers.objects.push(region);
             this.stats.objectsCreated++;
             this.debug(`Created region with ${finalPoints.length} points`);
-        }
-
-        /**
-         * Ramer-Douglas-Peucker polyline simplification.
-         * Iterative (stack-based) implementation to avoid call-stack overflow on KiCad pour polygons that routinely have 10k-50k+ vertices.
-         * The algorithm recursively finds the vertex farthest from the line between the endpoints of each segment. If that distance exceeds `tolerance`, the vertex is kept and the segment is subdivided; otherwise the entire run is collapsed to a straight line.
-         * @param {Array<{x:number, y:number}>} points - Input polyline.
-         * @param {number} tolerance - Max perpendicular deviation in mm.
-         * @returns {Array<{x:number, y:number}>} Simplified polyline.
-         */
-        // REVIEW - Five independent polyline simplifiers ship in this repo:
-        // GeometryUtils.simplifyDouglasPeucker, VCarveGenerator.simplifyRDP/rdpOpen,
-        // FieldPaths.simplify3D, ToolpathOptimizer.simplifyCollinearPoints and
-        // GerberParser.simplifyRDP. Consolidation is blocked on the worker boundary
-        // (vcarve and fieldpaths cannot reach GeometryUtils). Fix all five together
-        // or none.
-        // This should be the lowest priority simplifyer. It was vital for analytic internal offsets to minimize self collapsing artifacts but Clipper2 does the heavy lifting during boolean operations.
-        simplifyRDP(points, tolerance) {
-            const n = points.length;
-            if (n <= 3) return points;
-
-            const tolSq = tolerance * tolerance;
-
-            // Boolean mask: true = keep this vertex
-            const keep = new Uint8Array(n); // initialized to 0
-            keep[0] = 1;
-            keep[n - 1] = 1;
-
-            // Protect vertices belonging to registered analytic curves
-            for (let i = 0; i < n; i++) {
-                if (points[i].curveId && points[i].curveId > 0) keep[i] = 1;
-            }
-
-            // Iterative stack to avoid recursion depth issues.
-            // Each entry is [startIndex, endIndex].
-            const stack = [[0, n - 1]];
-
-            while (stack.length > 0) {
-                const [start, end] = stack.pop();
-
-                if (end - start < 2) continue;
-
-                const ax = points[start].x;
-                const ay = points[start].y;
-                const bx = points[end].x;
-                const by = points[end].y;
-
-                const abx = bx - ax;
-                const aby = by - ay;
-                const abLenSq = abx * abx + aby * aby;
-
-                let maxDistSq = 0;
-                let maxIdx = start;
-
-                for (let i = start + 1; i < end; i++) {
-                    const px = points[i].x - ax;
-                    const py = points[i].y - ay;
-
-                    let distSq;
-                    if (abLenSq < 1e-20) {
-                        // Degenerate segment (start ≈ end): use point-to-point distance
-                        distSq = px * px + py * py;
-                    } else {
-                        // Perpendicular distance² = (cross product)² / |AB|²
-                        const cross = abx * py - aby * px;
-                        distSq = (cross * cross) / abLenSq;
-                    }
-
-                    if (distSq > maxDistSq) {
-                        maxDistSq = distSq;
-                        maxIdx = i;
-                    }
-                }
-
-                if (maxDistSq > tolSq) {
-                    keep[maxIdx] = 1;
-                    // Subdivide - push longer segment first for better cache locality
-                    if (maxIdx - start > end - maxIdx) {
-                        stack.push([start, maxIdx]);
-                        stack.push([maxIdx, end]);
-                    } else {
-                        stack.push([maxIdx, end]);
-                        stack.push([start, maxIdx]);
-                    }
-                }
-                // else: all interior points within tolerance - discard them
-            }
-
-            // Collect kept vertices
-            const result = [];
-            for (let i = 0; i < n; i++) {
-                if (keep[i]) result.push(points[i]);
-            }
-
-            return result;
         }
 
         /**

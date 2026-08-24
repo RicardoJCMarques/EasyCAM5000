@@ -21,7 +21,10 @@
                 supportsArcCommands: true,
                 supportsCannedCycles: true,
                 useM6: true,
-                supportsToolLengthComp: false,
+                // grblHAL supports G43 H<n> only when a tool table is
+                // configured and populated. An empty table silently applies
+                // offset zero, so 'none' leads - the user opts in.
+                toolLengthComp: { modes: ['none', 'table'], default: 'none' },
                 // 4th axis: grblHAL builds can enable A/B/C. DRAFT -
                 // inverseTime stays false until G93 is confirmed on the target
                 // build. False is the safe direction (feeds pass as G94 mm/min:
@@ -45,7 +48,7 @@
                 maxSpindleSpeed: 30000,
                 maxRapidRate: 5000,
                 defaults: {
-                    startCode: 'T1',
+                    startCode: '',
                     endCode: 'M5\nG0 X0 Y0\nM2',
                 }
             });

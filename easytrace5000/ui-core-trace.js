@@ -291,14 +291,6 @@
             this.setStatus('Reset to saved origin', 'success');
         }
 
-        // REVIEW - Unused, delete or keep? Applies relative rotation on demand
-        // applyBoardRotation(angle) {
-        //     if (!this.scene) return;
-        //     this.scene.rotateBy(angle);
-        //     this.updateOriginDisplay();
-        //     this.setStatus(`Board rotated by ${angle}°`, 'success');
-        // }
-
         resetBoardRotationOnly() {
             if (!this.scene) return;
             this.scene.resetRotation();
@@ -366,7 +358,7 @@
                 if (opId) { if (!byOperation.has(opId)) byOperation.set(opId, []); byOperation.get(opId).push(p); }
             });
             byOperation.forEach((primitives, opId) => {
-                const operation = this.core.operations.find(op => op.id === opId);
+                const operation = this.core.getOperation(opId);
                 if (operation) this.renderer.addLayer(window.LayerNaming.preprocessed(opId), primitives, {
                     type: operation.type,
                     visible: true,
@@ -382,7 +374,7 @@
             const byOperation = new Map();
             fused.forEach(p => { const opId = p.properties?.sourceOperationId; if (opId) { if (!byOperation.has(opId)) byOperation.set(opId, []); byOperation.get(opId).push(p); } });
             byOperation.forEach((primitives, opId) => {
-                const operation = this.core.operations.find(op => op.id === opId);
+                const operation = this.core.getOperation(opId);
                 if (operation) {
                     const layerName = window.LayerNaming.fused(opId);
                     this.renderer.addLayer(layerName, primitives, {
@@ -402,8 +394,10 @@
                     const hasOffsets = operation.type === 'stencil' && operation.offsets?.length > 0;
                     const layerName = window.LayerNaming.source(operation.id);
                     this.renderer.addLayer(layerName, operation.primitives, {
-                        type: operation.type, visible: this.resolveLayerVisibility(operation, layerName, !hasOffsets),
-                        color: operation.color || this.core.fileTypes[operation.type]?.color || '#888888'
+                        type: operation.type,
+                        visible: this.resolveLayerVisibility(operation, layerName, !hasOffsets),
+                        color: operation.color || this.core.fileTypes[operation.type]?.color || '#888888',
+                        zIndex: this.getLayerZIndex(operation.type, { operationType: operation.type })
                     });
                 }
             });

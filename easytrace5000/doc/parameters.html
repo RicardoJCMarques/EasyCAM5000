@@ -14,7 +14,7 @@
     -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>EasyTrace5000 | Parameter Reference</title>
-    <meta name="description" content="Every EasyTrace5000 parameter: ranges, defaults, and what it does, grouped by Geometry, Strategy, Machine, and Laser.">
+    <meta name="description" content="EEvery EasyTrace5000 parameter with ranges and defaults - tool number, multi-tool drilling, depths, feeds and laser settings, grouped by stage.">
     <meta name="author" content="Eltryus">
     <meta name="robots" content="index, follow">
     <meta name="theme-color" content="#1a1a1a">
@@ -24,7 +24,7 @@
     <meta property="og:type" content="article">
     <meta property="og:url" content="https://cam.eltryus.design/easytrace5000/doc/parameters">
     <meta property="og:title" content="EasyTrace5000 | Parameter Reference">
-    <meta property="og:description" content="Every EasyTrace5000 parameter: ranges, defaults, and what it does, grouped by Geometry, Strategy, Machine, and Laser.">
+    <meta property="og:description" content="Every EasyTrace5000 parameter with ranges and defaults - tool number, multi-tool drilling, depths, feeds and laser settings, grouped by stage.">
     <meta property="og:image" content="https://cam.eltryus.design/images/social-trace.jpg">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
@@ -59,7 +59,7 @@
                 "author": { "@id": "https://www.eltryus.design/#organization" },
                 "publisher": { "@id": "https://www.eltryus.design/#organization" },
                 "datePublished": "2025-01-16",
-                "dateModified": "2026-03-02"
+                "dateModified": "2026-08-24"
             },
             {
                 "@type": "BreadcrumbList",
@@ -138,6 +138,8 @@
                 <table>
                     <thead><tr><th>Parameter</th><th>Range</th><th>Default</th><th>Applies to</th><th>Description</th></tr></thead>
                     <tbody>
+                        <tr><td>Tool Number</td><td>1-99</td><td>1</td><td>all (single-tool)</td><td>The T word your controller receives. Hidden when Multi-Tool Drilling is on - the drill table carries one number per hole size instead.</td></tr>
+                        <tr><td>Multi-Tool Drilling</td><td>on/off</td><td>off</td><td>drill</td><td>Assign a separate cutter and T number per hole diameter. Opens the Drill Tooling table; the sidebar tool, tool number and mill-holes fields are hidden while it is on.</td></tr>
                         <tr><td>Tool Diameter</td><td>0.01-10 mm</td><td>-</td><td>all</td><td>The physical diameter of the cutting tool - the most critical value for accurate offsets.</td></tr>
                         <tr><td>Number of Passes</td><td>1-30</td><td>3</td><td>isolation</td><td>Offset passes to create. More passes clear more copper but take longer.</td></tr>
                         <tr><td>Step Over</td><td>10-99 %</td><td>50</td><td>isolation, clearing</td><td>Percentage of tool diameter overlapped each pass. 50% is a good default.</td></tr>

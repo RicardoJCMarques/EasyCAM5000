@@ -14,7 +14,7 @@
     -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>EasyShape5000 | Operation Reference</title>
-    <meta name="description" content="EasyShape5000 operations: profile cut, pocket clearing, drilling, plus planned engraving, pattern, v-carve, and 3D relief.">
+    <meta name="description" content="What each EasyShape5000 operation does: profile, pocket, drill, engrave, V-carve, 3D relief, and 4th-axis rotary in radial and indexed 3+1 kinematics.">
     <meta name="author" content="Eltryus">
     <meta name="robots" content="index, follow">
     <meta name="theme-color" content="#1a1a1a">
@@ -24,8 +24,8 @@
     <meta property="og:type" content="article">
     <meta property="og:url" content="https://cam.eltryus.design/easyshape5000/doc/operations">
     <meta property="og:title" content="EasyShape5000 | Operations Guide">
-    <meta property="og:description" content="A guide to EasyShape5000's operations.">
-    <meta property="og:image" content="https://cam.eltryus.design/images/social-preview-shape.jpg">
+    <meta property="og:description" content="What each EasyShape5000 operation does: profile, pocket, drill, engrave, V-carve, 3D relief, and 4th-axis rotary in radial and indexed 3+1 kinematics.">
+    <meta property="og:image" content="https://cam.eltryus.design/images/social-shape.jpg">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
     <meta property="og:site_name" content="Eltryus EasyCAM5000 Suite">
@@ -59,7 +59,7 @@
                 "author": { "@id": "https://www.eltryus.design/#organization" },
                 "publisher": { "@id": "https://www.eltryus.design/#organization" },
                 "datePublished": "2026-06-17",
-                "dateModified": "2026-06-17"
+                "dateModified": "2026-08-24"
             },
             {
                 "@type": "BreadcrumbList",
@@ -117,12 +117,13 @@
                 <li><a href="#op-profile" draggable="false">Profile Cut</a></li>
                 <li><a href="#op-pocket" draggable="false">Pocket Clearing</a></li>
                 <li><a href="#op-drill" draggable="false">Drilling</a></li>
-                <li><a href="#planned" draggable="false">Planned Operations</a>
+                <li><a href="#op-engrave" draggable="false">Engraving</a></li>
+                <li>
+                    <a href="#three-d" draggable="false">3D Operations</a>
                     <ol>
-                        <li><a href="#op-engrave" draggable="false">Engraving</a></li>
-                        <li><a href="#op-pattern" draggable="false">Pattern Generator</a></li>
                         <li><a href="#op-vcarve" draggable="false">V-Carve</a></li>
-                        <li><a href="#op-relief" draggable="false">3D Relief</a></li>
+                        <li><a href="#op-relief" draggable="false">3D Flat Relief</a></li>
+                        <li><a href="#op-rotary" draggable="false">3D Rotary Relief (4th Axis)</a></li>
                     </ol>
                 </li>
             </ol>
@@ -138,7 +139,7 @@
                 <h2>Overview</h2>
                 <p>EasyShape assigns operations <strong>per shape</strong>. Select one or more shapes in the scene tree or on the canvas, drop them into an operation bucket, set parameters, and generate geometry. Operations are independent and fully undoable. All shapes must be <strong>closed paths</strong> - open paths trigger a warning. Every parameter named here is documented on the <a href="parameters" draggable="false">Parameter Reference</a>.</p>
                 <div class="callout callout--info">
-                    <p>Three operations are functional in v1.0 (profile, pocket, drill). The rest are scaffolded and shown below for transparency - their parameters exist in the UI but they don't yet produce toolpaths.</p>
+                    <p>Seven operations produce toolpaths today. The 3D set (V-Carve, Relief, Rotary) is newer than the rest and under active testing - dry-run before you cut. Only the Pattern Generator is still scaffolding.</p>
                 </div>
             </section>
 
@@ -163,32 +164,48 @@
                 <p><strong>Key parameters:</strong> mill oversize holes + mill step-over; canned cycle, peck depth, dwell, retract height; optional spot drill (+ spot depth).</p>
             </section>
 
-            <section id="planned">
-                <h2>Planned Operations <span class="doc-badge doc-badge--dev">In Development</span></h2>
-                <p>These operations are part of the roadmap. Parameters are present in the interface, but the handlers are not yet active.</p>
-            </section>
-
             <section id="op-engrave">
-                <h3><svg class="cam-icon" width="20" height="20" aria-hidden="true"><use href="#icon-op-engrave"></use></svg> Engraving <span class="doc-badge doc-badge--dev">Planned</span></h3>
-                <p>Follow-the-path cutting at a fixed shallow depth. Path mode will offer on-path (centerline) or tool-compensated inside/outside, with an optional multi-pass at the same depth for hard materials.</p>
+                <h2><svg class="cam-icon" width="22" height="22" aria-hidden="true"><use href="#icon-op-engrave"></use></svg> Engraving <span class="doc-badge doc-badge--stable">Stable</span></h2>
+                <p>Traces a path directly with no offset — the tool centre follows the line. Bypasses the offset pipeline and Clipper entirely, so open paths are as valid as closed ones and nothing collapses when the tool is wider than the shape.</p>
+                <p><strong>Use it for:</strong> lettering, outlines, score lines, and any single-line artwork.</p>
+                <p><strong>Key parameters:</strong> cut depth; multi-depth + depth per pass; feeds and speeds.</p>
             </section>
 
-            <section id="op-pattern">
-                <h3><svg class="cam-icon" width="20" height="20" aria-hidden="true"><use href="#icon-group"></use></svg> Pattern Generator <span class="doc-badge doc-badge--dev">Planned</span></h3>
-                <p>Repeats a shape across a layout: rectangular grid, hexagonal, radial array (with optional rotate-to-face-outward), or linear array, with mirroring options. A geometry-only operation - it multiplies shapes before the cutting operations run.</p>
+            <section id="three-d">
+                <h2>3D Operations <span class="doc-badge doc-badge--dev">Beta</span></h2>
+                <p>The three operations below produce per-point Z toolpaths rather than flat contours. They run on a background worker, report progress in stages, and render in the 3D preview (<kbd>F2</kbd>) with playback. They are the newest part of the suite — verify output before cutting.</p>
             </section>
 
             <section id="op-vcarve">
-                <h3><svg class="cam-icon" width="20" height="20" aria-hidden="true"><use href="#icon-op-vcarve"></use></svg> V-Carve <span class="doc-badge doc-badge--dev">Planned</span></h3>
-                <p>Variable-depth carving with a V-bit, where cut width tracks the bit's included angle and the medial axis of each shape. Wide flats beyond the bit's reach can be roughed with a separate flat end mill before the V-bit finishes the edges.</p>
-                <p>Of the planned operations this is the furthest along - its full parameter set (bit angle, max/start depth, flat-area depth, clearing tool) already exists in the interface.</p>
+                <h2><svg class="cam-icon" width="22" height="22" aria-hidden="true"><use href="#icon-op-vcarve"></use></svg> V-Carve <span class="doc-badge doc-badge--dev">Beta</span></h2>
+                <p>Variable-depth carving with a V-bit. The engine samples each closed region's boundary, builds a Voronoi/Delaunay <strong>medial axis</strong>, and drops the bit until its flanks touch both walls — so cut width tracks the shape's local thickness automatically. Regions wider than the bit can reach at max depth get a flat floor with a stitched perimeter.</p>
+                <p><strong>Use it for:</strong> carved lettering, decorative inlays, and sign work.</p>
+                <p><strong>Key parameters:</strong> V-bit included angle and tip diameter; start depth; max depth; chain/corner quality settings.</p>
+                <div class="callout callout--info">
+                    <p>For a V-bit, <em>tool diameter</em> means the tip flat, not the cutting diameter at the surface. A 90° bit with a 0.3 mm tip is entered as 0.3.</p>
+                </div>
             </section>
 
             <section id="op-relief">
-                <h3><svg class="cam-icon" width="20" height="20" aria-hidden="true"><use href="#icon-image"></use></svg> 3D Relief <span class="doc-badge doc-badge--dev">Planned</span></h3>
-                <p>Height-driven 3D machining: a grayscale height-map or an imported STL drives Z depth across the surface. This is the earliest-stage operation - it depends on the STL parser and a 3D preview system that aren't finished yet, so no parameters are exposed.</p>
-                <div class="callout callout--info">
-                    <p>3D relief, v-carve, and engraving are tracked on the suite <a href="../../README.md" draggable="false">roadmap</a>. This page will gain working sections as each lands.</p>
+                <h2><svg class="cam-icon" width="22" height="22" aria-hidden="true"><use href="#icon-op-relief"></use></svg> 3D Relief <span class="doc-badge doc-badge--dev">Beta</span></h2>
+                <p>Surfaces an imported STL as a height field. The mesh is sliced into a heightmap at generation time (resolution, orientation and Z datum are operation parameters, not import settings), the target surface is compensated for the real tool shape, and the result is rastered into roughing layers plus a finishing pass.</p>
+                <p><strong>Use it for:</strong> moulds, terrain tiles, medallions, and any 2.5D surface from a mesh.</p>
+                <p><strong>Key parameters:</strong> tool shape and corner radius; depth mapping and total depth; boundary mode; rough/finish mode, stepdown, stepover and stock-to-leave; raster axis and cell size.</p>
+            </section>
+
+            <section id="op-rotary">
+                <h2><svg class="cam-icon" width="22" height="22" aria-hidden="true"><use href="#icon-op-rotary"></use></svg> Rotary - 4th Axis <span class="doc-badge doc-badge--dev">Beta</span></h2>
+                <p>One operation type with two engines, chosen by the <strong>kinematics</strong> parameter.</p>
+                <dl>
+                    <dt>Radial (continuous)</dt>
+                    <dd>The mesh is sliced into a cylindrical radius map R(x, θ) and machined as a developed strip that the post converts into A-axis motion. Best for turned, wrapped or fully round parts.</dd>
+                    <dt>Indexed 3+1</dt>
+                    <dd>The blank is treated as an N-sided prism: the part is machined as N ordinary flat reliefs at fixed A angles, joined by pure positioning moves. Best for undercuts and features a continuous wrap can't reach.</dd>
+                </dl>
+                <p><strong>Use it for:</strong> table legs, chess pieces, columns, and faceted or multi-sided parts.</p>
+                <p><strong>Key parameters:</strong> kinematics; rotary axis and model orientation; stock shape and blank diameter (or face count and blank width, indexed); workholding mode with per-end settings; minimum radius (drive core); rough/finish stepdown and stepover.</p>
+                <div class="callout callout--warning">
+                    <p>Rotary output is generated in the machine frame: workspace rotation, mirroring and origin do not apply to it, and the max-safe-depth guard is a flat-stock rule that a surface-datum rotary job legitimately passes. Check your A-axis route and travel limits on the controller first.</p>
                 </div>
             </section>
         </main>

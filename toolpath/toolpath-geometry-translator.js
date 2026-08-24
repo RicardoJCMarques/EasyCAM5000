@@ -47,16 +47,15 @@
         constructor(core) {
             this.core = core;
             // Initialize the tab planning module
-            if (typeof ToolpathTabPlanner !== 'undefined') {
-                this.tabPlanner = new ToolpathTabPlanner(this);
-            } else {
-                console.error("[GeometryTranslator] ToolpathTabPlanner module missing.");
-            }
-            // Delegate translator for 3D contours (V-Carve chains, relief
-            // rasters): native path3d input, phase ranking, slope-gated
-            // plunge feeds. Inline translate3DContour remains as fallback.
-            // REVIEW - Is this why EasyTrace5000 needs the 3d translator?
-            this.t3d = new Toolpath3DTranslator(this);
+            this.tabPlanner = new ToolpathTabPlanner(this);
+            // Built on first is3DContour primitive. EasyTrace emits none, so
+            // the 3D translator never has to be present for a PCB session.
+            this._t3d = null;
+        }
+
+        get t3d() {
+            if (!this._t3d) this._t3d = new Toolpath3DTranslator(this);
+            return this._t3d;
         }
 
         // ────────────────────────────────────────────────────────────
@@ -85,7 +84,7 @@
                 // 3D contours (V-Carve) - points carry their own Z.
                 // Bypasses depthLevels entirely (vcarve has no cutDepth).
                 if (props.is3DContour) {
-                    plans.push(...this.translate3DContour(primitive, ctx));
+                    plans.push(...this.t3d.translate(primitive, ctx));
                     continue;
                 }
 
@@ -187,13 +186,15 @@
                     // Clone via transform (or explicit copy on identity) so ring
                     // centers never alias live source-primitive objects.
                     const tc = this.applyTransforms(prim.center, transforms);
-                    return {
-                        center: (tc === prim.center) ? { x: tc.x, y: tc.y } : tc,
-                        radius: prim.radius,
-                        pass: idx + 1
-                    };
+                    return { center: tc === prim.center ? { x: tc.x, y: tc.y } : tc, radius: prim.radius, pass: idx + 1 };
                 });
-
+                const source = holePrimitives[0];
+                // The rings were offset with THIS row's cutter. The helix radius
+                // and the final cleanup pass are derived from toolDiameter, so
+                // taking it from ctx.tool cuts the wrong circle whenever the row
+                // uses an end mill other than the operation's.
+                const millDiameter = source.properties?.toolDiameter ?? tool.diameter;
+                const drill = this.resolveDrillRow(source, ctx);
                 const innerRing = rings[0];
                 const entryX = innerRing.center.x + innerRing.radius;
                 const entryY = innerRing.center.y;
@@ -214,7 +215,7 @@
                 plan.metadata.plungeRate = cutting.plungeRate;
                 plan.metadata.spindleSpeed = cutting.spindleSpeed;
                 plan.metadata.spindleDwell = cutting.spindleDwell;
-                plan.metadata.toolDiameter = tool.diameter;
+                plan.metadata.toolDiameter = millDiameter;
                 plan.metadata.center = innerRing.center;
                 plan.metadata.radius = innerRing.radius;
                 plan.metadata.isSimpleCircle = true;
@@ -222,13 +223,13 @@
                 plan.metadata.primitiveType = 'circle';
                 plan.metadata.entryPoint = { x: entryX, y: entryY };
                 plan.metadata.exitPoint = { x: entryX, y: entryY };
-                plan.metadata.groupKey = `T:${tool.diameter.toFixed(3)}_OP:${operationId}_TYPE:drill_mill`;
+                plan.metadata.groupKey = this.stampToolMetadata(plan, ctx, source) + `_OP:${operationId}_TYPE:drill_mill`;
+                this.applyDrillRowMetadata(plan, drill);
                 plan.metadata.optimization = {
                     linkType: 'rapid',
                     optimizedEntryPoint: { ...plan.metadata.entryPoint },
                     entryCommandIndex: 0
                 };
-
                 macroPlans.push(plan);
             }
 
@@ -261,6 +262,9 @@
 
                 const innerRing = rings[0];
                 const entryPoint = innerRing.pB; // Always use pB. It is guaranteed correct.
+                const source = holePrimitives[0];
+                const millDiameter = source.properties?.toolDiameter ?? tool.diameter;
+                const drill = this.resolveDrillRow(source, ctx);
 
                 const plan = new ToolpathPlan(operationId);
                 plan.metadata.context = ctx;
@@ -279,36 +283,32 @@
                 plan.metadata.plungeRate = cutting.plungeRate;
                 plan.metadata.spindleSpeed = cutting.spindleSpeed;
                 plan.metadata.spindleDwell = cutting.spindleDwell;
-                plan.metadata.toolDiameter = tool.diameter;
+                plan.metadata.toolDiameter = millDiameter;
                 plan.metadata.isClosedLoop = true;
                 plan.metadata.isSimpleCircle = false;
                 plan.metadata.primitiveType = 'obround';
                 plan.metadata.entryPoint = { x: entryPoint.x, y: entryPoint.y };
                 plan.metadata.exitPoint = { x: entryPoint.x, y: entryPoint.y };
-                plan.metadata.groupKey = `T:${tool.diameter.toFixed(3)}_OP:${operationId}_TYPE:drill_mill`;
+                plan.metadata.groupKey = this.stampToolMetadata(plan, ctx, source) + `_OP:${operationId}_TYPE:drill_mill`;
+                this.applyDrillRowMetadata(plan, drill);
                 plan.metadata.optimization = {
                     linkType: 'rapid',
                     optimizedEntryPoint: { ...plan.metadata.entryPoint },
                     entryCommandIndex: 0
                 };
-
                 macroPlans.push(plan);
             }
-
             return { macroPlans, remainingPrimitives };
         }
 
         /**
          * Specific Translation Macros
          */
-
         translatePeckMark(primitive, ctx) {
-            const { operationId, tool, cutting, strategy, transforms, computed } = ctx;
-
+            const { operationId, cutting, strategy, transforms, computed } = ctx;
             const plan = new ToolpathPlan(operationId);
             plan.metadata.context = ctx;
             plan.metadata.transforms = ctx.transforms;
-            plan.metadata.tool = tool;
             plan.metadata.cutDepth = computed.depthLevels[computed.depthLevels.length - 1];
             plan.metadata.feedRate = cutting.feedRate;
             plan.metadata.plungeRate = cutting.plungeRate;
@@ -316,32 +316,31 @@
             plan.metadata.spindleDwell = cutting.spindleDwell;
             plan.metadata.isPeckMark = true;
 
+            const drill = this.resolveDrillRow(primitive, ctx);
+            plan.metadata.groupKey = this.stampToolMetadata(plan, ctx, primitive) + `_OP:${operationId}_TYPE:peck`;
+            this.applyDrillRowMetadata(plan, drill);
+
             const transformedCenter = this.applyTransforms(primitive.center, transforms);
             plan.metadata.entryPoint = { x: transformedCenter.x, y: transformedCenter.y };
             plan.metadata.exitPoint = { x: transformedCenter.x, y: transformedCenter.y };
-            plan.metadata.groupKey = `T:${tool.diameter.toFixed(3)}_OP:drill_TYPE:peck`;
 
-            // Pack cycle parameters for the Machine Processor
+            // Cycle parameters for the Machine Processor. The row wins where it
+            // sets one; the operation's drill strategy fills the rest.
             plan.metadata.peckCycle = {
-                cannedCycle: strategy.drill.cannedCycle || 'none',
-                peckDepth: strategy.drill.peckDepth || 0,
-                dwellTime: strategy.drill.dwellTime || 0,
-                retractHeight: strategy.drill.retractHeight || 0.5
+                cannedCycle: drill?.peck?.cannedCycle ?? strategy.drill.cannedCycle ?? 'none',
+                peckDepth: drill?.peck?.peckDepth ?? strategy.drill.peckDepth ?? 0,
+                dwellTime: drill?.peck?.dwellTime ?? strategy.drill.dwellTime ?? 0,
+                retractHeight: drill?.peck?.retractHeight ?? strategy.drill.retractHeight ?? 0.5
             };
-
             plan.metadata.peckData = {
-                position: (transformedCenter === primitive.center)
-                    ? { x: transformedCenter.x, y: transformedCenter.y }
-                    : transformedCenter,
+                position: transformedCenter === primitive.center ? { x: transformedCenter.x, y: transformedCenter.y } : transformedCenter,
                 ...primitive.properties
             };
-
             plan.metadata.optimization = {
                 linkType: 'rapid',
                 optimizedEntryPoint: { ...plan.metadata.entryPoint },
                 entryCommandIndex: 0
             };
-
             return plan;
         }
 
@@ -421,18 +420,6 @@
             }
 
             return plans;
-        }
-
-        /**
-         * Translates a 3D contour primitive (V-Carve skeleton chain) into
-         * one open-path plan per contour. Every point carries its own Z;
-         * downstream stages must preserve it (metadata.is3DContour gates
-         * the MachineProcessor Z-overwrite and the optimizer's staydown
-         * links and 2D collinear simplifier).
-         */
-        // REVIEW - Why keep this alias? Just connect directly?
-        translate3DContour(primitive, ctx) {
-            return this.t3d.translate(primitive, ctx);
         }
 
         /**
@@ -536,6 +523,96 @@
          * Core Translation Utilities
          */
 
+        /**
+         * Writes the tool identity onto a plan and returns the group-key
+         * fragment that carries it. THE one place tool metadata is stamped -
+         * five call sites (both drill macros, peck marks, createPurePlan and
+         * Toolpath3DTranslator) share it so the descriptor and the key can
+         * never disagree.
+         * Drill features resolve per ROW, not per cutter: a peck bit's
+         * diameter IS the hole, so one drill operation legitimately needs
+         * several tools. The _D: fragment is emitted even when the row has no
+         * number of its own, so diameters stay in separate optimizer groups
+         * instead of interleaving under one inherited number.
+         * @param {ToolpathPlan} plan
+         * @param {Object} ctx
+         * @param {Object} [primitive] drill primitives pass theirs for the lookup
+         * @returns {string} key fragment, e.g. '_TN:3' or '_TN:3_D:0.800'
+         */
+        stampToolMetadata(plan, ctx, primitive = null) {
+            const tool = ctx.tool;
+            const props = primitive?.properties;
+            const key = props?.drillKey
+                ?? (props?.originalDiameter != null ? DrillHandler.diameterKey(props.originalDiameter) : null);
+
+            if (key != null) {
+                const number = tool.drillNumbers?.[key];
+                if (number > 0) {
+                    const identity = props.drillTool || null;
+                    plan.metadata.tool = {
+                        number,
+                        id: identity?.id ?? null,
+                        name: identity?.name || `${identity?.type === 'end_mill' ? 'Mill' : 'Drill'} ${key}mm`,
+                        type: identity?.type || 'drill',
+                        diameter: identity?.diameter ?? Number(key),
+                        spindleSpeed: props.drillCutting?.spindleSpeed ?? tool.spindleSpeed,
+                        spindleDwell: tool.spindleDwell
+                    };
+                    return `_TN:${number}_D:${key}`;
+                }
+                plan.metadata.tool = tool;
+                return `_TN:${tool.number}_D:${key}`;
+            }
+
+            plan.metadata.tool = tool;
+            return `_TN:${tool.number}`;
+        }
+
+        /**
+         * Resolves the drill row behind a primitive. ctx.drillTable wins for
+         * everything not baked into geometry, so a feed or peck-depth edit
+         * takes effect without regenerating. The stamps generation left on the
+         * primitive are the fallback for a context built without a table.
+         */
+        resolveDrillRow(primitive, ctx) {
+            const props = primitive?.properties;
+            if (!props) return null;
+            const key = props.drillKey
+                ?? (props.originalDiameter != null ? DrillHandler.diameterKey(props.originalDiameter) : null);
+            if (key == null) return null;
+            const row = ctx.drillTable?.rows?.[key] || null;
+            return {
+                key,
+                cutting: row?.cutting || props.drillCutting || null,
+                peck: row?.peck || props.drillPeck || null,
+                mill: row?.mill || props.drillMill || null,
+                depthLevels: ctx.computed?.drillDepthLevels?.[key] || null
+            };
+        }
+
+        /**
+         * Overlays a row's non-geometric settings onto a plan. A field the row
+         * leaves null keeps the operation's value.
+         */
+        applyDrillRowMetadata(plan, drill) {
+            if (!drill) return;
+            const md = plan.metadata;
+            if (drill.cutting) {
+                if (drill.cutting.feedRate != null) md.feedRate = drill.cutting.feedRate;
+                if (drill.cutting.plungeRate != null) md.plungeRate = drill.cutting.plungeRate;
+                if (drill.cutting.spindleSpeed != null) md.spindleSpeed = drill.cutting.spindleSpeed;
+            }
+            if (drill.mill) {
+                if (drill.mill.stepOver != null) md.stepOver = drill.mill.stepOver;
+                if (drill.mill.depthPerPass != null) md.depthPerPass = drill.mill.depthPerPass;
+                if (drill.mill.entryType != null) md.entryType = drill.mill.entryType;
+            }
+            if (drill.depthLevels) {
+                md.depthLevels = drill.depthLevels;
+                md.cutDepth = drill.depthLevels[drill.depthLevels.length - 1];
+            }
+        }
+
         // TODO [METADATA-BLOAT] - plan.metadata.context is now referenced by
         // exactly ONE remaining consumer family: MachineProcessor's
         // determineWinding/planContext (5 sites). metadata.transforms is
@@ -569,7 +646,15 @@
 
             const isDrillMilling = ctx.isDrillMilling || false;
             const typeKey = isDrillMilling ? 'drill_mill' : 'mill';
-            plan.metadata.groupKey = `T:${tool.diameter.toFixed(3)}_OP:${ctx.operationId}_TYPE:${typeKey}`;
+            // Only drill primitives carry a row; passing a plain contour or a
+            // copper primitive here would look up a key that cannot exist.
+            const drill = isDrillMilling ? this.resolveDrillRow(primitive, ctx) : null;
+            plan.metadata.groupKey = this.stampToolMetadata(plan, ctx, isDrillMilling ? primitive : null)
+                + `_T:${tool.diameter.toFixed(3)}_OP:${ctx.operationId}_TYPE:${typeKey}`;
+            if (drill) {
+                if (primitive.properties?.toolDiameter > 0) plan.metadata.toolDiameter = primitive.properties.toolDiameter;
+                this.applyDrillRowMetadata(plan, drill);
+            }
 
             plan.metadata.primitiveType = primitive.type || 'path';
             plan.metadata.isClosed = isClosed;
@@ -716,13 +801,13 @@
                     // right after this call, same contract as the circle and
                     // obround branches above.
                     // The reconstructor's flag is ground truth and needs no
-                    // measuring. detectCircularContour is the fallback for the
+                    // measuring. detectClosedArcCircle is the fallback for the
                     // legacy tessellated shape only.
                     // REVIEW - Trim comment
                     const arc0 = geometry.arcSegments?.[0];
                     const circle = (geometry.isFullCircle && arc0?.center && arc0.radius > 0)
                         ? { center: { x: arc0.center.x, y: arc0.center.y }, radius: arc0.radius }
-                        : this.detectCircularContour(points, geometry.arcSegments, metadata.isClosedLoop);
+                        : this.detectClosedArcCircle(points, geometry.arcSegments, metadata.isClosedLoop);
 
                     if (circle) {
                         metadata.isSimpleCircle = true;
@@ -748,7 +833,7 @@
          * means every edge of the closed ring is an arc.
          */
         // REVIEW - This sounds like a legacy safeguard? why not guaranteed circleToPath is processed correctly before reaching this stage?
-        detectCircularContour(points, arcSegments, isClosedLoop) {
+        detectClosedArcCircle(points, arcSegments, isClosedLoop) {
             if (!isClosedLoop || !points || !arcSegments || arcSegments.length < 3) return null;
             if (arcSegments.length !== points.length) return null;
 

@@ -199,6 +199,29 @@
             return true;
         }
 
+        /**
+         * A pinch/pan override is taking over. Record whatever the drag has
+         * already applied - the shapes have moved live and the pointerup that
+         * would normally commit will be delivered to the override tool.
+         */
+        onSuspend(ctx) {
+            if (this.state === 'drag-move' && this.startWorld && this.lastWorld) {
+                const totalDx = this.lastWorld.x - this.startWorld.x;
+                const totalDy = this.lastWorld.y - this.startWorld.y;
+                if ((totalDx !== 0 || totalDy !== 0) && this.dragShapeIds?.length) {
+                    ctx.commitTranslate?.(this.dragShapeIds, totalDx, totalDy);
+                }
+                ctx.onCommit?.();
+            }
+            this.state = 'idle';
+            this.startScreen = null;
+            this.startWorld = null;
+            this.lastWorld = null;
+            this.marqueeRect = null;
+            this.dragShapeIds = null;
+            ctx.requestRender?.();
+        }
+
         onWheel(data, ctx) {
             const zoomFactor = Math.exp(-data.deltaY * WHEEL_ZOOM_SPEED);
             ctx.renderer.core.zoomToPoint(data.canvasX, data.canvasY, zoomFactor);
@@ -245,7 +268,7 @@
                     const s = ctx.scene.findShape(sid);
                     if (s && ctx.renderer.updateLayerTransform) {
                         ctx.renderer.updateLayerTransform(
-                            `shape_${s.id}`,
+                            window.LayerNaming.shape(s.id),
                             s.getWorldMatrix(),
                             ctx.scene.getShapeWorldBounds(s)
                         );

@@ -39,11 +39,7 @@
 
             // CORE handles its own state
             operation.exportReady = true;
-            operation.exportMetadata = {
-                generatedAt: Date.now(),
-                sourceOffsets: operation.offsets?.length || 0,
-                strategy: 'stencil'
-            };
+            this.stampExportMetadata(operation, 'stencil');
 
             let msg = `Generated ${count} stencil aperture(s)`;
             if (skipped > 0) msg += ` (${skipped} overlapping pads skipped)`;
@@ -237,6 +233,7 @@
             });
 
             operation.offsets = [{
+                id: this.offsetRecordId(operation.id, 0),
                 distance: offsetDist,
                 pass: 1,
                 type: 'stencil',

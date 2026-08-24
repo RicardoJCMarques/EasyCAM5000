@@ -84,7 +84,7 @@
                 const option = el.dataset.option;
                 if (option && renderingOptions[option] !== undefined) {
                     el.checked = renderingOptions[option];
-                    this.renderer.options[option] = renderingOptions[option];
+                    this.renderer.setOptions({ [option]: renderingOptions[option] });
                 }
             });
 
@@ -98,7 +98,7 @@
                 if (arcToggle) arcToggle.disabled = !fuseToggle.checked;
             }
 
-            // Special case: Debug log toggle
+            // Global verbose-debug flag
             const debugLogToggle = document.getElementById('debug-log-toggle');
             if (debugLogToggle) debugLogToggle.checked = debugState.enabled;
 
@@ -151,9 +151,8 @@
                         if (this.ui.updateRendererAsync) await this.ui.updateRendererAsync();
                         break;
                     case 'toggle-debug':
-                        // Special case for the global debug flag
                         D.debug.enabled = isChecked;
-                        if (this.ui.statusManager) this.ui.statusManager.setDebugVisibility(isChecked);
+                        this.ui.statusManager.renderLog?.();
                         break;
                     default:
                         // For toggles that manage layer visibility directly (e.g., show-regions)
@@ -181,16 +180,8 @@
 
             // Handle the toggle
             btn.addEventListener('click', async () => {
-                let theme;
-                if (window.ThemeLoader?.isLoaded()) {
-                    theme = await window.ThemeLoader.toggleTheme();
-                } else {
-                    const root = document.documentElement;
-                    theme = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-                    root.setAttribute('data-theme', theme);
-                }
+                const theme = await window.ThemeLoader.toggleTheme();
 
-                // Swap the icon to match the newly selected theme
                 if (useEl) {
                     useEl.setAttribute('href', theme === 'dark' ? '#icon-sun' : '#icon-moon');
                 }
@@ -381,23 +372,6 @@
             });
 
             panel.addEventListener('click', (e) => e.stopPropagation());
-        }
-
-        /**
-         * Wires zoom buttons to a renderer core.
-         */
-        static setupZoomControls(rendererCore, render, readout) {
-            if (!rendererCore || !render) return;
-            const bindings = [
-                ['zoom-fit-btn', () => rendererCore.zoomFit()],
-                ['zoom-in-btn',  () => rendererCore.zoomIn()],
-                ['zoom-out-btn', () => rendererCore.zoomOut()]
-            ];
-            for (const [id, op] of bindings) {
-                const el = document.getElementById(id);
-                if (!el) continue;
-                el.addEventListener('click', () => { op(); render(); readout?.updateZoom?.(); });
-            }
         }
 
         /**

@@ -119,8 +119,12 @@
             });
 
             if (!Number.isFinite(minX) || !Number.isFinite(minY) || !Number.isFinite(maxX) || !Number.isFinite(maxY)) {
+                // Not thrown: a single bad object should not abandon a whole
+                // file. The zeroed box is a KNOWN weakness - it is
+                // indistinguishable from a legitimately empty parse, so the
+                // warning is the only signal. Returning null and letting each
+                // caller decide is the better shape when this is next touched.
                 const msg = '[Parser-Core] Non-finite geometry bounds - source produced NaN/Infinite coordinates (check transforms/units).';
-                // REVIEW - This should be an explicit error?
                 this.warnings.push(msg);
                 console.warn(`[ParserCore] ${msg}`);
                 return { minX: 0, minY: 0, maxX: 0, maxY: 0 };
@@ -169,16 +173,11 @@
         }
 
         calculateWinding(points) {
-            if (typeof GeometryUtils !== 'undefined' && GeometryUtils.calculateWinding) {
-                return GeometryUtils.calculateWinding(points);
-            }
+            return GeometryUtils.calculateWinding(points);
         }
 
         isClockwise(points) {
-            if (typeof GeometryUtils !== 'undefined' && GeometryUtils.isClockwise) {
-                return GeometryUtils.isClockwise(points);
-            }
-            return this.calculateWinding(points) < 0;
+            return GeometryUtils.isClockwise(points);
         }
 
         // Edge deduplication utilities

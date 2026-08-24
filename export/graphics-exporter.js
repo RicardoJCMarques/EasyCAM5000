@@ -594,15 +594,10 @@
         // ────────────────────────────────────────────────────────────
 
         /**
-         * Formats numbers to strip trailing zeros and leading zeros.
-         * Example: 0.5000 -> .5 | -0.2500 -> -.25 | 10.0000 -> 10
+         * Formats numbers to strip trailing zeros: 0.5000 -> 0.5, 10.0000 -> 10.
+         * SVG's number grammar also accepts the leading-zero-stripped form
+         * (.5, -.25).
          */
-        // REVIEW - the performance penalty is negligeable, worth keeping? File size only matters if laser control programs care. If it speeds parsing or not.
-        // formatNumber(value, precision) {
-        //     const s = parseFloat(value.toFixed(precision)).toString();
-        //     return s.startsWith('0.') ? s.substring(1) : (s.startsWith('-0.') ? '-' + s.substring(2) : s);
-        // }
-
         formatNumber(value, precision) {
             return parseFloat(value.toFixed(precision)).toString();
         }

@@ -37,7 +37,8 @@
                 supportsArcCommands: true,
                 supportsCannedCycles: true,
                 useM6: true,
-                supportsToolLengthComp: true,
+                // Mach3-compatible: G43 H<n> against the control's tool table.
+                toolLengthComp: { modes: ['table', 'none'], default: 'table' },
                 // 4th axis: drives A/B/C and supports G93 inverse time. DRAFT -
                 // verify G93 on your build, and confirm the axis is configured
                 // ROTATIONAL (degrees) rather than linear, or 'a-word' degrees
@@ -60,7 +61,7 @@
                 maxSpindleSpeed: 24000,
                 maxRapidRate: 5000,
                 defaults: {
-                    startCode: 'G64\nT1',
+                    startCode: 'G64',
                     endCode: 'M5\nG0 X0 Y0\nM30',
                 }
             });
