@@ -57,10 +57,11 @@
                 // tool-change checkbox that emits nothing.
                 supportsToolChange: false,
                 supportsArcCommands: false,
-                supportsCannedCycles: false
+                supportsCannedCycles: false,
+                supportsLineNumbers: false
             };
 
-            // ── Machine Profiles ───────────────────────────────────
+            // Machine Profiles
             // Authoritative hardware data for all supported Roland machines.
             this.profiles = {
                 'mdx15': {
@@ -228,13 +229,14 @@
                 }
             };
 
-            // ── Public descriptor ──────────────────────────────────
+            // Public descriptor
             this.descriptor = {
                 id: 'roland',
                 label: 'Roland (RML) (Experimental)',
                 fileExtension: '.rml',
                 capabilities: {
                     supportsToolChange: false,
+                    supportsLineNumbers: false,
                     useM6: false,
                     emitsInitialTool: false,
                     // RML-1 has no tool-length word. The MDX-50's length sensor
@@ -272,6 +274,43 @@
             return this.profiles[modelId] || this.profiles['custom'];
         }
 
+        /**
+         * RML machine limits, applied to the job context before it freezes.
+         *
+         * 2.5D machines drive Z through the PU/PD depth register, so there is
+         * no interpolated entry and no partial-depth tab; a mill in a 2.5D
+         * profile must also step down, because the register cannot ramp.
+         * Feed clamps are hardware maxima - VS above them is rejected by the
+         * controller rather than reduced.
+         */
+        prepareContext(ctx, operation) {
+            const rolandSettings = ctx.processorSettings?.roland || {};
+            const profile = this.getProfile(rolandSettings.rolandModel);
+            const zMode = rolandSettings.rolandZMode || profile.zMode || '3d';
+
+            if (zMode === '2.5d') {
+                ctx.strategy.entryType = 'plunge';
+
+                if (operation.type === 'cutout') {
+                    ctx.strategy.cutout.tabs = 0;
+                }
+
+                if (operation.type === 'drill' && ctx.strategy.drill.millHoles) {
+                    ctx.strategy.multiDepth = true;
+                    const maxSafeStep = ctx.tool.diameter * 0.5;
+                    if (Math.abs(ctx.strategy.depthPerPass) > maxSafeStep) {
+                        ctx.strategy.depthPerPass = maxSafeStep;
+                    }
+                }
+            }
+
+            // Profile feeds are mm/sec; the context carries mm/min.
+            const maxCutFeed = profile.maxFeedXY * 60;
+            const maxPlungeFeed = profile.maxFeedZ * 60;
+            if (ctx.cutting.feedRate > maxCutFeed) ctx.cutting.feedRate = maxCutFeed;
+            if (ctx.cutting.plungeRate > maxPlungeFeed) ctx.cutting.plungeRate = maxPlungeFeed;
+        }
+
         // GCodeGenerator calls these on whatever post is active. RML has no
         // feed-rate mode word, no canned cycles and no line numbers, so the
         // honest answer is "nothing to emit" - not "method missing".
@@ -279,6 +318,9 @@
 
         cancelCannedCycle() { return ''; }
 
+        // RML is not G-code and has no N word - `N10 PU0,0;` is a syntax
+        // error, not a block the sender might tolerate. Unconditional, and
+        // not driven by settings.gcode.lineNumbers.
         applyLineNumbers(gcodeText) { return gcodeText; }
 
         // Machine limits are machine facts, not G-code facts - RML output is

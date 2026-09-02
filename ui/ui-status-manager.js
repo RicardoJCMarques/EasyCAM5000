@@ -1,6 +1,6 @@
 /*!
- * @file        ui/ui-state-manager.js
- * @description Manages the status bar, log panel and spinner heartbeats.
+ * @file        ui/ui-status-manager.js
+ * @description Manages the status bar, log panel and overlay heartbeats.
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
  * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
@@ -78,7 +78,9 @@
 
         isBusy() { return this._task !== null; }
 
-        /** THE one formatter - nothing else stringifies progress. */
+        /**
+         * THE one formatter - nothing else stringifies progress.
+         */
         formatLabel(t) {
             const pct = (t.frac != null) ? ` ${Math.round(t.frac * 100)}%` : '';
             return `${t.label}…${pct}`;

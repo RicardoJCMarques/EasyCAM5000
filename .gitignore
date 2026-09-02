@@ -30,8 +30,8 @@ node_modules/
 /parsers/gcode-integration.md
 /parsers/gcode-parser.md
 /tests/
-repo-bundle.js
-REPO_BUNDLE.txt
+file-bundle.js
+FILE_BUNDLE.txt
 PROJECT_CONTEXT.txt
 context-gen.js
 package-lock.json

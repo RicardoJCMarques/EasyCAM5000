@@ -96,6 +96,8 @@
 
     "render3d": {
       "background": "#16181c",
+      "sky": "#ffffff",
+      "ground": "#c9ced6",
       "grid": "#2a2e34",
       "gridCenter": "#3a3f46",
       "rapid": "#565b63",

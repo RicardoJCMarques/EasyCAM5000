@@ -82,7 +82,7 @@
             // REVIEW - This looks like a bit of a band-aid but it does work.
             // Stencil offset geometry override
             if (layer.operationType === 'stencil') {
-                return this.readCSSVar('--color-geometry-source-stencil', '#922f9d');
+                return this.readCSSVar('--color-geometry-source-stencil');
             }
 
             const base = super.resolveLayerColor(layer);
@@ -90,19 +90,19 @@
 
             const isBW = this.renderer?.options?.blackAndWhite;
             if (isBW) {
-                if (layer.type === 'cutout') return this.readCSSVar('--color-bw-black', '#000000');
-                return this.readCSSVar('--color-bw-white', '#ffffff');
+                if (layer.type === 'cutout') return this.readCSSVar('--color-bw-black');
+                return this.readCSSVar('--color-bw-white');
             }
 
             switch (layer.type) {
-                case 'isolation': return this.readCSSVar('--color-geometry-source-isolation', '#ff8844');
-                case 'clearing':  return this.readCSSVar('--color-geometry-source-clearing', '#44ff88');
-                case 'drill':     return this.readCSSVar('--color-geometry-source-drill', '#4488ff');
-                case 'cutout':    return this.readCSSVar('--color-geometry-source-cutout', '#333333');
-                case 'stencil':   return this.readCSSVar('--color-geometry-source-stencil', '#922f9d');
-                case 'fused':     return this.readCSSVar('--color-geometry-source-isolation', '#ff8844');
+                case 'isolation': return this.readCSSVar('--color-geometry-source-isolation');
+                case 'clearing':  return this.readCSSVar('--color-geometry-source-clearing');
+                case 'drill':     return this.readCSSVar('--color-geometry-source-drill');
+                case 'cutout':    return this.readCSSVar('--color-geometry-source-cutout');
+                case 'stencil':   return this.readCSSVar('--color-geometry-source-stencil');
+                case 'fused':     return this.readCSSVar('--color-geometry-source-isolation');
             }
-            return layer.color || this.readCSSVar('--color-geometry-source-isolation', '#ff8844');
+            return layer.color || this.readCSSVar('--color-geometry-source-isolation');
         }
 
         getLayerZIndex(type, opts = {}) {
@@ -110,10 +110,9 @@
             if (base !== null) return base;
 
             switch (type) {
-                case 'cutout':     return 100;
                 case 'isolation':
                 case 'clearing':   return 200;
-                default:           return 250;
+                default:           return 220;
             }
         }
 
@@ -154,9 +153,11 @@
             this.navTreePanel.on('select', ({ kind, operation, stage }) => {
                 if (this.handleOperationSelection) this.handleOperationSelection(operation, stage || 'geometry');
             });
-            this.navTreePanel.on('action', ({ id, action, layerName, element }) => {
-                if (action === 'delete') this.removeOperation(id);
-                else if (action === 'visibility' && element && layerName) this.navTreePanel.toggleLayerVisibility(element, layerName);
+            this.navTreePanel.on('action', ({ id, action, artifactKey, layerName, element }) => {
+                if (action === 'delete') { this.removeOperation(id); return; }
+                if (action === 'visibility' && element) {
+                    this.navTreePanel.toggleLayerVisibility(element, artifactKey, layerName);
+                }
             });
             this.navTreePanel.on('deleteGeometry', ({ fileId, geometryId }) => {
                 const fileData = this.navTreePanel.nodes.get(fileId);
@@ -316,6 +317,7 @@
         // Renderer layer management
         // ═══════════════════════════════════════════════════════════════
 
+        // REVIEW - Any reason this is named differently than in EasyShape5000?
         async updateRendererAsync() {
             if (this.updatePending) { this.updateQueued = true; return; }
             this.updatePending = true;
@@ -325,20 +327,44 @@
                 else this.addIndividualLayers();
                 this.addOffsetLayers();
                 this.renderer.render();
+                // The 3D view mirrors these layers, so it goes stale unless it
+                // rebuilds from the same funnel.
+                this.ctrl.refresh3D?.();
                 this.updateOriginDisplay();
                 this.updateStatistics();
             } finally {
                 this.updatePending = false;
-                if (this.updateQueued) { this.updateQueued = false; requestAnimationFrame(() => this.updateRendererAsync()); }
+                if (this.updateQueued) {
+                    this.updateQueued = false;
+                    requestAnimationFrame(() => this.updateRendererAsync());
+                }
             }
         }
+
+        onThemeChanged() { super.onThemeChanged(); this.updateRendererAsync(); }
 
         async performFusion() {
             if (this.core.geometryProcessor) this.core.geometryProcessor.clearCachedStates();
             const fusionOptions = { enableArcReconstruction: this.renderer.options.enableArcReconstruction };
             this.debug('performFusion()', fusionOptions);
+
             try {
-                const fused = await this.core.fuseAllPrimitives(fusionOptions);
+                const fused = [];
+                for (const operation of this.core.operations) {
+                    if (operation.type !== 'isolation' && operation.type !== 'clearing') continue;
+                    if (!operation.primitives?.length) continue;
+
+                    const result = await this.core.geometryProcessor.fuseGeometry(operation.primitives, fusionOptions);
+                    for (const p of result) {
+                        p.properties ||= {};
+                        p.properties.operationType = operation.type;
+                        // addFusedLayer buckets on this. Booleans emit new
+                        // primitives, so nothing carries it forward for free.
+                        p.properties.sourceOperationId = operation.id;
+                    }
+                    fused.push(...result);
+                }
+
                 if (this.renderer.options.showPreprocessed) this.addPreprocessedLayer();
                 else this.addFusedLayer(fused);
                 this.addNonFusableLayers();
@@ -379,9 +405,8 @@
                     const layerName = window.LayerNaming.fused(opId);
                     this.renderer.addLayer(layerName, primitives, {
                         type: operation.type,
-                        visible: this.resolveLayerVisibility(operation, layerName, true),
+                        visible: this.resolveLayerVisibility(operation, 'source', true),
                         isFused: true,
-                        color: operation.color || this.core.fileTypes[operation.type]?.color || '#888888',
                         zIndex: this.getLayerZIndex(operation.type, { operationType: operation.type })
                     });
                 }
@@ -391,12 +416,14 @@
         addNonFusableLayers() {
             this.core.operations.forEach(operation => {
                 if ((operation.type === 'drill' || operation.type === 'cutout' || operation.type === 'stencil') && operation.primitives?.length > 0) {
-                    const hasOffsets = operation.type === 'stencil' && operation.offsets?.length > 0;
+                    const hasVisibleOffsets = operation.offsets?.length > 0 && this.resolveLayerVisibility(operation, 'offsets', true);
+                    const defaultVis = operation.type === 'stencil' && hasVisibleOffsets ? false : true;
                     const layerName = window.LayerNaming.source(operation.id);
                     this.renderer.addLayer(layerName, operation.primitives, {
                         type: operation.type,
-                        visible: this.resolveLayerVisibility(operation, layerName, !hasOffsets),
-                        color: operation.color || this.core.fileTypes[operation.type]?.color || '#888888',
+                        operationType: operation.type,
+                        role: 'source',
+                        visible: this.resolveLayerVisibility(operation, 'source', defaultVis),
                         zIndex: this.getLayerZIndex(operation.type, { operationType: operation.type })
                     });
                 }
@@ -406,32 +433,38 @@
         addIndividualLayers() {
             this.core.operations.forEach(operation => {
                 if (operation.primitives?.length > 0) {
-                    const hasOffsets = operation.type === 'stencil' && operation.offsets?.length > 0;
+                    const hasVisibleOffsets = operation.offsets?.length > 0 && this.resolveLayerVisibility(operation, 'offsets', true);
+                    const defaultVis = operation.type === 'stencil' && hasVisibleOffsets ? false : true;
                     const layerName = window.LayerNaming.source(operation.id);
                     this.renderer.addLayer(layerName, operation.primitives, {
                         type: operation.type,
-                        visible: this.resolveLayerVisibility(operation,layerName, !hasOffsets),
-                        color: operation.color || this.core.fileTypes[operation.type]?.color || '#888888',
+                        operationType: operation.type,
+                        role: 'source',
+                        visible: this.resolveLayerVisibility(operation, 'source', defaultVis),
                         zIndex: this.getLayerZIndex(operation.type, { operationType: operation.type })
                     });
                 }
             });
         }
 
+
         /**
-         * Resolves layer visibility: user override > explicit default > global toggle.
+         * Resolves layer visibility: user override > explicit default > global
+         * toggle. Keyed by Artifact (source/offsets/offset_N/preview/toolpath),
+         * not by layer name: a layer name embeds the operation id, so the record
+         * could not be read by refresh3D or by anything that did not already
+         * know which layer it was looking for.
          */
-        resolveLayerVisibility(operation, layerName, defaultVisible) {
-            if (operation.layerVisibility?.[layerName] !== undefined) return operation.layerVisibility[layerName];
-            return defaultVisible;
+        resolveLayerVisibility(operation, artifactKey, defaultVisible) {
+            const v = operation.layerVisibility?.[artifactKey];
+            return v !== undefined ? v : defaultVisible;
         }
 
         addOffsetLayers() {
             this.core.operations.forEach(operation => {
                 if (operation.offsets?.length > 0) {
-                    const isLaser = this.ctrl.isLaserPipeline?.() || false;
+                    const isLaser = this.ctrl.machineClassOf?.(operation) === 'laser';
                     const isCombined = operation.offsets[0]?.metadata?.offset?.combined || isLaser;
-                    const hasPreview = !isLaser && operation.preview?.primitives?.length > 0;
 
                     if (isCombined) {
                         const allPrimitives = operation.offsets.flatMap(o => o.primitives || []);
@@ -442,7 +475,7 @@
                             const isHatch = operation.offsets[0].metadata?.isHatch === true;
                             const layerName = window.LayerNaming.offsetCombined(operation.id);
                             this.renderer.addLayer(layerName, allPrimitives, {
-                                type: 'offset', visible: this.resolveLayerVisibility(operation, layerName, hasPreview ? false : this.renderer.options.showOffsets),
+                                type: 'offset', visible: this.resolveLayerVisibility(operation, 'offsets', true),
                                 operationId: operation.id, operationType: operation.type, offsetType, pass: 1,
                                 distance: operation.offsets[0].distance, combined: true, metadata: operation.offsets[0].metadata, isHatch,
                                 zIndex: this.getLayerZIndex('offset', { operationType: operation.type, isHatch, strategy: operation.offsets[0].metadata?.strategy })
@@ -454,8 +487,10 @@
                                 let offsetType = offset.distance > 0 ? 'external' : offset.distance < 0 ? 'internal' : 'on';
                                 const isHatch = offset.metadata?.isHatch === true;
                                 const layerName = window.LayerNaming.offsetPass(operation.id, passIndex + 1);
+                                const isVisible = this.resolveLayerVisibility(operation, `offset_${passIndex}`, !0) &&
+                                                this.resolveLayerVisibility(operation, "offsets", !0);
                                 this.renderer.addLayer(layerName, offset.primitives, {
-                                    type: 'offset', visible: this.resolveLayerVisibility(operation, layerName, hasPreview ? false : this.renderer.options.showOffsets),
+                                    type: "offset", visible: isVisible,
                                     operationId: operation.id, operationType: operation.type, offsetType, pass: offset.pass,
                                     distance: offset.distance, combined: false, metadata: offset.metadata, isHatch,
                                     zIndex: this.getLayerZIndex('offset', { operationType: operation.type, isHatch, strategy: offset.metadata?.strategy })
@@ -469,7 +504,7 @@
                 if (operation.preview?.primitives?.length > 0) {
                     const layerName = window.LayerNaming.preview(operation.id);
                     this.renderer.addLayer(layerName, operation.preview.primitives, {
-                        type: 'preview', visible: this.resolveLayerVisibility(operation, layerName, this.renderer.options.showPreviews),
+                        type: 'preview', visible: this.resolveLayerVisibility(operation, 'preview', true),
                         operationId: operation.id, operationType: operation.type, isPreview: true, metadata: operation.preview.metadata,
                         zIndex: this.getLayerZIndex('preview', { operationType: operation.type })
                     });
@@ -541,7 +576,7 @@
             // Handle UI/renderer restoration after preview deletion
             if (geoData.type === 'preview' && operation.offsets?.length > 0) {
                 // Auto-unhide offsets when CNC preview is deleted
-                const isLaser = this.ctrl.isLaserPipeline?.() || false;
+                const isLaser = this.ctrl.machineClassOf?.(operation) === 'laser';
                 const isCombined = operation.offsets[0]?.metadata?.offset?.combined || isLaser;
 
                 // Unhide the specific offset layer(s) in the Renderer
@@ -570,9 +605,19 @@
                 if (this.navTreePanel) { const fn = this.navTreePanel.nodes.get(fileId); const vb = fn?.element.querySelector('.file-node-content .visibility-btn'); if (vb) vb.classList.remove('is-hidden'); }
             }
 
-            // Clear persisted visibility for deleted layer
-            if (layerName && operation.layerVisibility) delete operation.layerVisibility[layerName];
-            // Remove renderer layer
+            // Clear the persisted record for the deleted artifact AND for
+            // anything this delete just un-hid. Deleting a preview re-shows
+            // the offsets in the renderer; leaving their `false` record
+            // behind re-hid them on the next rebuild with the icon still
+            // reading "shown".
+            if (operation.layerVisibility) {
+                delete operation.layerVisibility[NavTreePanel.artifactKeyOf(geoData.type)];
+                if (geoData.type === 'preview') {
+                    delete operation.layerVisibility.offsets;
+                    operation.offsets?.forEach((_, pi) => delete operation.layerVisibility[`offset_${pi}`]);
+                }
+            }
+            // Remove renderer layer // REVIEW - Useless code now?
             if (layerName && this.renderer.layers.has(layerName)) this.renderer.layers.delete(layerName);
 
             // Remove DOM node and re-select parent
@@ -582,6 +627,7 @@
                 if (updatedFileData) this.navTreePanel.selectFile(fileId, updatedFileData.operation);
             }
             // Re-draw the canvas
+            this.ctrl.refresh3D?.(); // refresh3D owns the world→machine map and the stock box; the renderer has neither.
             this.renderer.render();
         }
 
@@ -589,19 +635,14 @@
             const fileInput = document.getElementById('file-input-hidden') || document.getElementById('file-input-temp');
             if (!fileInput) { console.warn('No file input element found'); return; }
             fileInput.setAttribute('data-type', opType);
-            const opConfig = this.core.fileTypes[opType];
-            if (opConfig) {
-                const extensions = opConfig.extensions ? opConfig.extensions.slice() : [];
-                if (extensions.indexOf('.svg') === -1) extensions.push('.svg');
-                fileInput.setAttribute('accept', extensions.join(','));
-            }
+            fileInput.setAttribute('accept', this.ctrl.registry.acceptFor(opType));
             fileInput.onchange = async (e) => {
                 const files = e.target.files;
                 if (files?.length > 0) {
                     for (const file of files) await this.ctrl.processFile(file, opType);
-                    this.renderer.core.zoomFit(true);
+                    this.zoomFit();
                     this.renderer.render();
-                    this.canvasReadout.updateZoom();
+                    this.canvasReadout?.updateZoom();
                 }
                 fileInput.value = '';
             };

@@ -25,11 +25,11 @@
             let primitives = rawPrimitives;
 
             if (primitives.length > 1) {
-                const { loops, orphans, orphanGaps } = GeometryUtils.extractClosedLoops(primitives);
+                const { loops, orphans, orphanGaps } = GeometryTopology.extractClosedLoops(primitives);
 
                 if (loops.length > 0) {
-                    const topology = GeometryUtils.classifyCutoutTopology(loops);
-                    const compounds = GeometryUtils.assembleCutoutCompounds(topology);
+                    const topology = GeometryTopology.classifyCutoutTopology(loops);
+                    const compounds = GeometryTopology.assembleCutoutCompounds(topology);
 
                     if (compounds.length > 0) {
                         primitives = compounds;
@@ -65,7 +65,7 @@
             } else if (primitives.length === 1) {
                 const pts = primitives[0].contours?.[0]?.points;
                 if (pts && pts.length >= 3 && GeometryUtils.isClockwise(pts)) {
-                    GeometryUtils.reverseContourWinding(primitives[0].contours[0]);
+                    GeometryTopology.reverseContourWinding(primitives[0].contours[0]);
                     this.debug('Single cutout primitive reversed to CCW');
                 }
             }

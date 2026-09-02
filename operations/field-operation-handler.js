@@ -280,15 +280,15 @@
         // REVIEW - Some branch combinations generate perfectly acceptable
         //          geometry; only the ones that deform should be documented
         //          as incompatible rather than removed.
-        // TODO(workholding-solid) - The end modes should stop being three
-        // branches inside the pipeline and become ONE synthetic end solid
-        // (cylinder / cone / prism) composed into the target before
-        // rasterization, the way commercial rotary CAM expects fixture stubs
-        // to already be part of the model. 'stop', 'lip' and 'taper'
-        // are then three parameterizations of the same primitive, and a
-        // model whose base is neither flat nor perpendicular to the axis
-        // stops mattering because the STUB defines the end. It would also
-        // make the workholding visible in the preview before cutting.
+        /**
+         * TODO(workholding-solid) - 'stop', 'lip' and 'taper' should stop being
+         * three branches and become one synthetic end solid (cylinder / cone /
+         * prism) composed into the target before rasterization, the way
+         * commercial rotary CAM expects a fixture stub to already be in the
+         * model. The stub then defines the end, a base that is neither flat nor
+         * perpendicular stops mattering, and the workholding is visible in the
+         * preview before cutting.
+         */
         // REVIEW - There used to be a termination with the reach set as "reach = kernelR + raw;" and it produced interesting termination geometry as the final fallback instead of just raw.
         //          Confirm in the future if it's worth implementing as an extra strategy.
         workholding(p) {
@@ -381,7 +381,52 @@
                 : null;
         },
 
-        /** cm.axisB (sliced cross-u) ↔ world. See internalOrient. */
+        /**
+         * Axial datum for a machine-frame job. The sliced axial coordinate IS
+         * the exported X (A jobs) or Y (B jobs) - nothing downstream re-datums a
+         * machine-frame chain - so without this the job lands wherever the model
+         * happened to sit along that axis inside its source file.
+         * modelMin/modelMax EXCLUDE grid padding: reach past an end is
+         * legitimately negative.
+         * @returns {number} mm to ADD to every sliced axial coordinate
+         */
+        axialDatum(p, modelMin, modelMax) {
+            const offset = Number(p.rotaryAxialOffset) || 0;
+            switch (p.rotaryAxialDatum ?? 'model-start') {
+                case 'scene': return offset;
+                case 'model-center': return offset - (modelMin + modelMax) / 2;
+                default: return offset - modelMin;
+            }
+        },
+
+        /**
+         * Shifts a field job into its datum, in place: the packed axial lane of
+         * every emitted chain and the container's own axial origin, so the
+         * generator output, the published metadata and the blank placement can
+         * never disagree about where axial zero is.
+         * @param {number} lane 0 = positions[i] is axial, 1 = positions[i+1]
+         */
+        applyAxialShift(primitives, container, shift, lane, containerKey) {
+            // Loud on a bad number. A silently-skipped datum looks exactly like
+            // a datum that ran and resolved to zero, and the only way to tell
+            // them apart is a capture.
+            if (!Number.isFinite(shift)) {
+                console.warn(`[FieldParams] axial datum is ${shift} - job left in scene coordinates. The handler did not resolve one.`);
+                container.axialShift = 0;
+                return;
+            }
+            container.axialShift = shift;
+            if (!shift) return;
+            container[containerKey] += shift;
+            for (const prim of primitives) {
+                const pos = prim.positions;
+                if (pos) for (let i = lane; i < pos.length; i += 3) pos[i] += shift;
+            }
+        },
+
+        /**
+         * cm.axisB (sliced cross-u) ↔ world. See internalOrient.
+         */
         axisBSign(machineAxis) {
             return (machineAxis === 'y') ? -1 : 1;
         }
@@ -489,7 +534,9 @@
                 // Rotation about the machine axis leaves this fixed, so it is
                 // the same in every face's frame - which is what makes one
                 // locked cell size possible.
-                axialExt: maxA - minA
+                axialExt: maxA - minA,
+                axialMin: minA,
+                axialMax: maxA
             };
         },
 
@@ -751,7 +798,7 @@
                     if (!warnings.includes(w)) warnings.push(w);
                 }
 
-                this.onJobPrimitives(primitives, jobs[k]);
+                this.onJobPrimitives(primitives, jobs[k], container);
                 containers.push(container);
                 allPrimitives.push(...primitives);
                 prog.done(k);
@@ -933,7 +980,7 @@
         //                       belongs in buildJobs.
         // buildSharedMetadata - offset-group metadata from
         //                       { containers, jobs, settings, warnings }.
-        // onJobPrimitives     - per-job stamping hook (indexed faces).
+        // onJobPrimitives     - per-job stamping hook (primitives, job, container).
 
         buildJobs() { throw new Error(`${this.constructor.name}.buildJobs() not implemented`); }
         validateSource() { throw new Error(`${this.constructor.name}.validateSource() not implemented`); }

@@ -169,33 +169,32 @@
         }
 
         /**
-         * Auto-match for one row: an exact drill bit pecks, otherwise the
-         * largest end mill that still leaves a millable ring bores it, otherwise
-         * the row is skipped and says so. Assigns tools and cutting data only.
+         * Auto-match for one row: an exact drill bit pecks, otherwise the largest
+         * end mill that still leaves a millable ring bores it, otherwise the row is
+         * skipped and says so.
          */
         matchLibraryTool(row, library) {
             const tolerance = D.toolpath.generation.drilling.matchTolerance;
             const margin = D.toolpath.generation.drilling.millMargin;
-
-            const drill = (library.getToolsByType('drill') || [])
-                .filter(t => Math.abs((t.geometry?.diameter ?? 0) - row.diameter) <= tolerance)
-                .sort((a, b) => Math.abs(a.geometry.diameter - row.diameter) - Math.abs(b.geometry.diameter - row.diameter))[0];
+            const sized = type => (library.getToolsByType(type) || [])
+                .map(tool => ({ tool, diameter: library.getToolDiameter(tool.id) ?? 0 }));
+            const drill = sized('drill')
+                .filter(e => Math.abs(e.diameter - row.diameter) <= tolerance)
+                .sort((a, b) => Math.abs(a.diameter - row.diameter) - Math.abs(b.diameter - row.diameter))[0];
             if (drill) {
                 row.strategy = 'peck';
-                this.applyLibraryTool(row, drill);
+                this.applyLibraryTool(row, drill.tool, drill.diameter);
                 return;
             }
-
-            const mill = (library.getToolsByType('end_mill') || [])
-                .filter(t => (t.geometry?.diameter ?? 0) > 0 && t.geometry.diameter <= row.diameter - margin)
-                .sort((a, b) => b.geometry.diameter - a.geometry.diameter)[0];
+            const mill = sized('end_mill')
+                .filter(e => e.diameter > 0 && e.diameter <= row.diameter - margin)
+                .sort((a, b) => b.diameter - a.diameter)[0];
             if (mill) {
                 row.strategy = 'mill';
-                this.applyLibraryTool(row, mill);
-                return;
+                this.applyLibraryTool(row, mill.tool, mill.diameter);
+            } else {
+                row.strategy = 'skip';
             }
-
-            row.strategy = 'skip';
         }
 
         /**
@@ -211,10 +210,10 @@
          * here. The shipped tools.json declares none, and inventing one is what
          * the tool contract forbids.
          */
-        applyLibraryTool(row, tool) {
+        applyLibraryTool(row, tool, diameter) {
             const cut = tool.cutting || {};
             row.toolId = tool.id;
-            row.toolDiameter = tool.geometry?.diameter ?? null;
+            row.toolDiameter = diameter ?? null;
             row.cutting = {
                 feedRate: cut.feedRate ?? null,
                 plungeRate: cut.plungeRate ?? null,
@@ -849,17 +848,23 @@
                 return { success: false, message: 'Generation superseded by a newer request', status: 'warning' };
             }
 
-            if (operation.warnings?.length > 0) {
-                return { success: true, message: `Generated with ${operation.warnings.length} warning(s)`, status: 'warning', refreshPanel: true };
-            }
-
             const drill = operation.offsets?.[0]?.metadata?.drill;
             const count = operation.offsets?.[0]?.primitives?.length || 0;
             const parts = [];
             if (drill?.peckCount) parts.push(`${drill.peckCount} peck position${drill.peckCount > 1 ? 's' : ''}`);
             if (drill?.millCount) parts.push(`${drill.millCount} milling path${drill.millCount > 1 ? 's' : ''}`);
             const detail = parts.length > 0 ? parts.join(', ') : `${count} feature(s)`;
-            return { success: count > 0, message: `Generated ${detail} across ${drill?.groups || 0} tool group(s)`, status: 'success' };
+            const message = `Generated ${detail} across ${drill?.groups || 0} tool group(s)`;
+            // The panel renders every warning; only a real one downgrades the run.
+            // Parse-time rejections survive a regenerate by design and used to make
+            // every subsequent run report itself as a warning with no detail.
+            const blocking = (operation.warnings || []).filter(w => w?.severity === 'warning').length;
+            return {
+                success: count > 0,
+                message: blocking > 0 ? `${message} - ${blocking} warning(s)` : message,
+                status: blocking > 0 ? 'warning' : 'success',
+                refreshPanel: blocking > 0
+            };
         }
 
         /**
@@ -890,6 +895,51 @@
                 .sort((a, b) => a.diameter - b.diameter);
 
             return { milledGroups: toGroups(millsByKey), peckGroups: toGroups(pecksByKey) };
+        }
+
+        /**
+         * Files a split export writes for one operation, in emission order.
+         * Splitting exists to give one file per BIT. A peck size is always one
+         * bit. A milled size is one bit only in MULTI-TOOL mode - in single-tool
+         * mode every milled size is cut by the operation's own cutter, so
+         * splitting them hands the operator files with no tool change between
+         * them.
+         * The export loop and the modal's enable gate both call this, so "would
+         * this split" and "what did it split into" cannot disagree. The mode
+         * comes off the offsets record's settings snapshot, which is the full
+         * set generation actually ran with - operation.settings is sparse in
+         * EasyTrace5000 and lives on the bucket in EasyShape5000.
+         */
+        static splitDrillFiles(operation) {
+            const { milledGroups, peckGroups } = DrillHandler.groupPrimitivesByDiameter(operation);
+            const settings = operation?.offsets?.[0]?.settings || null;
+            const files = [];
+
+            if (milledGroups.length > 0) {
+                if (DrillHandler.isMultiTool(settings)) {
+                    for (const group of milledGroups) {
+                        files.push({
+                            key: `milled_${group.key}`,
+                            label: `drill milled ⌀${group.key}mm`,
+                            primitives: group.primitives
+                        });
+                    }
+                } else {
+                    files.push({
+                        key: 'milled',
+                        label: 'drill milled',
+                        primitives: milledGroups.flatMap(g => g.primitives)
+                    });
+                }
+            }
+            for (const group of peckGroups) {
+                files.push({
+                    key: `drill_${group.diameter}mm`,
+                    label: `drill ⌀${group.diameter}mm`,
+                    primitives: group.primitives
+                });
+            }
+            return files;
         }
 
         /**
@@ -952,68 +1002,57 @@
         }
 
         /**
-         * Resolves every feature against ITS row in the drill table rather
-         * than one global cutter. A row that inherits resolves to the
-         * operation tool, which is what makes the flatten preset identical to
-         * the single-tool behaviour.
+         * Resolves every feature against ITS row in the drill table rather than one
+         * global cutter. A row that inherits resolves to the operation tool, which
+         * is what makes the flatten preset identical to the single-tool behaviour.
          */
         determineDrillStrategy(operation, settings) {
             const plan = [];
             const warnings = [];
             const rows = operation.drillTable?.rows || {};
             const minMillingMargin = D.toolpath.generation.drilling.millMargin;
-
             // Counted per diameter - one warning per row, not one per hole.
             const skipped = new Map();
-            const unmillable = new Map();
-            const oversize = new Map();
             const bump = (map, key) => map.set(key, (map.get(key) || 0) + 1);
 
             for (const primitive of operation.primitives) {
                 const role = primitive.properties?.role;
-
                 if (role === 'drill_hole') {
                     if (primitive.type !== 'circle' || !primitive.center || !primitive.radius) {
                         console.warn(`[DrillHandler] Invalid drill hole primitive ${primitive.id}`);
                         continue;
                     }
-                } else if (role === 'drill_slot') {
+                } else {
+                    if (role !== 'drill_slot') continue;
                     const slot = primitive.properties?.originalSlot;
                     if (!slot || !slot.start || !slot.end) {
                         console.warn(`[DrillHandler] Drill slot ${primitive.id} missing or invalid originalSlot data`);
                         continue;
                     }
-                } else {
-                    continue;
                 }
 
                 const featureSize = primitive.properties.diameter;
                 const key = DrillHandler.diameterKey(featureSize);
                 const entry = this.resolveDrillRow(rows[key], settings, key);
-
-                if (entry.strategy === 'skip') {
-                    bump(skipped, key);
-                    continue;
-                }
-
+                if (entry.strategy === 'skip') { bump(skipped, key); continue; }
                 const toolDiameter = entry.toolDiameter;
-                if (!(toolDiameter > 0)) {
-                    bump(skipped, key);
-                    continue;
-                }
+                if (!(toolDiameter > 0)) { bump(skipped, key); continue; }
 
                 // A zero-length slot is a hole the plotter wrote as a route.
                 let isSlot = role === 'drill_slot';
                 if (isSlot) {
                     const slot = primitive.properties.originalSlot;
-                    const length = Math.hypot(slot.end.x - slot.start.x, slot.end.y - slot.start.y);
-                    if (length < PRECISION) {
+                    if (Math.hypot(slot.end.x - slot.start.x, slot.end.y - slot.start.y) < PRECISION) {
                         isSlot = false;
                         primitive.center = slot.start;
                         if (!primitive.radius) primitive.radius = featureSize / 2;
                     }
                 }
 
+                // toolRelation IS the report: resolveToolRelationColor paints
+                // oversized red, exact green, undersized yellow in both the
+                // geometry and preview stages, and the toolpath node shows the
+                // resulting plunges in 3D. Nothing here restates that in text.
                 const diff = featureSize - toolDiameter;
                 let toolRelation = 'exact';
                 if (diff < -PRECISION) toolRelation = 'oversized';
@@ -1025,11 +1064,11 @@
                 if (isSlot) {
                     const slot = primitive.properties.originalSlot;
                     if (wantsMill) {
-                        if (canMill) plan.push({ type: 'mill', primitiveToOffset: primitive, toolRelation: 'undersized', entry });
-                        else plan.push({ type: 'centerline', primitiveToOffset: primitive, isCenterline: true, toolRelation, entry });
+                        plan.push(canMill
+                            ? { type: 'mill', primitiveToOffset: primitive, toolRelation: 'undersized', entry }
+                            : { type: 'centerline', primitiveToOffset: primitive, isCenterline: true, toolRelation, entry });
                         continue;
                     }
-                    if (toolRelation === 'oversized') bump(oversize, key);
                     const proximityRisk = Math.hypot(slot.end.x - slot.start.x, slot.end.y - slot.start.y) < toolDiameter;
                     plan.push(
                         { type: 'peck', position: slot.start, originalDiameter: featureSize, toolRelation, entry },
@@ -1040,23 +1079,20 @@
 
                 if (wantsMill && canMill) {
                     plan.push({ type: 'mill', primitiveToOffset: primitive, toolRelation, entry });
-                    continue;
+                } else {
+                    plan.push({ type: 'peck', position: primitive.center, originalDiameter: featureSize, toolRelation, entry });
                 }
-                if (wantsMill) bump(unmillable, key);
-                if (toolRelation === 'oversized') bump(oversize, key);
-                plan.push({ type: 'peck', position: primitive.center, originalDiameter: featureSize, toolRelation, entry });
             }
 
+            // The one drill condition with nothing on screen to see: a skipped size
+            // emits no primitive at all, so no colour can report it.
             for (const [key, count] of skipped) {
-                warnings.push({ message: `⌀${key}mm: ${count} feature(s) skipped - no usable tool assigned`, severity: 'warning', source: 'drill-strategy' });
+                warnings.push({
+                    message: `⌀${key}mm: ${count} feature(s) skipped - no usable tool assigned`,
+                    severity: 'warning',
+                    source: 'drill-strategy'
+                });
             }
-            for (const [key, count] of unmillable) {
-                warnings.push({ message: `⌀${key}mm: cutter too large to mill - ${count} feature(s) pecked at centre instead`, severity: 'warning', source: 'drill-strategy' });
-            }
-            for (const [key, count] of oversize) {
-                warnings.push({ message: `⌀${key}mm: assigned cutter is wider than the feature - ${count} hole(s) will cut oversize`, severity: 'warning', source: 'drill-strategy' });
-            }
-
             return { plan, warnings };
         }
 

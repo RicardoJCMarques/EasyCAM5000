@@ -211,7 +211,7 @@
             const isInternal = offsetDistance < 0;
             const primColors = this.core.colors.primitives;
 
-            const strokeColor = isInternal ? primColors.offsetInternal : (color || primColors.offsetExternal);
+            const strokeColor = color || (isInternal ? primColors.offsetInternal : primColors.offsetExternal);
 
             this.ctx.strokeStyle = strokeColor;
             this.ctx.lineWidth = lineWidth;

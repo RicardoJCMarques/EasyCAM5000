@@ -13,7 +13,7 @@
         SPDX-License-Identifier: AGPL-3.0-or-later
     -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>EasyTrace5000 | Documentation</title>
+    <title>EasyTrace5000 Doc - PCB CAM Guides and Reference</title>
 
     <meta name="description" content="EasyTrace5000 documentation: PCB isolation routing, drilling with per-diameter tooling, copper clearing, board cutout, solder stencils and laser output.">
     <meta name="author" content="Eltryus">
@@ -24,12 +24,12 @@
 
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://cam.eltryus.design/easytrace5000/doc/">
-    <meta property="og:title" content="EasyTrace5000 | Documentation">
+    <meta property="og:title" content="EasyTrace5000 Doc - PCB CAM Guides and Reference">
     <meta property="og:description" content="EasyTrace5000 documentation: PCB isolation routing, drilling with per-diameter tooling, copper clearing, board cutout, solder stencils and laser output.">
     <meta property="og:image" content="https://cam.eltryus.design/images/social-trace.jpg">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
-    <meta property="og:site_name" content="Eltryus EasyCAM5000 Suite">
+    <meta property="og:site_name" content="EasyCAM5000">
     <meta property="og:locale" content="en_US">
 
     <link rel="icon" type="image/png" href="../../images/favicon/favicon-96x96.png" sizes="96x96">
@@ -47,32 +47,93 @@
 
     <script type="application/ld+json">
     {
-      "@context": "https://schema.org",
-      "@graph": [
-        {
-            "@type": "CollectionPage",
-            "@id": "https://cam.eltryus.design/easytrace5000/doc/#docs",
-            "name": "EasyTrace5000 Documentation",
-            "headline": "EasyTrace5000 Documentation",
-            "description": "Guides and reference manual for EasyTrace5000 PCB CAM workflows, including CNC milling and Laser processing.",
-            "url": "https://cam.eltryus.design/easytrace5000/doc/",
-            "inLanguage": "en",
-            "isPartOf": { "@id": "https://cam.eltryus.design/#website" },
-            "about": { "@id": "https://cam.eltryus.design/easytrace5000/#app" },
-            "author": { "@id": "https://www.eltryus.design/#organization" },
-            "publisher": { "@id": "https://www.eltryus.design/#organization" },
-            "datePublished": "2025-01-16",
-            "dateModified": "2026-08-24"
-        },
-        {
-            "@type": "BreadcrumbList",
-            "itemListElement": [
-                { "@type": "ListItem", "position": 1, "name": "Eltryus EasyCAM5000 Suite", "item": "https://cam.eltryus.design/" },
-                { "@type": "ListItem", "position": 2, "name": "EasyTrace5000", "item": "https://cam.eltryus.design/easytrace5000/" },
-                { "@type": "ListItem", "position": 3, "name": "Documentation", "item": "https://cam.eltryus.design/easytrace5000/doc/" }
-            ]
-        }
-      ]
+        "@context": "https://schema.org",
+        "@graph": [
+            {
+                "@type": "Organization",
+                "@id": "https://www.eltryus.design/#organization",
+                "name": "Eltryus",
+                "url": "https://www.eltryus.design/"
+            },
+            {
+                "@type": "WebSite",
+                "@id": "https://cam.eltryus.design/#website",
+                "name": "EasyCAM5000",
+                "alternateName": "Eltryus EasyCAM5000 Suite",
+                "url": "https://cam.eltryus.design/",
+                "inLanguage": "en",
+                "publisher": { "@id": "https://www.eltryus.design/#organization" }
+            },
+            {
+                "@type": "WebApplication",
+                "@id": "https://cam.eltryus.design/easytrace5000/#app",
+                "name": "EasyTrace5000",
+                "url": "https://cam.eltryus.design/easytrace5000/"
+            },
+            {
+                "@type": "CollectionPage",
+                "@id": "https://cam.eltryus.design/easytrace5000/doc/#docs",
+                "name": "EasyTrace5000 Documentation",
+                "headline": "EasyTrace5000 Documentation",
+                "description": "Guides and technical reference for EasyTrace5000 PCB CAM workflows, including isolation routing, peck/mill drilling, copper clearing, and laser output.",
+                "url": "https://cam.eltryus.design/easytrace5000/doc/",
+                "inLanguage": "en",
+                "isPartOf": { "@id": "https://cam.eltryus.design/#website" },
+                "about": { "@id": "https://cam.eltryus.design/easytrace5000/#app" },
+                "breadcrumb": { "@id": "https://cam.eltryus.design/easytrace5000/doc/#breadcrumb" },
+                "primaryImageOfPage": "https://cam.eltryus.design/images/social-trace.jpg",
+                "author": { "@id": "https://www.eltryus.design/#organization" },
+                "publisher": { "@id": "https://www.eltryus.design/#organization" },
+                "datePublished": "2025-01-16",
+                "dateModified": "2026-08-24",
+                "hasPart": [
+                    { "@id": "https://cam.eltryus.design/easytrace5000/doc/cnc#article" },
+                    { "@id": "https://cam.eltryus.design/easytrace5000/doc/laser#article" },
+                    { "@id": "https://cam.eltryus.design/easytrace5000/doc/operations#article" },
+                    { "@id": "https://cam.eltryus.design/easytrace5000/doc/parameters#article" },
+                    { "@id": "https://cam.eltryus.design/easytrace5000/doc/accessibility#article" }
+                ]
+            },
+            {
+                "@type": "TechArticle",
+                "@id": "https://cam.eltryus.design/easytrace5000/doc/cnc#article",
+                "headline": "EasyTrace5000 CNC Milling Guide",
+                "url": "https://cam.eltryus.design/easytrace5000/doc/cnc"
+            },
+            {
+                "@type": "TechArticle",
+                "@id": "https://cam.eltryus.design/easytrace5000/doc/laser#article",
+                "headline": "EasyTrace5000 Laser Processing Guide",
+                "url": "https://cam.eltryus.design/easytrace5000/doc/laser"
+            },
+            {
+                "@type": "TechArticle",
+                "@id": "https://cam.eltryus.design/easytrace5000/doc/operations#article",
+                "headline": "EasyTrace5000 Operation Guide",
+                "url": "https://cam.eltryus.design/easytrace5000/doc/operations"
+            },
+            {
+                "@type": "TechArticle",
+                "@id": "https://cam.eltryus.design/easytrace5000/doc/parameters#article",
+                "headline": "EasyTrace5000 Parameter Guide",
+                "url": "https://cam.eltryus.design/easytrace5000/doc/parameters"
+            },
+            {
+                "@type": "TechArticle",
+                "@id": "https://cam.eltryus.design/easytrace5000/doc/accessibility#article",
+                "headline": "EasyTrace5000 Accessibility Guide",
+                "url": "https://cam.eltryus.design/easytrace5000/doc/accessibility"
+            },
+            {
+                "@type": "BreadcrumbList",
+                "@id": "https://cam.eltryus.design/easytrace5000/doc/#breadcrumb",
+                "itemListElement": [
+                    { "@type": "ListItem", "position": 1, "name": "EasyCAM5000", "item": "https://cam.eltryus.design/" },
+                    { "@type": "ListItem", "position": 2, "name": "EasyTrace5000", "item": "https://cam.eltryus.design/easytrace5000/" },
+                    { "@type": "ListItem", "position": 3, "name": "Docs", "item": "https://cam.eltryus.design/easytrace5000/doc/" }
+                ]
+            }
+        ]
     }
     </script>
 </head>
@@ -82,34 +143,28 @@
 
     <!-- Header -->
     <header class="doc-header">
-        <div class="doc-brand">
-            <a href="/" aria-label="EasyCAM5000 Homepage">EasyCAM5000</a>
-        </div>
+        <div class="doc-brand"><a href="/" aria-label="EasyCAM5000 Homepage">EasyCAM5000</a></div>
+
+        <nav class="doc-breadcrumb" aria-label="Breadcrumb">
+            <ol>
+                <li><a href="/easytrace5000/" draggable="false">EasyTrace5000</a></li>
+                <li><span aria-current="page">Docs</span></li>
+            </ol>
+        </nav>
 
         <button class="doc-menu-toggle" aria-label="Toggle Navigation Menu" aria-expanded="false">
-            <svg class="icon-menu" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <line x1="3" y1="12" x2="21" y2="12"></line>
-                <line x1="3" y1="6" x2="21" y2="6"></line>
-                <line x1="3" y1="18" x2="21" y2="18"></line>
-            </svg>
-            <svg class="icon-close" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <line x1="18" y1="6" x2="6" y2="18"></line>
-                <line x1="6" y1="6" x2="18" y2="18"></line>
-            </svg>
+            <svg class="icon-menu cam-icon" width="24" height="24" aria-hidden="true"><use href="#icon-menu"></use></svg>
+            <svg class="icon-close cam-icon" width="24" height="24" aria-hidden="true"><use href="#icon-close"></use></svg>
         </button>
 
         <nav class="doc-nav" aria-label="Main Navigation">
-            <a href="/" draggable="false" aria-label="Return to Homepage">← Home</a>
-            <a href="/easytrace5000/" draggable="false" aria-label="Launch Workspace">Launch App</a>
+            <a href="cnc" draggable="false">CNC Guide</a>
+            <a href="laser" draggable="false">Laser Guide</a>
+            <a href="operations" draggable="false">Operations</a>
+            <a href="parameters" draggable="false">Parameters</a>
+            <a href="accessibility" draggable="false">Accessibility</a>
             <span class="separator" aria-hidden="true"></span>
-            
-            <a href="./" class="active" draggable="false" aria-current="page" aria-label="Documentation Index">Docs</a>
-            <a href="cnc" draggable="false" aria-label="CNC Milling Guide">CNC Guide</a>
-            <a href="laser" draggable="false" aria-label="Laser Processing Guide">Laser Guide</a>
-            <a href="operations" draggable="false" aria-label="Operation Reference">Operations</a>
-            <a href="parameters" draggable="false" aria-label="Parameter Reference">Parameters</a>
-            <a href="accessibility" draggable="false" aria-label="Accessibility Statement">Accessibility</a>
-            <span class="separator" aria-hidden="true"></span>
+            <a href="/easytrace5000/" draggable="false">Launch App</a>
             <a href="https://github.com/RicardoJCMarques/EasyCAM5000" target="_blank" draggable="false" aria-label="GitHub Repository (opens in a new tab)">GitHub</a>
 
             <button id="theme-toggle" class="btn btn--icon" title="Toggle Theme" aria-label="Toggle Theme">
@@ -123,10 +178,10 @@
             <!-- Hero -->
             <section class="hero">
                 <h1>EasyTrace5000 Documentation</h1>
-                <p class="tagline">Browser-based CAM for PCB prototyping</p>
+                <p class="tagline">Guides and reference for turning Gerber, Excellon and SVG files into CNC isolation-routing G-code or laser-ready vector and raster output.</p>
 
                 <figure>
-                    <img src="../../images/EasyTrace5000_workspace.webp" width="1152" height="648" alt="EasyTrace5000 Workspace">
+                    <img src="../../images/EasyTrace5000_workspace.webp" width="1152" height="648" alt="EasyTrace5000 workspace showing a loaded Gerber file with generated isolation toolpaths">
                     <figcaption>The EasyTrace5000 workspace with loaded PCB geometry</figcaption>
                 </figure>
 
@@ -151,10 +206,7 @@
                 <div class="pipeline-grid">
                     <a href="cnc" class="pipeline-card pipeline-card--active" draggable="false" aria-label="Go to CNC Milling Guide">
                         <h3>
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
-                                <circle cx="12" cy="12" r="3"/>
-                                <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
-                            </svg>
+                            <svg class="cam-icon" width="24" height="24" aria-hidden="true"><use href="#icon-cnc"></use></svg>
                             CNC Milling
                             <span class="status-badge" role="status" aria-label="Status: Stable">Stable</span>
                         </h3>
@@ -164,13 +216,7 @@
 
                     <a href="laser" class="pipeline-card pipeline-card--dev" draggable="false" aria-label="Go to Laser Processing Guide">
                         <h3>
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
-                                <path d="M12 2v8"/>
-                                <path d="M12 14v8"/>
-                                <circle cx="12" cy="12" r="2"/>
-                                <path d="M4.93 4.93l4.24 4.24"/>
-                                <path d="M14.83 14.83l4.24 4.24"/>
-                            </svg>
+                            <svg class="cam-icon" width="24" height="24" aria-hidden="true"><use href="#icon-laser"></use></svg>
                             Laser Processing
                             <span class="status-badge" role="status" aria-label="Status: In Development">In Development</span>
                         </h3>
@@ -208,10 +254,7 @@
                     
                     <div class="workflow-column workflow-column--cnc">
                         <h3>
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--color-pipeline-cnc)" stroke-width="1.5" aria-hidden="true" style="margin-right: 8px; vertical-align: text-bottom;">
-                                <circle cx="12" cy="12" r="3"/>
-                                <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
-                            </svg>
+                            <svg class="cam-icon" width="24" height="24" aria-hidden="true"><use href="#icon-cnc"></use></svg>
                             CNC Milling Workflow
                         </h3>
                         <ol>
@@ -225,10 +268,7 @@
 
                     <div class="workflow-column workflow-column--laser">
                         <h3>
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--color-pipeline-laser)" stroke-width="1.5" aria-hidden="true" style="margin-right: 8px; vertical-align: text-bottom;">
-                                <path d="M12 2v8"/><path d="M12 14v8"/><circle cx="12" cy="12" r="2"/>
-                                <path d="M4.93 4.93l4.24 4.24"/><path d="M14.83 14.83l4.24 4.24"/>
-                            </svg>
+                            <svg class="cam-icon" width="24" height="24" aria-hidden="true"><use href="#icon-laser"></use></svg>
                             Laser Processing Workflow
                         </h3>
                         <ol>
@@ -321,27 +361,21 @@
                 <div class="sponsor-grid">
                     <a href="/#support" class="sponsor-slot sponsor-slot--empty" title="Become a Sponsor" draggable="false" aria-label="Available Sponsor Slot 1. Click to open support and sponsorship options.">
                         <div class="slot-content" aria-hidden="true">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
-                                <path d="M12 5v14M5 12h14"/>
-                            </svg>
+                            <svg class="cam-icon" width="18" height="18" aria-hidden="true"><use href="#icon-add"></use></svg>
                             <span>Your Logo</span>
                         </div>
                     </a>
 
                     <a href="/#support" class="sponsor-slot sponsor-slot--empty" title="Become a Sponsor" draggable="false" aria-label="Available Sponsor Slot 2. Click to open support and sponsorship options.">
                         <div class="slot-content" aria-hidden="true">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
-                                <path d="M12 5v14M5 12h14"/>
-                            </svg>
+                            <svg class="cam-icon" width="18" height="18" aria-hidden="true"><use href="#icon-add"></use></svg>
                             <span>Your Logo</span>
                         </div>
                     </a>
 
                     <a href="/#support" class="sponsor-slot sponsor-slot--empty" title="Become a Sponsor" draggable="false" aria-label="Available Sponsor Slot 3. Click to open support and sponsorship options.">
                         <div class="slot-content" aria-hidden="true">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
-                                <path d="M12 5v14M5 12h14"/>
-                            </svg>
+                            <svg class="cam-icon" width="18" height="18" aria-hidden="true"><use href="#icon-add"></use></svg>
                             <span>Your Logo</span>
                         </div>
                     </a>
@@ -350,15 +384,16 @@
                 <p><a href="/#support" draggable="false" aria-label="Learn more about becoming a sponsor">Become a sponsor →</a></p>
                 <p class="sponsor-note">Your logo displayed here and in documentation</p>
             </section>
-        </main>
 
+        </main>
         <!-- Footer -->
         <footer class="doc-footer" aria-label="Footer">
             <p>
                 <a href="#doc-content" draggable="false" aria-label="Scroll back to top">Back to Top</a> |
                 <a href="https://github.com/RicardoJCMarques/EasyCAM5000" target="_blank" draggable="false" aria-label="GitHub Repository (opens in a new tab)">GitHub</a> |
                 <a href="/#support" draggable="false" aria-label="Support Development via Sponsorship">Support Development</a> |
-                <a href="../../LICENSE" target="_blank" draggable="false" aria-label="AGPLv3 License (opens in a new tab)">AGPLv3 Licensed</a>
+                <a href="../../LICENSE" target="_blank" draggable="false" aria-label="AGPLv3 License (opens in a new tab)">AGPLv3 Licensed</a> |
+                <a href="https://www.eltryus.design/" draggable="false" aria-label="Eltryus, developer of EasyCAM5000">by ELTRYUS</a>
             </p>
         </footer>
 

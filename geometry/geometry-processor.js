@@ -401,7 +401,7 @@
                 if (hasArcs) {
                     const tessellatedContours = primitive.contours.map(c =>
                         (c.arcSegments && c.arcSegments.length > 0)
-                            ? GeometryUtils.contourArcsToPath(c)
+                            ? GeometryTessellation.contourArcsToPath(c)
                             : c
                     );
                     return new PathPrimitive(tessellatedContours, primitive.properties);

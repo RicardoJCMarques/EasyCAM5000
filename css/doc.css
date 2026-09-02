@@ -105,6 +105,77 @@ h1, h2, h3, h4, h5, h6 {
     margin: 0 var(--spacing-xs);
 }
 
+/* ---------------------------------------------------------------
+   Breadcrumb trail — sits immediately right of .doc-brand.
+   The brand is rung 1; this element starts at rung 2, so a
+   separator is rendered before the first <li> as well.
+   --------------------------------------------------------------- */
+.doc-breadcrumb {
+    flex: 0 1 auto;
+    min-width: 0;
+    margin-left: var(--spacing-sm);
+    margin-right: auto;
+    font-size: var(--font-size-sm);
+    line-height: var(--line-height-tight);
+}
+
+.doc-breadcrumb ol {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    white-space: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.doc-breadcrumb ol::-webkit-scrollbar { display: none; }
+
+.doc-breadcrumb li {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+}
+
+/* Separator before every rung, including the first (after the brand) */
+.doc-breadcrumb li::before {
+    content: "/";
+    color: var(--color-text-disabled);
+}
+
+.doc-breadcrumb a {
+    color: var(--color-text-secondary);
+    text-decoration: none;
+    font-weight: 400;
+}
+
+.doc-breadcrumb a:hover,
+.doc-breadcrumb a:focus-visible {
+    color: var(--color-text-primary);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.doc-breadcrumb [aria-current="page"] {
+    color: var(--color-text-primary);
+}
+
+/* ============================================================================
+   TEXT SELECTION
+   base.css disables selection globally for the workspace canvas.
+   Documentation is read-and-copy content, so re-enable it here.
+   ============================================================================ */
+.doc-main,
+.doc-sidebar,
+.doc-breadcrumb,
+.doc-footer {
+    user-select: text;
+    -webkit-user-select: text;
+}
+
 /* ============================================================================
    SCROLLABLE WRAPPER
    Scrollbar always at viewport edge
@@ -658,7 +729,7 @@ tr:last-child td {
         font-size: 1.1rem;
     }
 
-    .doc-nav .theme-toggle {
+    .doc-nav #theme-toggle {
         width: 100%;
         height: 3rem;
         justify-content: center;
@@ -675,8 +746,21 @@ tr:last-child td {
 }
 
 /* ============================================================================
-   RESPONSIVE - TABLET (Sidebar hidden)
+   RESPONSIVE
    ============================================================================ */
+
+/* Large screens: constrain sidebar position and content */
+@media (min-width: 1200px) {
+    .doc-sidebar {
+        left: calc((100vw - var(--doc-layout-max-width)) / 2);
+    }
+
+    .doc-wrapper.has-sidebar .doc-main {
+        margin-left: calc((100vw - var(--doc-layout-max-width)) / 2 + var(--doc-sidebar-width));
+    }
+}
+
+/* Tablet: sidebar hidden */
 @media (max-width: 900px) {
     .doc-sidebar {
         display: none;
@@ -693,10 +777,61 @@ tr:last-child td {
     }
 }
 
-/* ============================================================================
-   RESPONSIVE - MOBILE
-   ============================================================================ */
+/* Mobile: collapsed nav + typography */
 @media (max-width: 768px) {
+    .doc-menu-toggle {
+        display: block;
+    }
+
+    .doc-nav {
+        display: none;
+        position: fixed;
+        z-index: 200;
+        top: var(--header-layout-height);
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: auto;
+        background: var(--color-bg-primary);
+        border-top: 1px solid var(--color-border-primary);
+        padding: 2rem;
+        padding-left: calc(2rem + var(--safe-area-left));
+        padding-right: calc(2rem + var(--safe-area-right));
+        padding-bottom: calc(2rem + var(--safe-area-bottom));
+        flex-direction: column;
+        align-items: stretch;
+        gap: 1rem;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+    }
+
+    .doc-nav.is-open {
+        display: flex;
+    }
+
+    .doc-nav .separator {
+        display: none;
+    }
+
+    .doc-nav a {
+        text-align: center;
+        padding: 1rem;
+        background: var(--color-bg-secondary);
+        border: 1px solid var(--color-border-secondary);
+        font-size: 1.1rem;
+    }
+
+    .doc-nav #theme-toggle {
+        width: 100%;
+        height: 3rem;
+        justify-content: center;
+        margin-top: 1rem;
+        margin-bottom: var(--safe-area-bottom);
+        background: var(--color-bg-secondary);
+        border: 1px solid var(--color-border-secondary);
+        border-radius: var(--radius);
+    }
+
     h1 {
         font-size: 2rem;
     }
@@ -709,7 +844,7 @@ tr:last-child td {
         padding: 2rem 0;
     }
 
-    .pipeline-grid, .feature-grid {
+    .pipeline-grid, .feature-grid, .workflow-grid, .step-grid, .workflow-split {
         grid-template-columns: 1fr;
     }
 
@@ -725,16 +860,13 @@ tr:last-child td {
     }
 }
 
-/* ============================================================================
-   LARGE SCREENS - Constrain sidebar position and content
-   ============================================================================ */
-@media (min-width: 1200px) {
-    .doc-sidebar {
-        left: calc((100vw - var(--doc-layout-max-width)) / 2);
+/* Narrow: collapse intermediate breadcrumb rungs, keep them in the DOM */
+@media (max-width: 640px) {
+    .doc-breadcrumb li:not(:last-child) {
+        display: none;
     }
 
-    .doc-wrapper.has-sidebar .doc-main {
-        /* Content stays fixed width, left-aligned after sidebar */
-        margin-left: calc((100vw - var(--doc-layout-max-width)) / 2 + var(--doc-sidebar-width));
+    .doc-breadcrumb li:last-child::before {
+        content: "…/";
     }
 }

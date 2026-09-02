@@ -485,7 +485,12 @@
             const subdivideByProximity = (groupPlans, usePassAdjacency) => {
                 if (groupPlans.length <= 1) return [groupPlans];
                 const md = groupPlans[0].metadata;
-                let margin = md.toolDiameter * (1.0 - (md.stepOver / 100.0));
+                // The offsetter advances by toolDiameter * stepOver%, so that IS
+                // the gap between consecutive passes. (1 - stepOver%) is the
+                // remaining overlap - the two agree only at 50%, and above it
+                // the margin came out smaller than the real gap and staydown
+                // silently stopped firing.
+                let margin = md.toolDiameter * (md.stepOver / 100.0);
                 return this.buildStaydownClusters(
                     groupPlans, margin + EPSILON, usePassAdjacency
                 );
@@ -793,7 +798,7 @@
                 };
 
                 // Rotate or reverse entry point to reduce travel.
-                if (!chosen.metadata.isPeckMark && !chosen.metadata.isDrillMilling) {
+                if (!chosen.metadata.isPeckMark && !chosen.metadata.isDrillMilling && !chosen.metadata.staydownChain) {
                     const meta = chosen.metadata;
                     if (meta.isSimpleCircle && bestResult.commandIndex >= 0) {
                         // A full circle has one command, so the vertex scan
@@ -913,7 +918,7 @@
                 const toolDiameter = planMetadata.toolDiameter;
                 const stepOverPercent = planMetadata.stepOver;
                 const stepOverRatio = stepOverPercent / 100.0;
-                const stepDistance = toolDiameter * (1.0 - stepOverRatio);
+                const stepDistance = toolDiameter * stepOverRatio;
                 const staydownThreshold = stepDistance + EPSILON;
                 
                 // Square the threshold
@@ -1000,18 +1005,49 @@
                 };
             }
 
-            // Simple Circles: Entry point is always fixed at 0 index, but projected around circumference
+            // Simple Circles: one command, so the vertex scan cannot propose a
+            // better start - the entry SLIDES around the circumference instead.
+            // Measure to the point rotateCircleEntry will actually pick, not to
+            // the stored entry: circles come out of circleToPath and the arc
+            // reconstructor entered at angle 0, so scoring the stored point
+            // measures to the FAR side and overstates the gap by up to 2R. On a
+            // grid of small holes that is the whole staydown budget, and every
+            // link falls back to a rapid.
             if (meta.isSimpleCircle) {
-                const entry = meta.entryPoint;
+                const center = meta.center;
+                const radius = meta.radius;
+                let entry = meta.entryPoint;
+
+                if (center && radius > 0) {
+                    const cx = fromPos.x - center.x;
+                    const cy = fromPos.y - center.y;
+                    const distToCenter = Math.sqrt(cx * cx + cy * cy);
+                    if (distToCenter > PRECISION) {
+                        entry = {
+                            x: center.x + cx / distToCenter * radius,
+                            y: center.y + cy / distToCenter * radius,
+                            z: meta.entryPoint?.z
+                        };
+                    }
+                }
+
                 const dx = entry.x - fromPos.x;
                 const dy = entry.y - fromPos.y;
                 const distSq = dx * dx + dy * dy;
-                return {
-                    point: entry,
-                    distanceSq: distSq,
-                    distance: Math.sqrt(distSq),
-                    commandIndex: 0
-                };
+                return { point: entry, distanceSq: distSq, distance: Math.sqrt(distSq), commandIndex: 0 };
+            }
+
+            // A welded offset chain has ONE entry. It is not closed, so the open-
+            // path branch below would offer its far end and return -2; every
+            // caller then writes that end into optimizedEntryPoint whether or not
+            // it goes on to reverse the commands, and MachineProcessor rapids and
+            // plunges from optimizedEntryPoint. Vetoing the reversal is not
+            // enough - the entry itself has to be fixed here.
+            if (meta.staydownChain) {
+                const entry = meta.entryPoint;
+                const dxC = entry.x - fromPos.x, dyC = entry.y - fromPos.y;
+                const distSqC = dxC * dxC + dyC * dyC;
+                return { point: entry, distanceSq: distSqC, distance: Math.sqrt(distSqC), commandIndex: -1 };
             }
 
             const canRotate = meta.isClosedLoop ?? false;

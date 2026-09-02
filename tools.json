@@ -144,7 +144,7 @@
         "maxDepthPerPass": 0.1,
         "stepOver": 50
       },
-      "operations": ["isolation", "clearing", "cutout", "drill", "profile", "pocket"],
+      "operations": ["isolation", "clearing", "cutout", "drill", "stencil", "profile", "pocket"],
       "material": "carbide"
     },
     {
@@ -363,6 +363,7 @@
         "angle": 10,
         "tipDiameter": 0.1,
         "maxDiameter": 3.175,
+        "effectiveDiameter": 0.12,
         "cuttingLength": 3.0,
         "shankDiameter": 3.175,
         "totalLength": 38
@@ -386,6 +387,7 @@
         "angle": 20,
         "tipDiameter": 0.1,
         "maxDiameter": 3.175,
+        "effectiveDiameter": 0.14,
         "cuttingLength": 4.0,
         "shankDiameter": 3.175,
         "totalLength": 38
@@ -409,6 +411,7 @@
         "angle": 30,
         "tipDiameter": 0.1,
         "maxDiameter": 3.175,
+        "effectiveDiameter": 0.15,
         "cuttingLength": 5.0,
         "shankDiameter": 3.175,
         "totalLength": 38
@@ -432,6 +435,7 @@
         "angle": 45,
         "tipDiameter": 0.2,
         "maxDiameter": 3.175,
+        "effectiveDiameter": 0.28,
         "cuttingLength": 6.0,
         "shankDiameter": 3.175,
         "totalLength": 38
@@ -455,6 +459,7 @@
         "angle": 60,
         "tipDiameter": 0.2,
         "maxDiameter": 3.175,
+        "effectiveDiameter": 0.32,
         "cuttingLength": 8.0,
         "shankDiameter": 3.175,
         "totalLength": 38
@@ -478,6 +483,7 @@
         "angle": 90,
         "tipDiameter": 0.3,
         "maxDiameter": 3.175,
+        "effectiveDiameter": 0.5,
         "cuttingLength": 10.0,
         "shankDiameter": 3.175,
         "totalLength": 38
@@ -1219,6 +1225,7 @@
         "tipDiameter": 0.5,
         "angleDeg": 10,
         "maxDiameter": 3.175,
+        "effectiveDiameter": 0.5,
         "cuttingLength": 8,
         "shankDiameter": 3.175,
         "totalLength": 41
@@ -1240,6 +1247,7 @@
         "tipDiameter": 1.0,
         "angleDeg": 10,
         "maxDiameter": 3.175,
+        "effectiveDiameter": 1,
         "cuttingLength": 10,
         "shankDiameter": 3.175,
         "totalLength": 42
@@ -1261,6 +1269,7 @@
         "tipDiameter": 1.0,
         "angleDeg": 15,
         "maxDiameter": 3.175,
+        "effectiveDiameter": 1,
         "cuttingLength": 10,
         "shankDiameter": 3.175,
         "totalLength": 42

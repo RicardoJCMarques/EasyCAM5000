@@ -275,20 +275,12 @@
             const path = new Path64();
 
             try {
-                // WORKER BLOCKER - read before moving 2D booleans off-thread.
-                // This resolve is why 2D offsetting cannot follow the 3D
-                // pipeline into field-worker.js: the registry is main-thread
-                // singleton state, so in a worker every curveId resolves to
-                // clockwise:false and the packed Z word loses the winding the
-                // arc reconstructor needs. Reconstruction would silently
-                // degrade to polylines - the exact loss the boolean-offset
-                // architecture exists to prevent. Moving 2D to workers means
-                // shipping a serialized registry slice per job AND merging
-                // offset-derived curve registrations back. That's a project.
-                // V-carve/relief/rotary have no arc registry dependency, which
-                // is why they were cheap to move.
-                // Pre-resolve curve windings once per contour instead of one
-                // registry Map lookup per point.
+                // WORKER BLOCKER - the curve registry is main-thread singleton state.
+                // In a worker every curveId resolves to clockwise:false, the packed Z
+                // word loses the winding, and arc reconstruction silently degrades to
+                // polylines. Moving 2D off-thread means shipping a registry slice per
+                // job and merging offset-derived registrations back. V-carve, relief
+                // and rotary have no registry dependency, which is why they moved.
                 const reg = ROOT.globalCurveRegistry;
                 const windingCache = new Map();
                 const getClockwiseForCurve = (curveId) => {

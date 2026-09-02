@@ -4,6 +4,31 @@ All notable changes to the **EasyTrace5000** project will be documented in this 
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0] - 2026-09-02
+
+### Added
+- **Hybrid Laser Pipeline:** The Fiber laser pipeline has been unlocked - copper isolation/clearing operations show laser parameters, drill/cutout show cnc parameters on the same job.
+- **3D Toolpath Preview:** Calculating toolpaths was spun-off the export modal into it's own phase/node that triggers the 3d rendering frustum. Changing between rendering system is possible (Icon or F2).
+- **CNC Stencils:** The stencil operation can generate g-code now for those aiming to mill their stencil stock. [#18](https://github.com/RicardoJCMarques/EasyCAM5000/discussions/18)
+- **Rounded Stencils:** Corner radius was added as a parameter for SVG stencil geometry so that it's easier to cut on vinyl/drag knife plotters.
+- **Internal Offset Optimizations:** Added a first draft of allowing all internal offsets to link to bypass retract/rapid/plunge. (Holes/nesting not yet supported.)
+
+### Changed
+- **Line Numbers:** Instead of being locked by the post-processor, all programs can carry line numbers now (selectable from Machine Settings). Post-processors can set different defaults. 
+
+### Fixed
+- **Rotary Coordinates:** 4th Axis geometry is now rendering properly centered on the set axis, touching the origin point in a predictable way.
+- **Profile Nesting:** Hole/island detection in EasyShape5000 was ignoring the toggle during geometry generation.
+- **SVG Parsing:** A full circle syntax wasn't getting recognized and could cause problems in drill operations.
+- **Parameter Structure:** Parameters are a bit less of a mess, improved hierarchy and styling.
+- **Theme System:** Color management wasn't working properly in the 3D rendering frustum.
+- **V-Carving:** Small disconnect between parameters and geometry.
+
+### Known Problems
+- **2D Laser in 3D:** 3D Renderer doesn't know how to draw laser geometry.
+- **3D Rendering + Transforms:** 3D Renderer doesn't like mirror/rotation, gcode should be fine.
+- **Mold Mode:** The inversion on 3D flat reliefs is sort of working but not in a usable way yet.
+
 ## [1.5.0] - 2026-08-24
 
 ### Added

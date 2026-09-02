@@ -313,16 +313,6 @@ svg {
     vertical-align: middle;
 }
 
-svg path,
-svg line,
-svg circle,
-svg rect,
-svg polygon,
-svg polyline {
-    stroke: currentColor;
-    fill: none;
-}
-
 svg[fill="currentColor"] {
     fill: currentColor;
     stroke: none;

@@ -14,7 +14,7 @@
         SPDX-License-Identifier: AGPL-3.0-or-later
     -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EasyShape5000 - Browser CAM for CNC Routers | SVG and STL to G-code</title>
+    <title>EasyShape5000 - Browser CAM for CNC Routers</title>
 
     <meta name="description" content="Free online CAM for CNC routers. Turn SVG and STL into G-code in your browser - profile, pocket, drill, engrave, V-carve, relief and 4th-axis rotary.">
     <meta name="keywords" content="CNC CAM, CNC Router CAM, G-code Generator, SVG to G-code, Open Source CAM, Easel alternative, browser CAM, woodworking CAM, pocket milling, profile cutting">
@@ -26,8 +26,8 @@
 
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://cam.eltryus.design/easyshape5000/">
-    <meta property="og:title" content="EasyShape5000 Workspace | Free Browser-Based CAM for CNC Routers">
-    <meta property="og:site_name" content="Eltryus">
+    <meta property="og:title" content="EasyShape5000 - Browser CAM for CNC Routers">
+    <meta property="og:site_name" content="EasyCAM5000">
     <meta property="og:description" content="Free online CAM for CNC routers. Turn SVG and STL into G-code in your browser - profile, pocket, drill, engrave, V-carve, relief and 4th-axis rotary.">
     <meta property="og:image" content="https://cam.eltryus.design/images/social-shape.jpg">
     <meta property="og:image:width" content="1200">
@@ -54,78 +54,105 @@
     <link rel="preload" href="../geometry/clipper2z.wasm" as="fetch" crossorigin>
 
     <script type="application/ld+json">
-        {
-            "@context": "https://schema.org",
-            "@graph": [
-                {
-                    "@type": "Organization",
-                    "@id": "https://www.eltryus.design/#organization",
-                    "name": "Eltryus",
-                    "url": "https://www.eltryus.design/",
-                    "sameAs": [
-                        "https://github.com/RicardoJCMarques",
-                        "https://cam.eltryus.design/"
-                    ]
+    {
+        "@context": "https://schema.org",
+        "@graph": [
+            {
+                "@type": "Organization",
+                "@id": "https://www.eltryus.design/#organization",
+                "name": "Eltryus",
+                "url": "https://www.eltryus.design/"
+            },
+            {
+                "@type": "WebSite",
+                "@id": "https://cam.eltryus.design/#website",
+                "name": "EasyCAM5000",
+                "alternateName": "Eltryus EasyCAM5000 Suite",
+                "url": "https://cam.eltryus.design/",
+                "inLanguage": "en",
+                "publisher": { "@id": "https://www.eltryus.design/#organization" }
+            },
+            {
+                "@type": "WebApplication",
+                "@id": "https://cam.eltryus.design/#suite",
+                "name": "EasyCAM5000",
+                "url": "https://cam.eltryus.design/"
+            },
+            {
+                "@type": "CollectionPage",
+                "@id": "https://cam.eltryus.design/easyshape5000/doc/#docs",
+                "name": "EasyShape5000 Documentation",
+                "url": "https://cam.eltryus.design/easyshape5000/doc/"
+            },
+            {
+                "@type": "WebPage",
+                "@id": "https://cam.eltryus.design/easyshape5000/#webpage",
+                "url": "https://cam.eltryus.design/easyshape5000/",
+                "name": "EasyShape5000 - Browser CAM for CNC Routers",
+                "inLanguage": "en",
+                "isPartOf": { "@id": "https://cam.eltryus.design/#website" },
+                "mainEntity": { "@id": "https://cam.eltryus.design/easyshape5000/#app" },
+                "breadcrumb": { "@id": "https://cam.eltryus.design/easyshape5000/#breadcrumb" },
+                "primaryImageOfPage": "https://cam.eltryus.design/images/social-shape.jpg"
+            },
+            {
+                "@type": "WebApplication",
+                "@id": "https://cam.eltryus.design/easyshape5000/#app",
+                "name": "EasyShape5000",
+                "url": "https://cam.eltryus.design/easyshape5000/",
+                "mainEntityOfPage": { "@id": "https://cam.eltryus.design/easyshape5000/#webpage" },
+                "applicationCategory": "DesignApplication",
+                "applicationSubCategory": "CAM Software",
+                "operatingSystem": "Any (Browser-based)",
+                "browserRequirements": "Requires JavaScript and WebAssembly support",
+                "softwareVersion": "1.1.0",
+                "releaseNotes": "https://github.com/RicardoJCMarques/EasyCAM5000/blob/main/CHANGELOG.md",
+                "installUrl": "https://cam.eltryus.design/easyshape5000/",
+                "sameAs": [
+                    "https://github.com/RicardoJCMarques/EasyCAM5000"
+                ],
+                "license": "https://www.gnu.org/licenses/agpl-3.0.html",
+                "isAccessibleForFree": true,
+                "offers": {
+                    "@type": "Offer",
+                    "price": "0",
+                    "priceCurrency": "EUR",
+                    "availability": "https://schema.org/InStock"
                 },
-                {
-                    "@type": "WebApplication",
-                    "@id": "https://cam.eltryus.design/easyshape5000/#app",
-                    "name": "EasyShape5000",
-                    "alternateName": "EasyShape",
-                    "url": "https://cam.eltryus.design/easyshape5000/",
-                    "applicationCategory": "DeveloperApplication",
-                    "applicationSubCategory": "CAM Software",
-                    "operatingSystem": "Any (Browser-based)",
-                    "browserRequirements": "Requires JavaScript and WebAssembly support",
-                    "releaseNotes": "https://github.com/RicardoJCMarques/EasyCAM5000/blob/main/CHANGELOG.md",
-                    "softwareVersion": "1.1.0",
-                    "installUrl": "https://cam.eltryus.design/easyshape5000/",
-                    "sameAs": "https://github.com/RicardoJCMarques/EasyCAM5000",
-                    "license": "https://www.gnu.org/licenses/agpl-3.0.html",
-                    "isAccessibleForFree": true,
-                    "offers": {
-                        "@type": "Offer",
-                        "price": "0",
-                        "priceCurrency": "EUR"
-                    },
-                    "description": "Browser-based CAM tool for CNC routers. Import SVG/STL designs, assign profile/pocket/drill/engrave/v-carve/relief/4th-axis operations, and export optimized G-code.",
-                    "mainEntityOfPage": { "@id": "https://cam.eltryus.design/easyshape5000/#app" },
-                    "isPartOf": { "@id": "https://cam.eltryus.design/#suite" },
-                    "author": { "@id": "https://www.eltryus.design/#organization" },
-                    "publisher": { "@id": "https://www.eltryus.design/#organization" },
-                    "softwareHelp": { "@id": "https://cam.eltryus.design/easyshape5000/doc/#docs" },
-                    "subjectOf": { "@id": "https://www.eltryus.design/en/work/easytrace5000/#article" },
-                    "featureList": [
-                        "Browser-based, 100% client-side CAM processing with zero cloud dependencies",
-                        "SVG import with hierarchical group preservation",
-                        "Scene graph with group/ungroup, lock, visibility, and undo/redo",
-                        "Per-shape operation assignment (Profile, Pocket, Drill, Engrave)",
-                        "WebAssembly geometry engine for high-performance boolean operations",
-                        "Smart drill strategy with dynamic peck-or-mill selection",
-                        "Optimized toolpaths with staydown clustering and G2/G3 arc reconstruction",
-                        "Ten CNC post-processors including GRBL, grblHAL, LinuxCNC, Mach3, Fanuc and Roland RML",
-                        "Automatic tool changes with tool length compensation",
-                        "3D operations: V-carve, relief surfacing, and 4th-axis rotary in radial and indexed 3+1 kinematics",
-                        "3D toolpath preview with playback"
-                    ],
-                    "screenshot": {
-                        "@type": "ImageObject",
-                        "url": "https://cam.eltryus.design/images/social-shape.jpg",
-                        "caption": "EasyShape5000 main workspace"
-                    },
-                    "potentialAction": [
-                        { "@type": "ViewAction", "target": "https://cam.eltryus.design/easyshape5000/#quickstart", "name": "Quick Start Guide" }
-                    ]
-                },
-                {
+                "description": "Browser-based CAM tool for CNC routers. Import SVG/STL designs, assign profile/pocket/drill/engrave/v-carve/relief/4th-axis operations, and export optimized G-code.",
+                "isPartOf": { "@id": "https://cam.eltryus.design/#suite" },
+                "author": { "@id": "https://www.eltryus.design/#organization" },
+                "publisher": { "@id": "https://www.eltryus.design/#organization" },
+                "softwareHelp": { "@id": "https://cam.eltryus.design/easyshape5000/doc/#docs" },
+                "featureList": [
+                    "Browser-based, 100% client-side CAM processing with zero cloud dependencies",
+                    "SVG import with hierarchical group preservation",
+                    "Scene graph with group/ungroup, lock, visibility, and undo/redo",
+                    "Per-shape operation assignment (Profile, Pocket, Drill, Engrave)",
+                    "WebAssembly geometry engine for high-performance boolean operations",
+                    "Smart drill strategy with dynamic peck-or-mill selection",
+                    "Optimized toolpaths with staydown clustering and G2/G3 arc reconstruction",
+                    "Ten CNC post-processors including GRBL, grblHAL, LinuxCNC, Mach3, Fanuc and Roland RML",
+                    "Automatic tool changes with tool length compensation",
+                    "3D operations: V-carve, relief surfacing, and 4th-axis rotary in radial and indexed 3+1 kinematics",
+                    "3D toolpath preview with playback"
+                ],
+                "screenshot": {
+                    "@type": "ImageObject",
+                    "url": "https://cam.eltryus.design/images/social-shape.jpg",
+                    "caption": "EasyShape5000 main workspace"
+                }
+            },
+            {
                 "@type": "BreadcrumbList",
+                "@id": "https://cam.eltryus.design/easyshape5000/#breadcrumb",
                 "itemListElement": [
-                    { "@type": "ListItem", "position": 1, "name": "Eltryus EasyCAM5000 Suite", "item": "https://cam.eltryus.design/" },
+                    { "@type": "ListItem", "position": 1, "name": "EasyCAM5000", "item": "https://cam.eltryus.design/" },
                     { "@type": "ListItem", "position": 2, "name": "EasyShape5000", "item": "https://cam.eltryus.design/easyshape5000/" }
                 ]
-                }
-            ]
-        }
+            }
+        ]
+    }
     </script>
 
     <script type="importmap">
@@ -154,10 +181,16 @@
 
     <!-- For non-JS crawlers -->
     <noscript>
-        <div style="padding: 2rem; text-align: center; background: #1a1a1a; color: #fff;">
-            <h1>EasyShape5000 - CNC Router CAM</h1>
-            <p>JavaScript required for application functionality.</p>
-            <p><a href="doc/" style="color: #3b82f6;">View Documentation</a></p>
+        <div style="padding: 2rem; max-width: 44rem; margin: 0 auto; background: #1a1a1a; color: #fff;">
+            <h1>EasyShape5000 - CNC Router CAM Workspace</h1>
+            <p>EasyShape5000 is a free, open-source CAM workspace for CNC routers that runs entirely in your browser. It reads SVG vector artwork and STL meshes and produces optimised G-code, with no installation, account or cloud processing.</p>
+            <p>Operations include profile cutting, pocket clearing, drilling and engraving, plus V-carving, 3D relief surfacing and 4th-axis rotary work in both continuous radial and indexed 3+1 kinematics. A scene graph handles grouping, locking, visibility and undo/redo. Toolpaths use staydown clustering and true G2/G3 arc reconstruction, with automatic tool changes and tool length compensation. Ten post-processors are supported, including GRBL, grblHAL, LinuxCNC, Mach3, Fanuc and Roland RML.</p>
+            <p>Nothing is uploaded — all processing is client-side. JavaScript and WebAssembly are required to run the workspace.</p>
+            <p>
+                <a href="doc/" style="color: #3b82f6;">EasyShape5000 documentation</a> ·
+                <a href="doc/guide" style="color: #3b82f6;">Routing workflow guide</a> ·
+                <a href="/" style="color: #3b82f6;">EasyCAM5000 suite</a>
+            </p>
         </div>
     </noscript>
 
@@ -197,7 +230,7 @@
         </div>
 
         <div class="toolbar-section toolbar-center">
-            <h1 class="workspace-title">EasyShape5000 - 3D CAM Workspace</h1>
+            <h1 class="workspace-title">EasyShape5000 - CNC Router CAM Workspace</h1>
         </div>
 
         <div class="toolbar-section toolbar-right">
@@ -251,8 +284,8 @@
             <div class="sidebar-section browser-section">
                 <header class="section-header">
                     <h2>Imported Objects</h2>
-                    <button id="btn-clear-all" class="btn btn--icon btn--compact" title="Remove all" aria-label="Remove all" style="display: none;">
-                        <svg class="cam-icon" width="12" height="12"><use href="#icon-delete"></use></svg>
+                    <button id="tree-btn-add" class="btn btn--icon btn--compact" title="Add geometry (SVG / STL)" aria-label="Add geometry">
+                        <svg class="cam-icon" width="12" height="12"><use href="#icon-add"></use></svg>
                     </button>
                 </header>
 
@@ -277,8 +310,7 @@
 
                 <div class="tree-view" id="scene-tree-list">
                     <div class="empty-state" id="scene-empty-state">
-                        <strong>No paths yet</strong>
-                        Import an SVG to populate the scene tree.
+                        <strong>No paths yet</strong> Import an SVG or STL to populate the scene tree.
                     </div>
                 </div>
             </div>
@@ -358,7 +390,7 @@
                         <button class="btn btn--compact btn--secondary" id="stock-bottom-left-btn">Bottom-Left</button>
                         <button class="btn btn--compact btn--secondary" id="stock-center-btn">Center</button>
                     </div>
-                    <button class="btn btn--secondary btn--block" id="fit-stock-btn"
+                    <button class="btn btn--compact btn--secondary btn--block" id="fit-stock-btn"
                             title="Fit Stock to Shape Size. 3D objects also set thickness.">
                         Fit to Object
                     </button>
@@ -397,6 +429,19 @@
                                 <option value="mm">Millimeters (G21)</option>
                                 <option value="inch">Inches (G20)</option>
                             </select>
+                        </div>
+                        <div class="property-field" data-processor-group="gcode">
+                            <label class="checkbox-label" for="gcode-line-numbers" data-i18n="params.lineNumbers">
+                                <input type="checkbox" id="gcode-line-numbers">
+                                <span>Line Numbers (N)</span>
+                            </label>
+                        </div>
+                        <div class="property-field" id="gcode-line-number-step-field" data-processor-group="gcode" style="display:none">
+                            <label for="gcode-line-number-step" data-i18n="params.lineNumberStep">Line Number Step</label>
+                            <div class="input-unit">
+                                <input type="number" id="gcode-line-number-step" value="10" min="1" max="1000" step="1" aria-label="Line number increment step">
+                                <span class="unit" aria-hidden="true">step</span>
+                            </div>
                         </div>
                     </div>
 
@@ -610,29 +655,7 @@
 
                     <!-- Fresh selection: op type tabs + geometry params -->
                     <div data-panel-state="source-selected">
-                        <div class="op-type-selector" id="op-type-selector">
-                            <button class="op-type-tab active" data-op="profile" title="Profile Cut" aria-label="Profile Cut">
-                                <svg class="cam-icon" width="16" height="16"><use href="#icon-op-profile"></use></svg>
-                            </button>
-                            <button class="op-type-tab" data-op="pocket" title="Pocket Clear" aria-label="Pocket Clear">
-                                <svg class="cam-icon" width="16" height="16"><use href="#icon-op-pocket"></use></svg>
-                            </button>
-                            <button class="op-type-tab" data-op="drill" title="Drill Holes" aria-label="Drill Holes">
-                                <svg class="cam-icon" width="16" height="16"><use href="#icon-op-drilling"></use></svg>
-                            </button>
-                            <button class="op-type-tab" data-op="engrave" title="Engrave" aria-label="Engrave">
-                                <svg class="cam-icon" width="16" height="16"><use href="#icon-op-engrave"></use></svg>
-                            </button>
-                            <button class="op-type-tab" data-op="vcarve" title="V-Carve" aria-label="V-Carve">
-                                <svg class="cam-icon" width="16" height="16"><use href="#icon-op-vcarve"></use></svg>
-                            </button>
-                            <button class="op-type-tab" data-op="relief" title="Relief / 2.5D Carve" aria-label="Relief">
-                                <svg class="cam-icon" width="16" height="16"><use href="#icon-op-relief"></use></svg>
-                            </button>
-                            <button class="op-type-tab" data-op="rotary" title="Rotary / 4th Axis" aria-label="Rotary">
-                                <svg class="cam-icon" width="16" height="16"><use href="#icon-op-rotary"></use></svg>
-                            </button>
-                        </div>
+                        <div class="op-type-selector" id="op-type-selector"></div>
                         <div id="fresh-params-form"></div>
                     </div>
 
@@ -684,34 +707,7 @@
 
                     <div class="control-group">
                         <h3>Geometry</h3>
-                        <label class="checkbox-control checkbox-label" for="show-unassigned">
-                            <input type="checkbox" id="show-unassigned" checked>
-                            <span>Unassigned Shapes</span>
-                        </label>
-                        <label class="checkbox-control checkbox-label" for="show-profile">
-                            <input type="checkbox" id="show-profile" checked><span>Profile</span>
-                        </label>
-                        <label class="checkbox-control checkbox-label" for="show-pocket">
-                            <input type="checkbox" id="show-pocket" checked><span>Pocket</span>
-                        </label>
-                        <label class="checkbox-control checkbox-label" for="show-drill">
-                            <input type="checkbox" id="show-drill" checked><span>Drill</span>
-                        </label>
-                        <label class="checkbox-control checkbox-label" for="show-engrave">
-                            <input type="checkbox" id="show-engrave" checked><span>Engrave</span>
-                        </label>
-                        <label class="checkbox-control checkbox-label" for="show-vcarve">
-                            <input type="checkbox" id="show-vcarve" checked><span>V-Carve</span>
-                        </label>
-                        <label class="checkbox-control checkbox-label" for="show-relief">
-                            <input type="checkbox" id="show-relief" checked><span>Relief</span>
-                        </label>
-                        <label class="checkbox-control checkbox-label" for="show-rotary">
-                            <input type="checkbox" id="show-rotary" checked><span>Rotary</span>
-                        </label>
-                        <label class="checkbox-control checkbox-label" for="show-pattern">
-                            <input type="checkbox" id="show-pattern" checked><span>Pattern</span>
-                        </label>
+                        <div id="viz-geometry-filters"></div>
                     </div>
 
                     <!-- REVIEW - These toggles needs to be reworked once operational orchestration is settled, including data-i18n-tooltip -->
@@ -775,13 +771,14 @@
         </div>
         <div class="status-right" id="status-right">
             <div class="status-info license-info">
-                <a href="https://github.com/RicardoJCMarques/EasyCAM5000/blob/main/CHANGELOG.md" title="Version" draggable="false">v1.1.0</a> |
+                <a href="https://github.com/RicardoJCMarques/EasyCAM5000/blob/main/CHANGELOG.md" title="Version" draggable="false">v1.2.0</a> |
                 <a href="/" title="Return to Homepage" draggable="false">Home</a> |
                 <a href="../LICENSE" target="_blank" title="View License" draggable="false" aria-label="View AGPLv3 License (opens in a new tab)">AGPLv3</a> |
                 <a href="doc/" target="_blank" title="Documentation" draggable="false" aria-label="Documentation (opens in a new tab)">Doc</a> |
                 <a href="https://github.com/RicardoJCMarques/EasyCAM5000/issues" target="_blank" title="Repo" draggable="false" aria-label="GitHub Issues (opens in new tab)">Help</a> |
                 <a href="https://github.com/RicardoJCMarques/EasyCAM5000" target="_blank" title="Repo" draggable="false" aria-label="GitHub (opens in new tab)">GitHub</a> |
-                <a href="#support" title="Support the Project" draggable="false" aria-label="Opens Support modal">Support Development</a>
+                <a href="#support" title="Support the Project" draggable="false" aria-label="Opens Support modal">Support Development</a> |
+                <a href="https://www.eltryus.design/" draggable="false" aria-label="Eltryus, developer of EasyCAM5000">by ELTRYUS</a>
             </div>
         </div>
         <div class="status-log-panel" id="status-log-panel">
@@ -825,7 +822,7 @@
                     <svg class="cam-icon" width="20" height="20"><use href="#icon-warning"></use></svg>
                     <div class="modal-notice-content">
                         <strong>Warning about 3D Operations:</strong>
-                        <p>While 2D foundations are shared with <a href="../easytrace5000/" target="_blank" rel="noopener">EasyTrace5000</a>, more testing of the new 3D sub-systems is needed.</p>
+                        <p>While 2D foundations are shared with <a href="../easytrace5000/">EasyTrace5000</a>, more testing of the new 3D sub-systems is needed.</p>
                         <p>Tool-changing logic was added recently - please <a href="https://github.com/RicardoJCMarques/EasyCAM5000/issues" target="_blank" rel="noopener">report unexpected behavior</a>.</p>
                     </div>
                 </div>
@@ -881,7 +878,7 @@
             </div>
             <div class="modal-footer welcome-footer">
                 <div class="welcome-footer-links">
-                    <a href="https://github.com/RicardoJCMarques/EasyCAM5000/blob/main/CHANGELOG.md" title="Version" target="_blank" draggable="false" aria-label="Changelog (opens in a new tab)">v1.1.0</a>
+                    <a href="https://github.com/RicardoJCMarques/EasyCAM5000/blob/main/CHANGELOG.md" title="Version" target="_blank" draggable="false" aria-label="Changelog (opens in a new tab)">v1.2.0</a>
                     <span class="separator" aria-hidden="true"></span>
                     <a href="doc/" target="_blank" draggable="false" aria-label="Documentation (opens in a new tab)">Documentation</a>
                     <span class="separator" aria-hidden="true"></span>
@@ -889,7 +886,8 @@
                     <span class="separator" aria-hidden="true"></span>
                     <a href="https://github.com/RicardoJCMarques/EasyCAM5000" target="_blank" draggable="false" aria-label="GitHub Repository (opens in a new tab)">GitHub</a>
                     <span class="separator" aria-hidden="true"></span>
-                    <a href="../LICENSE" target="_blank" draggable="false" aria-label="AGPLv3 License (opens in a new tab)">AGPLv3</a>
+                    <a href="../LICENSE" target="_blank" draggable="false" aria-label="AGPLv3 License (opens in a new tab)">AGPLv3</a> |
+                    <a href="https://www.eltryus.design/" draggable="false" aria-label="Eltryus, developer of EasyCAM5000">by ELTRYUS</a>
                 </div>
             </div>
         </div>
@@ -1083,13 +1081,19 @@
                                 <span>Export as single file (combines operations)</span>
                             </label>
                         </div>
+                        <div class="property-field field-group" id="exporter-split-drills-field">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="exporter-split-drills">
+                                <span>Split drill files by hole diameter</span>
+                            </label>
+                        </div>
                         <div class="property-field field-group">
                             <label for="exporter-filename">Base Project Name</label>
                             <input type="text" id="exporter-filename" value="shape-output" placeholder="shape-output">
                         </div>
                     </div>
 
-                    <div id="exporter-cnc-options" data-pipeline-group="cnc">
+                    <div id="exporter-cnc-options" data-pipeline-group="router">
                         <h3>CNC Output Options</h3>
                         <div class="property-field field-group">
                             <label class="checkbox-label">
@@ -1109,14 +1113,10 @@
                                 <span>Group operations by tool</span>
                             </label>
                         </div>
-                        <label class="file-node-flag split-drills-flag is-hidden">
-                            <input type="checkbox" class="split-drills-toggle">
-                            <span>Split pecks</span>
-                        </label>
                         <div class="property-field field-group">
                             <label class="checkbox-label">
                                 <input type="checkbox" id="exporter-optimize-paths" checked>
-                                <span>Optimize toolpaths (Experimental)</span>
+                                <span>Optimize path order (whole job)</span>
                             </label>
                         </div>
                     </div>
@@ -1196,7 +1196,7 @@
     </div>
 
     <!-- Hidden file inputs -->
-    <input type="file" id="file-input-hidden" hidden>
+    <input type="file" id="file-input-hidden" hidden multiple>>
 
     <!-- Scripts -->
     <script defer src="../config.js"></script>
@@ -1207,7 +1207,9 @@
     <script defer src="../geometry/geometry-curve-registry.js"></script>
     <script defer src="../geometry/geometry-arc-reconstructor.js"></script>
     <script defer src="../geometry/geometry-clipper-wrapper.js"></script>
+    <script defer src="../geometry/geometry-utils-tessellation.js"></script>
     <script defer src="../geometry/geometry-utils.js"></script>
+    <script defer src="../geometry/geometry-utils-topology.js"></script>
     <script defer src="../geometry/delaunator.5.0.0.min.js"></script>
     <script defer src="../geometry/geometry-utils-vcarve.js"></script>
     <script defer src="../geometry/geometry-utils-toolprofile.js"></script>
@@ -1237,8 +1239,9 @@
          ESM into the classic bundle. -->
     <script defer src="../ui/tool-library.js"></script>
     <script defer src="../ui/ui-tooltip.js"></script>
+    <script defer src="../ui/ui-operation-registry.js"></script>
     <script defer src="../ui/ui-parameter-manager.js"></script>
-    <script defer src="../ui/ui-state-manager.js"></script>
+    <script defer src="../ui/ui-status-manager.js"></script>
     <script defer src="../ui/ui-machine-settings.js"></script>
     <script defer src="../ui/ui-controls.js"></script>
     <script defer src="../ui/ui-base-app.js"></script>
@@ -1280,8 +1283,11 @@
     <script defer src="../utils/transform-math-3d.js"></script>
     <script defer src="../utils/coordinate-system.js"></script>
     <script defer src="../utils/canvas-exporter.js"></script>
-    <script defer src="../cam-controller.js"></script>
-    <script defer src="../cam-core.js"></script>
+    <script defer src="../core/operation-store.js"></script>
+    <script defer src="../core/pipeline-context.js"></script>
+    <script defer src="../core/operation-ingest.js"></script>
+    <script defer src="../core/cam-core.js"></script>
+    <script defer src="../core/cam-controller.js"></script>
     <script defer src="../input/input-manager.js"></script>
     <script defer src="../input/tool-controller.js"></script>
     <script defer src="../input/tools-common.js"></script>
@@ -1331,7 +1337,7 @@
             }
 
             // App Initialization
-            console.log('EasyShape5000 v1.1.0');
+            console.log('EasyShape5000 v1.2.0');
             const loadingText = document.getElementById('loading-text');
             const loadingProgress = document.getElementById('loading-progress');
             if (loadingText) loadingText.textContent = 'Ready';

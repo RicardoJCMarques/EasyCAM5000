@@ -26,34 +26,19 @@
 
         getFormContainer() { return document.getElementById('property-form'); }
 
-        getPipelineType() {
-            return this.ui.ctrl.pipelineState?.type || 'cnc';
-        }
-
         init(toolLibrary, parameterManager) {
             this.toolLibrary = toolLibrary;
             this.initBase(this.core, parameterManager || new ParameterManager(), this.ui.ctrl.appProfile, this.ui.lang);
             this.debug('Initialized');
         }
 
-        checkInvalidation(paramName) {
-            const operation = this.resolveCurrentOperation();
-            if (!operation) return;
-
-            const paramDef = this.parameterManager.parameterDefinitions[paramName];
-            if (!paramDef || (paramDef.stage !== 'geometry' && paramDef.stage !== 'strategy')) return;
-            if (paramDef.invalidates === false) return;
-
-            if (!this.ui.ctrl.core?.isExportReady(operation)) return;
-
-            this.core.invalidateOperationState(operation.id);
-            operation.isInvalidated = true;
-            operation.invalidatedReason = `'${paramDef.label || paramName}' changed after generation - regenerate before exporting.`;
-            if (this.ui.navTreePanel) {
-                const fileNode = this.ui.navTreePanel.getNodeByOperationId(operation.id);
-                if (fileNode) this.ui.navTreePanel.updateFileGeometries(fileNode.id, operation);
-            }
-            this.ui.setStatus(operation.invalidatedReason, 'warning');
+        /**
+         * Nav tree draws the geometry nodes; refresh them when stale.
+         */
+        onInvalidated(operation) {
+            if (!this.ui.navTreePanel) return;
+            const fileNode = this.ui.navTreePanel.getNodeByOperationId(operation.id);
+            if (fileNode) this.ui.navTreePanel.updateFileGeometries(fileNode.id, operation);
         }
 
         /**
@@ -98,19 +83,16 @@
                 this.parameterManager.loadFromOperation(operation);
             }
 
-            // Remap CNC stages to laser/stencil equivalents
-            const isLaser = this.ui.ctrl.isLaserPipeline?.() || false;
-
-            // Remap CNC-originated stages to laser/stencil equivalents
-            const isStencil = operation.type === 'stencil';
-            if ((isLaser || isStencil) && (stage === 'strategy' || stage === 'machine')) {
-                stage = this.core.isExportReady?.(operation) ? 'export_summary' : 'geometry';
-            }
-
+            // The chain decides which forms exist. Anything else reached here
+            // from a stale caller - clamp into the chain rather than remapping
+            // by session class, which cannot see a per-type override.
+            const { stages, artifacts } = this.getOperationContext(operation.type);
+            if (!stages.includes(stage)) stage = this.core.isExportReady?.(operation) ? stages[stages.length - 1] : stages[0];
             this.currentStage = stage;
 
-            // Export summary is display-only (no editable parameters)
-            if (stage === 'export_summary') {
+            // A chain terminating before `toolpath` has no G-code of its own;
+            // its output form is the read-only summary.
+            if ('output' === stage && 'toolpath' !== artifacts[artifacts.length - 1]) {
                 this.renderExportSummary(container, operation);
                 return;
             }
@@ -126,9 +108,8 @@
             }
 
             // Invalidation warning
-            if (operation.isInvalidated) {
-                container.appendChild(this.createInvalidationPanel(operation));
-            }
+            if (operation.isInvalidated) container.appendChild(this.createInvalidationPanel(operation));
+            if ('output' === stage) container.appendChild(this.createOutputBlock(operation));
 
             // Geometry summary (source stage only)
             if (stage === 'geometry') {
@@ -155,15 +136,15 @@
             // the button will cut with, and it gates whether the button is
             // allowed to run at all. Field visibility is the profile's job
             // (conditional "!drillMultiTool"), not this method's.
-            if ('drill' === operation.type && 'geometry' === stage) {
-                container.appendChild(this.createDrillToolingCard(operation, values));
+            if ('drill' === operation.type && ('geometry' === stage || 'strategy' === stage) && this.supportsDrillTooling()) {
+                container.appendChild(this.createDrillToolingCard(operation, values, stage));
             }
 
             // Add action button
             const actionInfo = this.getActionButtonInfo(stage, operation.type);
             if (actionInfo) container.appendChild(this.createActionButton(actionInfo.text, actionInfo.disabled, actionInfo.title));
 
-            // Disable Drill Exclude if no drill operation is loaded
+            // Disable Drill Exclude while no drill operation is loaded
             if (operation.type === 'stencil' && stage === 'geometry') {
                 const hasDrill = this.core.operations.some(op => op.type === 'drill' && op.primitives?.length > 0);
                 const excludeInput = document.getElementById('prop-stencilExcludeDrillPads');
@@ -197,20 +178,22 @@
         }
 
         async onGenerationSuccess(opId, operation) {
-            const isLaser = this.ui.ctrl.isLaserPipeline?.() || false;
-            const isStencil = operation.type === 'stencil';
-
-            if (isLaser || isStencil) {
-                if (isLaser) {
-                    this.ui.renderer?.setOptions({ showPreviews: true });
-                    const toggle = document.getElementById('show-previews');
-                    if (toggle) toggle.checked = true;
-                }
+            if (operation.type === 'stencil') {
+                operation.layerVisibility ||= {};
+                operation.layerVisibility.source = false;
+            }
+            if ('laser' === this.core.machineClassOf(operation)) {
+                this.ui.renderer?.setOptions({ showPreviews: true });
+                const toggle = document.getElementById('show-previews');
+                if (toggle) toggle.checked = true;
             }
 
             if (this.ui.navTreePanel) {
                 const fileNode = this.ui.navTreePanel.getNodeByOperationId(operation.id);
-                if (fileNode) this.ui.navTreePanel.updateFileGeometries(fileNode.id, operation);
+                if (fileNode) {
+                    this.ui.navTreePanel.updateFileGeometries(fileNode.id, operation);
+                    this.ui.navTreePanel.selectGeometryByType(operation.id, 'offsets');
+                }
             }
             await this.ui.updateRendererAsync();
         }
@@ -227,17 +210,33 @@
 
             if (this.ui.navTreePanel) {
                 const fileNode = this.ui.navTreePanel.getNodeByOperationId(operation.id);
-                if (fileNode) this.ui.navTreePanel.updateFileGeometries(fileNode.id, operation);
+                if (fileNode) {
+                    this.ui.navTreePanel.updateFileGeometries(fileNode.id, operation);
+                    this.ui.navTreePanel.selectGeometryByType(operation.id, 'preview');
+                }
             }
             await this.ui.updateRendererAsync();
         }
 
+        // REVIEW - Why doesn't EasyShape5000 need this?
         onStageTransition(newStage) {
             const operation = this.resolveCurrentOperation();
             const container = this.getFormContainer();
             if (container && operation) {
                 this.showOperationProperties(container, operation, newStage);
             }
+        }
+
+        async onToolpathSuccess(opId, operation) {
+            if (this.ui.navTreePanel) {
+                const fileNode = this.ui.navTreePanel.getNodeByOperationId(opId);
+                if (fileNode) {
+                    this.ui.navTreePanel.updateFileGeometries(fileNode.id, operation);
+                    this.ui.navTreePanel.selectGeometryByType(opId, 'toolpath');
+                }
+            }
+            await this.ui.updateRendererAsync();
+            await this.ui.ctrl.setViewportForNode?.('toolpath', operation);
         }
 
         onExportStage(opId, operation) {
@@ -269,42 +268,24 @@
         // ═══════════════════════════════════════════════════════════════
 
         getActionButtonInfo(stage, opType) {
-            const text = (() => {
-                // Stencil - always 2-stage regardless of pipeline
-                if (opType === 'stencil') {
-                    if (stage === 'geometry') return 'Generate Stencil';
-                    if (stage === 'export_summary') return 'Export Manager';
-                    return null;
-                }
-
-                const isLaser = this.ui.ctrl.isLaserPipeline?.() || false;
-
-                // Laser stages
-                if (isLaser) {
-                    if (stage === 'geometry') {
-                        if (opType === 'cutout') return 'Generate Laser Cut Path';
-                        if (opType === 'drill') return 'Generate Drill Marks';
-                        return 'Generate Laser Paths';
-                    }
-                    return stage === 'export_summary' ? 'Export Manager' : null;
-                }
-                // CNC stages
-                if (stage === 'geometry') {
-                    if (opType === 'drill') return 'Generate Drill Strategy';
-                    if (opType === 'cutout') return 'Generate Cutout Path';
-                    return 'Generate Offsets';
-                }
-                if (stage === 'strategy') return 'Generate Preview';
-                if (stage === 'machine') return 'Export Manager';
-                return null;
-            })();
-
+            const isLaser = 'laser' === this.getMachineClass(opType);
+            const GENERATE = {
+                drill: isLaser ? 'Generate Drill Marks' : 'Generate Drill Strategy',
+                cutout: isLaser ? 'Generate Laser Cut Path' : 'Generate Cutout Path',
+                stencil: 'Generate Stencil'
+            };
+            const BY_STAGE = {
+                geometry: GENERATE[opType] || (isLaser ? 'Generate Laser Paths' : 'Generate Offsets'),
+                strategy: 'Generate Preview',
+                machine: 'Calculate Toolpaths',
+                output: 'Export Manager'
+            };
+            const text = BY_STAGE[stage];
             if (!text) return null;
 
             // Multi-tool with an unanswered row would generate paths against a
             // cutter nobody chose. The card above names the sizes; the button
-            // carries the reason on hover so a disabled button is never a dead
-            // end with no explanation.
+            // carries the reason on hover.
             if ('drill' === opType && 'geometry' === stage) {
                 const operation = this.resolveCurrentOperation();
                 const settings = operation ? this.parameterManager.getAllParameters(operation.id) : null;
@@ -536,7 +517,7 @@
             container.appendChild(section);
 
             // Action button
-            const actionInfo = this.getActionButtonInfo('export_summary', operation.type);
+            const actionInfo = this.getActionButtonInfo('output', operation.type);
             if (actionInfo) container.appendChild(this.createActionButton(actionInfo.text, actionInfo.disabled));
         }
     }

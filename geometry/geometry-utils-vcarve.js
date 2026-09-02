@@ -75,31 +75,33 @@
                 return [];
             }
 
-            const tClamp = this.computeFloorClamp({ vbitAngle, startDepth, maxDepth, tipRadius });
-            const floorLoops = (tClamp !== null && Array.isArray(options.floorLoops))
-                ? options.floorLoops : [];
-
+            const { tClamp, maxDepth: effMaxDepth } = VCarveGenerator.resolveDepthLimit({
+                vbitAngle, startDepth, maxDepth, tipRadius, maxCutRadius: options.maxCutRadius
+            });
+            const floorLoops = (tClamp !== null && Array.isArray(options.floorLoops)) ? options.floorLoops : [];
             const spacing = Math.max(10 * PRECISION, options.sampleSpacing || 0.15);
-            const zFloor = maxDepth !== null ? -maxDepth : null;
+            const zFloor = (effMaxDepth !== null) ? -effMaxDepth : null;
 
-            // ── FAST PATH: Single-contour geometric circles / segmented circles ──
-            if (contours.length === 1 && !contours[0].isHole) {
+            // FAST PATH: Single-contour geometric circles / segmented circles
+            if (1 === contours.length && !contours[0].isHole) {
                 const circleInfo = this.detectCircleLike(contours[0].points);
                 if (circleInfo) {
                     this.debug(`Circle detected geometrically: R=${circleInfo.radius.toFixed(3)}mm at (${circleInfo.center.x.toFixed(3)}, ${circleInfo.center.y.toFixed(3)})`);
                     const chains = [];
                     const floorPaths = [];
                     // If circle radius exceeds floor clamp, generate circular floor loop; otherwise single plunge
-                    if (tClamp !== null && circleInfo.radius > tClamp && floorLoops.length > 0) {
+                    if (null !== tClamp && circleInfo.radius > tClamp && floorLoops.length > 0) {
                         const floorProps = {
                             isVCarve: true,
                             is3DContour: true,
-                            role: 'vcarve_path',
-                            vcarvePass: 'floor-perimeter',
+                            role: "vcarve_path",
+                            vcarvePass: "floor-perimeter",
                             ridgeRisk: circleInfo.radius > 2 * tClamp,
                             isHole: false,
                             stitched: false,
-                            stroke: true, fill: false, strokeWidth: 0
+                            stroke: true,
+                            fill: false,
+                            strokeWidth: 0
                         };
                         const denseLoop = this.resampleClosed(floorLoops[0].points || floorLoops[0], spacing).points;
                         const pts = this.closedPerimeter(denseLoop, zFloor);
@@ -110,13 +112,13 @@
                             { x: circleInfo.center.x, y: circleInfo.center.y, t: circleInfo.radius }
                         ]);
                     }
-                    const out = this.chainsToPrimitives(chains, tanHalf, startDepth, maxDepth, minChainLength, tipRadius);
+                    const out = this.chainsToPrimitives(chains, tanHalf, startDepth, effMaxDepth, minChainLength, tipRadius);
                     out.push(...floorPaths);
                     return out;
                 }
             }
 
-            // ── GENERAL PATH: Voronoi Medial Axis (Delaunator) ──
+            // GENERAL PATH: Voronoi Medial Axis (Delaunator)
             options.onProgress?.({ frac: 0.15, label: 'V-Carve: medial axis' });
             const { arcs, field } = this.computeMedialAxis(contours, {
                 cornerAngleRad: cornerAngle * Math.PI / 180,
@@ -162,7 +164,7 @@
             
             this.debug(`Chained into ${chains.length} continuous path(s)`);
 
-            // ── Flat-zone coverage ──
+            // Flat-zone coverage
             const floorPaths = [];
             if (floorLoops.length > 0) {
                 const spineEps = T_EPS;
@@ -230,8 +232,8 @@
                 }
             }
 
-            options.onProgress?.({ frac: 0.85, label: 'V-Carve: emitting chains' });
-            const out = this.chainsToPrimitives(chains, tanHalf, startDepth, maxDepth, minChainLength, tipRadius);
+            options.onProgress?.({ frac: 0.85, label: "V-Carve: emitting chains" });
+            const out = this.chainsToPrimitives(chains, tanHalf, startDepth, effMaxDepth, minChainLength, tipRadius);
             out.push(...floorPaths);
             return out;
         },
@@ -343,8 +345,12 @@
 
             const prepared = [];
             for (const rawContour of source.contours) {
-                const contour = (rawContour.arcSegments?.length && typeof GeometryUtils !== 'undefined' && GeometryUtils.contourArcsToPath)
-                    ? GeometryUtils.contourArcsToPath(rawContour)
+                // GeometryTessellation is main-thread-only today: this file runs
+                // both in the worker and as the sync fallback, so the probe is
+                // load-context detection, not a load-order guard.
+                // REVIEW - GeometryTessellation is already worker safe and in the importScripts list
+                const contour = rawContour.arcSegments?.length && typeof GeometryTessellation !== 'undefined' && GeometryTessellation.contourArcsToPath
+                    ? GeometryTessellation.contourArcsToPath(rawContour)
                     : rawContour;
 
                 let pts = (contour.points || []).map(p => ({ x: p.x, y: p.y }));
@@ -408,16 +414,38 @@
         // Stage 2 - Delaunay-based medial axis (Voronoi engine)
         // ═══════════════════════════════════════════════════════════
 
-        computeFloorClamp(opts = {}) {
+        /**
+         * The V-carve floor is set by TWO independent limits and the tighter
+         * one wins:
+         *
+         *   user   - vcarveMaxDepth, the depth the operator asked not to pass
+         *   tool   - the clearance the bit can physically reach, from its
+         *            widest cutting radius and its flute length
+         *
+         * @returns {{tClamp: ?number, maxDepth: ?number}} clearance at which
+         *          the bit bottoms out, and the matching depth. Both null only
+         *          when neither limit exists.
+         */
+        resolveDepthLimit(opts = {}) {
             const vbitAngle = opts.vbitAngle || 90;
             const startDepth = Math.max(0, opts.startDepth || 0);
-            const maxDepth = (opts.maxDepth !== undefined && opts.maxDepth !== null && opts.maxDepth > 0)
-                ? Math.abs(opts.maxDepth) : null;
             const tipRadius = Math.max(0, opts.tipRadius || 0);
-            const tanHalf = Math.tan(vbitAngle * Math.PI / 180 / 2);
-            return (tanHalf > DEG_EPS && maxDepth !== null && maxDepth > startDepth)
-                ? (maxDepth - startDepth) * tanHalf + tipRadius
+            const tanHalf = Math.tan((vbitAngle * Math.PI / 180) / 2);
+            if (!(tanHalf > DEG_EPS)) return { tClamp: null, maxDepth: null };
+
+            const userDepth = (opts.maxDepth != null && opts.maxDepth > 0) ? Math.abs(opts.maxDepth) : null;
+            const userClamp = (userDepth !== null && userDepth > startDepth)
+                ? (userDepth - startDepth) * tanHalf + tipRadius
                 : null;
+
+            const toolClamp = (opts.maxCutRadius && opts.maxCutRadius > tipRadius) ? opts.maxCutRadius : null;
+
+            let tClamp = null;
+            if (userClamp !== null && toolClamp !== null) tClamp = Math.min(userClamp, toolClamp);
+            else tClamp = userClamp !== null ? userClamp : toolClamp;
+            if (tClamp === null) return { tClamp: null, maxDepth: null };
+
+            return { tClamp, maxDepth: startDepth + (tClamp - tipRadius) / tanHalf };
         },
 
         /**
@@ -1461,15 +1489,10 @@
             return out.filter(r => r.length >= 2);
         },
 
-        chainsToPrimitives(chains, tanHalf, startDepth, maxDepth, minChainLength, tipRadius = 0, toolDiameter = null) {
+        chainsToPrimitives(chains, tanHalf, startDepth, maxDepth, minChainLength, tipRadius = 0) {
             const emitted = this.trimChainsToTip(chains, tipRadius);
             const zOf = t => -(startDepth + Math.max(0, t - tipRadius) / tanHalf);
-            const effectiveMaxDepth = (toolDiameter && toolDiameter > 0 && tanHalf > DEG_EPS)
-                ? Math.min(maxDepth ?? Infinity, startDepth + Math.max(0, toolDiameter / 2 - tipRadius) / tanHalf)
-                : maxDepth;
-            const zFloor = (effectiveMaxDepth !== null && Number.isFinite(effectiveMaxDepth))
-                ? -effectiveMaxDepth
-                : (maxDepth !== null ? -maxDepth : null);
+            const zFloor = maxDepth !== null ? -maxDepth : null;
 
             let deepestT = 0;
             for (const chain of chains) {

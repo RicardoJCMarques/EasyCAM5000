@@ -101,7 +101,7 @@
             let compoundsFixed = 0;
 
             for (const prim of primitives) {
-                const result = GeometryUtils.resolveCompoundContours(prim);
+                const result = GeometryTopology.resolveCompoundContours(prim);
                 if (result.length !== 1 || result[0] !== prim) compoundsFixed++;
                 resolved.push(...result);
             }
@@ -139,7 +139,7 @@
                     // compound path (outer + holes - re-fed from a previous
                     // generation, or a native SVG compound path) would otherwise
                     // hide its holes from the classifier and the merge would drop
-                    // them. Mirrors GeometryUtils.resolveCompoundContours.
+                    // them. Mirrors GeometryTopology.resolveCompoundContours.
                     for (const contour of loop.contours) {
                         const singleLoop = new PathPrimitive([contour], { ...loop.properties });
                         loops.push(singleLoop);
@@ -158,7 +158,7 @@
 
             if (loops.length < 2) return resolved;
 
-            const topology = GeometryUtils.classifyCutoutTopology(loops);
+            const topology = GeometryTopology.classifyCutoutTopology(loops);
             if (!topology.some(t => t.isHole)) return resolved;
 
             // Group holes under their parent outers. Standalone outers (no holes)
@@ -290,7 +290,7 @@
             const precision = window.CAMConfig.constants.precision.coordinate;
             return (operation.primitives || []).filter(p => {
                 if (p.type === 'circle' || p.type === 'rectangle' || p.type === 'obround') return false;
-                return !GeometryUtils.isPrimitiveClosed(p, precision);
+                return !GeometryTopology.isPrimitiveClosed(p, precision);
             }).length;
         }
 

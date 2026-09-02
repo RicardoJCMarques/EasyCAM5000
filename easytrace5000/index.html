@@ -13,7 +13,7 @@
         SPDX-License-Identifier: AGPL-3.0-or-later
     -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EasyTrace5000 - Browser PCB CAM | Gerber and Excellon to G-code</title>
+    <title>EasyTrace5000 - Browser CAM for PCB Milling and Laser</title>
 
     <meta name="description" content="Free online PCB CAM. Turn Gerber, Excellon and SVG into isolation-routing G-code or laser-ready SVG and PNG, entirely in your browser. A FlatCAM alternative.">
     <meta name="keywords" content="PCB CAM, PCB Isolation Routing, G-code Generator, Gerber to G-code, Open Source CAM, FlatCAM alternative, browser CAM, PCB milling software, GRBL PCB, Laser PCB">
@@ -25,8 +25,8 @@
 
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://cam.eltryus.design/easytrace5000/">
-    <meta property="og:title" content="EasyTrace5000 Workspace | Free Browser-Based PCB CAM Tool">
-    <meta property="og:site_name" content="Eltryus">
+    <meta property="og:title" content="EasyTrace5000 - Browser CAM for PCB Milling and Laser">
+    <meta property="og:site_name" content="EasyCAM5000">
     <meta property="og:description" content="Free online PCB CAM. Turn Gerber, Excellon and SVG into isolation-routing G-code or laser-ready SVG and PNG, entirely in your browser. A FlatCAM alternative.">
     <meta property="og:image" content="https://cam.eltryus.design/images/social-trace.jpg">
     <meta property="og:image:width" content="1200">
@@ -52,89 +52,112 @@
     <!-- WASM preload -->
     <link rel="preload" href="../geometry/clipper2z.wasm" as="fetch" crossorigin>
 
-    <script type="application/ld+json">
-        {
-            "@context": "https://schema.org",
-            "@graph": [
-                {
-                    "@type": "Organization",
-                    "@id": "https://www.eltryus.design/#organization",
-                    "name": "Eltryus",
-                    "url": "https://www.eltryus.design/",
-                    "sameAs": [
-                        "https://github.com/RicardoJCMarques",
-                        "https://cam.eltryus.design/"
-                    ]
+        <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@graph": [
+            {
+                "@type": "Organization",
+                "@id": "https://www.eltryus.design/#organization",
+                "name": "Eltryus",
+                "url": "https://www.eltryus.design/"
+            },
+            {
+                "@type": "WebSite",
+                "@id": "https://cam.eltryus.design/#website",
+                "name": "EasyCAM5000",
+                "alternateName": "Eltryus EasyCAM5000 Suite",
+                "url": "https://cam.eltryus.design/",
+                "inLanguage": "en",
+                "publisher": { "@id": "https://www.eltryus.design/#organization" }
+            },
+            {
+                "@type": "WebApplication",
+                "@id": "https://cam.eltryus.design/#suite",
+                "name": "EasyCAM5000",
+                "url": "https://cam.eltryus.design/"
+            },
+            {
+                "@type": "CollectionPage",
+                "@id": "https://cam.eltryus.design/easytrace5000/doc/#docs",
+                "name": "EasyTrace5000 Documentation",
+                "url": "https://cam.eltryus.design/easytrace5000/doc/"
+            },
+            {
+                "@type": "WebPage",
+                "@id": "https://cam.eltryus.design/easytrace5000/#webpage",
+                "url": "https://cam.eltryus.design/easytrace5000/",
+                "name": "EasyTrace5000 - Browser CAM for PCB Milling and Laser",
+                "inLanguage": "en",
+                "isPartOf": { "@id": "https://cam.eltryus.design/#website" },
+                "mainEntity": { "@id": "https://cam.eltryus.design/easytrace5000/#app" },
+                "breadcrumb": { "@id": "https://cam.eltryus.design/easytrace5000/#breadcrumb" },
+                "primaryImageOfPage": "https://cam.eltryus.design/images/social-trace.jpg"
+            },
+            {
+                "@type": "WebApplication",
+                "@id": "https://cam.eltryus.design/easytrace5000/#app",
+                "name": "EasyTrace5000",
+                "url": "https://cam.eltryus.design/easytrace5000/",
+                "mainEntityOfPage": { "@id": "https://cam.eltryus.design/easytrace5000/#webpage" },
+                "applicationCategory": "DesignApplication",
+                "applicationSubCategory": "CAM Software",
+                "operatingSystem": "Any (Browser-based)",
+                "browserRequirements": "Requires JavaScript and WebAssembly support",
+                "softwareVersion": "1.5.0",
+                "releaseNotes": "https://github.com/RicardoJCMarques/EasyCAM5000/blob/main/CHANGELOG.md",
+                "installUrl": "https://cam.eltryus.design/easytrace5000/",
+                "sameAs": [
+                    "https://github.com/RicardoJCMarques/EasyCAM5000"
+                ],
+                "license": "https://www.gnu.org/licenses/agpl-3.0.html",
+                "isAccessibleForFree": true,
+                "offers": {
+                    "@type": "Offer",
+                    "price": "0",
+                    "priceCurrency": "EUR",
+                    "availability": "https://schema.org/InStock"
                 },
-                {
-                    "@type": "WebApplication",
-                    "@id": "https://cam.eltryus.design/easytrace5000/#app",
-                    "name": "EasyTrace5000",
-                    "alternateName": "EasyTrace",
-                    "url": "https://cam.eltryus.design/easytrace5000/",
-                    "applicationCategory": "DeveloperApplication",
-                    "applicationSubCategory": "CAM Software",
-                    "operatingSystem": "Any (Browser-based)",
-                    "browserRequirements": "Requires JavaScript and WebAssembly support",
-                    "softwareVersion": "1.5.0",
-                    "releaseNotes": "https://github.com/RicardoJCMarques/EasyCAM5000/blob/main/CHANGELOG.md",
-                    "installUrl": "https://cam.eltryus.design/easytrace5000/",
-                    "sameAs": "https://github.com/RicardoJCMarques/EasyCAM5000",
-                    "license": "https://www.gnu.org/licenses/agpl-3.0.html",
-                    "isAccessibleForFree": true,
-                    "offers": {
-                        "@type": "Offer",
-                        "price": "0",
-                        "priceCurrency": "EUR"
-                    },
-                    "description": "Browser-based CAM tool for generating G-code from PCB manufacturing files. Supports Gerber, Excellon, and SVG input with optimized toolpath generation.",
-                    "mainEntityOfPage": { "@id": "https://cam.eltryus.design/easytrace5000/#app" },
-                    "isPartOf": { "@id": "https://cam.eltryus.design/#suite" },
-                    "author": { "@id": "https://www.eltryus.design/#organization" },
-                    "publisher": { "@id": "https://www.eltryus.design/#organization" },
-                    "softwareHelp": [
-                        { "@id": "https://cam.eltryus.design/easytrace5000/doc/#docs" },
-                        { "@id": "https://cam.eltryus.design/easytrace5000/doc/cnc#article" },
-                        { "@id": "https://cam.eltryus.design/easytrace5000/doc/laser#article" }
-                    ],
-                    "subjectOf": [
-                        { "@id": "https://www.eltryus.design/en/work/easytrace5000/#article" },
-                        {
-                        "@type": "Article",
-                        "url": "https://www.hackster.io/news/easytrace5000-is-a-new-browser-based-cam-tool-for-pcb-fabrication-1539526435e8",
-                        "name": "EasyTrace5000 Is a New Browser-Based CAM Tool for PCB Fabrication",
-                        "publisher": { "@type": "Organization", "name": "Hackster.io" }
-                        }
-                    ],
-                    "featureList": [
-                        "Browser-based, 100% client-side CAM processing with zero cloud dependencies",
-                        "Analytic parsing for Gerber (RS-274X), Excellon, and SVG files",
-                        "WebAssembly geometry engine for high-performance boolean operations",
-                        "CNC Pipeline: multi-pass isolation routing, pocket clearing, and board cutouts",
-                        "Laser Pipeline: Vector (SVG) and raster (PNG) export with hatch fills",
-                        "Smart drill strategy with dynamic peck-or-mill selection",
-                        "Optimized toolpaths with staydown clustering and G2/G3 arc reconstruction",
-                        "Multiple CNC post-processors supported (GRBL, Marlin, LinuxCNC, Roland RML)"
-                    ],
-                    "screenshot": {
-                        "@type": "ImageObject",
-                        "url": "https://cam.eltryus.design/images/social-trace.jpg",
-                        "caption": "EasyTrace5000 main workspace"
-                    },
-                    "potentialAction": [
-                        { "@type": "ViewAction", "target": "https://cam.eltryus.design/easytrace5000/#quickstart", "name": "Quick Start Guide" }
-                    ]
-                },
-                {
-                    "@type": "BreadcrumbList",
-                    "itemListElement": [
-                        { "@type": "ListItem", "position": 1, "name": "Eltryus EasyCAM5000 Suite", "item": "https://cam.eltryus.design/" },
-                        { "@type": "ListItem", "position": 2, "name": "EasyTrace5000", "item": "https://cam.eltryus.design/easytrace5000/" }
-                    ]
+                "description": "Browser-based CAM tool for generating G-code from PCB manufacturing files. Supports Gerber, Excellon, and SVG input with optimized toolpath generation.",
+                "isPartOf": { "@id": "https://cam.eltryus.design/#suite" },
+                "author": { "@id": "https://www.eltryus.design/#organization" },
+                "publisher": { "@id": "https://www.eltryus.design/#organization" },
+                "softwareHelp": { "@id": "https://cam.eltryus.design/easytrace5000/doc/#docs" },
+                "featureList": [
+                    "Browser-based, 100% client-side CAM processing with zero cloud dependencies",
+                    "Analytic parsing for Gerber (RS-274X), Excellon, and SVG files",
+                    "WebAssembly geometry engine for high-performance boolean operations",
+                    "CNC Pipeline: multi-pass isolation routing, pocket clearing, and board cutouts",
+                    "Laser Pipeline: Vector (SVG) and raster (PNG) export with hatch fills",
+                    "Smart drill strategy with dynamic peck-or-mill selection",
+                    "Optimized toolpaths with staydown clustering and G2/G3 arc reconstruction",
+                    "Multiple CNC post-processors supported (GRBL, Marlin, LinuxCNC, Roland RML)"
+                ],
+                "screenshot": {
+                    "@type": "ImageObject",
+                    "url": "https://cam.eltryus.design/images/social-trace.jpg",
+                    "caption": "EasyTrace5000 main workspace"
                 }
-            ]
+            },
+            {
+                "@type": "BreadcrumbList",
+                "@id": "https://cam.eltryus.design/easytrace5000/#breadcrumb",
+                "itemListElement": [
+                    { "@type": "ListItem", "position": 1, "name": "EasyCAM5000", "item": "https://cam.eltryus.design/" },
+                    { "@type": "ListItem", "position": 2, "name": "EasyTrace5000", "item": "https://cam.eltryus.design/easytrace5000/" }
+                ]
+            }
+        ]
+    }
+    </script>
+
+    <script type="importmap">{
+        "imports": {
+            "three": "../renderer3d/three.core.min.js",
+            "three/webgpu": "../renderer3d/three.webgpu.min.js",
+            "three/tsl": "../renderer3d/three.tsl.min.js"
         }
-        </script>
+    }</script>
 </head>
 <body>
 
@@ -152,10 +175,17 @@
 
     <!-- For non-JS crawlers -->
     <noscript>
-        <div style="padding: 2rem; text-align: center; background: #1a1a1a; color: #fff;">
+        <div style="padding: 2rem; max-width: 44rem; margin: 0 auto; background: #1a1a1a; color: #fff;">
             <h1>EasyTrace5000 - PCB CAM Workspace</h1>
-            <p>JavaScript required for application functionality.</p>
-            <p><a href="doc/" style="color: #3b82f6;">View Documentation</a></p>
+            <p>EasyTrace5000 is a free, open-source CAM workspace for PCB fabrication that runs entirely in your browser. It reads Gerber RS-274X, Excellon drill and SVG files and produces G-code for CNC isolation routing, or vector SVG and raster PNG output for laser processing.</p>
+            <p>Operations include multi-pass isolation routing, copper clearing, board cutout with tabs, and drilling with automatic peck, helical-mill or centreline-slot selection based on the tool-to-hole ratio. The geometry engine reconstructs true G2/G3 arcs rather than emitting polygonised line segments. Post-processors cover GRBL, grblHAL, Marlin, LinuxCNC, Mach3 and Roland RML.</p>
+            <p>Nothing is uploaded — all processing is client-side. JavaScript and WebAssembly are required to run the workspace.</p>
+            <p>
+                <a href="doc/" style="color: #3b82f6;">EasyTrace5000 documentation</a> ·
+                <a href="doc/cnc" style="color: #3b82f6;">CNC milling guide</a> ·
+                <a href="doc/laser" style="color: #3b82f6;">Laser processing guide</a> ·
+                <a href="/" style="color: #3b82f6;">EasyCAM5000 suite</a>
+            </p>
         </div>
     </noscript>
 
@@ -194,6 +224,10 @@
         </div>
 
         <div class="toolbar-section toolbar-right">
+            <button class="btn--tool btn" id="btn-toggle-3d" title="Toggle 2D/3D View (F2)" aria-label="Toggle 2D/3D View">
+                <svg class="cam-icon" width="18" height="18"><use href="#icon-view-3d"></use></svg>
+            </button>
+            <div class="toolbar-separator separator"></div>
             <button class="btn--tool btn" id="zoom-fit-btn" title="Fit to View" aria-label="Fit to View">
                 <svg class="cam-icon" width="20" height="20"><use href="#icon-zoom-fit"></use></svg>
             </button>
@@ -293,6 +327,8 @@
             <div class="canvas-container">
                 <canvas id="preview-canvas" tabindex="-1"></canvas>
 
+                <div id="viewport-3d" class="viewport-3d" tabindex="-1" hidden></div>
+
                 <div id="canvas-loading-overlay" class="canvas-loading-overlay hidden">
                     <div class="spinner"></div>
                     <div id="canvas-loading-message" class="loading-message"></div>
@@ -380,7 +416,7 @@
                 </div>
                 <div class="section-content collapsible" id="machine-controls">
 
-                    <div class="property-section" data-pipeline-group="cnc">
+                    <div class="property-section" data-pipeline-group="router">
                         <div class="property-field">
                             <label for="post-processor" data-i18n="params.postProcessor">Post-Processor</label>
                             <select id="post-processor">
@@ -391,7 +427,7 @@
                             <textarea id="start-code-ta" rows="5"></textarea>
                         </div>
                         <div class="property-field">
-                            <label for="end-code-ta" data-i18n="params.endCode"">End Code</label>
+                            <label for="end-code-ta" data-i18n="params.endCode">End Code</label>
                             <textarea id="end-code-ta" rows="5"></textarea>
                         </div>
                         <div class="property-field" data-processor-group="gcode">
@@ -400,6 +436,19 @@
                                 <option value="mm">Millimeters (G21)</option>
                                 <option value="inch">Inches (G20)</option>
                             </select>
+                        </div>
+                        <div class="property-field" data-processor-group="gcode">
+                            <label class="checkbox-label" for="gcode-line-numbers" data-i18n="params.lineNumbers">
+                                <input type="checkbox" id="gcode-line-numbers">
+                                <span>Line Numbers (N)</span>
+                            </label>
+                        </div>
+                        <div class="property-field" id="gcode-line-number-step-field" data-processor-group="gcode" style="display:none">
+                            <label for="gcode-line-number-step" data-i18n="params.lineNumberStep">Line Number Step</label>
+                            <div class="input-unit">
+                                <input type="number" id="gcode-line-number-step" value="10" min="1" max="1000" step="1" aria-label="Line number increment step">
+                                <span class="unit" aria-hidden="true">step</span>
+                            </div>
                         </div>
                     </div>
 
@@ -460,7 +509,7 @@
                     </div>
 
                     <!-- Laser-specific settings -->
-                    <div class="property-section" data-pipeline-group="laser" style="display: none;">
+                    <div class="property-section" data-pipeline-group="laser">
                         <div class="property-field">
                             <label for="laser-spot-size" data-i18n="params.laserSpotSize">Laser Spot Size</label>
                             <div class="input-unit">
@@ -475,14 +524,14 @@
                                 <option value="png">PNG - Raster Image</option>
                             </select>
                         </div>
-                        <div class="property-field" id="laser-dpi-sidebar-field" style="display: none;">
+                        <div class="property-field" id="laser-dpi-sidebar-field">
                             <label for="laser-export-dpi" data-i18n="params.laserExportDPI">Raster Resolution</label>
                             <div class="input-unit">
                                 <input type="number" id="laser-export-dpi" value="1000" step="100" min="100" max="4000" aria-label="Export resolution in dots per inch">
                                 <span class="unit" aria-hidden="true">DPI</span>
                             </div>
                         </div>
-                        <div class="property-field" id="laser-png-sidebar-warning" style="display: none;">
+                        <div class="property-field" id="laser-png-sidebar-warning">
                             <p class="help-text" style="color: var(--color-warning); margin: 0;">
                                 <strong>PNG mode:</strong> Only Isolation and Clearing are rasterized. Drill and Cutout export as a separate SVG with vector strokes.
                             </p>
@@ -533,7 +582,7 @@
                         </div>
                     </div>
 
-                    <div class="property-section" data-pipeline-group="cnc">
+                    <div class="property-section" data-pipeline-group="router">
                         <div class="property-field">
                             <label for="pcb-thickness" data-i18n="params.pcbThickness">PCB Thickness</label>
                             <div class="input-unit">
@@ -543,7 +592,7 @@
                         </div>
                     </div>
 
-                    <div class="property-section" data-pipeline-group="cnc">
+                    <div class="property-section" data-pipeline-group="router">
                         <div class="property-field">
                             <label for="safe-z" data-i18n="params.safeZ">Safe Z</label>
                             <div class="input-unit">
@@ -561,7 +610,7 @@
                         </div>
                     </div>
 
-                    <div class="property-section" data-pipeline-group="cnc">
+                    <div class="property-section" data-pipeline-group="router">
                         <div class="property-field">
                             <label for="rapid-feed" data-i18n="params.rapidFeed">Rapid Feed</label>
                             <div class="input-unit">
@@ -576,7 +625,7 @@
                         <select id="tlc-mode"></select>
                     </div>
 
-                    <div class="property-section" data-pipeline-group="cnc" data-processor-group="gcode">
+                    <div class="property-section" data-pipeline-group="router" data-processor-group="gcode">
                         <div class="property-field">
                             <label for="coolant-type">Coolant</label>
                             <select id="coolant-type">
@@ -730,13 +779,14 @@
         </div>
         <div class="status-right" id="status-right">
             <div class="status-info license-info">
-                <a href="https://github.com/RicardoJCMarques/EasyCAM5000/blob/main/CHANGELOG.md" title="Version" draggable="false" aria-label="Changelog (opens in a new tab)">v1.5.0</a> |
+                <a href="https://github.com/RicardoJCMarques/EasyCAM5000/blob/main/CHANGELOG.md" title="Version" draggable="false" aria-label="Changelog (opens in a new tab)">v1.6.0</a> |
                 <a href="/" title="Return to Homepage" draggable="false">Home</a> |
                 <a href="../LICENSE" target="_blank" title="View License" draggable="false" aria-label="View AGPLv3 License (opens in a new tab)">AGPLv3</a> |
                 <a href="doc/" target="_blank" title="Documentation" draggable="false" aria-label="Documentation (opens in a new tab)">Doc</a> |
                 <a href="https://github.com/RicardoJCMarques/EasyCAM5000/issues" target="_blank" title="Repo" draggable="false" aria-label="GitHub Issues (opens in new tab)">Help</a> |
                 <a href="https://github.com/RicardoJCMarques/EasyCAM5000" target="_blank" title="Repo" draggable="false" aria-label="GitHub Repository (opens in a new tab)">GitHub</a> |
-                <a href="#support" title="Support the Project" draggable="false" aria-label="Opens the Support Project modal">Support Development</a>
+                <a href="#support" title="Support the Project" draggable="false" aria-label="Opens the Support Project modal">Support Development</a> |
+                <a href="https://www.eltryus.design/" draggable="false" aria-label="Eltryus, developer of EasyCAM5000">by ELTRYUS</a>
             </div>
         </div>
          <!-- Floating Log Panel -->
@@ -870,7 +920,7 @@
             </div>
             <div class="modal-footer welcome-footer">
                 <div class="welcome-footer-links">
-                    <a href="https://github.com/RicardoJCMarques/EasyCAM5000/blob/main/CHANGELOG.md" title="version" target="_blank" draggable="false" aria-label="Changelog (opens in a new tab)">v1.5.0</a>
+                    <a href="https://github.com/RicardoJCMarques/EasyCAM5000/blob/main/CHANGELOG.md" title="version" target="_blank" draggable="false" aria-label="Changelog (opens in a new tab)">v1.6.0</a>
                     <span class="separator" aria-hidden="true"></span>
                     <a href="doc/" target="_blank" draggable="false" aria-label="Documentation (opens in a new tab)">Documentation</a>
                     <span class="separator" aria-hidden="true"></span>
@@ -878,7 +928,8 @@
                     <span class="separator" aria-hidden="true"></span>
                     <a href="https://github.com/RicardoJCMarques/EasyCAM5000" target="_blank" draggable="false" aria-label="GitHub Repository (opens in a new tab)">GitHub</a>
                     <span class="separator" aria-hidden="true"></span>
-                    <a href="../LICENSE" target="_blank" draggable="false" aria-label="AGPLv3 License (opens in a new tab)">AGPLv3</a>
+                    <a href="../LICENSE" target="_blank" draggable="false" aria-label="AGPLv3 License (opens in a new tab)">AGPLv3</a> |
+                    <a href="https://www.eltryus.design/" draggable="false" aria-label="Eltryus, developer of EasyCAM5000">by ELTRYUS</a>
                 </div>
             </div>
         </div>
@@ -1287,7 +1338,7 @@
                         </div>
                     </div>
 
-                    <div id="exporter-cnc-options" data-pipeline-group="cnc">
+                    <div id="exporter-cnc-options" data-pipeline-group="router">
                         <h3>CNC Output Options</h3>
                         <div class="property-field field-group">
                             <label class="checkbox-label">
@@ -1301,19 +1352,15 @@
                                 <span>Group operations by tool</span>
                             </label>
                         </div>
-                        <label class="file-node-flag split-drills-flag is-hidden">
-                            <input type="checkbox" class="split-drills-toggle">
-                            <span>Split pecks</span>
-                        </label>
                         <div class="property-field field-group">
                             <label class="checkbox-label">
                                 <input type="checkbox" id="exporter-optimize-paths" checked>
-                                <span>Optimize toolpaths (Experimental)</span>
+                                <span>Optimize path order (whole job)</span>
                             </label>
                         </div>
                     </div>
 
-                    <div id="exporter-laser-options" data-pipeline-group="laser" class="is-hidden">
+                    <div id="exporter-laser-options" data-pipeline-group="laser">
                         <h3>Laser Export Options</h3>
 
                         <div class="property-field field-group">
@@ -1332,7 +1379,7 @@
                         </div>
                     </div>
 
-                    <div id="exporter-stencil-options" class="is-hidden">
+                    <div id="exporter-stencil-options">
                         <h3>Stencil Export Options</h3>
                         <div class="laser-settings-grid">
                             <div class="property-field field-group">
@@ -1346,7 +1393,7 @@
                     </div>
                 </div>
 
-                <div class="exporter-preview" id="exporter-cnc-preview" data-pipeline-group="cnc">
+                <div class="exporter-preview" id="exporter-cnc-preview" data-pipeline-group="router">
                     <h3>G-code Preview</h3>
                     <div class="property-field" id="exporter-operation-selector" style="display: none;">
                         <label for="exporter-preview-select">Previewing:</label>
@@ -1433,7 +1480,9 @@
     <script defer src="../geometry/geometry-curve-registry.js"></script>
     <script defer src="../geometry/geometry-arc-reconstructor.js"></script>
     <script defer src="../geometry/geometry-clipper-wrapper.js"></script>
+    <script defer src="../geometry/geometry-utils-tessellation.js"></script>
     <script defer src="../geometry/geometry-utils.js"></script>
+    <script defer src="../geometry/geometry-utils-topology.js"></script>
     <!-- <script defer src="../geometry/geometry-utils-math.js"></script> -->
     <script defer src="../geometry/geometry-utils-hatching.js"></script>
     <script defer src="../geometry/geometry-offsetter.js"></script>
@@ -1455,8 +1504,9 @@
     <script defer src="../input/keyboard-manager.js"></script>
     <script defer src="../ui/ui-tooltip.js"></script>
     <script defer src="../ui/tool-library.js"></script>
+    <script defer src="../ui/ui-operation-registry.js"></script>
     <script defer src="../ui/ui-parameter-manager.js"></script>
-    <script defer src="../ui/ui-state-manager.js"></script>
+    <script defer src="../ui/ui-status-manager.js"></script>
     <script defer src="../ui/ui-machine-settings.js"></script>
     <script defer src="../ui/ui-controls.js"></script>
     <script defer src="../ui/ui-base-app.js"></script>
@@ -1490,8 +1540,11 @@
     <script defer src="../utils/transform-math.js"></script>
     <script defer src="../utils/coordinate-system.js"></script>
     <script defer src="../utils/canvas-exporter.js"></script>
-    <script defer src="../cam-core.js"></script>
-    <script defer src="../cam-controller.js"></script>
+    <script defer src="../core/operation-store.js"></script>
+    <script defer src="../core/pipeline-context.js"></script>
+    <script defer src="../core/operation-ingest.js"></script>
+    <script defer src="../core/cam-core.js"></script>
+    <script defer src="../core/cam-controller.js"></script>
 
     <script defer src="ui-nav-tree-panel.js"></script>
     <script defer src="ui-trace-operation-panel.js"></script>
@@ -1534,7 +1587,7 @@
             }
 
             // App Initialization
-            console.log('EasyTrace5000 Advanced Workspace v1.5.0');
+            console.log('EasyTrace5000 Advanced Workspace v1.6.0');
             const loadingText = document.getElementById('loading-text');
             const loadingProgress = document.getElementById('loading-progress');
             if (loadingText) loadingText.textContent = 'Ready';

@@ -30,6 +30,12 @@
             return false;
         }
 
+        // Concentric rings of one pocket, outermost first: every pass lies
+        // inside its predecessor's swath.
+        allowsInternalStaydown() {
+            return true;
+        }
+
         // Pocket clearing intentionally collapses geometry inward until nothing remains - the circle-collapse guard must not fire.
         shouldGuardCircleCollapse() {
             return false;

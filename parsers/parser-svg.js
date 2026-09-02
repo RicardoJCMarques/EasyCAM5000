@@ -44,11 +44,20 @@
                 // Check for unsupported features
                 this.checkUnsupportedFeatures(svgNode);
 
-                // Build root transform: scale to mm + Y-flip
+                // Build root transform: scale to mm + account for viewBox offset + Y-flip
                 const s = this.unitScale;
                 const h = this.documentHeight;
-                // Matrix: scale by unitScale, flip Y, translate so Y=0 is at bottom
-                const rootTransform = { a: s, b: 0, c: 0, d: -s, e: 0, f: h };
+                const vbx = this.viewBox ? this.viewBox.x : 0;
+                const vby = this.viewBox ? this.viewBox.y : 0;
+                // Matrix: scale by unitScale, flip Y, offset by viewBox origin so (vbx, vby) maps to (0, 0)
+                const rootTransform = {
+                    a: s,
+                    b: 0,
+                    c: 0,
+                    d: -s,
+                    e: -vbx * s,
+                    f: h + vby * s
+                };
                 this.traverseNode(svgNode, rootTransform);
 
                 this.layers.bounds = this.calculateBounds(this.layers.objects);

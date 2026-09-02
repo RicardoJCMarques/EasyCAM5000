@@ -13,7 +13,7 @@
         SPDX-License-Identifier: AGPL-3.0-or-later
     -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>EasyCAM5000 | Free Browser-Based CAM Software - PCB and CNC Router</title>
+    <title>EasyCAM5000 - Free Browser-Based CAM Tools</title>
 
     <meta name="description" content="Free, open-source, client-side CAM software for makers. Featuring EasyTrace5000 for PCB fabrication and EasyShape5000 for 2.5D, 3D and 4th-axis CNC routing.">
     <meta name="keywords" content="CAM Suite, PCB CAM, CNC Router software, browser CAM tool, open source CAM, G-code generator">
@@ -25,10 +25,10 @@
 
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://cam.eltryus.design/">
-    <meta property="og:title" content="EasyCAM5000 | Free Browser-Based CAM Software - PCB and CNC Router">
-    <meta property="og:site_name" content="Eltryus EasyCAM5000 Suite">
+    <meta property="og:title" content="EasyCAM5000 - Free Browser-Based CAM Tools">
+    <meta property="og:site_name" content="EasyCAM5000">
     <meta property="og:description" content="Free, open-source, client-side CAM software for makers. Featuring EasyTrace5000 for PCB fabrication and EasyShape5000 for 2.5D, 3D and 4th-axis CNC routing.">
-    <meta property="og:image" content="https://cam.eltryus.design/images/social-preview.jpg">
+    <meta property="og:image" content="https://cam.eltryus.design/images/social-trace.jpg">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
     <meta property="og:locale" content="en_US">
@@ -46,76 +46,100 @@
     <link rel="stylesheet" href="css/theme.css">
     <link rel="stylesheet" href="css/doc.css">
 
-    <script type="application/ld+json">
-        {
-            "@context": "https://schema.org",
-            "@graph": [
-                {
-                    "@type": "Organization",
-                    "@id": "https://www.eltryus.design/#organization",
-                    "name": "Eltryus",
-                    "url": "https://www.eltryus.design/",
-                    "sameAs": [
-                        "https://github.com/RicardoJCMarques",
-                        "https://cam.eltryus.design/"
-                    ]
+        <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@graph": [
+            {
+                "@type": "Organization",
+                "@id": "https://www.eltryus.design/#organization",
+                "name": "Eltryus",
+                "url": "https://www.eltryus.design/",
+                "logo": "https://www.eltryus.design/images/logo.webp",
+                "sameAs": [
+                    "https://github.com/RicardoJCMarques"
+                ]
+            },
+            {
+                "@type": "WebSite",
+                "@id": "https://cam.eltryus.design/#website",
+                "name": "EasyCAM5000",
+                "alternateName": "Eltryus EasyCAM5000 Suite",
+                "url": "https://cam.eltryus.design/",
+                "inLanguage": "en",
+                "publisher": { "@id": "https://www.eltryus.design/#organization" }
+            },
+            {
+                "@type": "WebPage",
+                "@id": "https://cam.eltryus.design/#webpage",
+                "url": "https://cam.eltryus.design/",
+                "name": "EasyCAM5000 - Free Browser-Based CAM Software",
+                "inLanguage": "en",
+                "isPartOf": { "@id": "https://cam.eltryus.design/#website" },
+                "mainEntity": { "@id": "https://cam.eltryus.design/#suite" },
+                "breadcrumb": { "@id": "https://cam.eltryus.design/#breadcrumb" },
+                "primaryImageOfPage": "https://cam.eltryus.design/images/social-trace.jpg"
+            },
+            {
+                "@type": "WebApplication",
+                "@id": "https://cam.eltryus.design/#suite",
+                "name": "EasyCAM5000",
+                "alternateName": "Eltryus EasyCAM5000 Suite",
+                "url": "https://cam.eltryus.design/",
+                "mainEntityOfPage": { "@id": "https://cam.eltryus.design/#webpage" },
+                "applicationCategory": "DesignApplication",
+                "applicationSubCategory": "CAM Software",
+                "operatingSystem": "Any (Browser-based)",
+                "browserRequirements": "Requires JavaScript and WebAssembly support",
+                "isAccessibleForFree": true,
+                "offers": {
+                    "@type": "Offer",
+                    "price": "0",
+                    "priceCurrency": "EUR",
+                    "availability": "https://schema.org/InStock"
                 },
-                {
-                    "@type": "WebSite",
-                    "@id": "https://cam.eltryus.design/#website",
-                    "name": "Eltryus EasyCAM5000 Suite",
-                    "url": "https://cam.eltryus.design/",
-                    "inLanguage": "en",
-                    "publisher": { "@id": "https://www.eltryus.design/#organization" }
-                },
-                {
-                    "@type": "WebApplication",
-                    "@id": "https://cam.eltryus.design/#suite",
-                    "name": "Eltryus EasyCAM5000 Suite",
-                    "alternateName": "EasyCAM5000",
-                    "url": "https://cam.eltryus.design/",
-                    "applicationCategory": "DeveloperApplication",
-                    "applicationSubCategory": "CAM Software",
-                    "operatingSystem": "Any (Browser-based)",
-                    "browserRequirements": "Requires JavaScript and WebAssembly support",
-                    "isAccessibleForFree": true,
-                    "offers": {
-                        "@type": "Offer",
-                        "price": "0",
-                        "priceCurrency": "EUR"
-                    },
-                    "license": "https://www.gnu.org/licenses/agpl-3.0.html",
-                    "description": "Free, open-source, client-side CAM software for makers. Featuring EasyTrace5000 for PCB fabrication and EasyShape5000 for 2.5D, 3D and 4th-axis CNC routing",
-                    "mainEntity": { "@id": "https://cam.eltryus.design/#suite" },
-                    "isPartOf": { "@id": "https://cam.eltryus.design/#website" },
-                    "author": { "@id": "https://www.eltryus.design/#organization" },
-                    "publisher": { "@id": "https://www.eltryus.design/#organization" },
-                    "subjectOf": { "@id": "https://www.eltryus.design/en/work/easytrace5000/#article" },
-                    "sameAs": [
-                        "https://github.com/RicardoJCMarques/EasyCAM5000"
-                    ],
-                    "hasPart": [
-                            { "@id": "https://cam.eltryus.design/easytrace5000/#app" },
-                            { "@id": "https://cam.eltryus.design/easyshape5000/#app" }
-                    ],
-                    "potentialAction": [
-                        { "@type": "ViewAction", "target": "https://cam.eltryus.design/easytrace5000/", "name": "Launch EasyTrace5000" },
-                        { "@type": "ViewAction", "target": "https://cam.eltryus.design/easyshape5000/", "name": "Launch EasyShape5000" }
-                    ],
-                    "screenshot": {
-                        "@type": "ImageObject",
-                        "url": "https://cam.eltryus.design/images/social-trace.jpg",
-                        "caption": "Eltryus EasyCAM5000 Suite"
-                    }
-                },
-                {
-                    "@type": "BreadcrumbList",
-                    "itemListElement": [
-                        { "@type": "ListItem", "position": 1, "name": "Eltryus EasyCAM5000 Suite", "item": "https://cam.eltryus.design/" }
-                    ]
+                "license": "https://www.gnu.org/licenses/agpl-3.0.html",
+                "description": "Free, open-source, client-side CAM software for makers. Featuring EasyTrace5000 for PCB fabrication and EasyShape5000 for 2.5D, 3D and 4th-axis CNC routing.",
+                "author": { "@id": "https://www.eltryus.design/#organization" },
+                "publisher": { "@id": "https://www.eltryus.design/#organization" },
+                "sameAs": [
+                    "https://github.com/RicardoJCMarques/EasyCAM5000"
+                ],
+                "hasPart": [
+                    { "@id": "https://cam.eltryus.design/easytrace5000/#app" },
+                    { "@id": "https://cam.eltryus.design/easyshape5000/#app" }
+                ],
+                "screenshot": {
+                    "@type": "ImageObject",
+                    "url": "https://cam.eltryus.design/images/social-trace.jpg",
+                    "caption": "EasyCAM5000"
                 }
-            ]
-        }
+            },
+            {
+                "@type": "WebApplication",
+                "@id": "https://cam.eltryus.design/easytrace5000/#app",
+                "name": "EasyTrace5000",
+                "url": "https://cam.eltryus.design/easytrace5000/",
+                "description": "Browser-based CAM for PCB prototyping. Gerber, Excellon and SVG to isolation-routing G-code or laser-ready SVG and PNG.",
+                "isPartOf": { "@id": "https://cam.eltryus.design/#suite" }
+            },
+            {
+                "@type": "WebApplication",
+                "@id": "https://cam.eltryus.design/easyshape5000/#app",
+                "name": "EasyShape5000",
+                "url": "https://cam.eltryus.design/easyshape5000/",
+                "description": "Browser-based CAM for CNC routers. SVG and STL to G-code with profile, pocket, drill, engrave, V-carve, relief and 4th-axis rotary.",
+                "isPartOf": { "@id": "https://cam.eltryus.design/#suite" }
+            },
+            {
+                "@type": "BreadcrumbList",
+                "@id": "https://cam.eltryus.design/#breadcrumb",
+                "itemListElement": [
+                    { "@type": "ListItem", "position": 1, "name": "EasyCAM5000", "item": "https://cam.eltryus.design/" }
+                ]
+            }
+        ]
+    }
     </script>
 </head>
 <body>
@@ -124,22 +148,20 @@
 
     <!-- Header - matches doc pages -->
     <header class="doc-header">
-        <div class="doc-brand">
-            <a href="/" aria-label="Eltryus EasyCAM5000 Suite Homepage">Eltryus EasyCAM5000 Suite</a>
-        </div>
+        <div class="doc-brand"><a href="/" aria-label="EasyCAM5000 Homepage">EasyCAM5000</a></div>
 
         <button class="btn btn--icon doc-menu-toggle" aria-expanded="false" aria-label="Toggle menu">
             <svg class="cam-icon" width="24" height="24"><use href="#icon-menu"></use></svg>
         </button>
 
         <nav class="doc-nav" aria-label="Main Navigation">
-            <a href="/easytrace5000/" draggable="false" aria-label="Launch the Application">EasyTrace5000</a>
+            <a href="/easytrace5000/" draggable="false">EasyTrace5000</a>
             <span class="separator" aria-hidden="true"></span>
-            <a href="easytrace5000/doc/" draggable="false" aria-label="EasyTrace5000 Documentation">EasyTrace5000 Docs</a>
+            <a href="/easytrace5000/doc/" draggable="false">EasyTrace5000 Docs</a>
             <span class="separator" aria-hidden="true"></span>
-            <a href="/easyshape5000/" draggable="false" aria-label="Launch the Application">EasyShape5000</a>
+            <a href="/easyshape5000/" draggable="false">EasyShape5000</a>
             <span class="separator" aria-hidden="true"></span>
-            <a href="easyshape5000/doc/" draggable="false" aria-label="EasyShape5000 Documentation">EasyShape5000 Docs</a>
+            <a href="/easyshape5000/doc/" draggable="false">EasyShape5000 Docs</a>
 
             <span class="separator" aria-hidden="true"></span>
             <a href="https://github.com/RicardoJCMarques/EasyCAM5000" target="_blank" draggable="false" aria-label="GitHub Repository (opens in a new tab)">GitHub</a>
@@ -155,16 +177,15 @@
 
             <!-- Hero -->
             <section class="hero">
-                <h1>Browser-Based CAM Tools for Makers</h1>
-                <p class="tagline">Free, open-source manufacturing software that runs entirely in your browser. From PCB isolation routing to 2.5D woodworking. Zero installations, definetly no accounts or cloud.</p>
+                <h1>EasyCAM5000 - Browser-Based CAM Tools for Makers</h1>
+                <p class="tagline">Free, open-source manufacturing software that runs entirely in your browser. From PCB isolation routing to 2.5D woodworking. Zero installations, definitely no accounts or cloud.</p>
             </section>
 
             <section id="suite-tools">
                 <div class="pipeline-grid" style="margin-top: -2rem; margin-bottom: 4rem;">
                     
                     <a href="easytrace5000/" class="pipeline-card pipeline-card--active" draggable="false" aria-label="Launch EasyTrace5000 Workspace">
-                        <!-- These h3 should be h2, review when updating content to include more EasyShape5000 -->
-                        <h3>
+                        <h2>
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
                                 <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
                                 <line x1="9" y1="3" x2="9" y2="21"></line>
@@ -173,20 +194,20 @@
                             </svg>
                             EasyTrace5000
                             <span class="doc-badge doc-badge--stable">Live</span>
-                        </h3>
+                        </h2>
                         <p>A PCB CAM tool. Converts Gerber, Excellon and SVG into CNC G-code, or into laser-ready SVG/PNG for copper ablation and paste stencils. Client-side replacement for FlatCAM.</p>
                         <span class="btn btn--primary btn--block" aria-hidden="true">Launch EasyTrace5000 Workspace</span>
                     </a>
 
                     <a href="easyshape5000/" class="pipeline-card pipeline-card--dev" draggable="false" aria-label="Launch EasyShape5000 Workspace">
-                        <h3>
+                        <h2>
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
                                 <path d="M20 14.66V20a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5.34"></path>
                                 <polygon points="18 2 22 6 12 16 8 16 8 12 18 2"></polygon>
                             </svg>
                             EasyShape5000
-                            <span class="doc-badge doc-badge--dev">Beta</span>
-                        </h3>
+                            <span class="doc-badge doc-badge--stable">Live</span>
+                        </h2>
                         <p>A CNC router CAM tool for SVG and STL. Profile, pocket, drill and engrave, plus V-carving, 3D relief and 4th-axis rotary with a 3D toolpath preview. Client-side replacement for Easel.</p>
                         <span class="btn btn--primary btn--block" aria-hidden="true">Launch EasyShape5000 Workspace</span>
                     </a>
@@ -379,12 +400,13 @@
         <!-- Footer -->
         <footer class="doc-footer" aria-label="Footer">
             <p>
-                <a href="https://github.com/RicardoJCMarques/EasyCAM5000/blob/main/CHANGELOG.md" title="Version" draggable="false">Version 1.5.0</a> |
+                <a href="https://github.com/RicardoJCMarques/EasyCAM5000/blob/main/CHANGELOG.md" title="Changelog" draggable="false">Changelog</a> |
                 <a href="easytrace5000/" draggable="false">Open EasyTrace5000</a> |
                 <a href="easyshape5000/" draggable="false">Open EasyShape5000</a> |
                 <a href="https://github.com/RicardoJCMarques/EasyCAM5000/issues" target="_blank" title="Repo" draggable="false" aria-label="GitHub Issues (opens in new tab)">Help</a> |
                 <a href="https://github.com/RicardoJCMarques/EasyCAM5000" target="_blank" draggable="false" aria-label="GitHub Repository (opens in a new tab)">GitHub</a> |
-                <a href="/LICENSE" target="_blank" draggable="false" aria-label="AGPLv3 License (opens in a new tab)">AGPLv3</a>
+                <a href="/LICENSE" target="_blank" draggable="false" aria-label="AGPLv3 License (opens in a new tab)">AGPLv3</a> |
+                <a href="https://www.eltryus.design/" draggable="false" aria-label="Eltryus, developer of EasyCAM5000">by Eltryus</a>
             </p>
         </footer>
     </div>

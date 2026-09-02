@@ -254,6 +254,14 @@
       "label": "Laser Spot Size",
       "help": "The effective cut width of your laser beam. Manufacturer should list it in the speceification sheet. Typical values: UV laser 0.02-0.08mm, Fiber laser 0.03-0.15mm."
     },
+    "lineNumbers": {
+      "label": "Line Numbers (N)",
+      "help": "Prefix G-code blocks with line numbers (N10, N20...). Supported by Fanuc, LinuxCNC, Mach3, UCCNC, and WinPC-NC. Ignored by GRBL."
+    },
+    "lineNumberStep": {
+      "label": "Line Number Step",
+      "help": "Increment gap between consecutive line numbers (N words). A step of 10 outputs N10, N20, N30... leaving space to insert manual blocks at the machine controller."
+    },
     "laserStepOver": {
       "label": "Step Over",
       "help": "Percentage of the spot diameter that adjacent paths overlap. Lower values (more overlap) give better copper removal but increase processing time. 50% is a good starting point; reduce to 30% if streaks appear."
@@ -639,7 +647,7 @@
     },
     "toolDiameter": {
       "label": "Tool Diameter",
-      "help": "The physical diameter of the cutting tool. This is the most critical value for accurate offsets."
+      "help": "The tool's cutting diameter - the widest circle it cuts. On copper isolation and engraving this is seeded with the V-bit's effective width at required depth, because that is what the offset has to use."
     },
     "toolLengthCompMode": {
       "help": "Where the controller gets the new tool's Z length after a change. 'Controller tool table' assumes you have measured each tool into the control's offset table. 'H from T' the control takes the offset register from the T word. 'Measured at change time' means a controller macro probes the tool and owns Z, so no G43 is emitted. 'None' emits nothing and you re-zero Z on the new bit yourself.",
@@ -660,12 +668,12 @@
       "label": "Type"
     },
     "vbitAngle": {
-      "help": "The included angle of the V-bit. Common values are 60, 90, and 120 degrees. Determines cut width at a given depth.",
-      "label": "V-Bit Angle"
+      "label": "V-Bit Angle",
+      "help": "The included angle of the V-bit. Common values are 60, 90, and 120 degrees. Determines cut width at a given depth."
     },
-    "vbitTipDiameter": {
-      "label": "Tip Flat Diameter",
-      "help": "Flat width at the very tip of the bit. 0 is a perfect point; a real bit usually has a small flat."
+    "vbitTipRadius": {
+      "label": "Tip Radius",
+      "help": "Radius at the very tip of the bit. 0 is a perfect point; a real bit usually has a small tip radius or flat."
     },
     "vcarveCornerAngle": {
       "label": "Corner Threshold",

@@ -4,18 +4,18 @@
 
    <url>
       <loc>https://cam.eltryus.design/</loc>
-      <lastmod>2026-08-24</lastmod>
+      <lastmod>2026-09-02</lastmod>
       <changefreq>weekly</changefreq>
       <priority>1.0</priority>
       <image:image>
          <image:loc>https://cam.eltryus.design/images/social-trace.jpg</image:loc>
-         <image:title>Eltryus EasyCAM5000 Suite</image:title>
+         <image:title>EasyCAM5000</image:title>
       </image:image>
    </url>
 
    <url>
       <loc>https://cam.eltryus.design/easytrace5000/</loc>
-      <lastmod>2026-08-24</lastmod>
+      <lastmod>2026-09-02</lastmod>
       <changefreq>weekly</changefreq>
       <priority>0.9</priority>
       <image:image>
@@ -26,7 +26,7 @@
 
    <url>
       <loc>https://cam.eltryus.design/easyshape5000/</loc>
-      <lastmod>2026-08-24</lastmod>
+      <lastmod>2026-09-02</lastmod>
       <changefreq>weekly</changefreq>
       <priority>0.9</priority>
       <image:image>
@@ -37,70 +37,70 @@
 
    <url>
       <loc>https://cam.eltryus.design/easytrace5000/doc/</loc>
-      <lastmod>2026-08-24</lastmod>
+      <lastmod>2026-09-02</lastmod>
       <changefreq>monthly</changefreq>
       <priority>0.8</priority>
    </url>
 
    <url>
       <loc>https://cam.eltryus.design/easytrace5000/doc/cnc</loc>
-      <lastmod>2026-08-24</lastmod>
+      <lastmod>2026-09-02</lastmod>
       <changefreq>monthly</changefreq>
       <priority>0.8</priority>
    </url>
 
    <url>
       <loc>https://cam.eltryus.design/easytrace5000/doc/operations</loc>
-      <lastmod>2026-08-24</lastmod>
+      <lastmod>2026-09-02</lastmod>
       <changefreq>monthly</changefreq>
       <priority>0.7</priority>
    </url>
 
    <url>
       <loc>https://cam.eltryus.design/easytrace5000/doc/parameters</loc>
-      <lastmod>2026-08-24</lastmod>
+      <lastmod>2026-09-02</lastmod>
       <changefreq>monthly</changefreq>
       <priority>0.7</priority>
    </url>
 
    <url>
       <loc>https://cam.eltryus.design/easytrace5000/doc/laser</loc>
-      <lastmod>2026-03-07</lastmod>
+      <lastmod>2026-09-02</lastmod>
       <changefreq>monthly</changefreq>
       <priority>0.6</priority>
    </url>
 
    <url>
       <loc>https://cam.eltryus.design/easytrace5000/doc/accessibility</loc>
-      <lastmod>2026-05-16</lastmod>
+      <lastmod>2026-09-02</lastmod>
       <changefreq>monthly</changefreq>
       <priority>0.5</priority>
    </url>
 
    <url>
       <loc>https://cam.eltryus.design/easyshape5000/doc/</loc>
-      <lastmod>2026-08-24</lastmod>
+      <lastmod>2026-09-02</lastmod>
       <changefreq>monthly</changefreq>
       <priority>0.8</priority>
    </url>
 
    <url>
       <loc>https://cam.eltryus.design/easyshape5000/doc/guide</loc>
-      <lastmod>2026-08-24</lastmod>
+      <lastmod>2026-09-02</lastmod>
       <changefreq>monthly</changefreq>
       <priority>0.8</priority>
    </url>
 
    <url>
       <loc>https://cam.eltryus.design/easyshape5000/doc/operations</loc>
-      <lastmod>2026-08-24</lastmod>
+      <lastmod>2026-09-02</lastmod>
       <changefreq>monthly</changefreq>
       <priority>0.7</priority>
    </url>
 
    <url>
       <loc>https://cam.eltryus.design/easyshape5000/doc/parameters</loc>
-      <lastmod>2026-08-24</lastmod>
+      <lastmod>2026-09-02</lastmod>
       <changefreq>monthly</changefreq>
       <priority>0.7</priority>
    </url>

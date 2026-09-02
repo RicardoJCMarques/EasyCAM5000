@@ -64,8 +64,9 @@
 
         /**
          * Translates a single operation's offset geometry into ToolpathPlans.
-         * Phase 1 - Pre-scan:  Groups concentric circle/obround drill milling paths by holeIndex and emits one macro plan per hole.  All other primitives pass through.
-         * Phase 2 - Per-primitive dispatch based on properties.role and properties.tabConfig.  No operation-type checks.
+         * Phase 1 - Pre-scan:  Groups concentric circle/obround drill milling paths by holeIndex and emits one macro plan per hole. All other primitives pass through.
+         * Phase 2 - Join internal offsets into stayDown like cluster objects
+         * Phase 3 - Per-primitive dispatch based on properties.role and properties.tabConfig. No operation-type checks.
          */
         async translateOperation(operation, ctx) {
             const plans = [];
@@ -76,8 +77,13 @@
                 this.extractDrillMacros(operation, ctx);
             plans.push(...macroPlans);
 
-            // Phase 2 - Role-based dispatch for everything else
-            for (const primitive of remainingPrimitives) {
+            // Phase 2 - Weld concentric internal-offset nests into one plan each
+            const { chainPlans, remainingPrimitives: afterChains } =
+                this.extractOffsetChains(remainingPrimitives, ctx);
+            plans.push(...chainPlans);
+
+            // Phase 3 - Role-based dispatch for everything else
+            for (const primitive of afterChains) {
                 const props = primitive.properties || {};
                 const role = props.role;
 
@@ -105,48 +111,50 @@
                 }
 
                 // Standard contour routing (isolation, clearing, cutout, stencil)
-                let processable = primitive;
-
-                // Ensure primitive is a path
-                if (primitive.type !== 'path') {
-                    const converted = typeof GeometryUtils !== 'undefined'
-                        ? GeometryUtils.primitiveToPath(primitive)
-                        : null;
-                    if (converted?.contours?.length > 0) {
-                        processable = converted;
-                    }
-                }
-
-                if (!processable.contours?.length) {
-                    // Fallback for raw circles/rectangles that couldn't be converted
-                    plans.push(...this.processStandardPrimitive(processable, ctx));
-                    continue;
-                }
-
-                const parentShapeKey = primitive.properties?.shapeKey ?? null;
-                const parentPass = primitive.properties?.pass ?? null;
-                const featureId = `${ctx.operationId}:sk${parentShapeKey ?? 'x'}:f${featureSeq++}`;
-
-                // Process contours (checking for tab configuration)
-                for (const contour of processable.contours) {
-                    const isHole = contour.isHole || false;
-                    const tabCount = ctx.strategy?.cutout?.tabs || 0;
-                    const isTabbedCutout = (ctx.operationType === 'cutout' || ctx.operationType === 'profile') && tabCount > 0;
-
-                    if (isTabbedCutout && this.tabPlanner) {
-                        plans.push(...this.processTabbedContour(contour, ctx, isHole, parentShapeKey, featureId, parentPass));
-                    } else {
-                        plans.push(...this.processStandardContour(contour, processable, ctx, isHole, parentShapeKey, featureId, parentPass));
-                    }
-                }
+                const featureId = `${ctx.operationId}:sk${primitive.properties?.shapeKey ?? 'x'}:f${featureSeq++}`;
+                plans.push(...this.translateStandardPrimitive(primitive, ctx, featureId));
             }
 
             return plans;
         }
 
         /**
-         * Drill Macro Extraction (Pre-Scan)
+         * ONE dispatch from an offset primitive to its plan(s). Phase 3 and the
+         * chain pre-scan both go through it.
+         * translatePath reads contour.points, so a PathPrimitive handed straight to
+         * processStandardPrimitive produces a plan with correct entry/exit metadata
+         * and NO commands - which is how the first welded chains shipped as link
+         * moves between rings that were not there.
          */
+        translateStandardPrimitive(primitive, ctx, featureId) {
+            let processable = primitive;
+            if (primitive.type !== 'path') {
+                const converted = GeometryUtils.primitiveToPath(primitive);
+                if (converted?.contours?.length > 0) processable = converted;
+            }
+
+            // Raw circles and rectangles that could not be converted keep the
+            // analytic path - translateCircle/translateObround read them directly.
+            if (!processable.contours?.length) {
+                return this.processStandardPrimitive(processable, ctx);
+            }
+
+            const parentShapeKey = primitive.properties?.shapeKey ?? null;
+            const parentPass = primitive.properties?.pass ?? null;
+            const tabCount = ctx.strategy?.cutout?.tabs || 0;
+            const isTabbedCutout = (ctx.operationType === 'cutout' || ctx.operationType === 'profile') && tabCount > 0;
+
+            const plans = [];
+            for (const contour of processable.contours) {
+                const isHole = contour.isHole || false;
+                plans.push(...(isTabbedCutout && this.tabPlanner
+                    ? this.processTabbedContour(contour, ctx, isHole, parentShapeKey, featureId, parentPass)
+                    : this.processStandardContour(contour, processable, ctx, isHole, parentShapeKey, featureId, parentPass)));
+            }
+            return plans;
+        }
+
+        // Drill Macro Extraction (Pre-Scan)
 
         /**
          * Groups concentric circle and obround drill milling paths by holeIndex, then emits a single drillMillMacro plan per hole.
@@ -302,6 +310,110 @@
         }
 
         /**
+         * Offset Chain Extraction (Pre-Scan)
+         *
+         * Concentric internal offsets are one continuous cut: pass N+1 lies inside
+         * pass N's swath, so the tool can feed from ring to ring at depth. Welding
+         * them into ONE plan is what makes the depth ladder run across the whole
+         * nest - MachineProcessor replays plan.commands once per level, so a merged
+         * chain gives every ring at Z1, then every ring at Z2, instead of one ring
+         * to full depth at a time. That ordering is what makes the link safe, and
+         * it is also one approach and one retract per level instead of per ring.
+         *
+         * Welds a PREFIX: consumes passes 1..k while each contributes exactly one
+         * plan, and stops at the first that does not. Two plans in a pass means a
+         * shell and a hole separated by a wall, or a pour that broke into islands -
+         * neither is a nest, and a feed move between them crosses uncut stock. A
+         * dumbbell pocket still wins on its first passes instead of losing all of
+         * them.
+         */
+        extractOffsetChains(primitives, ctx) {
+            const chainPlans = [];
+            const remainingPrimitives = [];
+            const byKey = new Map();
+
+            // Tabs slice plan.commands into tab-aware and continuous sets that
+            // MachineProcessor picks between per depth level; a welded chain has
+            // neither. Pocket and clearing never set them, so this is a guard,
+            // not a case.
+            const tabbed = (ctx.strategy?.cutout?.tabs || 0) > 0;
+
+            for (const primitive of primitives) {
+                const props = primitive.properties || {};
+                if (tabbed || !props.staydownChain || !(props.chainKey >= 0)) {
+                    remainingPrimitives.push(primitive);
+                    continue;
+                }
+                if (!byKey.has(props.chainKey)) byKey.set(props.chainKey, []);
+                byKey.get(props.chainKey).push(primitive);
+            }
+
+            for (const [chainKey, chainPrimitives] of byKey) {
+                chainPrimitives.sort((a, b) => (a.properties.chainPass || 0) - (b.properties.chainPass || 0));
+
+                // Longest run of contiguous passes that each produced one plan.
+                const welded = [];
+                let expectedPass = chainPrimitives[0].properties.chainPass;
+                let consumed = 0;
+                for (let i = 0; i < chainPrimitives.length; i++) {
+                    const primitive = chainPrimitives[i];
+                    const pass = primitive.properties.chainPass;
+                    const nextSamePass = chainPrimitives[i + 1]?.properties.chainPass === pass;
+                    if (pass !== expectedPass || nextSamePass) break;
+
+                    const featureId = `${ctx.operationId}:sk${chainKey}:chain`;
+                    const ringPlans = this.translateStandardPrimitive(primitive, ctx, featureId);
+                    if (ringPlans.length !== 1) break;
+                    welded.push(ringPlans[0]);
+                    consumed++;
+                    expectedPass = pass + 1;
+                }
+
+                if (welded.length < 2) {
+                    remainingPrimitives.push(...chainPrimitives);
+                    continue;
+                }
+                remainingPrimitives.push(...chainPrimitives.slice(consumed));
+
+                const chain = welded[0];
+                for (let i = 1; i < welded.length; i++) {
+                    const next = welded[i];
+                    const entry = next.metadata.entryPoint;
+                    // One step long, inside the swath the previous ring cleared.
+                    chain.commands.push(new MotionCommand('LINEAR',
+                        { x: entry.x, y: entry.y },
+                        { feed: ctx.cutting.feedRate }));
+                    // push(...ring) spreads every command into the argument
+                    // list; a dense pour ring overflows it and throws.
+                    for (const cmd of next.commands) chain.commands.push(cmd);
+                    chain.metadata.exitPoint = { ...next.metadata.exitPoint };
+                }
+
+                // The chain is a spiral, not a ring. Its rings were already
+                // climb-oriented and ordered outermost-in, so nothing downstream
+                // may close it, rotate its entry or reverse it. perLevelReturn
+                // tells MachineProcessor to lift between levels rather than feed
+                // back across the pocket at the new depth.
+                chain.metadata.isClosedLoop = false;
+                chain.metadata.isClosed = false;
+                chain.metadata.isSimpleCircle = false;
+                chain.metadata.staydownChain = true;
+                chain.metadata.chainRings = welded.length;
+                chain.metadata.perLevelReturn = 'retract';
+                chain.metadata.optimization = {
+                    linkType: 'rapid',
+                    optimizedEntryPoint: { ...chain.metadata.entryPoint },
+                    entryCommandIndex: 0
+                };
+                chain.computeBounds();
+                chainPlans.push(chain);
+                this.debug(`Offset chain sk${chainKey}: welded ${welded.length} ring(s) into one plan`);
+            }
+
+            return { chainPlans, remainingPrimitives };
+        }
+
+        /**
          * Specific Translation Macros
          */
         translatePeckMark(primitive, ctx) {
@@ -369,57 +481,83 @@
         }
 
         /**
-         * Specialized translator for Centerline Slot Paths.
-         * Generates a single "Macro" plan that the MachineProcessor expands into a Zig-Zag pattern.
+         * Centerline slot: the cutter is at or over the slot width, so there is no
+         * ring to mill and the feature is one pass down the middle. Emits one macro
+         * plan the MachineProcessor expands into a zig-zag step-down.
+         * isDrillMilling on the context is what makes createPurePlan resolve the
+         * drill row - this was the only drill translation that omitted it, so the
+         * row's feeds, stepOver, entryType and per-key depth ladder reached every
+         * drill plan except this one.
+         * createPurePlan is handed the CONTOUR, which has no properties, so the
+         * row and the cutter resolve from the primitive that owns it.
          */
         translateCenterlinePath(primitive, ctx) {
-            const plans = [];
-
             // Centerline slots are wrapped in a PathPrimitive, so the points are in the first contour.
             const contour = primitive.contours[0];
             const points = contour?.points;
-
-            if (!points || points.length < 2) return [];
+            if (!points || points.length < 2) {
+                this.warnOperation(ctx, 'Centerline slot skipped - the generated path has fewer than two points.');
+                return [];
+            }
 
             const startPoint = points[0];
             const endPoint = points[points.length - 1];
             const slotLength = Math.hypot(endPoint.x - startPoint.x, endPoint.y - startPoint.y);
 
-            // Create the plan using the contour points
-            const plan = this.createPurePlan(contour, ctx, false, false, false);
-
-            if (plan && plan.metadata.exitPoint) {
-                // Only update the Z-depth of the exit point
-                plan.metadata.primitiveType = 'centerline_slot';
-                plan.metadata.isCenterlinePath = true;
-                plan.metadata.isDrillMilling = true;
-                plan.metadata.toolDiameter = ctx.tool.diameter;
-                plan.metadata.slotLength = slotLength;
-
-                // Instruct Machine Processor to perform zigzag step-downs
-                plan.metadata.strategy = {
-                    zigzag: true,
-                    cutDepth: ctx.strategy.cutDepth,
-                    depthPerPass: ctx.strategy.depthPerPass,
-                    feedRate: ctx.cutting.feedRate,
-                    plungeRate: ctx.cutting.plungeRate
-                };
-
-                // Use the transformed exit point for the guide command so MachineProcessor knows where the slot ends in machine coordinates.
-                const targetX = plan.metadata.exitPoint.x;
-                const targetY = plan.metadata.exitPoint.y;
-
-                plan.commands.push(new MotionCommand(
-                    'LINEAR',
-                    { x: targetX, y: targetY },
-                    { feed: ctx.cutting.feedRate }
-                ));
-
-                plan.computeBounds();
-                plans.push(plan);
+            const drillMillCtx = { ...ctx, isDrillMilling: true };
+            const plan = this.createPurePlan(contour, drillMillCtx, false, false, false);
+            if (!plan || !plan.metadata.exitPoint) {
+                // Returning [] here used to be silent, which is why a regression
+                // upstream read as "the slot vanished" with nothing in the log.
+                this.warnOperation(ctx, 'Centerline slot skipped - no exit point resolved from its contour.');
+                return [];
             }
 
-            return plans;
+            plan.metadata.primitiveType = 'centerline_slot';
+            plan.metadata.isCenterlinePath = true;
+            plan.metadata.isDrillMilling = true;
+            plan.metadata.slotLength = slotLength;
+
+            // Same order every other drill path uses: the primitive's stamped
+            // diameter wins, the operation tool is the fallback.
+            if (primitive.properties?.toolDiameter > 0) {
+                plan.metadata.toolDiameter = primitive.properties.toolDiameter;
+            }
+            this.applyDrillRowMetadata(plan, this.resolveDrillRow(primitive, ctx));
+
+            // Built from the PLAN, not from ctx: applyDrillRowMetadata may have
+            // just replaced these with the row's numbers, and the zig-zag in
+            // MachineProcessor reads this block and nothing else.
+            plan.metadata.strategy = {
+                zigzag: true,
+                cutDepth: ctx.strategy.cutDepth,
+                depthPerPass: plan.metadata.depthPerPass,
+                feedRate: plan.metadata.feedRate,
+                plungeRate: plan.metadata.plungeRate
+            };
+
+            // Use the transformed exit point for the guide command so MachineProcessor knows where the slot ends in machine coordinates.
+            plan.commands.push(new MotionCommand('LINEAR',
+                { x: plan.metadata.exitPoint.x, y: plan.metadata.exitPoint.y },
+                { feed: plan.metadata.feedRate }));
+            plan.computeBounds();
+            return [plan];
+        }
+
+        /**
+         * Translation-time warning that reaches the operator. The translator had
+         * no way to say anything: every failure here was a console line or a bare
+         * empty return, so a dropped plan looked identical to geometry that was
+         * never generated.
+         */
+        warnOperation(ctx, message) {
+            console.warn(`[GeometryTranslator] ${message}`);
+            const op = this.core.getOperation?.(ctx.operationId);
+            if (!op) return;
+            op.warnings ||= [];
+            if (!op.warnings.some(w => w?.message === message)) {
+                op.warnings.push({ message, severity: 'warning', source: 'translator' });
+            }
         }
 
         /**
@@ -1338,6 +1476,12 @@
             // (origin then still handled by GCodeGenerator, if present).
             const m = transforms.machineMatrix || transforms.matrix;
             return TransformMath.applyToPoint(m, point);
+        }
+
+        debug(message, data = null) {
+            if (!debugState.enabled) return;
+            data ? console.log(`[GeometryTranslator] ${message}`, data)
+                 : console.log(`[GeometryTranslator] ${message}`);
         }
     }
 

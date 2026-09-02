@@ -9,27 +9,104 @@
   },
   "meta": {
     "app": "EasyShape5000",
-    "version": "1.0"
+    "version": "1.1"
   },
   "clipper2scale": 1000,
-  "defaultTools": {
-    "profile": "em_3.175mm_flat",
-    "pocket": "em_3.175mm_flat",
-    "drill": "drill_3.175mm",
-    "engrave": "vbit_10deg_0.1mm",
-    "vcarve": "vbit_90deg_0.3mm",
-    "relief": "em_3.175mm_ball",
-    "rotary": "em_3.175mm_ball"
+  "chains": {
+    "2.5d": {
+      "stages":    ["geometry", "strategy", "machine", "output"],
+      "artifacts": ["offsets", "preview", "toolpath"]
+    },
+    "3d": {
+      "stages":    ["geometry", "machine", "output"],
+      "artifacts": ["offsets", "toolpath"]
+    }
   },
-  "fileTypes": {
-    "profile": {"extensions": [".svg"] },
-    "pocket": {"extensions": [".svg"] },
-    "drill": {"extensions": [".svg"] },
-    "engrave": {"extensions": [".svg"] },
-    "vcarve": {"extensions": [".svg"] },
-    "relief": {"extensions": [".stl"] },
-    "rotary": {"extensions": [".stl"] },
-    "unassigned": {"extensions": [".svg", ".stl"] }
+  "auxHandlers": {
+    "rotary-indexed": "ShapeIndexedHandler"
+  },
+  "operations": {
+    "profile": {
+      "handler": "ShapeProfileHandler",
+      "label": "Profile Cut",
+      "icon": "icon-op-profile",
+      "extensions": [".svg"],
+      "defaultTool": "em_3.175mm_flat",
+      "viz": { "label": "Profile" },
+      "machineClasses": { "router": "2.5d" }
+    },
+    "pocket": {
+      "handler": "ShapePocketHandler",
+      "label": "Pocket Clear",
+      "icon": "icon-op-pocket",
+      "extensions": [".svg"],
+      "defaultTool": "em_3.175mm_flat",
+      "viz": { "label": "Pocket" },
+      "machineClasses": { "router": "2.5d" }
+    },
+    "drill": {
+      "handler": "ShapeDrillHandler",
+      "label": "Drill Holes",
+      "icon": "icon-op-drilling",
+      "extensions": [".svg"],
+      "defaultTool": "drill_3.175mm",
+      "viz": { "label": "Drill" },
+      "machineClasses": { "router": "2.5d" }
+    },
+    "engrave": {
+      "handler": "ShapeEngraveHandler",
+      "label": "Engrave",
+      "icon": "icon-op-engrave",
+      "extensions": [".svg"],
+      "defaultTool": "vbit_10deg_0.1mm",
+      "toolSizing": "effective",
+      "defaults": { "cutDepth": 0.1, "multiDepth": false },
+      "viz": { "label": "Engrave" },
+      "machineClasses": { "router": "2.5d" }
+    },
+    "vcarve": {
+      "handler": "ShapeVCarveHandler",
+      "label": "V-Carve",
+      "icon": "icon-op-vcarve",
+      "extensions": [".svg"],
+      "defaultTool": "vbit_90deg_0.3mm",
+      "viz": { "label": "V-Carve" },
+      "machineClasses": { "router": "3d" }
+    },
+    "relief": {
+      "handler": "ShapeReliefHandler",
+      "label": "Relief / 2.5D Carve",
+      "icon": "icon-op-relief",
+      "extensions": [".stl"],
+      "defaultTool": "em_3.175mm_ball",
+      "viz": { "label": "Relief" },
+      "machineClasses": { "router": "3d" }
+    },
+    "rotary": {
+      "handler": "ShapeRotaryHandler",
+      "label": "Rotary / 4th Axis",
+      "icon": "icon-op-rotary",
+      "extensions": [".stl"],
+      "defaultTool": "em_3.175mm_ball",
+      "viz": { "label": "Rotary" },
+      "machineClasses": { "router": "3d" }
+    },
+    "pattern": {
+      "handler": "ShapePatternHandler",
+      "optionalHandler": true,
+      "tab": false,
+      "label": "Pattern",
+      "extensions": [".svg"],
+      "viz": { "label": "Pattern" },
+      "machineClasses": { "router": "2.5d" }
+    },
+    "unassigned": {
+      "virtual": true,
+      "tab": false,
+      "label": "Unassigned Shapes",
+      "extensions": [".svg", ".stl"],
+      "viz": { "label": "Unassigned Shapes" }
+    }
   },
   "examples": {
     "mesa": {
@@ -49,34 +126,35 @@
       "files": { "stl": "../examples/temp/viking.stl" }
     }
   },
-  "operationDefaults": {
-    "engrave": {
-      "toolDiameter": 0.1,
-      "cutDepth": 0.1,
-      "multiDepth": false
-    },
-    "vcarve": {
-      "toolDiameter": 3,
-      "vbitAngle": 90
-    }
-  },
   "ui": {
     "categories": {
       "tool": "Tool Selection",
-      "offset": "Cut Settings",
-      "depth": "Depth & Passes",
       "blank": "Blank & Axis",
       "bounds": "Model Bounds",
       "holding": "Workholding & Ends",
+      "offset": "Cut Settings",
+      "depth": "Depth & Passes",
       "passes": "Passes & Stepover",
       "roughing": "Roughing",
       "finishing": "Finishing",
-      "quality": "Resolution & Finish",
       "tabs": "Holding Tabs",
       "drill": "Drill Strategy",
-      "feeds": "Feeds & Speeds",
       "pattern": "Pattern Layout",
+      "quality": "Resolution & Finish",
+      "feeds": "Feeds & Speeds",
+      "toolpath": "Toolpath Options",
       "general": "General Settings"
+    },
+    "stages": {
+      "geometry": { "label": "XY Geometry", "label3d": "XYZ Geometry", "icon": "icon-geometry-stage" },
+      "strategy": { "label": "Z Strategy",  "icon": "icon-offsets-stage" },
+      "machine": { "label": "Feeds & Toolpaths", "icon": "icon-machine-stage" },
+      "output": { "label": "Output", "icon": "icon-output-stage" }
+    },
+    "artifacts": {
+      "offsets": { "label": "Offsets", "label3d": "3D Paths", "icon": "icon-offsets-stage" },
+      "preview": { "label": "Tool Reach", "icon": "icon-preview-stage" },
+      "toolpath": { "label": "Toolpaths", "icon": "icon-toolpath-stage" }
     },
     "icons": {
       "warning": "icon-warning",
@@ -133,7 +211,8 @@
       "label": "Tool",
       "stage": "geometry",
       "category": "tool",
-      "operationTypes": ["profile", "pocket", "drill", "engrave", "vcarve", "relief", "rotary"]
+      "operationTypes": ["profile", "pocket", "drill", "engrave", "vcarve", "relief", "rotary"],
+      "conditional": "!drillMultiTool"
     },
     "toolNumber": {
       "type": "number",
@@ -141,6 +220,7 @@
       "stage": "geometry",
       "category": "tool",
       "operationTypes": ["profile", "pocket", "drill", "engrave", "vcarve", "relief", "rotary"],
+      "conditional": "!drillMultiTool",
       "default": 1,
       "min": 1,
       "max": 99,
@@ -235,12 +315,22 @@
 
     "_comment_drill_geo": "═══ DRILL GEOMETRY ═══",
 
+    "drillMultiTool": {
+      "type": "checkbox",
+      "label": "Multi-Tool Drilling",
+      "stage": "geometry",
+      "category": "tool",
+      "operationTypes": "drill",
+      "default": false,
+      "help": "Assign a separate tool per hole diameter. classifySVGDrillPrimitives groups by diameter, so a mixed-size SVG populates the table the same way an Excellon file does."
+    },
     "millHoles": {
       "type": "checkbox",
       "label": "Mill Oversize Holes",
       "stage": "geometry",
       "category": "drill",
       "operationTypes": "drill",
+      "conditional": "!drillMultiTool",
       "default": true
     },
     "drillStepOver": {
@@ -250,6 +340,7 @@
       "stage": "geometry",
       "category": "drill",
       "operationTypes": "drill",
+      "conditional": "!drillMultiTool && millHoles",
       "default": 50,
       "min": 10,
       "max": 90,
@@ -308,9 +399,9 @@
       "max": 150,
       "step": 5
     },
-    "vbitTipDiameter": {
+    "vbitTipRadius": {
       "type": "number",
-      "label": "Tip Diameter (0 = Pointy)",
+      "label": "Tip Radius (0 = Pointy)",
       "unit": "mm",
       "stage": "geometry",
       "category": "tool",
@@ -510,7 +601,7 @@
       "stage": "geometry",
       "category": "passes",
       "operationTypes": "relief",
-      "default": "roughing",
+      "default": "finishing",
       "options": [
         { "value": "roughing", "label": "Roughing" },
         { "value": "finishing", "label": "Finishing" },
@@ -563,6 +654,7 @@
       "stage": "geometry",
       "category": "finishing",
       "operationTypes": "relief",
+      "conditional": "reliefMode:finishing,both",
       "default": 10,
       "min": 2,
       "max": 50,
@@ -574,6 +666,7 @@
       "stage": "geometry",
       "category": "finishing",
       "operationTypes": "relief",
+      "conditional": "reliefMode:finishing,both",
       "default": "x",
       "options": [
         { "value": "x", "label": "Along X" },
@@ -595,6 +688,7 @@
       "stage": "geometry",
       "category": "finishing",
       "operationTypes": "relief",
+      "conditional": "reliefMode:finishing,both",
       "default": false
     },
 
@@ -724,6 +818,30 @@
         { "value": "along", "label": "Lying along the rotary axis" },
         { "value": "upright", "label": "Standing upright (Z) - will be laid down" }
       ]
+    },
+    "rotaryAxialDatum": {
+      "type": "select",
+      "label": "Axial Zero",
+      "stage": "geometry",
+      "category": "blank",
+      "operationTypes": "rotary", "default": "model-start",
+      "options": [
+        { "value": "model-start", "label": "Model start (chuck-side face)" },
+        { "value": "model-center", "label": "Model centre" },
+        { "value": "scene", "label": "Scene coordinates (no datum)" }
+      ]
+    },
+    "rotaryAxialOffset": {
+      "type": "number",
+      "label": "Axial Zero Offset",
+      "unit": "mm",
+      "stage": "geometry",
+      "category": "blank",
+      "operationTypes": "rotary",
+      "default": 0,
+      "min": -500,
+      "max": 500,
+      "step": 1
     },
     "rotaryAxisOffsetB": {
       "type": "number",
@@ -951,7 +1069,7 @@
       "label": "Roughing Stepdown (radius per layer)",
       "unit": "mm",
       "stage": "geometry",
-      "category": "passes",
+      "category": "roughing",
       "operationTypes": "rotary",
       "conditional": "rotaryKinematics:radial && rotaryMode:roughing,both",
       "default": 1.5,
@@ -1017,7 +1135,7 @@
       "stage": "geometry",
       "category": "roughing",
       "operationTypes": "rotary",
-      "conditional": "rotaryKinematics:radial",
+      "conditional": "rotaryKinematics:radial && rotaryMode:roughing,both",
       "default": "x",
       "options": [
         { "value": "x", "label": "Along the axis" },
@@ -1030,7 +1148,7 @@
       "stage": "geometry",
       "category": "finishing",
       "operationTypes": "rotary",
-      "conditional": "rotaryKinematics:radial",
+      "conditional": "rotaryKinematics:radial && rotaryMode:finishing,both",
       "default": "spiral",
       "options": [
         { "value": "spiral", "label": "Spiral (continuous helix)" },
@@ -1044,7 +1162,7 @@
       "stage": "geometry",
       "category": "finishing",
       "operationTypes": "rotary",
-      "conditional": "rotaryKinematics:indexed",
+      "conditional": "rotaryKinematics:indexed && rotaryMode:finishing,both",
       "default": "axial",
       "options": [
         { "value": "axial", "label": "Along the rotary axis" },
@@ -1468,6 +1586,16 @@
       "min": 0,
       "max": 30,
       "step": 0.5
+    },
+    "optimizeToolpath": {
+      "type": "checkbox",
+      "label": "Optimize Path Order",
+      "default": true,
+      "stage": "machine",
+      "category": "toolpath",
+      "machineClasses": ["router"],
+      "invalidates": false,
+      "help": "Reorders cuts within this operation to cut rapid travel. Off keeps the generation order. The job exporter has its own setting for a combined program."
     }
   }
 }

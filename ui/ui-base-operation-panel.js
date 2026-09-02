@@ -62,8 +62,38 @@
         /** @returns {HTMLElement|null} The container element for the parameter form */
         getFormContainer() { throw new Error('getFormContainer() not implemented'); }
 
-        /** @returns {string} 'cnc' | 'laser' | 'hybrid' */
-        getPipelineType() { return 'cnc'; }
+        /**
+         * Stamp first: an operation carries the class it was created under, and
+         * the stencil picker can move it. Falls back to the session for a shape
+         * that has no core operation behind it yet.
+         * @returns {string} 'router' | 'laser' | 'knife'
+         */
+        getMachineClass(operationType) {
+            const current = this.resolveCurrentOperation();
+            const op = current && this.resolveOperationType(current) === operationType
+                ? this.core.getOperation(current.id)
+                : null;
+            if (op) return this.core.machineClassOf(op);
+
+            return this.ui.ctrl.resolveMachineClass?.(operationType)
+                || this.ui.ctrl.pipelineState?.machineClass
+                || 'router';
+        }
+
+        /**
+         * Everything stage-shaped reads from here so the machine class and
+         * dimension are resolved ONCE per form render.
+         */
+        getOperationContext(operationType) {
+            const registry = this.core.registry;
+            const machineClass = this.getMachineClass(operationType);
+            return {
+                machineClass,
+                dimension: registry?.dimensionFor(operationType, machineClass) || null,
+                stages: this.parameterManager.getStages(operationType, machineClass),
+                artifacts: this.parameterManager.getArtifacts(operationType, machineClass)
+            };
+        }
 
         /** Persist current form state to the operation/shape model */
         saveCurrentState() {
@@ -127,12 +157,40 @@
          * resolves to null and simply skips the table refresh.
          */
         resolveDrillOperation() {
-            if (this.currentBucket) return this.currentBucket.getOperation(this.core); // REVIEW - Does this make sense?
+            if (this.currentBucket) return this.currentBucket.getOperation(this.core);
             return this.core?.getOperation?.(this.currentOperationId) || null;
         }
 
-        /** Called after a successful parameter change to check if generated geometry should be invalidated */
-        checkInvalidation(paramName) {}
+        /**
+         * A parameter changed. Bump that stage's revision and let the core
+         * work out whether anything downstream went stale.
+         *
+         * This used to be a per-app override and the two drifted: EasyShape
+         * fired on the geometry stage only and whenever offsets existed;
+         * EasyTrace fired on geometry OR strategy but only once the
+         * operation was already export-ready. Neither watched stock
+         * thickness, machine heights or the workspace transform at all.
+         */
+        checkInvalidation(paramName) {
+            const target = this.resolveCurrentOperation();
+            if (!target) return;
+
+            const op = this.core.getOperation(target.id);
+            if (!op) return;
+
+            const def = this.parameterManager.parameterDefinitions[paramName];
+            if (!def || !def.stage) return;
+            // Identity-carrying fields (tool number, labels) move no geometry.
+            if (def.invalidates === false) return;
+
+            this.core.bumpOperationRevision(op.id, def.stage);
+            const reason = `'${def.label || paramName}' changed after generation - regenerate before exporting.`;
+            if (this.core.refreshStaleFlags(op.id, reason)) this.ui.setStatus(op.invalidatedReason, 'warning');
+            this.onInvalidated(op);
+        }
+
+        /** App hook: refresh whichever tree draws this operation's nodes. */
+        onInvalidated(operation) {}
 
         /** Returns focus to the appropriate tree/list element after generation */
         returnFocusToTree() {}
@@ -147,33 +205,28 @@
          */
         renderParameterForm(container, opType, stage, values) {
             const pm = this.parameterManager;
-            const pipelineType = this.getPipelineType();
-            const stageParams = pm.getStageParameters(stage, opType, pipelineType);
-            const groups = this.groupByCategory(stageParams);
+            const ctx = this.getOperationContext(opType);
+            const groups = this.groupByCategory(pm.getStageParameters(stage, opType, ctx));
             const prefix = this.getIdPrefix();
 
-            for (const [cat, catParams] of Object.entries(groups)) {
+            for (const cat of this.orderCategories(Object.keys(groups))) {
                 const section = document.createElement('div');
                 section.className = 'property-section';
+                section.dataset.category = cat;
 
                 const h3 = document.createElement('h3');
                 h3.textContent = this.getCategoryTitle(cat);
                 section.appendChild(h3);
 
-                for (const p of catParams) {
-                    const val = values[p.name] !== undefined ? values[p.name] : p.default;
+                for (const p of groups[cat]) {
+                    const val = void 0 !== values[p.name] ? values[p.name] : p.default;
                     section.appendChild(ParameterManager.createField(p, val, {
-                        idPrefix: prefix,
-                        opType,
-                        toolLibrary: this.toolLibrary,
-                        lang: this.lang,
+                        idPrefix: prefix, opType, toolLibrary: this.toolLibrary, lang: this.lang,
                         onChange: (name, newVal, el) => this.onParameterChange(name, newVal, el, opType)
                     }));
                 }
-
                 container.appendChild(section);
             }
-
             ParameterManager.evaluateConditionals(container, values, pm.optionGates);
             UIControls.setupPropertyGridNavigation(container);
         }
@@ -220,6 +273,28 @@
                 if (result.error) this.ui.setStatus(result.error, 'error');
             }
 
+            // A parameter may own the operation's machine class. That changes
+            // which parameters exist and how many stages the chain has, so the
+            // form is rebuilt rather than patched.
+            // CNC Stencil only, for diode/co2 lasers, vinyl cutters or drag knife machines
+            const boundDef = pm.parameterDefinitions[name];
+            if (boundDef?.bindsMachineClass) {
+                clearTimeout(this.changeTimeout);
+                const target = this.core.getOperation(this.currentOperationId);
+                if (target) {
+                    const label = boundDef.options?.find(o => o.value === value)?.label || value;
+                    target.machineClass = value;
+                    this.core.bumpOperationRevision(target.id, 'geometry');
+                    this.core.refreshStaleFlags(target.id,
+                        `Machine changed to ${label} - regenerate before exporting.`);
+                    this.saveCurrentState();
+                    this.currentStage = this.getOperationContext(opType).stages[0];
+                    this.onInvalidated(target);
+                    this.refreshOperationPanel(target);
+                }
+                return;
+            }
+
             // millHoles and drillMultiTool both move which surface owns tool
             // identity, so the panel is rebuilt rather than patched.
             // checkInvalidation is called here because the early return skips
@@ -255,47 +330,43 @@
             const pm = this.parameterManager;
             const prefix = this.getIdPrefix();
             const setField = (paramName, val) => {
-                if (val === undefined || val === null) return;
+                if (null == val) return;
                 const def = pm.parameterDefinitions[paramName];
                 if (!def) return;
                 if (def.operationTypes && !def.operationTypes.includes(opType)) return;
                 pm.setParameter(this.currentOperationId, def.stage || this.currentStage, paramName, val);
                 const el = document.getElementById(`${prefix}${paramName}`);
-                if (el) {
-                    if (el.type === 'checkbox') el.checked = !!val;
-                    else el.value = val;
-                }
+                el && ("checkbox" === el.type ? (el.checked = !!val) : (el.value = val));
             };
 
-            const diam = this.toolLibrary.getToolDiameter(tool.id) ?? tool.geometry?.diameter ?? tool.geometry?.maxDiameter;
-            setField('toolDiameter', diam);
-
-            if (tool.geometry) {
-                if (tool.geometry.angle !== undefined) setField('vbitAngle', tool.geometry.angle);
-                if (tool.geometry.tipDiameter !== undefined) setField('vbitTipDiameter', tool.geometry.tipDiameter);
-                if (tool.geometry.cornerRadius !== undefined) {
-                    setField('reliefCornerRadius', tool.geometry.cornerRadius);
-                    setField('rotaryCornerRadius', tool.geometry.cornerRadius);
-                }
-                if (tool.geometry.tipType !== undefined) {
-                    setField('reliefToolShape', tool.geometry.tipType);
-                    setField('rotaryToolShape', tool.geometry.tipType);
-                }
-            }
+            // setField ignores null/undefined, so a flat tool simply skips the
+            // fields it has no value for. Sizing follows the operation, not the
+            // tool: only copper reads the effective cut width.
+            const sizes = this.toolLibrary.getToolSizes(tool.id);
+            if (!sizes) return;
+            const useEffective = this.core?.registry?.toolSizingFor(opType) === 'effective';
+            setField('toolDiameter', useEffective ? sizes.effective : sizes.diameter);
+            setField('vbitTipRadius', sizes.tipRadius);
+            setField('vbitAngle', sizes.angle);
+            setField('reliefCornerRadius', sizes.cornerRadius);
+            setField('rotaryCornerRadius', sizes.cornerRadius);
+            setField('reliefToolShape', sizes.tipType);
+            setField('rotaryToolShape', sizes.tipType);
 
             if (tool.cutting) {
-                if (tool.cutting.feedRate !== undefined) setField('feedRate', tool.cutting.feedRate);
-                if (tool.cutting.plungeRate !== undefined) setField('plungeRate', tool.cutting.plungeRate);
-                if (tool.cutting.spindleSpeed !== undefined) setField('spindleSpeed', tool.cutting.spindleSpeed);
-                if (tool.cutting.spindleDwell !== undefined) setField('spindleDwell', tool.cutting.spindleDwell);
-                if (tool.cutting.cutDepth !== undefined) setField('cutDepth', tool.cutting.cutDepth);
-                if (tool.cutting.maxDepthPerPass !== undefined || tool.cutting.depthPerPass !== undefined) {
-                    setField('depthPerPass', tool.cutting.maxDepthPerPass ?? tool.cutting.depthPerPass);
-                    setField('drillDepthPerPass', tool.cutting.maxDepthPerPass ?? tool.cutting.depthPerPass);
+                // REVIEW - What do all these void 0 !== checks do?
+                void 0 !== tool.cutting.feedRate && setField("feedRate", tool.cutting.feedRate);
+                void 0 !== tool.cutting.plungeRate && setField("plungeRate", tool.cutting.plungeRate);
+                void 0 !== tool.cutting.spindleSpeed && setField("spindleSpeed", tool.cutting.spindleSpeed);
+                void 0 !== tool.cutting.spindleDwell && setField("spindleDwell", tool.cutting.spindleDwell);
+                void 0 !== tool.cutting.cutDepth && setField("cutDepth", tool.cutting.cutDepth);
+                if (void 0 !== tool.cutting.maxDepthPerPass || void 0 !== tool.cutting.depthPerPass) {
+                    setField("depthPerPass", tool.cutting.maxDepthPerPass ?? tool.cutting.depthPerPass);
+                    setField("drillDepthPerPass", tool.cutting.maxDepthPerPass ?? tool.cutting.depthPerPass);
                 }
-                if (tool.cutting.stepOver !== undefined) {
-                    setField('stepOver', tool.cutting.stepOver);
-                    setField('drillStepOver', tool.cutting.stepOver);
+                if (void 0 !== tool.cutting.stepOver) {
+                    setField("stepOver", tool.cutting.stepOver);
+                    setField("drillStepOver", tool.cutting.stepOver);
                 }
             }
         }
@@ -329,13 +400,9 @@
             }
         }
 
-        getCurrentStage() {
-            return this.currentStage;
-        }
-
         clearProperties() {
             this.currentOperationId = null;
-            this.currentStage = 'geometry';
+            this.currentStage = null;
             clearTimeout(this.changeTimeout);
         }
 
@@ -412,10 +479,15 @@
                 // gate isExportReady and executeExport both read. Route it
                 // through runPreview rather than core.generateCNCPreview so
                 // the 3D refresh below happens for both paths.
-                const stages = this.parameterManager.getStagesForPipeline(
-                    this.getPipelineType(), operation.type);
-                if (result?.success && !stages.includes('strategy')) {
-                    await this.runPreview(operationId);
+                const { stages, artifacts } = this.getOperationContext(operation.type);
+                if (result?.success) {
+                    this.core.stampArtifact(operationId, 'offsets');
+                    // A chain that declares a preview artifact but no stage to build
+                    // it from has no second button, so build it here. A chain that
+                    // declares no preview must not get one: stamping an artifact the
+                    // chain does not list hides the offsets layer behind a node that
+                    // is never drawn.
+                    if (artifacts.includes('preview') && !stages.includes('strategy')) await this.runPreview(operationId);
                 }
                 return this.withDepthWarning(result, operation, params);
             } catch (e) {
@@ -426,6 +498,94 @@
                 // Never leave a UI closure retained on the operation object.
                 operation._onProgress = null;
             }
+        }
+
+        /**
+         * Calculates machine-ready plans for ONE operation and hands them to
+         * the 3D view. Deliberately NOT the same artifact the exporter
+         * builds: see CamCore.computeToolpaths for the three batch-stateful
+         * behaviours that make a per-operation plan a per-operation plan.
+         */
+        async runToolpaths(operationId) {
+            const operation = this.core.getOperation(operationId);
+            if (!operation) {
+                return { success: false, message: `Operation ${operationId} not found`, status: 'error' };
+            }
+
+            const params = this.parameterManager.getAllParameters(operationId) || {};
+
+            // Feeds are the one parameter with no safe default anywhere in the
+            // stack. F0 is not "use the last feed": Grbl and grblHAL reject it
+            // (error:22), LinuxCNC and Fanuc-style controls alarm, and Marlin
+            // silently keeps the PREVIOUS modal feed - so a zero here cuts at
+            // whatever the operation before it was set to. NaN reaches the post
+            // as the literal FNaN.
+            // Number.isFinite, never truthiness: 0 is a legal coordinate but
+            // never a legal feed, and those are different tests.
+            const badFeeds = [
+                Number.isFinite(params.feedRate) && params.feedRate > 0 ? null : 'feed rate',
+                Number.isFinite(params.plungeRate) && params.plungeRate > 0 ? null : 'plunge rate'
+            ].filter(Boolean);
+            if (badFeeds.length) {
+                return {
+                    success: false,
+                    status: 'warning',
+                    message: `Set a ${badFeeds.join(' and ')} above zero before calculating toolpaths. Feeds seed from the selected tool - pick one, or type a value.`
+                };
+            }
+
+            try {
+                const { plans, warnings, metrics } = await this.ui.ctrl.computeToolpaths(operationId, {
+                    optimize: params.optimizeToolpath !== false
+                });
+
+                if (!plans.length) {
+                    return { success: false, message: 'Toolpath calculation produced no motion', status: 'warning' };
+                }
+
+                if (warnings.length) {
+                    this.ui.setStatus(warnings[0], 'warning');
+                    console.warn(`[Toolpaths] ${operationId}:\n  ${warnings.join('\n  ')}`);
+                }
+
+                const mins = Math.floor(metrics.estimatedTime / 60);
+                const secs = Math.floor(metrics.estimatedTime % 60);
+                return {
+                    success: true,
+                    status: 'success',
+                    message: `${plans.length} toolpath(s) - ~${mins}:${String(secs).padStart(2, '0')}, ` +
+                             `${metrics.totalDistance.toFixed(0)}mm (this operation alone)`
+                };
+            } catch (e) {
+                console.error(`[BaseOperationPanel] Toolpath calculation failed for ${operationId}:`, e);
+                return { success: false, message: `Toolpath calculation failed: ${e.message}`, status: 'error' };
+            }
+        }
+
+        /* Read-only job summary for the output stage. The modal owns file layout,
+        ordering and tool changes, and the stage's action button opens it. */
+        createOutputBlock(operation) {
+            const section = document.createElement('div');
+            section.className = 'property-section';
+            const h3 = document.createElement('h3');
+            h3.textContent = 'Output';
+            section.appendChild(h3);
+
+            const tp = this.core.getToolpaths?.(operation.id);
+            const summary = document.createElement('div');
+            summary.className = 'summary-line';
+            if (tp?.plans?.length) {
+                const mins = Math.floor(tp.metrics.estimatedTime / 60);
+                const secs = Math.floor(tp.metrics.estimatedTime % 60);
+                summary.innerHTML = `<strong>${tp.plans.length} toolpath(s)</strong>, ~${mins}:${String(secs).padStart(2, '0')}, ${tp.metrics.totalDistance.toFixed(0)}mm`;
+            } else summary.innerHTML = '<strong>No toolpaths calculated.</strong>';
+            section.appendChild(summary);
+
+            const note = document.createElement('div');
+            note.className = 'summary-line summary-secondary';
+            note.textContent = 'Files, ordering and tool changes are set in the Export Manager.';
+            section.appendChild(note);
+            return section;
         }
 
         /**
@@ -446,6 +606,7 @@
             if (!success) {
                 return { success: false, message: 'Preview generation failed (check tool diameter)', status: 'error' };
             }
+            this.core.stampArtifact(operationId, 'preview');
 
             operation.exportReady = true;
             return this.withDepthWarning(
@@ -496,9 +657,23 @@
             return groups;
         }
 
+        /**
+         * ui.categories values are either a label string or { label }.
+         */
         getCategoryTitle(category) {
-            const titles = this.appProfile?.ui?.categories || {};
-            return titles[category] || category.charAt(0).toUpperCase() + category.slice(1);
+            const entry = this.appProfile?.ui?.categories?.[category];
+            const label = 'string' == typeof entry ? entry : entry?.label;
+            return label || category.charAt(0).toUpperCase() + category.slice(1);
+        }
+
+        /**
+         * Anything the profile does not declare falls to the end, in the order it
+         * was met - sort is stable, so undeclared keys keep their relative order.
+         */
+        orderCategories(keys) {
+            const declared = Object.keys(this.appProfile?.ui?.categories || {});
+            const rank = k => { const i = declared.indexOf(k); return i < 0 ? Number.MAX_SAFE_INTEGER : i; };
+            return keys.slice().sort((a, b) => rank(a) - rank(b));
         }
 
         createActionButton(text, disabled = false, title = '') {
@@ -518,13 +693,24 @@
         }
 
         /**
+         * The card's whole purpose is the per-size table, which only exists
+         * when the app declares drillMultiTool. EasyShape does not, so it
+         * rendered a permanently disabled Configure button whose tooltip
+         * named a checkbox that is not in its profile. Keyed on the
+         * parameter, not the app: declaring it is all Batch C has to do.
+         */
+        supportsDrillTooling() {
+            return !!this.parameterManager?.parameterDefinitions?.drillMultiTool;
+        }
+
+        /**
          * Drill tooling card. The mode itself is the drillMultiTool checkbox in
          * the form above - this card only reports what that choice means and
          * opens the table. The Configure button is present in both modes so the
          * surface never moves; it is inert in single-tool mode because the table
          * is not read there.
          */
-        createDrillToolingCard(operation, settings) {
+        createDrillToolingCard(operation, settings, stage) {
             const info = DrillHandler.describeTable(operation, settings);
             const multiTool = 'perSize' === info.mode;
 
@@ -580,9 +766,15 @@
                     ? 'Assign a tool, a T number and a strategy per hole size.'
                     : 'No hole sizes detected yet - generate once to build the table.')
                 : 'Enable Multi-Tool Drilling to assign a tool per hole size.';
+            // The card renders at geometry AND strategy, and the modal shows
+            // only that stage's columns: the cutter belongs to geometry because
+            // changing it stales the operation, feeds and T numbers to strategy
+            // because they resolve at translation. Same split GEOMETRY_FIELDS
+            // already enforces on the write path.
             button.addEventListener('click', () => {
                 this.ui.ctrl.modalManager?.showModal('drillTooling', {
                     operationId: operation.id,
+                    stage: stage || 'geometry',
                     // Full re-render: a modal edit can change the field set and
                     // whether Generate is allowed, so swapping the card alone
                     // would leave two of those three stale.
@@ -639,79 +831,56 @@
         /**
          * Stage-based action dispatch. Subclass hooks: getSpinnerLabel,
          * onGenerationSuccess, onGenerationFailure, onPreviewSuccess,
-         * onStageTransition, onExportStage.
+         * onToolpathSuccess, onStageTransition, onExportStage.
          */
         async handleAction() {
             this.saveCurrentState();
-
             const opId = this.currentOperationId;
             const stage = this.currentStage;
-            const pipelineType = this.getPipelineType();
-
-            // Resolve the operation (apps store it differently)
             const operation = this.resolveCurrentOperation();
             if (!operation) return;
 
             const opType = this.resolveOperationType(operation);
-            const transitionDelay = D.ui.timing.uiTransitionDelay;
+            const machineClass = this.getMachineClass(opType);
+            const yieldToRender = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
 
-            const yieldToRender = () => new Promise(resolve => {
-                requestAnimationFrame(() => requestAnimationFrame(resolve));
-            });
+            const advance = () => {
+                const next = this.parameterManager.getNextStage(stage, opType, machineClass);
+                if (!next) return;
+                setTimeout(() => { this.switchStage(next); this.onStageTransition(next); }, D.ui.timing.uiTransitionDelay);
+            };
 
-            if (stage === 'geometry') {
-                try {
-                    const result = await this.runGeneration(opId);
-                    this.ui.setStatus(result.message, result.status);
-
-                    if (result.success) {
-                        await this.onGenerationSuccess(opId, operation);
-                        const nextStage = this.parameterManager.getNextStage(stage, pipelineType, opType);
-                        if (nextStage) {
-                            setTimeout(() => {
-                                this.switchStage(nextStage);
-                                this.onStageTransition(nextStage);
-                            }, transitionDelay);
-                        }
-                    } else {
-                        this.onGenerationFailure(opId, operation, stage);
-                    }
-                } catch (e) {
-                    console.error(`[${this.constructor.name}] Generation failed:`, e);
-                    this.ui.setStatus('Failed: ' + e.message, 'error');
-                }
-                this.returnFocusToTree();
-                return;
-            }
-
-            if (stage === 'strategy') {
-                this.ui.showCanvasSpinner?.(this.getSpinnerLabel?.('strategy', opType) || 'Generating preview...');
-                await yieldToRender();
-
-                try {
-                    const result = await this.runPreview(opId);
-                    this.ui.setStatus(result.message, result.status);
-
-                    if (result.success) {
-                        await this.onPreviewSuccess(opId, operation);
-                        setTimeout(() => {
-                            this.switchStage('machine');
-                            this.onStageTransition('machine');
-                        }, transitionDelay);
-                    }
-                } catch (e) {
-                    console.error(`[${this.constructor.name}] Preview failed:`, e);
-                    this.ui.setStatus('Preview failed: ' + e.message, 'error');
-                } finally {
-                    this.ui.hideCanvasSpinner?.();
-                }
-                this.returnFocusToTree();
-                return;
-            }
-
-            if (stage === 'machine' || stage === 'export_summary') {
+            // Every chain terminates in the job modal. Per-operation G-code was a
+            // second producer for the same file with none of the modal's ordering,
+            // tool-change or split-drill context.
+            if ('output' === stage) {
                 this.onExportStage(opId, operation);
+                return;
             }
+
+            const ACTIONS = {
+                geometry: { run: () => this.runGeneration(opId), after: id => this.onGenerationSuccess(id, operation), spinner: null },
+                strategy: { run: () => this.runPreview(opId), after: id => this.onPreviewSuccess(id, operation), spinner: 'Generating preview...' },
+                machine: { run: () => this.runToolpaths(opId), after: id => this.onToolpathSuccess(id, operation), spinner: 'Calculating toolpaths...' }
+            };
+
+            const action = ACTIONS[stage];
+            if (!action) return;
+
+            const spinner = this.getSpinnerLabel?.(stage, opType) || action.spinner;
+            if (spinner) { this.ui.showCanvasSpinner?.(spinner); await yieldToRender(); }
+            try {
+                const result = await action.run();
+                this.ui.setStatus(result.message, result.status);
+                if (result.success) { await action.after(opId); advance(); }
+                else if ('geometry' === stage) this.onGenerationFailure(opId, operation, stage);
+            } catch (e) {
+                console.error(`[${this.constructor.name}] ${stage} failed:`, e);
+                this.ui.setStatus(`${stage} failed: ${e.message}`, 'error');
+            } finally {
+                if (spinner) this.ui.hideCanvasSpinner?.();
+            }
+            this.returnFocusToTree();
         }
 
         // Hooks for subclass override
@@ -734,10 +903,13 @@
         /** Called after successful preview. Update tree, renderer, etc. */
         async onPreviewSuccess(opId, operation) {}
 
-        /** Called when stage transitions (e.g., emit 'stageChanged'). */
+        /** Called when stage transitions */
         onStageTransition(newStage) {}
 
-        /** Called at machine/export_summary stage. Open export modal. */
+        /** Toolpaths just landed. Apps refresh their tree and the 3D view. */
+        async onToolpathSuccess(opId, operation) {}
+
+        /** Opens the job export modal. */
         onExportStage(opId, operation) {}
 
         // ═══════════════════════════════════════════════════════════════

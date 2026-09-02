@@ -17,24 +17,15 @@
     /**
      * Lightweight motion command structure
      */
-    // TODO [COMMAND-STREAM-MEMORY] - MotionCommand is one heap object per
-    // move (~100+ bytes each with property/hidden-class overhead). 2D
-    // operations emit thousands; a relief finishing pass emits one per
-    // surface sample - hundreds of thousands of live objects retained
-    // through the entire translate → optimize → machine-process → export
-    // chain, and every stage that clones via { ...cmd } (MachineProcessor
-    // depth stamping, 3D macro passthrough) doubles the transient count.
-    // Long-term fix: a packed command stream as ToolpathPlan's internal
-    // storage - one Uint8Array of opcodes + one Float32Array of coords +
-    // a sparse map for rare params (dwell, peck, canned) - with the plan
-    // exposing a cursor/iterator so consumers keep their for..of shape.
-    // MotionCommand survives as the boxed VIEW for the few writers that
-    // mutate commands in place (tab planner, reversePlan). The refactor
-    // belongs HERE (plan storage), not in the consumers. Do it only after
-    // the 3D pipeline + 3D preview stabilize: it touches the translator,
-    // optimizer, machine processor, exporters, and renderer3d-toolpath
-    // simultaneously, so it needs a quiet window and a good test board.
-    // The packed stream must reserve a lane for the rotary 'a' coordinate
+    // TODO [COMMAND-STREAM-MEMORY] - one heap object per move; a relief
+    // finishing pass holds hundreds of thousands live through translate →
+    // optimize → machine-process → export, and every { ...cmd } clone
+    // doubles the transient count. Fix is packed storage inside
+    // ToolpathPlan (Uint8Array opcodes + Float32Array coords + sparse map
+    // for dwell/peck/canned, plus a lane for the rotary 'a'), with
+    // MotionCommand surviving as the boxed view for the in-place writers
+    // (tab planner, reversePlan). Belongs in plan storage, not the
+    // consumers, and touches five modules at once - do it in a quiet window.
     class MotionCommand {
         constructor(type, coords, params = {}) {
             this.type = type; // 'RAPID', 'LINEAR', 'ARC_CW', 'ARC_CCW', 'PLUNGE', 'RETRACT', 'DWELL'

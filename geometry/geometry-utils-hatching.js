@@ -304,7 +304,7 @@
             // Calculate segment count: proportional to sweep, with minimum for accuracy.
             // Uses getOptimalSegments for a full circle, then scales by sweep proportion.
             let segCount;
-            const fullCircleSegs = GeometryUtils.getOptimalSegments(arc.radius, 'arc');
+            const fullCircleSegs = GeometryTessellation.getOptimalSegments(arc.radius, 'arc');
             const proportion = Math.abs(sweepAngle) / (2 * Math.PI);
             segCount = Math.max(4, Math.ceil(fullCircleSegs * proportion));
 

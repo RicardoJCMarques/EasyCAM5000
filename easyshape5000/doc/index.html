@@ -13,7 +13,7 @@
         SPDX-License-Identifier: AGPL-3.0-or-later
     -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>EasyShape5000 | Documentation</title>
+    <title>EasyShape5000 Doc - CNC CAM Guides and Reference</title>
 
     <meta name="description" content="EasyShape5000 documentation: CNC router CAM from SVG and STL. Profile, pocket, drill, engrave, V-carve, 3D relief and 4th-axis rotary operations.">
     <meta name="author" content="Eltryus">
@@ -24,12 +24,12 @@
 
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://cam.eltryus.design/easyshape5000/doc/">
-    <meta property="og:title" content="EasyShape5000 | Documentation">
+    <meta property="og:title" content="EasyShape5000 Doc - CNC CAM Guides and Reference">
     <meta property="og:description" content="EasyShape5000 documentation: CNC router CAM from SVG and STL. Profile, pocket, drill, engrave, V-carve, 3D relief and 4th-axis rotary operations.">
     <meta property="og:image" content="https://cam.eltryus.design/images/social-shape.jpg">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
-    <meta property="og:site_name" content="Eltryus EasyCAM5000 Suite">
+    <meta property="og:site_name" content="EasyCAM5000">
     <meta property="og:locale" content="en_US">
 
     <link rel="icon" type="image/png" href="../../images/favicon/favicon-96x96.png" sizes="96x96">
@@ -48,26 +48,73 @@
         "@context": "https://schema.org",
         "@graph": [
             {
+                "@type": "Organization",
+                "@id": "https://www.eltryus.design/#organization",
+                "name": "Eltryus",
+                "url": "https://www.eltryus.design/"
+            },
+            {
+                "@type": "WebSite",
+                "@id": "https://cam.eltryus.design/#website",
+                "name": "EasyCAM5000",
+                "alternateName": "Eltryus EasyCAM5000 Suite",
+                "url": "https://cam.eltryus.design/",
+                "inLanguage": "en",
+                "publisher": { "@id": "https://www.eltryus.design/#organization" }
+            },
+            {
+                "@type": "WebApplication",
+                "@id": "https://cam.eltryus.design/easyshape5000/#app",
+                "name": "EasyShape5000",
+                "url": "https://cam.eltryus.design/easyshape5000/"
+            },
+            {
                 "@type": "CollectionPage",
                 "@id": "https://cam.eltryus.design/easyshape5000/doc/#docs",
                 "name": "EasyShape5000 Documentation",
                 "headline": "EasyShape5000 Documentation",
-                "description": "Guides and reference for EasyShape5000 CNC routing workflows: operations, parameters, and workflow.",
+                "description": "Guides and reference for EasyShape5000 CNC routing workflows: profile cuts, pocket clearing, drilling, engraving, V-carving, 3D relief, and 4th-axis rotary.",
                 "url": "https://cam.eltryus.design/easyshape5000/doc/",
                 "inLanguage": "en",
                 "isPartOf": { "@id": "https://cam.eltryus.design/#website" },
                 "about": { "@id": "https://cam.eltryus.design/easyshape5000/#app" },
+                "breadcrumb": { "@id": "https://cam.eltryus.design/easyshape5000/doc/#breadcrumb" },
+                "primaryImageOfPage": "https://cam.eltryus.design/images/social-shape.jpg",
                 "author": { "@id": "https://www.eltryus.design/#organization" },
                 "publisher": { "@id": "https://www.eltryus.design/#organization" },
                 "datePublished": "2026-06-17",
-                "dateModified": "2026-08-24"
+                "dateModified": "2026-08-24",
+                "hasPart": [
+                    { "@id": "https://cam.eltryus.design/easyshape5000/doc/guide#article" },
+                    { "@id": "https://cam.eltryus.design/easyshape5000/doc/operations#article" },
+                    { "@id": "https://cam.eltryus.design/easyshape5000/doc/parameters#article" }
+                ]
+            },
+            {
+                "@type": "TechArticle",
+                "@id": "https://cam.eltryus.design/easyshape5000/doc/guide#article",
+                "headline": "EasyShape5000 Routing Workflow Guide",
+                "url": "https://cam.eltryus.design/easyshape5000/doc/guide"
+            },
+            {
+                "@type": "TechArticle",
+                "@id": "https://cam.eltryus.design/easyshape5000/doc/operations#article",
+                "headline": "EasyShape5000 Operation Guide",
+                "url": "https://cam.eltryus.design/easyshape5000/doc/operations"
+            },
+            {
+                "@type": "TechArticle",
+                "@id": "https://cam.eltryus.design/easyshape5000/doc/parameters#article",
+                "headline": "EasyShape5000 Parameter Guide",
+                "url": "https://cam.eltryus.design/easyshape5000/doc/parameters"
             },
             {
                 "@type": "BreadcrumbList",
+                "@id": "https://cam.eltryus.design/easyshape5000/doc/#breadcrumb",
                 "itemListElement": [
-                    { "@type": "ListItem", "position": 1, "name": "Eltryus EasyCAM5000 Suite", "item": "https://cam.eltryus.design/" },
+                    { "@type": "ListItem", "position": 1, "name": "EasyCAM5000", "item": "https://cam.eltryus.design/" },
                     { "@type": "ListItem", "position": 2, "name": "EasyShape5000", "item": "https://cam.eltryus.design/easyshape5000/" },
-                    { "@type": "ListItem", "position": 3, "name": "Documentation", "item": "https://cam.eltryus.design/easyshape5000/doc/" }
+                    { "@type": "ListItem", "position": 3, "name": "Docs", "item": "https://cam.eltryus.design/easyshape5000/doc/" }
                 ]
             }
         ]
@@ -78,22 +125,27 @@
     <a href="#doc-content" class="skip-link">Skip to Main Content</a>
 
     <header class="doc-header">
-        <div class="doc-brand"><a href="/" aria-label="Eltryus CAM Suite Homepage">EasyShape5000</a></div>
+        <div class="doc-brand"><a href="/" aria-label="EasyCAM5000 Homepage">EasyCAM5000</a></div>
+
+        <nav class="doc-breadcrumb" aria-label="Breadcrumb">
+            <ol>
+                <li><a href="/easyshape5000/" draggable="false">EasyShape5000</a></li>
+                <li><span aria-current="page">Docs</span></li>
+            </ol>
+        </nav>
+
         <button class="doc-menu-toggle" aria-label="Toggle Navigation Menu" aria-expanded="false">
-            <svg class="icon-menu" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
-            <svg class="icon-close" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            <svg class="icon-menu cam-icon" width="24" height="24" aria-hidden="true"><use href="#icon-menu"></use></svg>
+            <svg class="icon-close cam-icon" width="24" height="24" aria-hidden="true"><use href="#icon-close"></use></svg>
         </button>
+
         <nav class="doc-nav" aria-label="Main Navigation">
-            <a href="/" draggable="false">← Home</a>
-            <a href="/easyshape5000/" draggable="false">Launch App</a>
-            <span class="separator" aria-hidden="true"></span>
-            <a href="./" class="active" draggable="false" aria-current="page">Docs</a>
             <a href="guide" draggable="false">Workflow Guide</a>
-            <a href="operations" draggable="false" aria-label="Operation Reference">Operations</a>
-            <a href="parameters" draggable="false" aria-label="Parameter Reference">Parameters</a>
-            <a href="/easytrace5000/doc/accessibility" draggable="false">Accessibility</a>
+            <a href="operations" draggable="false">Operations</a>
+            <a href="parameters" draggable="false">Parameters</a>
             <span class="separator" aria-hidden="true"></span>
-            <a href="https://github.com/RicardoJCMarques/EasyCAM5000" target="_blank" draggable="false">GitHub</a>
+            <a href="/easyshape5000/" draggable="false">Launch App</a>
+            <a href="https://github.com/RicardoJCMarques/EasyCAM5000" target="_blank" draggable="false" aria-label="GitHub Repository (opens in a new tab)">GitHub</a>
 
             <button id="theme-toggle" class="btn btn--icon" title="Toggle Theme" aria-label="Toggle Theme">
                 <svg class="cam-icon" width="16" height="16"><use href="#icon-sun"></use></svg>
@@ -106,10 +158,10 @@
 
             <section class="hero">
                 <h1>EasyShape5000 Documentation</h1>
-                <p class="tagline">Browser-based CAM for CNC routers - 2.5D cutting, V-carving, relief and 4th-axis rotary, from SVG and STL</p>
+                <p class="tagline">2.5D cutting, V-carving, flat 3d relief and 4th-axis rotary, from SVG and STL</p>
 
                 <figure>
-                    <img src="../../images/EasyShape5000_workspace.webp" width="1152" height="648" alt="EasyTrace5000 Workspace">
+                    <img src="../../images/EasyShape5000_workspace.webp" width="1152" height="648" alt="EasyShape5000 workspace with loaded SVG geometry">
                     <figcaption>The EasyShape5000 workspace with loaded SVG geometry</figcaption>
                 </figure>
 
@@ -225,7 +277,7 @@
                         <h3>3D Preview</h3>
                         <ul class="key-list">
                             <li><kbd>F2</kbd> Toggle 2D / 3D view</li>
-                            <li><kbd>W</kbd> Toggle wireframe</li>
+                            <li><kbd>W</kbd> Toggle wireframe (Not fully implemented)</li>
                             <li>Drag to orbit, wheel to dolly</li>
                         </ul>
                     </div>
@@ -286,26 +338,50 @@
 
             <section id="sponsors" class="sponsors-section">
                 <h2>Project Sponsors</h2>
-                <p>EasyShape5000 is open-source software (AGPLv3) supported by community sponsors.</p>
-                <div class="sponsor-grid">
-                    <a href="/#support" class="sponsor-slot sponsor-slot--empty" title="Become a Sponsor" draggable="false"><div class="slot-content" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>Your Logo</span></div></a>
-                    <a href="/#support" class="sponsor-slot sponsor-slot--empty" title="Become a Sponsor" draggable="false"><div class="slot-content" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>Your Logo</span></div></a>
-                    <a href="/#support" class="sponsor-slot sponsor-slot--empty" title="Become a Sponsor" draggable="false"><div class="slot-content" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>Your Logo</span></div></a>
-                </div>
-                <p><a href="/#support" draggable="false">Become a sponsor →</a></p>
-            </section>
-        </main>
+                <p>EasyShape5000 is open-source software supported by community sponsors.</p>
 
+                <div class="sponsor-grid">
+                    <a href="/#support" class="sponsor-slot sponsor-slot--empty" title="Become a Sponsor" draggable="false" aria-label="Available Sponsor Slot 1. Click to open support and sponsorship options.">
+                        <div class="slot-content" aria-hidden="true">
+                            <svg class="cam-icon" width="18" height="18" aria-hidden="true"><use href="#icon-add"></use></svg>
+                            <span>Your Logo</span>
+                        </div>
+                    </a>
+
+                    <a href="/#support" class="sponsor-slot sponsor-slot--empty" title="Become a Sponsor" draggable="false" aria-label="Available Sponsor Slot 2. Click to open support and sponsorship options.">
+                        <div class="slot-content" aria-hidden="true">
+                            <svg class="cam-icon" width="18" height="18" aria-hidden="true"><use href="#icon-add"></use></svg>
+                            <span>Your Logo</span>
+                        </div>
+                    </a>
+
+                    <a href="/#support" class="sponsor-slot sponsor-slot--empty" title="Become a Sponsor" draggable="false" aria-label="Available Sponsor Slot 3. Click to open support and sponsorship options.">
+                        <div class="slot-content" aria-hidden="true">
+                            <svg class="cam-icon" width="18" height="18" aria-hidden="true"><use href="#icon-add"></use></svg>
+                            <span>Your Logo</span>
+                        </div>
+                    </a>
+                </div>
+
+                <p><a href="/#support" draggable="false" aria-label="Learn more about becoming a sponsor">Become a sponsor →</a></p>
+                <p class="sponsor-note">Your logo displayed here and in documentation</p>
+            </section>
+
+        </main>
+        <!-- Footer -->
         <footer class="doc-footer" aria-label="Footer">
             <p>
                 <a href="#doc-content" draggable="false">Back to Top</a> |
                 <a href="https://github.com/RicardoJCMarques/EasyCAM5000" target="_blank" draggable="false">GitHub</a> |
                 <a href="/#support" draggable="false">Support Development</a> |
-                <a href="../../LICENSE" target="_blank" draggable="false">AGPLv3 Licensed</a>
+                <a href="../../LICENSE" target="_blank" draggable="false">AGPLv3 Licensed</a> |
+                <a href="https://www.eltryus.design/" draggable="false" aria-label="Eltryus, developer of EasyCAM5000">by ELTRYUS</a>
             </p>
         </footer>
+
     </div>
 
+    <!-- Scripts -->
     <script defer src="../../themes/theme-loader.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {

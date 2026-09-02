@@ -29,7 +29,6 @@
             this.renderer3D = null;
             this._renderMode = '2d';
             this._modeSwitching = false;
-            this._plansQueued = false;
         }
 
         // ════════════════════════════════════════════════════════════════
@@ -65,17 +64,8 @@
             this.core.registerParser('.svg', new SVGParser());
             this.core.registerParser('.stl', new STLParser());
 
-            // Handlers
-            this.core.registerHandler('profile', new ShapeProfileHandler(this.core));
-            this.core.registerHandler('pocket', new ShapePocketHandler(this.core));
-            this.core.registerHandler('drill', new ShapeDrillHandler(this.core));
-            this.core.registerHandler('vcarve', new ShapeVCarveHandler(this.core));
-            this.core.registerHandler('relief', new ShapeReliefHandler(this.core));
-            this.core.registerHandler('rotary', new ShapeRotaryHandler(this.core));
-            this.core.registerHandler('rotary-indexed', new ShapeIndexedHandler(this.core));
-            this.core.registerHandler('engrave', new ShapeEngraveHandler(this.core));
-            if (typeof ShapePatternHandler !== 'undefined')
-                this.core.registerHandler('pattern', new ShapePatternHandler(this.core));
+            // Handlers (profile-declared, incl. the rotary-indexed alias)
+            super.registerHandlers();
 
             // Spin the field worker pool up during idle so the first
             // relief/rotary/vcarve generation doesn't pay importScripts
@@ -106,14 +96,15 @@
             sm.register('Backspace', () => {
                 if (this.selection.size() > 0) this.deleteShapes(Array.from(this.selection.toSet()));
             });
-            sm.register('i', () => document.getElementById('toolbar-import-svg')?.click());
-
-            sm.register('F2', () => this.toggle3DMode());
+            sm.register('i', () => this.importGeometry());
         }
 
         onBindEvents() {
             this.selection.addChangeListener(() => this.ui.onSelectionChanged());
-            this.history.addListener(() => this.ui.updateHistoryButtons());
+
+            this.history.addListener(() => {
+                this.ui.updateHistoryButtons();
+            });
             this.setupToolbar();
             this.setupViewportBarDismiss();
             this.setupWelcomeFlow();
@@ -131,9 +122,26 @@
          * selects the workspace, not a pipeline.
          */
         onPipelineSelected(pipelineId) {
-            this.setPipeline('cnc');
-            if (pipelineId === '3d') queueMicrotask(() => this.toggle3DMode());
+            this.setMachineClass('router');
+            if (pipelineId === '3d') {
+                this.setWorkspaceDimensions(null);
+                queueMicrotask(() => this.toggle3DMode());
+            } else {
+                this.setWorkspaceDimensions(['2d', '2.5d']);
+            }
             return 'quickstart';
+        }
+
+        /**
+         * A mesh-only scene has no 2D drawing worth switching to.
+         */
+        has2DContent() {
+            let any = false;
+            for (const shape of this.scene.allShapes()) {
+                any = true;
+                if (!shape.reliefMesh?.triangles?.length) return true;
+            }
+            return !any; // empty scene: leave the toggle free
         }
 
         /** EasyShape wires its own single drop target in setupWelcomeFlow. */
@@ -146,86 +154,33 @@
         }
 
         // ════════════════════════════════════════════════════════════════
-        // Render Mode (2D canvas ↔ 3D preview)
+        // 3D Render Mode
         // ════════════════════════════════════════════════════════════════
 
-        get renderMode() { return this._renderMode; }
-
-        async enter3DMode() {
-            const container = document.getElementById('viewport-3d');
-            const shell = document.querySelector('.canvas-container');
-            if (!container || !shell) {
-                this.ui.setStatus('3D viewport container missing from page', 'error');
-                return;
-            }
-
-            shell.dataset.renderMode = '3d';
-            container.hidden = false;
-            this._renderMode = '3d';
-
-            try {
-                const view = await this.open3DPreview(container); // mount + input stack only
-                this.refresh3D(); // stock + relief mesh + 2D geometry mirror
-                view.fitToContent(); // frame ONCE, on entry only
-                container.focus();
-
-                // Update button active class and switch icon to 2D
-                const btn3D = document.getElementById('btn-toggle-3d');
-                if (btn3D) {
-                    btn3D.classList.add('active');
-                    btn3D.querySelector('use')?.setAttribute('href', '#icon-view-2d');
-                }
-
-                this.ui.setStatus('3D preview active. F2 returns to 2D.', 'info');
-            } catch (err) {
-                console.error('3D preview failed:', err);
-                this.ui.setStatus('3D preview failed: ' + err.message, 'error');
-                this.exit3DMode();
-            }
+        get3DStockBox(w2m) {
+            const stock = this.core.stock;
+            if (!(stock?.width > 0 && stock?.height > 0)) return null;
+            const isBedZero = stock.zeroReference && "material" !== stock.zeroReference;
+            const topZ = (isBedZero && stock.thickness) || 0;
+            const machineMatrix = this.core.getTransforms().machineMatrix;
+            return {
+                width: stock.width,
+                depth: stock.height,
+                thickness: stock.thickness || 0,
+                topZ: topZ,
+                centerX: stock.width / 2,
+                centerY: stock.height / 2,
+                matrix: machineMatrix
+            };
         }
 
         /**
-         * Re-derives everything the 3D view mirrors from app state: stock
-         * box (size, Z-zero reference, workspace origin), the model, and
-         * every visible 2D layer. Called from rebuildLayers() - the funnel
-         * every 2D mutation already flows through - so the 3D view cannot
-         * go stale. Deliberately never touches the camera.
+         * EasyShape's model layer: the relief/rotary mesh and whichever
+         * blank the operation implies. The stock slab, the layer mirror and
+         * the plan push are the base class's.
          */
-        refresh3D() {
-            if (this._renderMode !== '3d' || !this.renderer3D) return;
-            const view = this.renderer3D;
-
-            // World → machine, taken from the SAME matrix GeometryTranslator
-            // stamps into every plan. Scene.worldToWorkspace is the INVERSE
-            // map (canvas pixel → file coordinate) and agrees with it only
-            // while the workspace matrix is its own inverse, so a workspace
-            // rotation drew the stock, the model and the 2D mirror at -angle
-            // while the plans sat at +angle. Hoisted: w2m runs per vertex.
-            const machineMatrix = this.core.getTransforms().machineMatrix;
-            const w2m = (p) => TransformMath.applyToPoint(machineMatrix, p);
-
-            // ── Stock: re-read settings on every refresh ──
-            const stock = this.core.stock;
-            let topZ = 0;
-            if (stock?.width > 0 && stock?.height > 0) {
-                const isBedZero = stock.zeroReference && stock.zeroReference !== 'material';
-                topZ = isBedZero ? (stock.thickness || 0) : 0;
-
-                const corners = [
-                    w2m({ x: 0, y: 0 }),
-                    w2m({ x: stock.width, y: 0 }),
-                    w2m({ x: stock.width, y: stock.height }),
-                    w2m({ x: 0, y: stock.height })
-                ];
-                view.setStock({
-                    minX: Math.min(...corners.map(c => c.x)),
-                    minY: Math.min(...corners.map(c => c.y)),
-                    maxX: Math.max(...corners.map(c => c.x)),
-                    maxY: Math.max(...corners.map(c => c.y)),
-                    thickness: stock.thickness || 0,
-                    topZ
-                });
-            }
+        refresh3DModel(ctx) {
+            const { view, w2m, machineMatrix, topZ } = ctx;
 
             // ── Model + frame: ONE operation owns both ──
             // Resolving the mesh by scanning the SCENE while the blank and the
@@ -257,23 +212,28 @@
                 // renderer. The metadata axis line is published in world
                 // coordinates, so XY offsets are 0.
                 orient = meta.rotaryFrame?.orient || null;
-                // Grounded rotary frame: blank rests ON the grid, axis line at
-                // Z = refRadius. Stock-top has no meaning here.
-                const rotaryAxisZ = meta.refRadius;
-                offsetZ = rotaryAxisZ - meta.axisCenter.c;
 
-                const len = meta.gridCols * meta.cellSize;
+                // MACHINE FRAME. The rotary centreline is the line cross = 0,
+                // Z = 0 - that is what the A/B word turns about, and both export
+                // paths already put it there (convertDevelopedToRotary adds
+                // refRadius, insertIndexMoves adds apothem). The preview drew the
+                // BLANK SURFACE at Z0 instead, which is why the part hung a
+                // radius below the plane on screen and sat on it in the G-code.
+                // There is no axis height to publish any more: it is 0.
+                const shift = meta.axialShift || 0;
+                const crossOff = -meta.axisCenter.b;
+                if ('y' === meta.rotaryAxis) { offsetX = crossOff; offsetY = shift; }
+                else { offsetX = shift; offsetY = crossOff; }
+                offsetZ = -meta.axisCenter.c;
+
+                // Cell CENTRES: originX is column 0's centre, so the grid spans
+                // (cols - 1) cells, not cols.
+                const len = (meta.gridCols - 1) * meta.cellSize;
                 const along = (meta.originX ?? 0) + len / 2;
                 view.stock.setRotaryBlank({
-                    refRadius: meta.refRadius,
-                    length: len,
-                    axis: meta.rotaryAxis,
-                    center: meta.rotaryAxis === 'y'
-                        ? { x: meta.axisCenter.b, y: along, z: rotaryAxisZ }
-                        : { x: along, y: meta.axisCenter.b, z: rotaryAxisZ }
+                    refRadius: meta.refRadius, length: len, axis: meta.rotaryAxis,
+                    center: 'y' === meta.rotaryAxis ? { x: 0, y: along, z: 0 } : { x: along, y: 0, z: 0 }
                 });
-                view.stock.removeStock(); // the rectangular slab is meaningless here
-
             } else if (meshOp && meta.indexedFrame) {
                 // [INDEXED] Match the frame the toolpaths are wrapped in
                 // (walkPlans + GeometryLayer3D): rotation axis line at
@@ -283,14 +243,10 @@
                 // one at 0 (slicing preserves it).
                 const f = meta.indexedFrame;
                 orient = f.orient || null;
-                if (f.machineAxis === 'y') {        // B about Y: axial = Y
-                    offsetX = -f.axisCenter.b;
-                    offsetY = 0;
-                } else {                            // A about X: axial = X
-                    offsetX = 0;
-                    offsetY = -f.axisCenter.b;
-                }
-                offsetZ = (topZ - f.apothem) - f.axisCenter.c;
+                const ixShift = f.axialShift || 0;
+                if ('y' === f.machineAxis) { offsetX = -f.axisCenter.b; offsetY = ixShift; }
+                else { offsetX = ixShift; offsetY = -f.axisCenter.b; }
+                offsetZ = -f.axisCenter.c;
 
                 // Indexed blank: an N-gon prism about the axis, drawn from the
                 // SAME clearRadius insertIndexMoves lifts its rotation moves
@@ -298,10 +254,8 @@
                 // visible before the cut. All inputs come from indexedFrame -
                 // one object, so a half-populated frame draws nothing instead
                 // of drawing a wrong prism.
-                const ixLen = (f.gridCols || 0) * (f.cellSize || 0);
+                const ixLen = Math.max(0, (f.gridCols || 1) - 1) * (f.cellSize || 0);
                 const ixAlong = (f.originX ?? 0) + ixLen / 2;
-                const ixAxisZ = topZ - f.apothem;
-                view.stock.removeStock();
                 view.stock.setIndexedBlank({
                     clearRadius: f.clearRadius,
                     length: ixLen,
@@ -314,11 +268,10 @@
                     // is translated by -axisCenter.b to match. Placing the
                     // prism at the world axis instead put the blank beside its
                     // own toolpaths on every model not centred on the axis.
-                    center: f.machineAxis === 'y'
-                        ? { x: 0, y: ixAlong, z: ixAxisZ }
-                        : { x: ixAlong, y: 0, z: ixAxisZ }
+                    center: 'y' === f.machineAxis
+                        ? { x: 0, y: ixAlong, z: 0 }
+                        : { x: ixAlong, y: 0, z: 0 }
                 });
-
             } else if (meshOp) {
                 // Flat relief. sourceMesh already carries the shape's world
                 // TRS (syncPrimitives baked it), so only the machine map is
@@ -368,27 +321,7 @@
                 view.stock.removeTriangleMesh();
             }
 
-            // 2D layer mirror: the exact snapshot the canvas paints
-            const defs = [];
-            for (const [name, layer] of this.ui.renderer.layers) {
-                if (layer.visible === false || layer.isStock) continue;
-                if (!layer.primitives || layer.primitives.length === 0) continue;
-                defs.push({
-                    name,
-                    primitives: layer.primitives,
-                    transform: layer.transform || null,
-                    zIndex: layer.zIndex || 0,
-                    color: this.ui.resolveLayerColor(layer)
-                });
-            }
-
-            view.geometry.setLayers(defs, {
-                baseZ: topZ,
-                worldToMachine: w2m,
-                // Grounded frame; undefined = legacy. Same operation as the
-                // mesh above, so the strip and the blank cannot disagree.
-                rotaryAxisZ: meta?.developedSpace ? meta.refRadius : undefined
-            });
+            return meta;
         }
 
         /**
@@ -405,42 +338,6 @@
             if (!nodeId || !this.scene.findNode(nodeId)) return;
             this.scene.selection.replace([nodeId]);
             this.ui.renderAll();
-        }
-
-        exit3DMode() {
-            this.renderer3D?.simulator?.stop();
-            const container = document.getElementById('viewport-3d');
-            const shell = document.querySelector('.canvas-container');
-            if (container) container.hidden = true;
-            if (shell) delete shell.dataset.renderMode;
-            this._renderMode = '2d';
-
-            // Remove active class and reset icon back to 3D
-            const btn3D = document.getElementById('btn-toggle-3d');
-            if (btn3D) {
-                btn3D.classList.remove('active');
-                btn3D.querySelector('use')?.setAttribute('href', '#icon-view-3d');
-            }
-
-            this.ui.renderAll();
-            document.getElementById('preview-canvas')?.focus();
-        }
-
-        /**
-         * Guarded because enter3DMode awaits a dynamic import: a second
-         * toggle mid-load would exit while the first entry is still in
-         * flight, leaving refresh3D skipped and the status line claiming
-         * 3D over a 2D canvas.
-         */
-        async toggle3DMode() {
-            if (this._modeSwitching) return;
-            this._modeSwitching = true;
-            try {
-                if (this.renderMode === '3d') this.exit3DMode();
-                else await this.enter3DMode();
-            } finally {
-                this._modeSwitching = false;
-            }
         }
 
         // ════════════════════════════════════════════════════════════════
@@ -667,30 +564,6 @@
             this.history.executeAndRecord(new SetNodeFlagCommand(entries, flag));
         }
 
-        assignOperationToSelection(opType) {
-            const entries = [];
-            for (const id of this.getActionableIds()) {
-                const shape = this.scene.findShape(id);
-                if (!shape) continue;
-                entries.push({ shapeId: id, prevOp: shape.operation ? { ...shape.operation } : null, newOp: { type: opType, params: {} } });
-            }
-            if (entries.length === 0) return;
-            this.history.executeAndRecord(new AssignOperationCommand(entries, 'Assign'));
-            this.ui.setStatus(`Assigned ${opType} to ${entries.length} shape(s)`);
-        }
-
-        clearOperationFromSelection() {
-            const entries = [];
-            for (const id of this.getActionableIds()) {
-                const shape = this.scene.findShape(id);
-                if (!shape?.operation) continue;
-                entries.push({ shapeId: id, prevOp: { ...shape.operation }, newOp: null });
-            }
-            if (entries.length === 0) return;
-            this.history.executeAndRecord(new AssignOperationCommand(entries, 'Remove'));
-            this.ui.setStatus(`Removed operation from ${entries.length} shape(s)`);
-        }
-
         groupSelection() {
             const ids = this.getActionableIds();
             if (ids.length < 2) { this.ui.setStatus('Select 2 or more items to group'); return; }
@@ -734,20 +607,20 @@
         }
 
         // REVIEW - Currently unused, Could be worth having a single reset button in the tool bar menu that reloads the original geometry without any transforms? For users that want to reset without tracking files to add again?
-        resetShapeTransform() {
-            const ids = this.getTopLevelActionableIds();
-            if (ids.length === 0) return;
-            const commands = [];
-            for (const id of ids) {
-                const node = this.scene.findNode(id);
-                if (!node) continue;
-                const t = node.transform;
-                if (t.x === 0 && t.y === 0 && t.rotation === 0 && t.scaleX === 1 && t.scaleY === 1) continue;
-                commands.push(new SetShapeTransformCommand(id, { ...t, rotationCenter: t.rotationCenter ?? null }, { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1, rotationCenter: null }));
-            }
-            if (commands.length === 1) this.history.executeAndRecord(commands[0]);
-            else if (commands.length > 1) this.history.executeAndRecord(new CompositeCommand(commands, 'Reset Transforms'));
-        }
+        // resetShapeTransform() {
+        //     const ids = this.getTopLevelActionableIds();
+        //     if (ids.length === 0) return;
+        //     const commands = [];
+        //     for (const id of ids) {
+        //         const node = this.scene.findNode(id);
+        //         if (!node) continue;
+        //         const t = node.transform;
+        //         if (t.x === 0 && t.y === 0 && t.rotation === 0 && t.scaleX === 1 && t.scaleY === 1) continue;
+        //         commands.push(new SetShapeTransformCommand(id, { ...t, rotationCenter: t.rotationCenter ?? null }, { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1, rotationCenter: null }));
+        //     }
+        //     if (commands.length === 1) this.history.executeAndRecord(commands[0]);
+        //     else if (commands.length > 1) this.history.executeAndRecord(new CompositeCommand(commands, 'Reset Transforms'));
+        // }
 
         // ════════════════════════════════════════════════════════════════
         // Bucket Lifecycle
@@ -785,6 +658,21 @@
             }
         }
 
+        /**
+         * Flag-only mutation: visibility and lock. Repaints the rows and the
+         * canvas and NOTHING else.
+         * Deliberately not afterMutation and never an alias for it: that one runs
+         * cleanupOrphanedBuckets and invalidates every bucket whose shapes are in
+         * the selection, so hiding a shape would stale its offsets and demand a
+         * regenerate. A flag flip moves no geometry, so no artifact can go stale
+         * because of one - that is the whole reason the two methods exist.
+         */
+        afterFlagMutation() {
+            this.ui.navScenePanel?.updateFlagStates();
+            this.ui.navScenePanel?.syncTreeToolbar(this.selection, this.scene);
+            this.ui.rebuildLayers();
+        }
+
         afterMutation() {
             this.cleanupOrphanedBuckets();
 
@@ -809,21 +697,8 @@
                 }
             }
             this.ui.renderAll();
+            this.sync3DToggleAvailability();
             this.ui.syncTransformFromSelection();
-        }
-
-        afterFlagMutation() {
-            this.cleanupOrphanedBuckets();
-            this.ui.navScenePanel.updateFlagStates();
-            this.ui.navScenePanel.syncTreeToolbar(this.selection, this.scene);
-            this.ui.syncTransformFromSelection();
-            this.ui.rebuildLayers();
-            const container = document.getElementById('operation-form-container');
-            const anchorId = this.selection.anchor();
-            const anchor = anchorId ? this.scene.findShape(anchorId) : null;
-            if (container && anchor?.operation && this.ui.shapeOperationPanel) {
-                this.ui.shapeOperationPanel.showOperationProperties(container, anchor);
-            }
         }
 
         ensureBucketParamsLoaded(operations) {
@@ -855,33 +730,18 @@
             this.setupToolbarDropdown('quick-actions-btn', 'quick-actions-menu');
 
             const importBtn = document.getElementById('toolbar-import-svg');
-            const hidden = document.getElementById('file-input-hidden');
-            if (importBtn && hidden) {
-                importBtn.addEventListener('click', () => {
-                    hidden.accept = '.svg,.stl';
-                    hidden.onchange = async (e) => { const f = e.target.files?.[0]; if (f) await this.processFile(f); hidden.value = ''; };
-                    hidden.click();
-                    this.closeDropdown();
-                });
-            }
+            importBtn?.addEventListener('click', () => { this.importGeometry(); this.closeDropdown(); });
 
             const canvas = document.getElementById('preview-canvas');
             const container = canvas?.parentElement;
             if (container) {
                 container.addEventListener('dragover', e => { if (!document.querySelector('.modal.active')) e.preventDefault(); });
-                container.addEventListener('drop', e => {
+                container.addEventListener('drop', async e => {
                     if (document.querySelector('.modal.active')) return;
                     e.preventDefault();
-                    const f = e.dataTransfer.files?.[0];
-                    if (f && /\.(svg|stl)$/i.test(f.name)) this.processFile(f);
-                    else if (f) this.ui.setStatus(`Unsupported file: ${f.name}`, 'warning');
+                    await this.ingestFiles(e.dataTransfer.files);
                 });
             }
-
-            document.getElementById('btn-clear-all')?.addEventListener('click', () => {
-                if (this.scene.shapeCount() === 0) return;
-                this.clearScene(); this.ui.renderAll(); this.ui.setStatus('Scene cleared');
-            });
 
             document.getElementById('toolbar-export-canvas')?.addEventListener('click', async () => {
                 if (!this.ui.canvasExporter) {
@@ -914,6 +774,34 @@
             });
         }
 
+        /**
+         * One import path for the toolbar, the scene-tree button and the empty
+         * state. Drag-and-drop is not discoverable, and the dropdown entry was
+         * the only visible alternative.
+         */
+        importGeometry() {
+            const hidden = document.getElementById('file-input-hidden');
+            if (!hidden) return;
+            hidden.accept = '.svg,.stl';
+            hidden.onchange = async e => { await this.ingestFiles(e.target.files); hidden.value = ''; };
+            hidden.click();
+        }
+
+        /**
+         * Every file, not just the first. Both entry points took files[0] and
+         * discarded the rest with no message - a three-file drop looked like a
+         * parser failure on two of them.
+         */
+        async ingestFiles(fileList) {
+            const files = [...(fileList || [])];
+            if (files.length === 0) return;
+            const accepted = files.filter(f => /\.(svg|stl)$/i.test(f.name));
+            for (const f of files.filter(f => !accepted.includes(f))) {
+                this.ui.setStatus(`Unsupported file: ${f.name}`, 'warning');
+            }
+            for (const f of accepted) await this.processFile(f);
+        }
+
         // ════════════════════════════════════════════════════════════════
         // Modals
         // ════════════════════════════════════════════════════════════════
@@ -925,7 +813,12 @@
                     this.modalManager.closeModal();
                     switch (card.dataset.welcomeAction) {
                         case 'start': this.modalManager.showModal('quickstart'); break;
-                        case 'example': this.loadExample('mesa'); break;
+                        case 'example':
+                            // Route through quickstart so the load has a surface to
+                            // report progress on; the bare call closed the modal and
+                            // left the canvas empty for the length of the fetch.
+                            this.modalManager.showModal('quickstart');
+                            break;
                         case 'reopen': this.ui.setStatus('Project reopen not wired yet.'); break;
                     }
                 });

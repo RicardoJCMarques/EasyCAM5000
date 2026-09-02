@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <!--!
         @file        easytrace5000/doc/parameters.html
-        @description EasyTrace5000 Parameter Reference
+        @description EasyTrace5000 Parameter Guide
         @author      Eltryus - Ricardo Marques
         @copyright   2025-2026 Eltryus - Ricardo Marques
         @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
@@ -13,8 +13,9 @@
         SPDX-License-Identifier: AGPL-3.0-or-later
     -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>EasyTrace5000 | Parameter Reference</title>
-    <meta name="description" content="EEvery EasyTrace5000 parameter with ranges and defaults - tool number, multi-tool drilling, depths, feeds and laser settings, grouped by stage.">
+    <title>EasyTrace5000 Doc - Parameter Guide</title>
+
+    <meta name="description" content="Every EasyTrace5000 parameter with ranges and defaults - tool number, multi-tool drilling, depths, feeds and laser settings, grouped by stage.">
     <meta name="author" content="Eltryus">
     <meta name="robots" content="index, follow">
     <meta name="theme-color" content="#1a1a1a">
@@ -23,12 +24,12 @@
 
     <meta property="og:type" content="article">
     <meta property="og:url" content="https://cam.eltryus.design/easytrace5000/doc/parameters">
-    <meta property="og:title" content="EasyTrace5000 | Parameter Reference">
+    <meta property="og:title" content="EasyTrace5000 Doc - Parameter Guide">
     <meta property="og:description" content="Every EasyTrace5000 parameter with ranges and defaults - tool number, multi-tool drilling, depths, feeds and laser settings, grouped by stage.">
     <meta property="og:image" content="https://cam.eltryus.design/images/social-trace.jpg">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
-    <meta property="og:site_name" content="Eltryus EasyCAM5000 Suite">
+    <meta property="og:site_name" content="EasyCAM5000">
     <meta property="og:locale" content="en_US">
 
     <link rel="icon" type="image/png" href="../../images/favicon/favicon-96x96.png" sizes="96x96">
@@ -47,13 +48,53 @@
         "@context": "https://schema.org",
         "@graph": [
             {
+                "@type": "Organization",
+                "@id": "https://www.eltryus.design/#organization",
+                "name": "Eltryus",
+                "url": "https://www.eltryus.design/"
+            },
+            {
+                "@type": "WebSite",
+                "@id": "https://cam.eltryus.design/#website",
+                "name": "EasyCAM5000",
+                "alternateName": "Eltryus EasyCAM5000 Suite",
+                "url": "https://cam.eltryus.design/",
+                "inLanguage": "en",
+                "publisher": { "@id": "https://www.eltryus.design/#organization" }
+            },
+            {
+                "@type": "WebApplication",
+                "@id": "https://cam.eltryus.design/easytrace5000/#app",
+                "name": "EasyTrace5000",
+                "url": "https://cam.eltryus.design/easytrace5000/"
+            },
+            {
+                "@type": "CollectionPage",
+                "@id": "https://cam.eltryus.design/easytrace5000/doc/#docs",
+                "name": "EasyTrace5000 Documentation",
+                "url": "https://cam.eltryus.design/easytrace5000/doc/"
+            },
+            {
+                "@type": "WebPage",
+                "@id": "https://cam.eltryus.design/easytrace5000/doc/parameters#webpage",
+                "url": "https://cam.eltryus.design/easytrace5000/doc/parameters",
+                "name": "EasyTrace5000 Doc - Parameter Guide",
+                "inLanguage": "en",
+                "isPartOf": { "@id": "https://cam.eltryus.design/#website" },
+                "about": { "@id": "https://cam.eltryus.design/easytrace5000/#app" },
+                "mainEntity": { "@id": "https://cam.eltryus.design/easytrace5000/doc/parameters#article" },
+                "breadcrumb": { "@id": "https://cam.eltryus.design/easytrace5000/doc/parameters#breadcrumb" },
+                "primaryImageOfPage": "https://cam.eltryus.design/images/social-trace.jpg"
+            },
+            {
                 "@type": "TechArticle",
                 "@id": "https://cam.eltryus.design/easytrace5000/doc/parameters#article",
-                "headline": "EasyTrace5000 Parameter Reference",
+                "headline": "EasyTrace5000 Parameter Guide",
                 "description": "Every EasyTrace5000 parameter: ranges, defaults, and what it does, grouped by Geometry, Strategy, Machine, and Laser.",
                 "image": "https://cam.eltryus.design/images/social-trace.jpg",
                 "url": "https://cam.eltryus.design/easytrace5000/doc/parameters",
                 "inLanguage": "en",
+                "mainEntityOfPage": { "@id": "https://cam.eltryus.design/easytrace5000/doc/parameters#webpage" },
                 "isPartOf": { "@id": "https://cam.eltryus.design/easytrace5000/doc/#docs" },
                 "about": { "@id": "https://cam.eltryus.design/easytrace5000/#app" },
                 "author": { "@id": "https://www.eltryus.design/#organization" },
@@ -63,10 +104,11 @@
             },
             {
                 "@type": "BreadcrumbList",
+                "@id": "https://cam.eltryus.design/easytrace5000/doc/parameters#breadcrumb",
                 "itemListElement": [
-                    { "@type": "ListItem", "position": 1, "name": "Eltryus EasyCAM5000 Suite", "item": "https://cam.eltryus.design/" },
+                    { "@type": "ListItem", "position": 1, "name": "EasyCAM5000", "item": "https://cam.eltryus.design/" },
                     { "@type": "ListItem", "position": 2, "name": "EasyTrace5000", "item": "https://cam.eltryus.design/easytrace5000/" },
-                    { "@type": "ListItem", "position": 3, "name": "Documentation", "item": "https://cam.eltryus.design/easytrace5000/doc/" },
+                    { "@type": "ListItem", "position": 3, "name": "Docs", "item": "https://cam.eltryus.design/easytrace5000/doc/" },
                     { "@type": "ListItem", "position": 4, "name": "Parameters", "item": "https://cam.eltryus.design/easytrace5000/doc/parameters" }
                 ]
             }
@@ -78,30 +120,29 @@
     <a href="#doc-content" class="skip-link">Skip to Main Content</a>
 
     <header class="doc-header">
-        <div class="doc-brand">
-            <a href="/" aria-label="EasyCAM5000 Homepage">EasyCAM5000</a>
-        </div>
+        <div class="doc-brand"><a href="/" aria-label="EasyCAM5000 Homepage">EasyCAM5000</a></div>
+
+        <nav class="doc-breadcrumb" aria-label="Breadcrumb">
+            <ol>
+                <li><a href="/easytrace5000/" draggable="false">EasyTrace5000</a></li>
+                <li><a href="./" draggable="false">Docs</a></li>
+                <li><span aria-current="page">Parameters</span></li>
+            </ol>
+        </nav>
 
         <button class="doc-menu-toggle" aria-label="Toggle Navigation Menu" aria-expanded="false">
-            <svg class="icon-menu" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line>
-            </svg>
-            <svg class="icon-close" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>
-            </svg>
+            <svg class="icon-menu cam-icon" width="24" height="24" aria-hidden="true"><use href="#icon-menu"></use></svg>
+            <svg class="icon-close cam-icon" width="24" height="24" aria-hidden="true"><use href="#icon-close"></use></svg>
         </button>
 
         <nav class="doc-nav" aria-label="Main Navigation">
-            <a href="/" draggable="false" aria-label="Return to Homepage">← Home</a>
-            <a href="/easytrace5000/" draggable="false" aria-label="Launch Workspace">Launch App</a>
+            <a href="cnc" draggable="false">CNC Guide</a>
+            <a href="laser" draggable="false">Laser Guide</a>
+            <a href="operations" draggable="false">Operations</a>
+            <a href="parameters" class="active" aria-current="page" draggable="false">Parameters</a>
+            <a href="accessibility" draggable="false">Accessibility</a>
             <span class="separator" aria-hidden="true"></span>
-            <a href="./" draggable="false" aria-label="Documentation Index">Docs</a>
-            <a href="cnc" draggable="false" aria-label="CNC Milling Guide">CNC Guide</a>
-            <a href="laser" draggable="false" aria-label="Laser Processing Guide">Laser Guide</a>
-            <a href="operations" draggable="false" aria-label="Operation Reference">Operations</a>
-            <a href="parameters" class="active" draggable="false" aria-current="page" aria-label="Parameter Reference">Parameters</a>
-            <a href="accessibility" draggable="false" aria-label="Accessibility Statement">Accessibility</a>
-            <span class="separator" aria-hidden="true"></span>
+            <a href="/easytrace5000/" draggable="false">Launch App</a>
             <a href="https://github.com/RicardoJCMarques/EasyCAM5000" target="_blank" draggable="false" aria-label="GitHub Repository (opens in a new tab)">GitHub</a>
 
             <button id="theme-toggle" class="btn btn--icon" title="Toggle Theme" aria-label="Toggle Theme">
@@ -111,8 +152,8 @@
     </header>
 
     <div class="doc-wrapper has-sidebar">
-        <nav class="doc-sidebar" id="toc">
-            <h2>Contents <span class="doc-badge doc-badge--stable">Reference</span></h2>
+        <nav class="doc-sidebar" id="toc" aria-label="Table of contents">
+            <h2>Contents <span class="doc-badge doc-badge--stable">Stable</span></h2>
             <ol>
                 <li><a href="#geometry" draggable="false">Geometry Stage</a></li>
                 <li><a href="#strategy" draggable="false">Strategy Stage</a></li>
@@ -124,12 +165,12 @@
 
         <main id="doc-content" class="doc-main">
             <section class="hero hero--compact">
-                <h1>Parameter Reference</h1>
+                <h1>EasyTrace5000 Parameter Guide</h1>
                 <p class="tagline">Ranges, defaults, and meaning for every EasyTrace5000 parameter</p>
             </section>
 
             <section id="intro">
-                <p>Parameters are grouped by the stage in which they appear. The same text shows in the app as a tooltip - hover the <strong>?</strong> icon beside any field. See the <a href="operations" draggable="false">Operation Reference</a> for which parameters matter to each operation.</p>
+                <p>Parameters are grouped by the stage in which they appear. The same text shows in the app as a tooltip - hover the <strong>?</strong> icon beside any field. See the <a href="operations" draggable="false">Operation Guide</a> for which parameters matter to each operation.</p>
             </section>
 
             <section id="geometry">
@@ -214,18 +255,22 @@
                     </tbody>
                 </table>
             </section>
-        </main>
 
+        </main>
+        <!-- Footer -->
         <footer class="doc-footer" aria-label="Footer">
             <p>
                 <a href="#doc-content" draggable="false" aria-label="Scroll back to top">Back to Top</a> |
                 <a href="https://github.com/RicardoJCMarques/EasyCAM5000" target="_blank" draggable="false" aria-label="GitHub Repository (opens in a new tab)">GitHub</a> |
                 <a href="/#support" draggable="false" aria-label="Support Development via Sponsorship">Support Development</a> |
-                <a href="../../LICENSE" target="_blank" draggable="false" aria-label="AGPLv3 License (opens in a new tab)">AGPLv3 Licensed</a>
+                <a href="../../LICENSE" target="_blank" draggable="false" aria-label="AGPLv3 License (opens in a new tab)">AGPLv3 Licensed</a> |
+                <a href="https://www.eltryus.design/" draggable="false" aria-label="Eltryus, developer of EasyCAM5000">by Eltryus</a>
             </p>
         </footer>
+
     </div>
 
+    <!-- Scripts -->
     <script defer src="../../themes/theme-loader.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {

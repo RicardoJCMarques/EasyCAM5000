@@ -43,6 +43,7 @@ RewriteRule ^laser(\.html)?$         /easytrace5000/doc/laser         [R=301,L]
     Header set X-Frame-Options "SAMEORIGIN"
     Header set X-XSS-Protection "1; mode=block"
     Header set Referrer-Policy "strict-origin-when-cross-origin"
+    Header always set Strict-Transport-Security "max-age=31536000"
     
     # --- CACHING STRATEGY ---
 
@@ -69,8 +70,12 @@ DirectoryIndex index.html
 Options -MultiViews -Indexes
 
 # Clean URLs
-RewriteCond %{REQUEST_FILENAME} !-d
-RewriteCond %{THE_REQUEST} \s/+([^/]+)\.html[\s?] [NC]
+# /path/index.html -> /path/
+RewriteCond %{THE_REQUEST} \s/+([^\s?]*/)?index\.html[\s?] [NC]
+RewriteRule ^ /%1 [R=301,L]
+
+# /path/page.html -> /path/page  (works at any depth)
+RewriteCond %{THE_REQUEST} \s/+[^\s?]*\.html[\s?] [NC]
 RewriteRule ^(.+)\.html$ /$1 [R=301,L]
 
 RewriteCond %{REQUEST_FILENAME} !-d

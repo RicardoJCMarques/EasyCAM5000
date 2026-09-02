@@ -161,42 +161,6 @@
 }
 
 /* ============================================================================
-   3D VIEWPORT
-   ============================================================================ */
-
-.viewport-3d {
-    position: absolute;
-    inset: 0;
-    overflow: hidden;
-    background: var(--color-render3d-background);
-    touch-action: none;
-    user-select: none;
-}
-
-/* three.js creates this canvas at mount; it has no id to target. */
-.viewport-3d canvas {
-    display: block;
-    touch-action: none;
-}
-
-.viewport-3d[hidden] {
-    display: none;
-}
-
-.canvas-container[data-render-mode="3d"] #preview-canvas {
-    display: none;
-}
-
-/* Tree toolbar */
-.tree-toolbar {
-    display: flex;
-    gap: 4px;
-    padding: 4px 8px;
-    border-bottom: 1px solid var(--color-border-primary);
-    background: var(--color-bg-primary);
-}
-
-/* ============================================================================
    LEFT OPERATION BUCKETS PANEL
    ============================================================================ */
 
@@ -219,6 +183,15 @@
     border-radius: var(--radius);
     border-left: 3px solid var(--color-border-secondary);
     overflow: hidden;
+}
+
+/* Stage nodes inside buckets */
+.bucket-stages {
+    background: var(--color-bg-primary);
+}
+
+.bucket-stages .stage-node.is-muted .stage-visibility {
+    pointer-events: auto;
 }
 
 .bucket-header {
@@ -262,15 +235,6 @@
     opacity: 1;
 }
 
-.bucket-row.collapsed .bucket-stages {
-    display: none;
-}
-
-/* Stage nodes inside buckets */
-.bucket-stages {
-    background: var(--color-bg-primary);
-}
-
 .stage-node {
     display: flex;
     align-items: center;
@@ -282,7 +246,7 @@
     border-top: 1px solid var(--color-border-primary);
 }
 
-.stage-node:hover:not(.is-gated) {
+.stage-node:hover {
     background: var(--color-bg-hover);
 }
 
@@ -290,11 +254,6 @@
     background: var(--color-bg-active);
     border-left: 2px solid var(--color-accent-primary);
     padding-left: calc(var(--spacing-lg) - 2px);
-}
-
-.stage-node.is-gated {
-    opacity: 0.35;
-    cursor: not-allowed;
 }
 
 .stage-node.is-invalidated .stage-label {
@@ -311,13 +270,6 @@
 .stage-label {
     flex: 1;
     color: var(--color-text-secondary);
-}
-
-.stage-info {
-    font-family: var(--font-mono);
-    font-size: var(--font-size-xs);
-    color: var(--color-text-hint);
-    margin-right: var(--spacing-xs);
 }
 
 .stage-delete {

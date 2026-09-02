@@ -824,6 +824,25 @@ input[type="checkbox"]:focus:not(:focus-visible) {
 }
 
 /* ============================================================================
+SUMMARY LINES - read-only report rows inside property sections
+============================================================================*/
+.summary-line {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-primary);
+    line-height: 1.4;
+    padding: var(--spacing-xs) 0;
+}
+.summary-line + .summary-line { border-top: 1px solid var(--color-border-primary); }
+.summary-line strong { color: var(--color-text-secondary); font-weight: 600; }
+.summary-secondary { color: var(--color-text-secondary); font-size: var(--font-size-xs); }
+.summary-warning { color: var(--color-warning); font-size: var(--font-size-xs); }
+
+/* A parameter can be present, documented and inert - dim the whole row, not
+   just its label, or a live-looking control sits under a greyed caption. */
+.property-field--disabled { opacity: 0.55; pointer-events: none; }
+.property-field--disabled label { opacity: 1; }
+
+/* ============================================================================
    PANELS & ALERTS (Operation Inspector warnings and status)
    ============================================================================ */
 
@@ -975,6 +994,15 @@ input[type="checkbox"]:focus:not(:focus-visible) {
     align-items: center;
     justify-content: center;
     z-index: var(--z-dropdown);
+    /* The scrim is dark in BOTH themes, so its contents cannot inherit
+       --color-text-primary - that resolves to near-black in light mode. */
+    color: var(--color-bw-white);
+}
+
+.canvas-loading-overlay .loading-message { color: inherit; }
+.canvas-loading-overlay .spinner {
+    border-color: color-mix(in srgb, var(--color-bw-white) 25%, transparent);
+    border-top-color: var(--color-accent-primary);
 }
 
 

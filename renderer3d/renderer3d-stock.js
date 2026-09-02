@@ -34,35 +34,51 @@ export class StockLayer3D {
      */
     setStock(box) {
         this.removeStock();
-        const w = box.maxX - box.minX;
-        const d = box.maxY - box.minY;
+        const w = box.width ?? (box.maxX - box.minX);
+        const d = box.depth ?? (box.maxY - box.minY);
         const t = box.thickness || 10;
         const topZ = box.topZ ?? 0;
         if (!(w > 0) || !(d > 0)) return;
 
         const geo = new THREE.BoxGeometry(w, d, t);
+        const cx = box.centerX ?? ((box.minX ?? 0) + w / 2);
+        const cy = box.centerY ?? ((box.minY ?? 0) + d / 2);
+        geo.translate(cx, cy, topZ - t / 2);
+
         const mat = new THREE.MeshStandardMaterial({
             color: this.core.options.stockColor,
+            side: THREE.DoubleSide,
             transparent: true,
             opacity: 0.12,
             depthWrite: false
         });
         this.stockMesh = new THREE.Mesh(geo, mat);
-        this.stockMesh.position.set(
-            box.minX + w / 2,
-            box.minY + d / 2,
-            topZ - t / 2
-        );
+        this.stockMesh.renderOrder = 10;
 
         const edges = new THREE.LineSegments(
             new THREE.EdgesGeometry(geo),
             new THREE.LineBasicMaterial({
                 color: this.core.options.stockColor,
                 transparent: true,
-                opacity: 0.5
+                opacity: 0.5,
+                depthWrite: false,
+                depthTest: true
             })
         );
+        edges.renderOrder = 11;
         this.stockMesh.add(edges);
+
+        if (box.matrix) {
+            const m = box.matrix;
+            this.stockMesh.matrixAutoUpdate = false;
+            this.stockMesh.matrix.set(
+                m.a, m.c, 0, m.e,
+                m.b, m.d, 0, m.f,
+                0,   0,   1, 0,
+                0,   0,   0, 1
+            );
+        }
+
         this.group.add(this.stockMesh);
     }
 
@@ -192,6 +208,7 @@ export class StockLayer3D {
      *          center:{x,y,z}}} o - clearRadius is the CIRCUMradius
      *        (indexedClearRadius), i.e. corner-to-axis, not the apothem.
      */
+    // REVIEW - Virtually identical to setRotaryBlank
     setIndexedBlank(o) {
         this.removeRotaryBlank();
         if (!(o.clearRadius > 0) || !(o.length > 0)) return;
@@ -203,7 +220,6 @@ export class StockLayer3D {
         // (not a corner) is centred on the first index angle.
         geo.rotateY(Math.PI / sides + ((o.startAngleDeg || 0) * Math.PI / 180));
         if (o.axis === 'x') geo.rotateZ(Math.PI / 2);
-
         const mat = new THREE.MeshStandardMaterial({
             color: this.core.options.stockColor,
             transparent: true,
@@ -211,13 +227,19 @@ export class StockLayer3D {
             depthWrite: false
         });
         this.rotaryBlank = new THREE.Mesh(geo, mat);
-        this.rotaryBlank.add(new THREE.LineSegments(
+        this.rotaryBlank.renderOrder = 10;
+        const edges = new THREE.LineSegments(
             new THREE.EdgesGeometry(geo),
             new THREE.LineBasicMaterial({
                 color: this.core.options.stockColor,
-                transparent: true, opacity: 0.5
+                transparent: !0,
+                opacity: 0.5,
+                depthWrite: false,
+                depthTest: true
             })
-        ));
+        );
+        edges.renderOrder = 11;
+        this.rotaryBlank.add(edges);
         this.rotaryBlank.position.set(o.center.x, o.center.y, o.center.z);
         this.group.add(this.rotaryBlank);
     }
@@ -228,6 +250,7 @@ export class StockLayer3D {
      * @param {{refRadius, length, axis:'x'|'y',
      *          center:{x,y,z}}} o
      */
+    // REVIEW - Virtually identical to setIndexedBlank
     setRotaryBlank(o) {
         this.removeRotaryBlank();
         if (!(o.refRadius > 0) || !(o.length > 0)) return;
@@ -243,13 +266,18 @@ export class StockLayer3D {
             depthWrite: false
         });
         this.rotaryBlank = new THREE.Mesh(geo, mat);
+        this.rotaryBlank.renderOrder = 10;
         const edges = new THREE.LineSegments(
             new THREE.EdgesGeometry(geo),
             new THREE.LineBasicMaterial({
                 color: this.core.options.stockColor,
-                transparent: true, opacity: 0.5
+                transparent: !0,
+                opacity: 0.5,
+                depthWrite: false,
+                depthTest: true
             })
         );
+        edges.renderOrder = 11;
         this.rotaryBlank.add(edges);
         this.rotaryBlank.position.set(o.center.x, o.center.y, o.center.z);
         this.group.add(this.rotaryBlank);

@@ -22,13 +22,30 @@
         // ════════════════════════════════════════════════════════════
 
         /**
-         * Clearance at which the V-bit reaches maxDepth. Delegated: the
-         * generator clamps Z against this same number in the worker, and
-         * two copies drifting apart offsets the floor loops to a clearance
-         * the depth map never bottoms out at.
+         * The bit's widest usable cutting radius: the smaller of its diameter
+         * and what the flute length carries at its angle. toolDiameter IS the
+         * V-bit's diameter here - the field means the same thing on this form as
+         * on every other one - so it is read directly and the library only answers
+         * for an operation saved before the tool was resolved.
          */
-        computeFloorClamp(opts) {
-            return VCarveGenerator.computeFloorClamp(opts);
+        resolveMaxCutRadius(settings) {
+            const g = settings.tool ? this.core.toolLibrary?.getTool(settings.tool)?.geometry : null;
+            const toolOD = Number(settings.toolDiameter) > 0
+                ? Number(settings.toolDiameter)
+                : (g?.maxDiameter ?? g?.diameter ?? null);
+            if (!toolOD && !g) return null;
+            const tipRadius = Math.max(0, Number(settings.vbitTipRadius ?? 0));
+            const vbitAngle = settings.vbitAngle ?? g?.angle ?? 90;
+            const tanHalf = Math.tan(Number(vbitAngle) * Math.PI / 180 / 2);
+            const byOD = toolOD > 0 ? toolOD / 2 : Infinity;
+            const byFlute = g?.cuttingLength > 0 && tanHalf > 1e-12 ? tipRadius + g.cuttingLength * tanHalf : Infinity;
+            const r = Math.min(byOD, byFlute);
+            if (Number.isFinite(r) && r > tipRadius) return r;
+            return Number.isFinite(byOD) && byOD > tipRadius ? byOD : null;
+        }
+
+        resolveDepthLimit(opts) {
+            return VCarveGenerator.resolveDepthLimit(opts);
         }
 
         /**
@@ -104,7 +121,7 @@
                 let dropped = 0;
                 for (const p of floorPolys) {
                     for (const c of p.contours || []) {
-                    const dense = c.arcSegments?.length ? GeometryUtils.contourArcsToPath(c) : c;
+                    const dense = c.arcSegments?.length ? GeometryTessellation.contourArcsToPath(c) : c;
                     const pts = dense.points;
                     if (!pts || pts.length < 3) continue;
                     if (loopOnMaterial(pts)) {
@@ -194,8 +211,8 @@
                 if (p?.contours?.length) source = p;
             }
             return (source.contours || []).map(c => {
-                const dense = (c.arcSegments?.length && GeometryUtils.contourArcsToPath)
-                    ? GeometryUtils.contourArcsToPath(c) : c;
+                const dense = (c.arcSegments?.length && GeometryTessellation.contourArcsToPath)
+                    ? GeometryTessellation.contourArcsToPath(c) : c;
                 return { pts: dense.points || [], isHole: c.isHole === true };
             });
         }
@@ -325,22 +342,23 @@
             let floorCount = 0, ridgeRisk = false;
             for (const o of operation.offsets || []) {
                 for (const pr of o.primitives || []) {
-                    if (pr.properties?.vcarvePass === 'floor-perimeter') {
+                    if ("floor-perimeter" === pr.properties?.vcarvePass) {
                         floorCount++;
-                        if (pr.properties.ridgeRisk) ridgeRisk = true;
+                        pr.properties.ridgeRisk && (ridgeRisk = true);
                     }
                 }
             }
             let message = `Generated ${total} V-Carve path(s)`;
-            let status = 'success';
+            let status = "success";
             if (floorCount > 0) {
-                message += ` - ${floorCount} flat region outline(s) bottomed out at max depth`;
+                const limit = (params.vcarveMaxDepth > 0) ? "the depth limit" : "the bit's reach";
+                message += ` - ${floorCount} flat region outline(s) bottomed out at ${limit}`;
                 if (ridgeRisk) {
-                    message += ' (wider than bit coverage: central ridges will remain until flat clearing is implemented)';
-                    status = 'warning';
+                    message += " (wider than bit coverage: central ridges will remain until flat clearing is implemented)";
+                    status = "warning";
                 }
             }
-            return { success: true, message, status };
+            return { success: true, message: message, status: status };
         }
 
         // Geometry generation
@@ -356,13 +374,14 @@
 
             // All V-Carve parameters flow from profile-shape.json via the
             // parameter manager -> compileOperationParams -> settings.
-            const vbitAngle = settings.vbitAngle || 90;
-            const startDepth = Math.max(0, settings.vcarveStartDepth || 0);
+            const vbitAngle = Number(settings.vbitAngle);
+            const startDepth = Math.max(0, Number(settings.vcarveStartDepth));
             // 0 = unconstrained natural V-carve depth (no flat floor clamping)
-            const maxDepth = (settings.vcarveMaxDepth !== undefined && settings.vcarveMaxDepth !== null && settings.vcarveMaxDepth > 0)
-                ? Math.abs(settings.vcarveMaxDepth) : null;
+            const maxDepth = (settings.vcarveMaxDepth !== undefined && settings.vcarveMaxDepth !== null && Number(settings.vcarveMaxDepth) > 0)
+                ? Math.abs(Number(settings.vcarveMaxDepth)) : null;
+
             // V-bit TIP radius (0 = sharp point)
-            const tipRadius = Math.max(0, (settings.vbitTipDiameter || 0) / 2);
+            const tipRadius = Math.max(0, Number(settings.vbitTipRadius ?? 0));
 
             // Merge separate-but-nested primitives into compounds with
             // proper hole flags. The generator requires one connected
@@ -386,11 +405,13 @@
                     `assigning them to a V-Carve bucket.`);
             }
 
+            const maxCutRadius = this.resolveMaxCutRadius(settings);
             const generatorOptions = {
                 vbitAngle,
                 startDepth,
                 maxDepth,
                 tipRadius,
+                maxCutRadius,
                 minChainLength: settings.vcarveMinChainLength ?? 0,
                 cornerAngle: settings.vcarveCornerAngle ?? 30,
                 // Extra dimensional erosion gate in mm on top of the angle
@@ -405,9 +426,7 @@
 
             // Floor clamp clearance calculated locally so Clipper can generate
             // floor loops on the main thread before worker dispatch.
-            const tClamp = this.computeFloorClamp({
-                vbitAngle, startDepth, maxDepth, tipRadius
-            });
+            const { tClamp } = this.resolveDepthLimit({ vbitAngle, startDepth, maxDepth, tipRadius, maxCutRadius });
 
             // ── Dispatch: one worker job per primitive ──────────────────
             // floorLoops need main-thread Clipper (WASM), so they are computed
@@ -576,7 +595,7 @@
                     generatedAt: Date.now(),
                     sourceCount: merged.length,
                     finalCount: vcarvePrimitives.length,
-                    toolDiameter: settings.toolDiameter,   // V-bit TIP diameter (preview + tool selection)
+                    toolDiameter: settings.toolDiameter,
                     tipRadius,
                     vbitAngle,
                     startDepth,

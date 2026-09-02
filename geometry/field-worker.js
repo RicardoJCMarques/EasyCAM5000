@@ -44,6 +44,7 @@ function ensureModules(constants, debug) {
         importScripts(
             'delaunator.5.0.0.min.js',
             '../utils/transform-math-3d.js',
+            'geometry-utils-tessellation.js',
             'geometry-utils-vcarve.js',
             'geometry-utils-toolprofile.js',
             'geometry-utils-field.js',

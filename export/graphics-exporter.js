@@ -24,6 +24,134 @@
             this.MAX_CANVAS_DIM = 16000;
         }
 
+        /**
+         * Operations → files. Owns the operation-to-layer mapping, the
+         * PNG/SVG group split and the filenames; generate() below owns the
+         * rendering.
+         *
+         * `ctx` carries the session facts this class must not go looking for:
+         *   laser        settings.laser
+         *   transforms   the workspace matrix set
+         *   bounds       scene board bounds
+         *   appName      for the comment block
+         *   spotSizeFor  (op) => number|null, per-operation stroke width
+         *
+         * @returns {Promise<{success: boolean, files: Array<{blob: Blob, filename: string}>}>}
+         */
+        async exportOperations(operations, ctx, overrides = {}) {
+            if (!operations || operations.length === 0) return { success: false, files: [] };
+
+            const laser = ctx.laser;
+            const format = overrides.format || laser.exportFormat;
+            const dpi = overrides.dpi || laser.exportDPI;
+            const padding = overrides.padding ?? laser.exportPadding ?? D.laser.exportPadding;
+            const singleFile = overrides.singleFile !== false;
+            const baseName = overrides.baseName || D.export.defaultBaseName;
+
+            const activeProfile = laser.profiles?.[laser.activeProfile || 'generic'] || {};
+            const layerColors = overrides.layerColors || laser.layerColors || {};
+
+            const commonOptions = {
+                dpi,
+                padding,
+                transforms: ctx.transforms,
+                bounds: ctx.bounds,
+                heatManagement: overrides.heatManagement ??
+                    ((laser.heatManagement !== 'off' && format !== 'png') ? laser.heatManagement : 'off'),
+                reverseCutOrder: overrides.reverseCutOrder ?? laser.reverseCutOrder ?? false,
+                svgGrouping: overrides.svgGrouping ?? laser.svgGrouping ?? 'layer',
+                colorPerPass: overrides.colorPerPass ?? laser.colorPerPass ?? false,
+                palette: overrides.palette ?? activeProfile.palette ?? null,
+                paletteLumping: overrides.paletteLumping ?? activeProfile.paletteLumping ?? false,
+                includeComments: overrides.includeComments
+            };
+
+            // REVIEW - these should come from the language file.
+            if (overrides.includeComments) {
+                commonOptions.commentBlock = [
+                    `${ctx.appName} SVG Export`,
+                    `Date: ${new Date().toLocaleString()}`,
+                    `Operations ${operations.length}:`,
+                    ...operations.map(op => `  - ${op.type}: ${op.file.name}`)
+                ];
+            }
+
+            const buildLayer = (op) => {
+                if (!op.offsets || op.offsets.length === 0) return null;
+
+                const passes = op.offsets.map((offset, idx) => ({
+                    passIndex: idx + 1,
+                    type: offset.type || 'offset',
+                    primitives: offset.primitives || [],
+                    metadata: {
+                        ...(offset.metadata || {}),
+                        offsetType: offset.offsetType || 'external',
+                        thermalGroup: offset.metadata?.thermalGroup || offset.thermalGroup || 'shell',
+                        pass: offset.pass || idx + 1,
+                        distance: offset.distance
+                    }
+                }));
+
+                let layerName = op.type;
+                if (op.type === 'stencil') {
+                    const cleanName = op.file.name.replace(/\.[^.]+$/, '').replace(/[^a-zA-Z0-9_-]/g, '_');
+                    layerName = `Stencil_${cleanName}`;
+                }
+
+                return {
+                    operationId: op.id,
+                    operationType: op.type,
+                    fileName: op.file.name,
+                    baseColor: layerColors[op.type] || '#000000',
+                    layerName,
+                    strokeWidth: ctx.spotSizeFor(op) ?? laser.spotSize,
+                    passes
+                };
+            };
+
+            const isPNGFormat = format === 'png';
+            const rasterTypes = ['isolation', 'clearing'];
+            let layerGroups = [];
+
+            if (isPNGFormat) {
+                const rasterLayers = [], vectorLayers = [];
+                for (const op of operations) {
+                    const layer = buildLayer(op);
+                    if (!layer) continue;
+                    (rasterTypes.includes(op.type) ? rasterLayers : vectorLayers).push(layer);
+                }
+                if (rasterLayers.length > 0) layerGroups.push({ layers: rasterLayers, format: 'png', suffix: '' });
+                if (vectorLayers.length > 0) layerGroups.push({ layers: vectorLayers, format: 'svg', suffix: '-vectors' });
+            } else if (singleFile) {
+                const allLayers = operations.map(buildLayer).filter(Boolean);
+                if (allLayers.length > 0) layerGroups.push({ layers: allLayers, format: 'svg', suffix: '' });
+            } else {
+                for (const op of operations) {
+                    const layer = buildLayer(op);
+                    if (!layer) continue;
+                    layerGroups.push({ layers: [layer], format: 'svg', suffix: `-${op.type}` });
+                }
+            }
+
+            if (layerGroups.length === 0) return { success: false, files: [] };
+
+            const files = [];
+            try {
+                for (const group of layerGroups) {
+                    const ext = group.format === 'png' ? '.png' : '.svg';
+                    const result = await this.generate(group.layers, { ...commonOptions, format: group.format });
+                    if (result?.blob) {
+                        files.push({ blob: result.blob, filename: `${baseName}${group.suffix}${ext}` });
+                    }
+                }
+            } catch (error) {
+                console.error('[GraphicsExporter] Export generation failed:', error);
+                return { success: false, files: [] };
+            }
+
+            return { success: files.length > 0, files };
+        }
+
         async generate(layers, options) {
             // Fuse colinear hatch segments across operation layers before export
             this.fuseColinearSegments(layers);

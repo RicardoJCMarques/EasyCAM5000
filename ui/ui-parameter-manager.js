@@ -50,9 +50,11 @@
             this.parameterDefinitions = definitions;
             this.baseRanges = {};
             for (const [name, def] of Object.entries(definitions)) {
-                if (def && def.type === 'number') {
-                    this.baseRanges[name] = { min: def.min, max: def.max };
-                }
+                if (!def) continue;
+                // `.includes()` on a bare string matches substrings, so a future
+                // drill/drillMill pair would silently cross-match.
+                if ('string' == typeof def.operationTypes) def.operationTypes = [def.operationTypes];
+                if ('number' === def.type) this.baseRanges[name] = { min: def.min, max: def.max };
             }
             this.validators = this.initializeValidators();
             this.operationStates.clear();
@@ -226,16 +228,6 @@
             this.dirtyFlags.get(operationId).add(stage);
         }
 
-        // Set multiple parameters (less used by UI, more by loading logic)
-        setParameters(operationId, stage, params) {
-            const state = this.getOperationState(operationId);
-            if (!state[stage]) state[stage] = {};
-            
-            for (const [name, value] of Object.entries(params)) {
-                this.setParameter(operationId, stage, name, value);
-            }
-        }
-
         // Get all parameters for an operation (merged across stages)
         getAllParameters(operationId) {
             const op = this.core?.getOperation?.(operationId);
@@ -348,29 +340,31 @@
             return this.dirtyFlags.has(operationId);
         }
 
-        // Get parameters filtered by stage, operation type, and pipeline.
-        getStageParameters(stage, operationType, pipelineType) {
-            const params = [];
-            const isLaser = pipelineType === 'laser' || pipelineType === 'hybrid';
-
+        /**
+         * Parameters for a stage, filtered by operation type and machine
+         * class. `ctx` is { machineClass, dimension } - build it once per
+         * form via BaseOperationPanel.getOperationContext().
+         *
+         * Default machine class is ['router']: that is the existing corpus's
+         * implicit rule, now written down. Laser params opt in.
+         */
+        getStageParameters(stage, operationType, ctx = {}) {
+            const machineClass = ctx.machineClass || 'router';
+            const dimension = ctx.dimension || null;
+            const sessionClass = ctx.sessionClass || machineClass;
+            const isLaser = machineClass === 'laser';
             const exportFormat = this.core.settings?.laser?.exportFormat;
+            const params = [];
 
             for (const [name, def] of Object.entries(this.parameterDefinitions)) {
-                // Stage matching: 'export_summary' has no parameters - it's a display-only stage
-                if (stage === 'export_summary') continue;
                 if (def.stage !== stage) continue;
 
-
-                // Operation type filtering
                 if (def.operationTypes && !def.operationTypes.includes(operationType)) continue;
 
-                // Pipeline filtering: laser params only in laser mode, CNC params only in CNC mode.
-                // Stencil params pass through regardless of pipeline.
-                const isStencilParam = def.operationTypes && def.operationTypes.includes('stencil');
-                if (!isStencilParam) {
-                    if (def.pipelineType === 'laser' && !isLaser) continue;
-                    if (!def.pipelineType && isLaser) continue;
-                }
+                const classes = def.machineClasses || ['router'];
+                if (!classes.includes(machineClass)) continue;
+
+                if (def.dimensions && dimension && !def.dimensions.includes(dimension)) continue;
 
                 // Hide clearing-related params if exporting to PNG
                 if (isLaser && exportFormat === 'png') {
@@ -381,68 +375,37 @@
                     }
                 }
 
-                const resolved = { name, ...def };
-                params.push(resolved);
+                params.push({ name, ...def });
             }
 
             return params;
         }
 
         /**
-         * Valid stages for a pipeline + operation type.
+         * The operation's parameter-stage list, from the registry.
          *
-         * The middle stage is DERIVED, never declared: it exists only while
-         * some parameter is filed under it. A 3D operation consumes its whole
-         * set at generation time, so the stage would otherwise render an empty
-         * form behind a second button that computes nothing. File a
-         * strategy-stage parameter against an operation type and the stage
-         * comes back with no code change.
+         * stages[0] is the source form. Artifact node i shows stages[i + 1],
+         * so `stages.length === artifacts.length + 1` always holds -
+         * OperationRegistry.validate() enforces it.
          */
-        getStagesForPipeline(pipelineType, operationType) {
-            if (pipelineType === 'laser' || operationType === 'stencil') {
-                return ['geometry', 'export_summary'];
-            }
-            if (operationType &&
-                this.getStageParameters('strategy', operationType, pipelineType).length === 0) {
-                return ['geometry', 'machine'];
-            }
-            // CNC and hybrid use the standard three stages
-            return ['geometry', 'strategy', 'machine'];
+        getStages(operationType, machineClass) {
+            const stages = this.core.registry?.stagesFor(operationType, machineClass);
+            if (stages?.length) return stages;
+            return ['geometry', 'strategy', 'machine', 'output'];
         }
 
-        /**
-         * Returns the next stage in the pipeline after the given one.
-         * Returns null if the current stage is the last one.
-         */
-        getNextStage(currentStage, pipelineType, operationType) {
-            const stages = this.getStagesForPipeline(pipelineType, operationType);
+        getArtifacts(operationType, machineClass) {
+            const artifacts = this.core.registry?.artifactsFor(operationType, machineClass);
+            if (artifacts?.length) return artifacts;
+            return ['offsets', 'preview', 'toolpath'];
+        }
+
+        /** Next stage after `currentStage`, or null at the end of the chain. */
+        getNextStage(currentStage, operationType, machineClass) {
+            const stages = this.getStages(operationType, machineClass);
             const idx = stages.indexOf(currentStage);
             if (idx === -1 || idx >= stages.length - 1) return null;
             return stages[idx + 1];
-        }
-
-        // Validate all parameters for an operation
-        validateOperation(operationId) {
-            const params = this.getAllParameters(operationId);
-            const errors = [];
-
-            for (const [name, value] of Object.entries(params)) {
-                if (this.validators[name]) {
-                    const result = this.validators[name](value);
-                    if (!result.success) {
-                        errors.push({
-                            parameter: name,
-                            value: value,
-                            message: result.error || `Invalid value for ${name}`
-                        });
-                    }
-                }
-            }
-
-            return {
-                valid: errors.length === 0,
-                errors
-            };
         }
 
         // Get default values for operation type
@@ -451,51 +414,43 @@
 
             // Ask the Tool Library for an appropriate starting tool via the core
             if (this.core.toolLibrary) {
-                // Prefer the operation's OWN selected tool. getDefaults is the
-                // fallback source for every non-overridden value, so resolving
-                // from the profile default here silently reverts toolDiameter,
-                // feeds and speeds to a tool the operation is not using.
-                const tool = (selectedToolId
-                        ? this.core.toolLibrary.getTool(selectedToolId) : null)
+                const tool = (selectedToolId ? this.core.toolLibrary.getTool(selectedToolId) : null)
                     || this.core.toolLibrary.getDefaultToolForOperation(operationType);
                 if (tool) {
-                    const toolDiam = this.core.toolLibrary.getToolDiameter(tool.id);
+                    // One field, one meaning: the tool's diameter. Copper
+                    // operations declare toolSizing 'effective' and take the
+                    // bit's declared cut width instead - the only place the two
+                    // differ, and only for a tapered bit.
+                    const sizes = this.core.toolLibrary.getToolSizes(tool.id);
+                    const useEffective = this.core.registry?.toolSizingFor(operationType) === 'effective';
                     defaults.tool = tool.id;
-                    defaults.toolDiameter = toolDiam;
+                    defaults.toolDiameter = useEffective ? sizes.effective : sizes.diameter;
+                    defaults.vbitTipRadius = sizes.tipRadius;
+                    if (sizes.angle !== null) defaults.vbitAngle = sizes.angle;
+                    if (sizes.cornerRadius !== undefined) {
+                        defaults.reliefCornerRadius = sizes.cornerRadius;
+                        defaults.rotaryCornerRadius = sizes.cornerRadius;
+                    }
+                    if (sizes.tipType !== undefined) {
+                        defaults.reliefToolShape = sizes.tipType;
+                        defaults.rotaryToolShape = sizes.tipType;
+                    }
+
+                    // Feeds come from the tool. Assigned per field, not as a
+                    // block: a custom library may omit a value validateTool
+                    // does not require.
+                    const cutting = tool.cutting;
+                    if (cutting) {
+                        if (cutting.feedRate != null) defaults.feedRate = cutting.feedRate;
+                        if (cutting.plungeRate != null) defaults.plungeRate = cutting.plungeRate;
+                        if (cutting.spindleSpeed != null) defaults.spindleSpeed = cutting.spindleSpeed;
+                    }
 
                     // Support custom tool selection keys like engraveTool or vcarveTool (select fields only)
                     for (const [name, def] of Object.entries(this.parameterDefinitions)) {
-                        if (def.type === 'select' && name.endsWith('Tool') && def.operationTypes && def.operationTypes.includes(operationType)) {
+                        if (def.type === 'select' && name.endsWith('Tool') && def.operationTypes?.includes(operationType)) {
                             defaults[name] = tool.id;
                         }
-                    }
-
-                    // Pull tool geometry parameters so specialized operation fields populate
-                    if (tool.geometry) {
-                        if (tool.geometry.tipDiameter !== undefined) {
-                            defaults.vbitTipDiameter = tool.geometry.tipDiameter;
-                        }
-                        if (tool.geometry.angle !== undefined) {
-                            defaults.vbitAngle = tool.geometry.angle;
-                        }
-                        if (tool.geometry.cornerRadius !== undefined) {
-                            defaults.reliefCornerRadius = tool.geometry.cornerRadius;
-                            defaults.rotaryCornerRadius = tool.geometry.cornerRadius;
-                        }
-                        if (tool.geometry.tipType !== undefined) {
-                            defaults.reliefToolShape = tool.geometry.tipType;
-                            defaults.rotaryToolShape = tool.geometry.tipType;
-                        }
-                    }
-
-                    // Pull cutting parameters from the tool so form fields populate
-                    if (tool.cutting) {
-                        if (tool.cutting.feedRate !== undefined) defaults.feedRate = tool.cutting.feedRate;
-                        if (tool.cutting.plungeRate !== undefined) defaults.plungeRate = tool.cutting.plungeRate;
-                        if (tool.cutting.spindleSpeed !== undefined) defaults.spindleSpeed = tool.cutting.spindleSpeed;
-                        if (tool.cutting.spindleDwell !== undefined) defaults.spindleDwell = tool.cutting.spindleDwell;
-                        if (tool.cutting.cutDepth !== undefined) defaults.cutDepth = tool.cutting.cutDepth;
-                        if (tool.cutting.depthPerPass !== undefined) defaults.depthPerPass = tool.cutting.depthPerPass;
                     }
                 }
             }
@@ -508,8 +463,8 @@
                 defaults.laserExportDPI = settings.laser.exportDPI;
             }
 
-            // Check app profile for operation-specific overrides
-            const profileDefaults = this.core.appProfile?.operationDefaults?.[operationType];
+            // Profile-declared defaults for this operation type
+            const profileDefaults = this.core.registry?.defaultsFor(operationType);
             if (profileDefaults) {
                 Object.assign(defaults, profileDefaults);
             }
@@ -521,36 +476,10 @@
             this.changeListeners.add(callback);
         }
 
-        removeChangeListener(callback) {
-            this.changeListeners.delete(callback);
-        }
-
         notifyChange(operationId, stage, name, value) {
             for (const listener of this.changeListeners) {
                 listener({ operationId, stage, name, value });
             }
-        }
-
-        exportState() {
-            const state = {};
-            for (const [opId, opState] of this.operationStates) {
-                state[opId] = JSON.parse(JSON.stringify(opState));
-            }
-            return state;
-        }
-
-        importState(state) {
-            this.operationStates.clear();
-            this.dirtyFlags.clear();
-
-            for (const [opId, opState] of Object.entries(state)) {
-                this.operationStates.set(opId, opState);
-            }
-        }
-
-        clearOperation(operationId) {
-            this.operationStates.delete(operationId);
-            this.dirtyFlags.delete(operationId);
         }
 
         // ═══════════════════════════════════════════════════════════════
@@ -709,7 +638,8 @@
         }
 
         /**
-         * Populates a <select> with tools from the ToolLibrary.
+         * Populates a <select> with tools from the ToolLibrary. A tapered tool
+         * is labelled with both sizes because neither one alone identifies it.
          */
         static populateToolSelect(select, opType, selectedId, toolLibrary) {
             if (!toolLibrary || !toolLibrary.isLoaded) {
@@ -726,8 +656,11 @@
             for (const tool of tools) {
                 const opt = document.createElement('option');
                 opt.value = tool.id;
-                const diam = toolLibrary.getToolDiameter(tool.id);
-                opt.textContent = `${tool.name} (${diam}mm)`;
+                const sizes = toolLibrary.getToolSizes(tool.id);
+                // REVIEW - All these stats on the drop-down lable are useless and confusing
+                opt.textContent = sizes.tapered
+                    ? `${tool.name} (${sizes.effective}mm cut / ${sizes.diameter}mm dia)`
+                    : `${tool.name} (${sizes.diameter}mm)`;
                 if (tool.id === selectedId) opt.selected = true;
                 select.appendChild(opt);
             }
@@ -762,6 +695,27 @@
 
             ParameterManager.applyOptionGates(container, gates);
             ParameterManager.updateCannedCycleOptions(container, values);
+            ParameterManager.hideEmptySections(container);
+        }
+
+        /**
+         * A heading for parameters that are not on screen is worse than no
+         * heading: it claims a section exists and then shows nothing under it.
+         * Fields disappear for three unrelated reasons - a data-conditional,
+         * a machine-class group toggle, a processor group toggle - and none of
+         * them knows about the others, so the check runs on the result.
+         *
+         * Sections with no .property-field at all (output block, drill card,
+         * static info panels) are left alone: they carry their own content.
+         */
+        static hideEmptySections(root) {
+            if (!root) return;
+            root.querySelectorAll('.property-section').forEach(section => {
+                const fields = section.querySelectorAll('.property-field');
+                if (fields.length === 0) return;
+                const anyVisible = Array.from(fields).some(f => f.style.display !== 'none');
+                section.style.display = anyVisible ? '' : 'none';
+            });
         }
 
         /**
@@ -839,15 +793,6 @@
                 cannedSelect.value = 'none';
                 cannedSelect.dispatchEvent(new Event('change', { bubbles: true }));
             }
-        }
-
-        /**
-         * Resolves a tool diameter from a tool ID.
-         * Returns the diameter or null if not found.
-         */
-        static resolveToolDiameter(toolId, toolLibrary) {
-            if (!toolLibrary) return null;
-            return toolLibrary.getToolDiameter(toolId);
         }
 
         debug(message, data = null) {

@@ -25,27 +25,31 @@
 
 import * as THREE from 'three/webgpu';
 
-const ARC_SEGMENT_LENGTH = window.CAMConfig?.defaults?.rendering?.preview3D?.arcSegmentLength ?? 0.4;
 const ARC_SAGITTA = window.CAMConfig?.defaults?.rendering?.preview3D?.arcSagitta ?? 0.02;
-const MIN_ARC_SEGS = 8;
+const MIN_ARC_SEGS_PER_TURN = 48;
 const MAX_ARC_SEGS = 2048;
 
 /**
  * Segment count for an arc, bounded by max deviation from the true curve
- * (sagitta), not chord length. Baked geometry cannot re-flatten on zoom
- * the way ctx.arc() does, so the bound has to be a visual-error bound.
+ * (sagitta). Baked geometry cannot re-flatten on zoom the way ctx.arc() does,
+ * so the bound has to be a visual-error bound.
+ * Chord LENGTH is not an error bound and must never lower the count: it used
+ * to, through a Math.min of the two, and on a small radius it won - a 0.5mm
+ * circle came out at 8 segments (an octagon) while a 90° arc of the same
+ * radius, floored at the same 8, looked perfectly round.
+ * The floor is per TURN for the same reason: a flat minimum over any sweep
+ * flatters small arcs and starves whole circles.
  * @param {number} radius mm
- * @param {number} sweep  signed radians
+ * @param {number} sweep signed radians
  */
 export function arcSegmentCount(radius, sweep) {
     const s = Math.abs(sweep);
-    if (!(radius > 0) || !(s > 0)) return MIN_ARC_SEGS;
+    const floor = Math.max(2, Math.ceil(MIN_ARC_SEGS_PER_TURN * s / (2 * Math.PI)));
+    if (!(radius > 0 && s > 0)) return floor;
     const ratio = Math.max(-1, Math.min(1, 1 - ARC_SAGITTA / radius));
     const maxStep = 2 * Math.acos(ratio);
-    const bySagitta = maxStep > 1e-9 ? s / maxStep : MAX_ARC_SEGS;
-    const byChord = (s * radius) / ARC_SEGMENT_LENGTH;
-    return Math.min(MAX_ARC_SEGS,
-           Math.max(MIN_ARC_SEGS, Math.ceil(Math.min(bySagitta, byChord))));
+    const bySagitta = maxStep > 1e-9 ? Math.ceil(s / maxStep) : MAX_ARC_SEGS;
+    return Math.min(MAX_ARC_SEGS, Math.max(floor, bySagitta));
 }
 
 /**
@@ -92,16 +96,16 @@ export function walkPlans(plans, emit) {
     // stub cut in the wrong direction can look correct on screen.
     // Axis line at Z = -refRadius (blank top tangent to Z0) and cross
     // offset axisB, matching GeometryLayer3D's developed block exactly.
-    let devR = 0, devAxisB = 0, devSwap = false;
+    let devR = 0, devSwap = false;
     const wrapPt = (x, y, z) => {
         if (devR > 0) {
             const th = y / devR;
             const R = devR + z;
-            const cross = devAxisB + R * Math.sin(th);
-            const zz = R * Math.cos(th) - devR;
-            return devSwap ? { x: cross, y: x, z: zz } : { x, y: cross, z: zz };
+            const cross = R * Math.sin(th);
+            const zz = R * Math.cos(th);
+            return devSwap ? { x: cross, y: x, z: zz } : { x: x, y: cross, z: zz };
         }
-        if (!wrapAxis || curA === 0) return { x, y, z };
+        if (!wrapAxis) return { x: x, y: y, z: z };
         // R_axis(-A), matching how a 4th-axis viewer/controller places moves
         // (the table turns +A, so a machine point sits at -A in the part
         // frame) - and matching the export. The slicer captures each face
@@ -115,12 +119,14 @@ export function walkPlans(plans, emit) {
         // (3) is the offset-geometry mirror and reads primitive PROPERTIES
         // (ip.indexA) while this reads plan METADATA (cmd.a) - a grep for
         // one will not find the other, and both draw in the same frame.
+        // REVIEW - Outdated comments?
+        // NO early-out on curA === 0. Face 0 is not a no-op any more: the
+        // display frame is the centreline, so even an unrotated face has to
+        // be lifted by the apothem.
         const th = -curA * Math.PI / 180, c = Math.cos(th), s = Math.sin(th);
-        const dz = z + apothem;                       // axis is apothem below Z0
-        if (wrapAxis === 'y') {                        // B about world Y: rotate (x,z)
-            return { x: x * c + dz * s, y, z: -x * s + dz * c - apothem };
-        }
-        return { x, y: y * c - dz * s, z: y * s + dz * c - apothem }; // A about world X
+        const dz = z + apothem;
+        return 'y' === wrapAxis ? { x: x * c + dz * s, y: y, z: -x * s + dz * c }
+                                : { x: x, y: y * c - dz * s, z: y * s + dz * c };
     };
 
     const seg = (x, y, z, kind, feed) => {
@@ -153,7 +159,6 @@ export function walkPlans(plans, emit) {
         // where MachineProcessor already un-wrapped to X/A/Z) draws raw.
         if (m && m.developedSpace === true && m.refRadius > 0) {
             devR = m.refRadius;
-            devAxisB = m.axisB || 0;
             devSwap = m.rotaryAxisKind === 'y';
         } else if (m && m.developedSpace === false) {
             devR = 0;
@@ -251,36 +256,44 @@ export class ToolpathLayer3D {
         // Rapids: dim single-color segments
         if (rapidPos.length > 0) {
             const g = new THREE.BufferGeometry();
-            g.setAttribute('position',
-                new THREE.Float32BufferAttribute(rapidPos, 3));
+            g.setAttribute("position", new THREE.Float32BufferAttribute(rapidPos, 3));
             const m = new THREE.LineBasicMaterial({
                 color: this.core.options.rapidColor,
-                transparent: true,
-                opacity: 0.35
+                transparent: !0,
+                opacity: 0.4,
+                depthWrite: false,
+                depthTest: true
             });
-            this.group.add(new THREE.LineSegments(g, m));
+            const rapidLines = new THREE.LineSegments(g, m);
+            rapidLines.renderOrder = 4000;
+            this.group.add(rapidLines);
         }
 
         // Cuts: per-vertex depth gradient (surface → deepest)
         if (cutPos.length > 0) {
             const g = new THREE.BufferGeometry();
-            g.setAttribute('position',
-                new THREE.Float32BufferAttribute(cutPos, 3));
-
+            g.setAttribute("position", new THREE.Float32BufferAttribute(cutPos, 3));
             const shallow = new THREE.Color(this.core.options.cutColorShallow);
             const deep = new THREE.Color(this.core.options.cutColorDeep);
             const span = Math.max(1e-6, range.maxZ - range.minZ);
             const colors = new Float32Array(cutPos.length);
             const c = new THREE.Color();
             for (let i = 0; i < cutPos.length; i += 3) {
-                const t = (range.maxZ - cutPos[i + 2]) / span; // 0 surface → 1 deepest
+                const t = (range.maxZ - cutPos[i + 2]) / span;
                 c.copy(shallow).lerp(deep, Math.min(1, Math.max(0, t)));
-                colors[i] = c.r; colors[i + 1] = c.g; colors[i + 2] = c.b;
+                colors[i] = c.r;
+                colors[i + 1] = c.g;
+                colors[i + 2] = c.b;
             }
-            g.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-
-            const m = new THREE.LineBasicMaterial({ vertexColors: true });
-            this.group.add(new THREE.LineSegments(g, m));
+            g.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+            const m = new THREE.LineBasicMaterial({
+                vertexColors: !0,
+                depthWrite: true,
+                depthTest: true
+            });
+            const cutLines = new THREE.LineSegments(g, m);
+            cutLines.renderOrder = 3000;
+            this.group.add(cutLines);
         }
     }
 

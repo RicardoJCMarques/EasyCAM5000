@@ -210,11 +210,13 @@
         }
 
         /**
-         * (opType) => string[] - the operation's parameter stage list. The
-         * tree draws one node per stage after 'geometry'.
+         * (opType) => string[] - the operation's Artifact list. The tree
+         * draws one node per artifact. Renamed from setStageResolver: the
+         * tree has never drawn parameter stages, and treating the two lists
+         * as one is what produced the mislabelled node.
          */
-        setStageResolver(fn) {
-            this._resolveStages = fn;
+        setArtifactResolver(fn) {
+            this._resolveArtifacts = fn;
         }
 
         // Bucket CRUD
@@ -262,50 +264,6 @@
             return this.buckets.get(bucketId) || null;
         }
 
-        /**
-         * Returns all buckets that reference a given shape ID.
-         */
-        getBucketsForShape(shapeId) {
-            const result = [];
-            for (const bucket of this.buckets.values()) {
-                if (bucket.shapeRefs.includes(shapeId)) result.push(bucket);
-            }
-            return result;
-        }
-
-        /**
-         * Adds shape refs to an existing bucket. Invalidates if geometry was generated.
-         */
-        addShapesToBucket(bucketId, shapeIds, scene, core) {
-            const bucket = this.buckets.get(bucketId);
-            if (!bucket) return;
-
-            for (const id of shapeIds) {
-                const node = scene.findNode(id);
-                if (!node) continue;
-                if (node.kind === 'group') {
-                    for (const sid of scene.collectShapeIds(node)) {
-                        if (!bucket.shapeRefs.includes(sid)) bucket.shapeRefs.push(sid);
-                    }
-                } else if (node.kind === 'shape') {
-                    if (!bucket.shapeRefs.includes(id)) bucket.shapeRefs.push(id);
-                }
-            }
-
-            if (core) bucket.syncPrimitives(core, scene);
-            this.invalidateBucket(bucketId, 'Source geometry changed. Regenerate offsets.', core);
-            this.updateBucketDOM(bucket, core);
-        }
-
-        removeShapeFromBucket(bucketId, shapeId, core) {
-            const bucket = this.buckets.get(bucketId);
-            if (!bucket) return;
-            bucket.shapeRefs = bucket.shapeRefs.filter(id => id !== shapeId);
-
-            this.invalidateBucket(bucketId, 'Source geometry changed. Regenerate offsets.', core);
-            this.updateBucketDOM(bucket, core);
-        }
-
         // Generation State Updates
 
         /**
@@ -338,27 +296,24 @@
         }
 
         /**
-         * Clears a specific stage's generated geometry.
-         * Parallel to EasyTrace's handleDeleteGeometry.
+         * Clears one artifact and everything downstream of it. Core owns the
+         * cascade: preview.primitives ARE the offset primitives tagged in
+         * place, and a toolpath cannot outlive the geometry it was built from.
          */
         clearBucketStage(bucketId, stage, core) {
             const bucket = this.buckets.get(bucketId);
             if (!bucket || !core) return;
-
             const op = bucket.getOperation(core);
             if (!op) return;
 
-            if (stage === 'preview') {
-                op.preview = null;
+            if (stage === 'offsets') {
+                core.resetOperationState(bucketId);
+            } else if (stage === 'preview') {
+                core.deleteOperationGeometry(bucketId, 'preview');
                 op.exportReady = false;
-            } else if (stage === 'offsets') {
-                // preview.primitives ARE the offset primitives, tagged in
-                // place - keeping the preview after the offsets go leaves an
-                // operation with zero paths that isExportReady answers true
-                // for, and refresh3DPlans then builds a context for it.
-                op.offsets = [];
-                op.preview = null;
-                op.exportReady = false;
+                if (op.stamps) delete op.stamps.preview;
+            } else {
+                core.deleteOperationGeometry(bucketId, stage);
             }
 
             bucket.syncStateFromOperation(core);
@@ -386,8 +341,6 @@
                     ? e.target.closest('.stage-node')
                     : row.querySelector(`.stage-node[data-stage="${stage}"]`);
 
-                if (target?.classList.contains('is-gated')) return;
-
                 // Stage node is gone (data was deleted) - fall back to geometry.
                 if (!target) {
                     target = row.querySelector('.bucket-header');
@@ -405,84 +358,87 @@
             this.emit('select', { bucketId, stage });
         }
 
-        getSelectedBucketId() {
-            return this.selectedNode?.bucketId || null;
-        }
-
-        getSelectedStage() {
-            return this.selectedNode?.stage || null;
+        /**
+         * Per-artifact visibility, stored on the OPERATION so it survives a bucket
+         * DOM rebuild and matches how EasyTrace persists the same choice.
+         * Unset reads as visible: a new artifact must never appear hidden.
+         */
+        isArtifactVisible(bucket, key, core) {
+            return bucket.getOperation(core)?.layerVisibility?.[key] !== false;
         }
 
         /**
-         * Prerequisite gating for a stage NODE. Takes the intrinsic node name
-         * ('offsets' | 'preview'), not the parameter-stage name - buildStages
-         * is the only caller and that is the vocabulary it iterates. Mixing
-         * the two is what gated every freshly generated bucket's Offsets node
-         * on a preview that had not been built yet.
-         *
-         * buildStages already skips nodes with no data, so this is currently
-         * never true; it stays as the explicit invariant, and as the hook if
-         * unmet stages are ever rendered greyed instead of hidden.
-         * @param {Object} bucket
-         * @param {'offsets'|'preview'} stage
+         * The header eye is the bucket's GENERATED master - offsets, preview,
+         * toolpath. It does NOT touch source: a shape's visibility belongs to
+         * the scene tree and nowhere else, and two owners on one layer is how
+         * an eye ended up open over geometry that would not draw.
+         * Each icon reads exactly one key, so the header and the stage rows
+         * cannot report different things about the same fact.
          */
-        isStageGated(bucket, stage) {
-            if (stage === 'offsets') return !bucket.hasOffsets;
-            if (stage === 'preview') return !bucket.hasPreview;
-            return false;
+        isBucketVisible(bucket, core) {
+            return bucket?.getOperation(core)?.layerVisibility?.generated !== false;
+        }
+
+        toggleArtifactVisibility(bucketId, key, core) {
+            const op = this.buckets.get(bucketId)?.getOperation(core);
+            if (!op) return;
+            op.layerVisibility ||= {};
+            op.layerVisibility[key] = op.layerVisibility[key] === false;
+            this.updateBucketDOM(this.buckets.get(bucketId), core);
         }
 
         // DOM Rendering
         buildStages(bucket, container, core) {
             container.innerHTML = '';
-            const stages = this._resolveStages?.(bucket.type)
-                || ['geometry', 'strategy', 'machine'];
-            // One node per stage after 'geometry'. A 3D operation has two
-            // stages, so it gets one node and no separate preview step - its
-            // preview artifact is built during generation.
-            const intrinsicStages = stages.includes('strategy')
-                ? ['offsets', 'preview']
-                : ['offsets'];
+            // One node per ARTIFACT the chain declares. A 3D operation has no
+            // preview node because tool compensation is already baked into
+            // its field; a laser operation has only offsets.
+            const artifacts = this._resolveArtifacts?.(bucket.type) || ['offsets', 'preview'];
+            const registry = core?.registry;
 
-            for (const stage of intrinsicStages) {
+            const dimension = registry?.dimensionFor(bucket.type, core?.machineClassOf(bucket.getOperation(core)) || 'router') || null;
+
+            for (const stage of artifacts) {
                 const hasData = (stage === 'offsets' && bucket.hasOffsets) ||
-                                (stage === 'preview' && bucket.hasPreview);
+                                (stage === 'preview' && bucket.hasPreview) ||
+                                (stage !== 'offsets' && stage !== 'preview' &&
+                                 !!bucket.getOperation(core)?.stamps?.[stage]);
                 if (!hasData) continue;
 
-                const stageLabel = stage.charAt(0).toUpperCase() + stage.slice(1);
+                const stageLabel = registry?.artifactLabel(stage, dimension)
+                    || (stage.charAt(0).toUpperCase() + stage.slice(1));
+                const stageIcon = registry?.artifactIcon(stage) || `icon-${stage}-stage`;
 
                 const node = document.createElement('div');
                 node.dataset.stage = stage;
                 node.className = 'stage-node';
-
-                // Prerequisite gating.
-                if (this.isStageGated(bucket, stage)) {
-                    node.classList.add('is-gated');
-                    node.setAttribute('aria-disabled', 'true');
-                }
 
                 const isInvalidated = stage === 'offsets' && core &&
                     bucket.getOperation(core)?.isInvalidated && bucket.hasOffsets;
 
                 if (isInvalidated) node.classList.add('is-invalidated');
 
+                const visible = this.isArtifactVisible(bucket, stage, core);
+                // Presentation only - the master is a separate key with its
+                // own icon. Dimming is what tells the operator why a stage
+                // eye that reads "shown" is not drawing anything.
+                if (!this.isBucketVisible(bucket, core)) node.classList.add('is-muted');
                 node.innerHTML = `
-                    <span class="stage-icon"><svg class="cam-icon" width="14" height="14"><use href="#icon-${stage}-stage"></use></svg></span>
+                    <span class="stage-icon"><svg class="cam-icon" width="14" height="14"><use href="#${stageIcon}"></use></svg></span>
                     <span class="stage-label">${stageLabel}</span>
-                    <span class="stage-info"></span>
+                    <button class="btn btn--icon btn--compact stage-visibility" data-action="visibility" title="${visible ? 'Hide' : 'Show'}" aria-label="Toggle ${stageLabel} visibility">
+                        <svg class="cam-icon" width="12" height="12"><use href="#${visible ? 'icon-eye' : 'icon-eye-off'}"></use></svg>
+                    </button>
                     <button class="btn btn--icon btn--compact stage-delete" data-action="delete-stage" title="Delete ${stageLabel}">
                         <svg class="cam-icon" width="12" height="12"><use href="#icon-delete"></use></svg>
                     </button>
                 `;
 
-                node.addEventListener('click', (e) => {
-                    if (e.target.closest('[data-action]')) {
+                node.addEventListener('click', e => {
+                    const actionEl = e.target.closest('[data-action]');
+                    if (actionEl) {
                         e.stopPropagation();
-                        this.emit('action', {
-                            bucketId: bucket.id,
-                            action: 'delete-stage',
-                            stage: stage
-                        });
+                        this.emit('action', { bucketId: bucket.id, action: actionEl.dataset.action, stage });
                         return;
                     }
                     this.selectStage(bucket.id, stage);
@@ -504,14 +460,19 @@
             header.className = 'bucket-header';
             header.setAttribute('tabindex', '-1');
 
+            const genVisible = this.isBucketVisible(bucket, core);
             header.innerHTML = `
                 <span class="bucket-icon"><svg class="cam-icon" width="14" height="14"><use href="#icon-op-${bucket.type}"></use></svg></span>
                 <span class="bucket-label"></span>
                 <span class="bucket-info">${bucket.shapeRefs.length} shape(s)</span>
+                <button class="btn btn--icon btn--compact bucket-visibility" data-action="visibility" title="${genVisible ? 'Hide' : 'Show'} generated geometry" aria-label="Toggle generated geometry visibility">
+                    <svg class="cam-icon" width="12" height="12"><use href="#${genVisible ? 'icon-eye' : 'icon-eye-off'}"></use></svg>
+                </button>
                 <button class="btn btn--icon btn--compact bucket-delete" data-action="delete-bucket" title="Delete operation" aria-label="Delete operation">
                     <svg class="cam-icon" width="12" height="12"><use href="#icon-delete"></use></svg>
                 </button>
             `;
+
             let displayLabel = bucket.label;
             if (bucket.shapeRefs.length === 1) {
                 const shape = this._resolveScene?.()?.findShape(bucket.shapeRefs[0]);
@@ -519,16 +480,14 @@
             }
             header.querySelector('.bucket-label').textContent = displayLabel;
 
-            header.addEventListener('click', (e) => {
-                if (e.target.closest('[data-action]')) {
+            header.addEventListener('click', e => {
+                const actionEl = e.target.closest('[data-action]');
+                if (actionEl) {
                     e.stopPropagation();
-                    const action = e.target.closest('[data-action]').dataset.action;
-                    if (action === 'delete-bucket') {
-                        this.emit('action', { bucketId: bucket.id, action: 'delete' });
-                    }
+                    const action = actionEl.dataset.action;
+                    this.emit('action', { bucketId: bucket.id, action: 'delete-bucket' === action ? 'delete' : action, stage: 'generated' });
                     return;
                 }
-                // Click header = select geometry stage
                 this.selectStage(bucket.id, 'geometry');
             });
 
@@ -549,8 +508,6 @@
             } else {
                 this.container.appendChild(row);
             }
-
-            this.updateStageInfo(bucket, row, core);
         }
 
         updateBucketDOM(bucket, core) {
@@ -561,32 +518,18 @@
             const infoEl = row.querySelector('.bucket-info');
             if (infoEl) infoEl.textContent = `${bucket.shapeRefs.length} shape(s)`;
 
+            // The header is not inside the subtree buildStages rebuilds, so its
+            // eye needs its own refresh or it renders the state it was born in.
+            const visBtn = row.querySelector('.bucket-visibility');
+            if (visBtn) {
+                const genVisible = this.isBucketVisible(bucket, core);
+                visBtn.title = (genVisible ? 'Hide' : 'Show') + ' generated geometry';
+                visBtn.querySelector('use')?.setAttribute('href', genVisible ? '#icon-eye' : '#icon-eye-off');
+                row.classList.toggle('is-generated-hidden', !genVisible);
+            }
+
             const stages = row.querySelector('.bucket-stages');
-            if (stages) {
-                this.buildStages(bucket, stages, core);
-            }
-
-            this.updateStageInfo(bucket, row, core);
-        }
-
-        updateStageInfo(bucket, row, core) {
-            // Offsets info
-            const offInfo = row.querySelector('.stage-node[data-stage="offsets"] .stage-info');
-            if (offInfo) {
-                const op = core ? bucket.getOperation(core) : null;
-                if (op?.offsets?.length > 0) {
-                    const count = op.offsets.reduce((s, o) => s + (o.primitives?.length || 0), 0);
-                    offInfo.textContent = `${count} path(s)`;
-                } else {
-                    offInfo.textContent = '';
-                }
-            }
-
-            // Preview info
-            const prvInfo = row.querySelector('.stage-node[data-stage="preview"] .stage-info');
-            if (prvInfo) {
-                prvInfo.textContent = bucket.hasPreview ? 'Ready' : '';
-            }
+            if (stages) this.buildStages(bucket, stages, core);
         }
 
         updateEmptyState() {

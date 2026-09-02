@@ -66,11 +66,17 @@
             // and the generator's machinable window read the same reach, so
             // the two can never disagree.
             const wh = FieldParams.workholding(p);
+            const sliceOptions = this.buildSliceOptions(p, wh);
+            // Extra job fields stay caller-side - only kind/mesh/sliceOptions/
+            // genOptions are posted to the worker.
             return [{
                 kind: 'rotary',
-                mesh,
-                sliceOptions: this.buildSliceOptions(p, wh),
-                genOptions: this.buildGeneratorOptions(p, wh)
+                mesh: mesh,
+                sliceOptions: sliceOptions,
+                genOptions: this.buildGeneratorOptions(p, wh),
+                params: p,
+                padLow: sliceOptions.padding.low,
+                padHigh: sliceOptions.padding.high
             }];
         }
 
@@ -145,20 +151,22 @@
         }
 
         /**
-         * cm.axisB is the SLICED cross-u coordinate. Every display consumer -
-         * GeometryLayer3D's developed wrap and walkPlans' devAxisB - draws in
-         * world/machine space, and buildSharedMetadata below already publishes
-         * the world value for the blank cylinder. Republish it on the
-         * primitives so the two can never disagree: axisBSign is -1 for a B(y)
-         * job, which mirrored the wrapped strip across its own blank.
+         * Datum, not stamping. The generator emits axial coordinates straight
+         * off the sliced grid, so this is the one point where the job becomes
+         * machine-relative. Cross needs no work: the rotation centreline IS
+         * cross 0 (convertDevelopedToRotary drops the cross word and fixPt
+         * zeroes it), so the display frame is cross 0 too and the MESH moves,
+         * not the geometry.
          */
-        onJobPrimitives(primitives, job) {
-            const bSign = FieldParams.axisBSign(job.sliceOptions.axis);
-            if (bSign === 1) return;
-            for (const p of primitives) {
-                const props = p.properties;
-                if (props && typeof props.axisB === 'number') props.axisB *= bSign;
-            }
+        onJobPrimitives(primitives, job, container) {
+            const cm = container;
+            const modelMin = cm.originX + (job.padLow || 0);
+            const modelMax = cm.originX + (cm.cols - 1) * cm.cellX - (job.padHigh || 0);
+            FieldParams.applyAxialShift(
+                primitives, cm,
+                FieldParams.axialDatum(job.params, modelMin, modelMax),
+                0, 'originX'
+            );
         }
 
         buildSharedMetadata(ctx) {
@@ -199,6 +207,7 @@
                 cellSize: cm.cellX,
                 developedSpace: true,   // y = unwound arc at refRadius -
                                         // the machine pass must convert
+                axialShift: cm.axialShift || 0,
                 is3DToolpath: true
             };
         }

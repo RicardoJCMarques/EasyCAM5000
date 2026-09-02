@@ -1058,9 +1058,19 @@
 }
 
 /* Drag handles: hidden by default, shown only when ordering matters (single-file mode) */
+/* Fixed slot, always occupied: the handle only ever changes visibility, so
+   toggling single-file mode or locking a row cannot reflow the list. */
 .operation-order .drag-handle {
+    flex: 0 0 1rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     visibility: hidden;
-    width: 1rem;
+}
+
+.operation-order .file-node-content {
+    display: flex;
+    align-items: center;
 }
 
 .operation-order.is-orderable .drag-handle {

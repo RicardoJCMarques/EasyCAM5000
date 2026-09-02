@@ -1,4 +1,4 @@
-# Accessibility Info
+# EasyTrace5000 Accessibility Guide
 
 Keyboard navigation, screen reader support, and WCAG compliance
 
@@ -176,7 +176,7 @@ EasyTrace5000 targets **WCAG 2.1 Level AA** compliance. While the application is
 | **2.4.3** | Focus Order | ✓ | Modals and panels manage focus logically; closing a modal returns focus to the triggering element. |
 | **2.4.6** | Headings and Labels | ✓ | Descriptive headings identify all major workspace sections; inputs have associated `<label>` elements. |
 | **2.4.7** | Focus Visible | ✓ | High-contrast CSS focus rings (`:focus-visible`) appear on all interactive elements. |
-| **2.5.3** | Label in Name | ✓ | Accessible names for icon buttons match their visual tooltips (e.g., "Fit to View"). |
+| **2.5.3** | Label in Name | ✓ | Accessible names match visible text. Navigation links rely on their visible text; `aria-label` is used only for icon-only controls, where it matches the visual tooltip. |
 | **3.2.1** | On Focus | ✓ | Focusing on input fields or tree items never triggers a context change (submit/navigation). |
 | **3.2.2** | On Input | ✓ | Parameter changes update the preview or require explicit confirmation; no unexpected page reloads. |
 | **4.1.2** | Name, Role, Value | ✓ | Custom controls (Tree View, Toggles) use correct ARIA roles (`tree`, `treeitem`, `button`). |

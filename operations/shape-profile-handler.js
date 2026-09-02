@@ -39,6 +39,12 @@
         async orchestrateGeneration(operation, params, core, options = {}) {
             const token = this.beginRun(operation, options, core);
 
+            // The base orchestration calls this immediately after the token;
+            // overriding orchestration meant detectNesting reached the hook and
+            // the hook was never invoked.
+            const resolved = this.resolveSourceTopology(operation, params);
+            if (resolved) operation.primitives = resolved;
+
             // Validate: profile requires closed geometry
             const openCount = this.countOpenPaths(operation);
             if (openCount > 0) {

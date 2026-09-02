@@ -115,7 +115,7 @@
             return null;
         }
 
-        // ── Frame math ───────────────────────────────────────────────
+        // Frame math
 
         /**
          * Which GRID direction is the rotary axis in the sliced frame.
@@ -138,7 +138,7 @@
             return (machineAxis === 'y') ? 'y' : 'x';
         }
 
-        // ── Parameter resolution ─────────────────────────────────────
+        // Parameter resolution
 
         /**
          * Post-capability precheck - advisory only. The machine pass
@@ -318,9 +318,22 @@
                     survey.axialExt, 2 * prism.stockHalfSpan) / gridMaxDim);
 
             const C = window.CAMConfig.constants.rotary;
+
+            // Axial datum. Resolved ONCE on the survey, not per face: the axial
+            // extent is rotation-invariant so every face would resolve the same
+            // number in exact arithmetic, but a face that barely reaches an end
+            // can quantize differently and slide its whole toolpath along the
+            // axis relative to its neighbours.
+            const axialShift = FieldParams.axialDatum(s, survey.axialMin, survey.axialMax);
+
             return {
-                machineAxis, upright, visualOrient, angles,
-                axialAxis, crossAxis,
+                machineAxis: machineAxis,
+                upright: upright,
+                visualOrient: visualOrient,
+                angles: angles,
+                axialAxis: axialAxis,
+                crossAxis: crossAxis,
+                axialShift: axialShift,
                 Cvis: survey.Cvis,
                 apothem: prism.apothem,
                 blankWidth: prism.blankWidth,
@@ -354,7 +367,7 @@
             };
         }
 
-        // ── Job construction ─────────────────────────────────────────
+        // Job construction
 
         buildJobs(operation, settings, warnings) {
             const mesh = this.getMeshSource(operation);
@@ -495,17 +508,30 @@
             };
         }
 
-        // ── Per-face stamping and caching ────────────────────────────
+        // Per-face stamping and caching
 
-        onJobPrimitives(prims, job) {
+        /**
+         * Datum. One shift for every face - resolved on the survey, not per
+         * container, because a per-face resolution would let a face that barely
+         * reaches an end quantize to a different zero and offset that face's
+         * whole toolpath along the axis.
+         */
+        onJobPrimitives(prims, job, container) {
             const ix = job.ix;
+            const alongX = ix.axialAxis === 'x';
+            FieldParams.applyAxialShift(
+                prims, container, ix.axialShift,
+                alongX ? 0 : 1,
+                alongX ? 'originX' : 'originY'
+            );
+            // existing per-face stamping continues below
             const k = job.faceIndex;
             for (const prim of prims) {
                 const props = prim.properties || (prim.properties = {});
-                props.indexed = true;               // translator frame branch
-                props.indexA = ix.angles[k];        // degrees, machine A/B word
-                props.indexOrder = k;               // machining order, _IX: group
-                props.axisKind = ix.machineAxis;    // 'x'→A word, 'y'→B word
+                props.indexed = true; // translator frame branch
+                props.indexA = ix.angles[k]; // degrees, machine A/B word
+                props.indexOrder = k; // machining order, _IX: group
+                props.axisKind = ix.machineAxis; // 'x'→A word, 'y'→B word
                 props.indexedFaceOrder = ix.faceOrder;
                 // Preview contract: the rotation axis line sits at
                 // (y=0, z=-apothem) below the face top in every face's
@@ -547,82 +573,6 @@
                 }
             }
 
-            // ── Section-stack smoke check (debug.sections) ───────────
-            // Stage 1 of the migration: rebuild each face's top envelope
-            // from ONE plane sweep and diff it against the heightmap the
-            // face machined from. medianΔ absorbs the data-vs-absolute-Z
-            // and cell-center conventions; maxDev is the real disagreement
-            // (expect ~cell-sized values on smooth regions, larger only at
-            // silhouette walls, where a half-cell shift meets a steep
-            // slope). Persistently large maxDev on interior stations means
-            // the sweep is NOT ready to replace fromMesh.
-            if (window.CAMConfig.defaults.debug.sections === true) {
-                try {
-                    const mesh = this.getMeshSource(operation);
-                    const hm0 = ctx.containers[0];
-                    const axIsX = (ix.axialAxis === 'x');
-                    const axOrigin = axIsX ? hm0.originX : hm0.originY;
-                    const axCount = axIsX ? hm0.cols : hm0.rows;
-
-                    const sec = window.SectionSlicer.fromMesh(mesh.triangles, {
-                        orient: ix.visualOrient, origin: ix.Cvis,
-                        uIsX: (ix.machineAxis === 'y'),
-                        a0: axOrigin, pitch: ix.cellSize, count: axCount
-                    });
-
-                    const T = window.Transform3D;
-                    const cu = (ix.machineAxis === 'y') ? 0 : 1; // cross-u world idx
-                    ctx.containers.forEach((hm, k) => {
-                        if (!hm) return;
-                        const M = T.rotAboutAxis(ix.machineAxis, ix.angles[k]);
-                        const rot = { uu: M[cu * 3 + cu], uv: M[cu * 3 + 2],
-                                      vu: M[2 * 3 + cu],  vv: M[8] };
-                        const crossO = axIsX ? hm.originY : hm.originX;
-                        const crossN = axIsX ? hm.rows : hm.cols;
-
-                        const dsRaw = [];
-                        for (let st = 0; st < axCount; st++) {
-                            const env = window.SectionSlicer.envelopeTop(
-                                sec.stations[st],
-                                { ...rot, u0: crossO, cell: hm.cellSize, cols: crossN });
-                            let eMax = -Infinity, hMax = -Infinity;
-                            for (let c = 0; c < crossN; c++) {
-                                if (env.top[c] > eMax) eMax = env.top[c];
-                                const i = axIsX ? (c * hm.cols + st) : (st * hm.cols + c);
-                                if (hm.mask && !hm.mask[i]) continue;
-                                if (hm.data[i] > hMax) hMax = hm.data[i];
-                            }
-                            // Absolute sliced Z on both sides: the heightmap
-                            // is normalized against zMin, the sections are
-                            // not. With that added, medianΔ should be ~0 and
-                            // a nonzero median is itself the signal (a frame
-                            // or datum mismatch) rather than a convention.
-                            if (Number.isFinite(eMax) && Number.isFinite(hMax)) {
-                                dsRaw.push(eMax - (hMax + (hm.zMin || 0)));
-                            }
-                        }
-                        if (!dsRaw.length) {
-                            console.log(`[SectionCheck] face ${k}: no overlap`);
-                            return;
-                        }
-                        const ds = dsRaw.slice().sort((a, b) => a - b);
-                        const med = ds[ds.length >> 1];
-                        let maxDev = 0;
-                        for (const v of dsRaw) {
-                            const dev = Math.abs(v - med);
-                            if (dev > maxDev) maxDev = dev;
-                        }
-                        console.log(`[SectionCheck] face ${k} ` +
-                            `(${ix.angles[k].toFixed(1)}°): ${dsRaw.length}/` +
-                            `${axCount} station(s), medianΔ=${med.toFixed(3)} ` +
-                            `maxDev=${maxDev.toFixed(3)} (cell ` +
-                            `${hm.cellSize.toFixed(3)})`);
-                    });
-                } catch (err) {
-                    console.warn('[SectionCheck] failed:', err);
-                }
-            }
-
             super.cacheFields(operation, ctx);
         }
 
@@ -660,19 +610,21 @@
                     machineAxis: ix.machineAxis,
                     apothem: ix.apothem,
                     axisCenter: {
-                        b: ix.machineAxis === 'y' ? ix.Cvis[0] : ix.Cvis[1],
+                        b: "y" === ix.machineAxis ? ix.Cvis[0] : ix.Cvis[1],
                         c: ix.Cvis[2]
                     },
                     clearRadius: ix.clearRadius,
                     faceCount: ix.angles.length,
                     startAngle: ix.angles[0] || 0,
-                    gridCols: hm?.cols,
+                    gridCols: "y" === ix.axialAxis ? hm?.rows : hm?.cols,
                     cellSize: hm?.cellSize,
-                    originX: (ix.axialAxis === 'y') ? hm?.originY : hm?.originX
+                    originX: "y" === ix.axialAxis ? hm?.originY : hm?.originX,
+                    axialShift: ix.axialShift || 0
                 },
                 gridCols: hm?.cols,
                 gridRows: hm?.rows,
                 cellSize: hm?.cellSize,
+                axialShift: ix.axialShift || 0,
                 is3DToolpath: true
                 // NOTE: no developedSpace, no refRadius - indexed plans
                 // must NEVER route into convertDevelopedToRotary.

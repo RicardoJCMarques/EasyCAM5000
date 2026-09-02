@@ -475,7 +475,7 @@
             // software does not reorder their list to reduce it on its own.
             this.lastToolChangeCount = toolChangeCount;
 
-            return this.currentProcessor.applyLineNumbers(program);
+            return this.currentProcessor.applyLineNumbers(program, options);
         }
 
         linearizeArc(cmd, startPos, resolution = 1.0) {

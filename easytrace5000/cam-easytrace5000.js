@@ -56,25 +56,33 @@
             }
 
             // Handlers
-            const handlers = [
-                ['isolation', 'TraceIsolationHandler'],
-                ['clearing',  'TraceClearingHandler'],
-                ['cutout',    'TraceCutoutHandler'],
-                ['drill',     'DrillHandler'],
-                ['stencil',   'TraceStencilHandler']
-            ];
-            for (const [type, className] of handlers) {
-                if (typeof window[className] !== 'undefined') {
-                    this.core.registerHandler(type, new window[className](this.core));
-                }
-            }
+            super.registerHandlers();
         }
 
-        onPostWASM() {
-            if (this.isLaserPipeline() && this.ui.controls) {
-                this.ui.machineSettings.updatePipelineFieldVisibility();
-            }
+        /**
+         * PCB slab: board bounds in machine space, thickness from settings.
+         */
+        get3DStockBox(w2m) {
+            const b = this.core.scene?.boardBounds;
+            if (!(b && b.maxX > b.minX)) return null;
+            const thickness = this.core.settings.machine.pcb.thickness;
+            const zeroRef = this.core.settings?.machine?.stock?.zeroReference;
+            const topZ = (zeroRef && "material" !== zeroRef) ? thickness : 0;
+            const machineMatrix = this.core.getTransforms().machineMatrix;
+            const w = b.maxX - b.minX;
+            const d = b.maxY - b.minY;
+            return {
+                width: w,
+                depth: d,
+                thickness: thickness,
+                topZ: topZ,
+                centerX: (b.minX + b.maxX) / 2,
+                centerY: (b.minY + b.maxY) / 2,
+                matrix: machineMatrix
+            };
         }
+
+        onPostWASM() { this.ui.machineSettings?.updatePipelineFieldVisibility(); }
 
         registerAppShortcuts() {
             const sm = this.shortcutManager;
@@ -152,7 +160,7 @@
             document.getElementById('toolbar-manage-toolpaths')?.addEventListener('click', () => {
                 const readyOps = this.core.operations.filter(op => this.core.isExportReady(op));
                 if (readyOps.length === 0) {
-                    this.ui.setStatus('No operations ready. Generate previews first.', 'warning');
+                    this.ui.setStatus('No operations ready for export. Finish each operation through its Toolpaths stage first.', 'warning');
                     return;
                 }
                 this.modalManager.showModal('exportManager', { operations: readyOps });
@@ -174,6 +182,7 @@
                 this.closeDropdown();
             });
 
+            document.getElementById('btn-toggle-3d')?.addEventListener('click', () => this.toggle3DMode()); // REVIEW - Is this in the right place?
             this.setupSharedToolbarButtons();
         }
 
@@ -217,31 +226,6 @@
         // File Processing
         // ════════════════════════════════════════════════════════════════
 
-        async processUploadedFiles() {
-            let totalWarnings = 0, formatGuessed = false, fileCount = 0;
-            for (const [type, file] of Object.entries(this.uploadedFiles)) {
-                if (file) {
-                    await this.processFile(file, type);
-                    fileCount++;
-                    const lastOp = this.core.operations[this.core.operations.length - 1];
-                    if (lastOp?.warnings?.length > 0) {
-                        totalWarnings += lastOp.warnings.length;
-                        if (lastOp.warnings.some(w => (typeof w === 'string' ? w : w.message).includes('No explicit format found'))) formatGuessed = true;
-                    }
-                }
-            }
-            this.uploadedFiles = { isolation: null, drill: null, clearing: null, cutout: null, stencil: null };
-            this.ensureCoordinateSystem();
-            
-            // Wait for DOM reflow
-            if (this.ui.renderer) {
-                requestAnimationFrame(() => {
-                    this.ui.renderer.core.zoomFit();
-                    this.ui.renderer.render();
-                });
-            }
-        }
-
         async loadExample(exampleId) {
             if (!exampleId) {
                 const select = document.getElementById('pcb-example-select');
@@ -251,7 +235,7 @@
             const example = examples[exampleId];
             if (!example) { this.ui.setStatus(`Example not found: ${exampleId}`, 'error'); return; }
             this.ui.setStatus(`Loading example: ${example.name}...`, 'info');
-            if (this.core) { this.core.operations = []; this.core.toolpaths.clear(); }
+            if (this.core) this.core.clearAll();
             this.ui.navTreePanel.refreshTree();
             for (const [type, filepath] of Object.entries(example.files)) {
                 try {
@@ -266,9 +250,10 @@
                 }
             }
             this.core.updateBoardBounds();
+            this._hasFitted3DOnce = false;
             this.ui.setStatus(`Example '${example.name}' loaded successfully.`, 'success');
             await this.ui.updateRendererAsync();
-            this.ui.renderer.core.zoomFit();
+            this.ui.zoomFit();
             this.ui.renderer.render();
         }
 
@@ -330,7 +315,7 @@
                     if (this.ui.updateRendererAsync) await this.ui.updateRendererAsync();
                     else if (this.ui.updateRenderer) await this.ui.updateRenderer();
 
-                    if (this.core.operations.length <= 1 && this.ui.renderer) this.ui.renderer.core.zoomFit();
+                    if (this.core.operations.length <= 1) this.ui.zoomFit();
                     this.ui.updateStatistics();
                     resolve();
                 };
@@ -342,12 +327,12 @@
         handleClosurePrompt(operation) {
             if (!this.modalManager) return;
             const info = operation.closureInfo;
-            const actualGaps = [...(info.gaps?.length > 0 ? info.gaps : GeometryUtils.analyzeSegmentGaps(info.rawPrimitives))].reverse();
+            const actualGaps = [...(info.gaps?.length > 0 ? info.gaps : GeometryTopology.analyzeSegmentGaps(info.rawPrimitives))].reverse();
             const suggestedTol = (Math.max(...actualGaps) + PRECISION).toFixed(3);
             let lastProbeResult = null;
 
             const runProbe = (tol) => {
-                const { loops, orphans } = GeometryUtils.extractClosedLoops(info.rawPrimitives, tol);
+                const { loops, orphans } = GeometryTopology.extractClosedLoops(info.rawPrimitives, tol);
                 return { success: orphans.length === 0 && loops.length > 0, loops, chainedCount: info.rawPrimitives.length - orphans.length, totalSegments: info.rawPrimitives.length, unchainedCount: orphans.length, testedTol: tol };
             };
             lastProbeResult = runProbe(parseFloat(suggestedTol));
@@ -378,8 +363,8 @@
                     const resolvedLoops = lastProbeResult?.loops;
                     if (resolvedLoops?.length > 0) {
                         const allLoops = operation.extractedLoops ? [...operation.extractedLoops, ...resolvedLoops] : resolvedLoops;
-                        const topology = GeometryUtils.classifyCutoutTopology(allLoops);
-                        const compounds = GeometryUtils.assembleCutoutCompounds(topology);
+                        const topology = GeometryTopology.classifyCutoutTopology(allLoops);
+                        const compounds = GeometryTopology.assembleCutoutCompounds(topology);
                         operation.primitives = compounds.length > 0 ? compounds : allLoops;
                         delete operation.extractedLoops;
                         operation.bounds = this.core.recalculateBounds(operation.primitives);
@@ -474,8 +459,9 @@
             }
             if (this.pendingOperations.length === 0 && this.initState.fullyReady) {
                 this.core.updateBoardBounds();
+                this._hasFitted3DOnce = false;
                 await this.ui.updateRendererAsync();
-                this.ui.renderer.core.zoomFit(true);
+                this.ui.zoomFit();
                 this.ui.renderer.render();
                 if (fileCount > 1) {
                     if (formatGuessed) this.ui.setStatus(`Loaded ${fileCount} files. Warning: Excellon format guessed! See log.`, 'warning');
@@ -489,10 +475,7 @@
         }
 
         getOperationTypeFromExtension(ext) {
-            for (let [type, config] of Object.entries(this.core.fileTypes)) {
-                if (config.extensions?.some(e => e.slice(1) === ext)) return type;
-            }
-            return null;
+            return this.registry?.typeForExtension(ext) || null;
         }
 
         async processPendingOperations() {
@@ -513,26 +496,20 @@
         // API
         // ════════════════════════════════════════════════════════════════
 
-        getCore() { return this.core; }
-        getUI() { return this.ui; }
-
         onPipelineSelected(pipelineId) {
             if (pipelineId === 'laser') return 'laserConfig';
-            this.setPipeline('cnc');
+            this.setMachineClass('router');
             return 'quickstart';
         }
 
         getQuickstartOpTypes() {
-            return ['isolation', 'drill', 'clearing', 'cutout', 'unassigned'];
+            return [...this.registry.tabTypes().filter(t => t !== 'stencil'), 'unassigned'];
         }
 
         getTreeFocusSelector() { return '#operations-tree [tabindex="0"]'; }
 
         getStats() {
-            return {
-                ...super.getStats(),
-                toolLibrary: this.ctrl.toolLibrary?.getStats?.() || null
-            };
+            return { ...super.getStats(), toolLibrary: this.toolLibrary?.getStats?.() || null };
         }
     }
 
@@ -557,16 +534,8 @@
     window.enableTraceDebug = function() { debugState.enabled = true; };
     window.disableTraceDebug = function() { debugState.enabled = false; };
 
-    // REVIEW - How does this compare to UI's addFileNode? This really looks as if it should just be shared? At least have a base add file infrastructure and different orchestration for each app?
     window.addFile = function(type) {
-        if (!ctrl.ui) { console.error('Controller not initialized'); return; }
-        if (ctrl.ui.triggerFileInput) { ctrl.ui.triggerFileInput(type); return; }
-        const fileInput = document.getElementById('file-input-temp') || document.getElementById('file-input-hidden');
-        if (!fileInput) { console.error('File input element not found'); return; }
-        fileInput.setAttribute('data-type', type);
-        const opConfig = ctrl.core.fileTypes[type];
-        if (opConfig) { const extensions = [...opConfig.extensions]; if (!extensions.includes('.svg')) extensions.push('.svg'); fileInput.setAttribute('accept', extensions.join(',')); }
-        fileInput.onchange = async (e) => { const file = e.target.files[0]; if (file) await ctrl.processFile(file, type); fileInput.value = ''; };
-        fileInput.click();
+        if (!ctrl?.ui?.triggerFileInput) { console.error('Controller not initialized'); return; }
+        ctrl.ui.triggerFileInput(type);
     };
 })();

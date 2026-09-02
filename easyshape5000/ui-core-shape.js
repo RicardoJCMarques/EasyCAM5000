@@ -23,19 +23,7 @@
             this.opsPanel = null;
             this.generating = false;
 
-            this.vizFilters = {
-                unassigned: true,
-                profile: true,
-                pocket: true,
-                drill: true,
-                engrave: true,
-                vcarve: true,
-                relief: true,
-                rotary: true,
-                pattern: true,
-                generated: true,
-                preview: true
-            };
+            this.vizFilters = { generated: true, preview: true };
         }
 
         // ═══════════════════════════════════════════════════════════════
@@ -122,7 +110,7 @@
         }
 
         // REVIEW - Some consistency is getting lost between EasyShape5000 and EasyTrace5000, double check all these methods maintain some relational predictability to how they work.
-                resolveLayerColor(layer) {
+        resolveLayerColor(layer) {
             const isBW = this.renderer?.options?.blackAndWhite;
             if (isBW) return this.readCSSVar('--color-bw-white', '#ffffff');
 
@@ -246,6 +234,7 @@
 
             this.navScenePanel.on('toolbar', (action) => {
                 switch (action) {
+                    case 'add': this.ctrl.importGeometry(); break;
                     case 'group': this.ctrl.groupSelection(); break;
                     case 'ungroup': this.ctrl.ungroupSelection(); break;
                     case 'lock': this.ctrl.toggleNodeFlag(this.ctrl.selection.toArray()[0], 'locked'); break;
@@ -259,8 +248,10 @@
             this.opsPanel = new NavOperationsPanel();
             this.opsPanel.init('operations-bucket-list');
             this.opsPanel.setSceneResolver(() => this.ctrl.scene);
-            this.opsPanel.setStageResolver((opType) =>
-                this.ctrl.parameterManager.getStagesForPipeline('cnc', opType));
+            this.opsPanel.setArtifactResolver((opType) => {
+                const cls = this.ctrl.resolveMachineClass(opType);
+                return this.ctrl.parameterManager.getArtifacts(opType, cls);
+            });
 
             this.opsPanel.on('select', ({ bucketId, stage }) => {
                 const bucket = this.opsPanel.getBucket(bucketId);
@@ -271,13 +262,21 @@
                 if (panel) panel.dataset.rightPanelState = 'bucket-stage';
 
                 const container = document.getElementById('operation-form-container');
+                const operation = bucket.getOperation(this.ctrl.core);
+                this.ctrl.setViewportForNode?.('geometry' === stage ? null : stage, operation);
+                // REVIEW - Is this if (container && this.shapeOperationPanel) { this.shapeOperationPanel.showBucketStage(container, bucket, stage); } check still needed?
                 if (container && this.shapeOperationPanel) {
                     this.shapeOperationPanel.showBucketStage(container, bucket, stage);
                 }
             });
 
             this.opsPanel.on('action', ({ bucketId, action, stage }) => {
-                if (action === 'delete') {
+                if ('visibility' === action) {
+                    this.opsPanel.toggleArtifactVisibility(bucketId, stage, this.ctrl.core);
+                    this.rebuildLayers();
+                    return;
+                }
+                if ('delete' === action) {
                     this.opsPanel.removeBucket(bucketId, this.ctrl.core);
                     this.rebuildLayers();
                 } else if (action === 'delete-stage') {
@@ -285,10 +284,16 @@
 
                     // If the bucket has no offsets and no preview objects just delete it
                     const bucket = this.opsPanel.getBucket(bucketId);
+                    const bucketType = bucket?.type;
+                    const artifacts = bucketType
+                        ? this.ctrl.parameterManager.getArtifacts(
+                              bucketType, this.ctrl.resolveMachineClass(bucketType))
+                        : [];
+                    const idx = artifacts.indexOf(stage);
+                    const prevStage = idx > 0 ? artifacts[idx - 1] : 'geometry';
                     if (bucket && !bucket.hasOffsets && !bucket.hasPreview) {
                         this.opsPanel.removeBucket(bucketId, this.ctrl.core);
                     } else {
-                        const prevStage = stage === 'preview' ? 'offsets' : 'geometry';
                         this.opsPanel.selectStage(bucketId, prevStage);
                     }
                     this.rebuildLayers();
@@ -299,22 +304,51 @@
             this.opsPanel.on('bucketRemoved', () => this.rebuildLayers());
         }
 
+        /**
+         * Builds the op-type strip from the registry. Declaration order in
+         * profile-shape.json is the button order; `tab: false` types
+         * (pattern, unassigned) are excluded. Batch B adds a dimensionality
+         * filter to the same list and nothing else changes.
+         */
         initOpTypeTabs() {
-            document.querySelectorAll('.op-type-tab').forEach(tab => {
-                tab.addEventListener('click', () => {
-                    if (tab.disabled) return;
-                    document.querySelectorAll('.op-type-tab').forEach(t => t.classList.remove('active'));
-                    tab.classList.add('active');
-                    const opType = tab.dataset.op;
-                    const anchorId = this.ctrl.selection.anchor();
-                    const container = document.getElementById('fresh-params-form');
-                    if (container && anchorId && this.shapeOperationPanel) {
-                        this.shapeOperationPanel.showFreshSelection(
-                            document.getElementById('operation-form-container'),
-                            anchorId, opType
-                        );
-                    }
-                });
+            const strip = document.getElementById('op-type-selector');
+            if (!strip) return;
+
+            const registry = this.ctrl.registry;
+            // A 2D workspace cannot draw a field-generated surface, so it must
+            // not offer to make one. The 3D workspace offers everything.
+            const types = registry.tabTypes().filter(t => this.ctrl.allowsOperationType(t));
+            strip.innerHTML = '';
+
+            types.forEach((opType, i) => {
+                const label = registry.labelFor(opType);
+                const btn = document.createElement('button');
+                btn.className = 'op-type-tab' + (i === 0 ? ' active' : '');
+                btn.dataset.op = opType;
+                btn.title = label;
+                btn.setAttribute('aria-label', label);
+                btn.innerHTML =
+                    `<svg class="cam-icon" width="16" height="16"><use href="#${registry.iconFor(opType)}"></use></svg>`;
+                strip.appendChild(btn);
+            });
+
+            if (this._opTabsBound) return;
+            this._opTabsBound = true;
+
+            strip.addEventListener('click', (e) => {
+                const tab = e.target.closest('.op-type-tab');
+                if (!tab || tab.disabled) return;
+                strip.querySelectorAll('.op-type-tab').forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+
+                const anchorId = this.ctrl.selection.anchor();
+                const container = document.getElementById('fresh-params-form');
+                if (container && anchorId && this.shapeOperationPanel) {
+                    this.shapeOperationPanel.showFreshSelection(
+                        document.getElementById('operation-form-container'),
+                        anchorId, tab.dataset.op
+                    );
+                }
             });
         }
 
@@ -329,22 +363,8 @@
                 this.lang
             );
 
-            // Operation assignment from palette
-            this.shapeOperationPanel.on('assignOp', (opType) => this.ctrl.assignOperationToSelection(opType));
-            this.shapeOperationPanel.on('clearOp', () => this.ctrl.clearOperationFromSelection());
-
             // Export manager
             this.shapeOperationPanel.on('openExportManager', () => this.openExportModal());
-
-            // Stage tab clicks trigger re-render
-            this.shapeOperationPanel.on('stageChanged', (newStage) => {
-                const container = document.getElementById('operation-form-container');
-                const anchorId = this.ctrl.selection.anchor();
-                const anchor = anchorId ? this.ctrl.scene.findShape(anchorId) : null;
-                if (container && anchor?.operation) {
-                    this.shapeOperationPanel.showOperationProperties(container, anchor);
-                }
-            });
 
             // Bucket creation
             this.shapeOperationPanel.on('createAndGenerate', async ({ shapeId, opType }) => {
@@ -377,57 +397,6 @@
                     if (result.success) { this.opsPanel.selectStage(bucketId, 'offsets'); this.rebuildLayers(); }
                 });
             })
-
-            // Action on existing bucket stage
-            this.shapeOperationPanel.on('bucketAction', async ({ bucketId, stage }) => {
-                const bucket = this.opsPanel.getBucket(bucketId);
-                if (!bucket) return;
-                const captured = this.shapeOperationPanel.captureFormStateForId(
-                    bucketId, bucket.type, bucket.shapeRefs);
-                bucket.settings = { ...bucket.settings, ...captured };
-
-                if (stage === 'geometry') {
-                    // Regenerate offsets. resetOperationState is the handler's -
-                    // it runs there AFTER beginGeneration stamps the token, which
-                    // is the order the stale gate depends on.
-                    await this.runBucketStage('Regeneration', async () => {
-                        bucket.syncPrimitives(this.ctrl.core, this.ctrl.scene);
-
-                        const result = await this.shapeOperationPanel.runGeneration(bucketId);
-                        this.opsPanel.updateBucketAfterGeneration(bucketId, this.ctrl.core);
-                        this.setStatus(result.message, result.status);
-                        if (result.success) {
-                            this.opsPanel.selectStage(bucketId, 'offsets');
-                            this.rebuildLayers();
-                        }
-                    });
-                } else if (stage === 'offsets') {
-                    // A 3D operation has no strategy stage: its single node IS
-                    // the machine stage and its button opens the exporter.
-                    const stages = this.ctrl.parameterManager
-                        .getStagesForPipeline('cnc', bucket.type);
-                    if (!stages.includes('strategy')) { this.openExportModal(); return; }
-
-                    // Generate preview
-                    await this.runBucketStage('Preview', async () => {
-                        this.showCanvasSpinner('Generating preview...');
-                        // generateCNCPreview blocks the main thread - let the
-                        // spinner paint first.
-                        await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
-                        try {
-                            const result = await this.shapeOperationPanel.runPreview(bucketId);
-                            this.opsPanel.updateBucketAfterGeneration(bucketId, this.ctrl.core);
-                            this.setStatus(result.message, result.status);
-                            if (result.success) {
-                                this.opsPanel.selectStage(bucketId, 'preview');
-                                this.rebuildLayers();
-                            }
-                        } finally { this.hideCanvasSpinner(); }
-                    });
-                } else if (stage === 'preview') {
-                    this.openExportModal();
-                }
-            })
         }
 
         /**
@@ -452,6 +421,10 @@
             }
         }
 
+        /**
+         * Per-op-type visibility toggles, generated from the registry into
+         * #viz-geometry-filters.
+         */
         initVizFilters() {
             const bind = (id, key) => {
                 const el = document.getElementById(id);
@@ -459,15 +432,23 @@
                 el.checked = this.vizFilters[key] !== false;
                 el.addEventListener('change', () => { this.vizFilters[key] = el.checked; this.rebuildLayers(); });
             };
-            bind('show-unassigned', 'unassigned');
-            bind('show-profile', 'profile');
-            bind('show-pocket', 'pocket');
-            bind('show-drill', 'drill');
-            bind('show-engrave', 'engrave');
-            bind('show-vcarve', 'vcarve');
-            bind('show-relief', 'relief');
-            bind('show-rotary', 'rotary');
-            // bind('show-pattern', 'pattern'); // Not wired
+
+            const host = document.getElementById('viz-geometry-filters');
+            if (host) {
+                host.innerHTML = '';
+                for (const entry of this.ctrl.registry.vizEntries()) {
+                    if (this.vizFilters[entry.type] === undefined) this.vizFilters[entry.type] = true;
+                    const label = document.createElement('label');
+                    label.className = 'checkbox-control checkbox-label';
+                    label.setAttribute('for', entry.id);
+                    label.innerHTML =
+                        `<input type="checkbox" id="${entry.id}" checked><span>${entry.label}</span>`;
+                    host.appendChild(label);
+                    bind(entry.id, entry.type);
+                }
+            }
+
+            // Role toggles - not per-type, stay hand-written.
             bind('show-generated', 'generated');
             bind('show-tool-preview-shape', 'preview');
         }
@@ -476,6 +457,7 @@
         // Renderer layer management
         // ═══════════════════════════════════════════════════════════════
 
+        // REVIEW - Any reason this is named differently than in EasyTrace5000?
         rebuildLayers() {
             if (!this.renderer) return;
             this.renderer.clearLayers();
@@ -505,7 +487,6 @@
 
             for (const shape of this.ctrl.scene.allShapes()) {
                 if (!shape.isVisible) continue;
-
                 const opKey = this.opsPanel?.getShapeOpType(shape.id) || 'unassigned';
 
                 // Per-category visibility filter (default true).
@@ -515,7 +496,6 @@
                 const isIdentity = m.a === 1 && m.b === 0 && m.c === 0 &&
                                    m.d === 1 && m.e === 0 && m.f === 0;
                 const isSelected = selectedShapeIds.has(shape.id);
-
                 if (isIdentity && !isSelected) {
                     pushBatch(opKey, shape.primitive);
                 } else {
@@ -531,17 +511,18 @@
                 }
             }
 
-            for (const [opKey, prims] of batches) {
-                    this.renderer.addLayer(window.LayerNaming.batch(opKey), prims, {
-                    type: opKey,
-                    operationType: opKey,
+            // Batches key on the operation TYPE, so `type` IS the operation type
+            for (const [type, prims] of batches) {
+                this.renderer.addLayer(window.LayerNaming.batch(type), prims, {
+                    type: type,
+                    operationType: type,
                     role: 'source',
                     visible: true,
-                    zIndex: this.getLayerZIndex(opKey, { operationType: opKey })
+                    zIndex: this.getLayerZIndex(type, { operationType: type })
                 });
             }
 
-            // Generated geometry (offsets + previews) from operation buckets.
+            // Generated geometry (offsets + previews) from operation buckets
             this.addBucketLayers();
 
             // Mirror the fresh layer snapshot into the 3D view (no-op in 2D mode)
@@ -549,6 +530,8 @@
 
             this.renderer.render();
         }
+
+        onThemeChanged() { super.onThemeChanged(); this.rebuildLayers(); }
 
         /**
          * Adds offset and preview layers for every operation bucket.
@@ -573,7 +556,6 @@
                 if (bucket.type === 'rotary' && meta0?.developedSpace &&
                     meta0.circumference > 0) {
                     const halfC = meta0.circumference / 2;
-                    const axisB = meta0.axisCenter?.b || 0;   // world
                     // axis 'x': developed x IS workspace X; translate the arc
                     //   dimension so it straddles the axis line.
                     // axis 'y': developed x IS workspace Y, and +arc points
@@ -582,12 +564,14 @@
                     //   mirror: det must stay +1 or the strip renders as the
                     //   mirror image of what the machine cuts.
                     stripTransform = meta0.rotaryAxis === 'y'
-                        ? { a: 0, b: 1, c: -1, d: 0, e: axisB + halfC, f: 0 }
-                        : { a: 1, b: 0, c: 0,  d: 1, e: 0, f: axisB - halfC };
+                        ? { a: 0, b: 1, c: -1, d: 0, e: halfC, f: 0 }
+                        : { a: 1, b: 0, c: 0, d: 1, e: 0, f: -halfC };
                 }
 
                 // Offsets
-                if (showGenerated && op.offsets?.length > 0 && !op.isInvalidated) {
+                const vis = op.layerVisibility || {};
+                const bucketVisible = this.opsPanel.isBucketVisible(bucket, core);
+                if (showGenerated && bucketVisible && vis.offsets !== false && op.offsets?.length > 0 && !op.isInvalidated) {
                     const allPrims = op.offsets.flatMap(o => o.primitives || []);
                     if (allPrims.length > 0) {
                         const first = op.offsets[0];
@@ -597,7 +581,7 @@
 
                         this.renderer.addLayer(window.LayerNaming.bucketOffset(bucket.id), allPrims, {
                             type: 'offset',
-                            visible: !op.preview?.ready,
+                            visible: true,
                             operationId: bucket.id,
                             operationType: bucket.type,
                             offsetType,
@@ -611,7 +595,7 @@
                 }
 
                 // Preview
-                if (showPreview && op.preview?.primitives?.length > 0 && !op.isInvalidated) {
+                if (showPreview && bucketVisible && vis.preview !== false && op.preview?.primitives?.length > 0) {
                     this.renderer.addLayer(window.LayerNaming.bucketPreview(bucket.id), op.preview.primitives, {
                         type: 'preview',
                         visible: true,
@@ -707,24 +691,16 @@
             }
 
             const anchorId = this.ctrl.selection.anchor();
-            const anchor = anchorId ? this.ctrl.scene.findShape(anchorId) : null;
             const panel = document.getElementById('right-panel');
             const container = document.getElementById('operation-form-container');
 
-            if (anchor?.operation) {
-                // Shape already has an operation - show its properties
-                if (panel) panel.dataset.rightPanelState = 'op-assigned';
-                if (container && this.shapeOperationPanel) {
-                    this.shapeOperationPanel.showOperationProperties(container, anchor);
-                }
-            } else {
-                // No operation - show fresh selection with default tab
-                if (panel) panel.dataset.rightPanelState = 'source-selected';
-                if (container && this.shapeOperationPanel) {
-                    const activeTab = document.querySelector('.op-type-tab.active');
-                    const defaultOp = activeTab?.dataset.op || 'profile';
-                    this.shapeOperationPanel.showFreshSelection(container, anchorId, defaultOp);
-                }
+            // A shape never carries its own operation - buckets own that
+            // relationship - so a selection always opens the fresh-selection
+            // form with whichever op type the strip has active.
+            if (panel) panel.dataset.rightPanelState = 'source-selected';
+            if (container && this.shapeOperationPanel) {
+                const activeTab = document.querySelector('.op-type-tab.active');
+                this.shapeOperationPanel.showFreshSelection(container, anchorId, activeTab?.dataset.op || 'profile');
             }
 
             if (this.controls?.collapseRightSidebar) {
@@ -736,46 +712,18 @@
             this.navScenePanel?.syncTreeToolbar(this.ctrl.selection, this.ctrl.scene);
             this.navScenePanel?.updateSelectionHighlights(this.ctrl.selection.toSet());
             this.syncTransformFromSelection();
-            // REVIEW - Why is this checking if the render exists? I'm not sure it's possible to get this far without it?
-            if (this.renderer) this.renderer.render();
+            this.renderer.render();
         }
 
         // ═══════════════════════════════════════════════════════════════
         // Right Panel State
         // ═══════════════════════════════════════════════════════════════
 
-        updateRightPanelState() {
-            const panel = document.getElementById('right-panel');
-            if (!panel) return;
-
-            let state;
-            if (this.ctrl.scene.shapeCount() === 0) state = 'no-svg';
-            else if (this.ctrl.selection.size() === 0) state = 'no-selection';
-            else {
-                const anchorId = this.ctrl.selection.anchor();
-                const anchor = anchorId ? this.ctrl.scene.findShape(anchorId) : null;
-                state = anchor?.operation ? 'op-assigned' : 'selected-no-op';
-            }
-            panel.dataset.rightPanelState = state;
-
-            const container = document.getElementById('operation-form-container');
-            if (!container) return;
-            if (state === 'op-assigned') {
-                const anchor = this.ctrl.scene.findShape(this.ctrl.selection.anchor());
-                if (this.shapeOperationPanel && anchor) {
-                    this.shapeOperationPanel.showOperationProperties(container, anchor);
-                }
-            } else {
-                container.innerHTML = '';
-                this.shapeOperationPanel?.clearProperties();
-            }
-        }
-
         renderStatusBar() {}
 
         openExportModal() {
             const readyOps = this.ctrl.core.operations.filter(op => this.ctrl.core.isExportReady(op));
-            if (readyOps.length === 0) { this.setStatus('No operations ready for export. Generate previews first.', 'warning'); return; }
+            if (readyOps.length === 0) { this.setStatus('No operations ready for export. Finish each operation through its Toolpaths stage first.', 'warning'); return; }
             this.ctrl.ensureBucketParamsLoaded(readyOps);
             this.ctrl.modalManager.showModal('exportManager', { operations: readyOps });
         }
@@ -1014,16 +962,6 @@
                 redoBtn.disabled = !h.canRedo()
                 redoBtn.title = h.getTopRedoLabel() ? `Redo: ${h.getTopRedoLabel()}` : 'Redo';
             }
-        }
-
-        // ═══════════════════════════════════════════════════════════════
-        // Stock overlay
-        // ═══════════════════════════════════════════════════════════════
-
-        updateStockOverlay() {
-            const s = this.ctrl.core.stock;
-            const el = document.getElementById('overlay-stock-dims');
-            if (el && s) el.textContent = `${s.width} x ${s.height} x ${s.thickness} mm`;
         }
     }
 

@@ -34,7 +34,9 @@ THREE.Object3D.DEFAULT_UP.set(0, 0, 1);
 
 export class Renderer3D {
 
-    /** Preferred entry: const view = await Renderer3D.mount(container); */
+    /**
+     * Preferred entry: const view = await Renderer3D.mount(container);
+     */
     static async mount(container, options = {}) {
         const r = new Renderer3D(container, options);
         await r.init();
@@ -44,9 +46,15 @@ export class Renderer3D {
     constructor(container, options = {}) {
         this.container = container;
         this.options = {
-            // REVIEW - shouldn't these be config and theme material?
+            // REVIEW - shouldn't these be config and theme material? Aren't they already in the theme jsons?
+            // Light
+            skyColor: 0xffffff,
+            groundColor: 0x303a3a,
+            keyIntensity: 1.4,
+            fillIntensity: 1.1,
+
             background: 0x16181c,
-            gridSize: 400,          // mm
+            gridSize: 400, // mm
             gridDivisions: 40,
             gridColor: 0x2a2e34,
             gridCenterColor: 0x3a3f46,
@@ -90,23 +98,22 @@ export class Renderer3D {
         this.scene = new THREE.Scene();
         this.scene.background = new THREE.Color(this.options.background);
 
-        this.camera = new THREE.PerspectiveCamera(45, w / h, 0.1, 10000);
+        this.camera = new THREE.PerspectiveCamera(45, w / h, 0.5, 5000);
         this.camera.position.set(120, -120, 140); // iso-ish, looking at origin
         this.camera.lookAt(0, 0, 0);
 
-        // Lighting: soft hemisphere + one directional for surface relief
-        this.scene.add(new THREE.HemisphereLight(0xffffff, 0x30343a, 1.1));
-        const dir = new THREE.DirectionalLight(0xffffff, 1.4);
-        dir.position.set(150, -100, 300);
-        this.scene.add(dir);
+        // Lighting: soft hemisphere + one directional for surface relief.
+        // Kept as fields because a light theme needs a light ground bounce -
+        // a dark bounce under a dark surface colour reads as heavy shadow.
+        this.hemi = new THREE.HemisphereLight(this.options.skyColor, this.options.groundColor, this.options.fillIntensity);
+        this.scene.add(this.hemi);
+        this.dir = new THREE.DirectionalLight(this.options.skyColor, this.options.keyIntensity);
+        this.dir.position.set(150, -100, 300);
+        this.scene.add(this.dir);
 
         // Ground grid: GridHelper lies in XZ by default → rotate into XY (Z-up)
-        const grid = new THREE.GridHelper(
-            this.options.gridSize, this.options.gridDivisions,
-            this.options.gridCenterColor, this.options.gridColor
-        );
-        grid.rotation.x = Math.PI / 2;
-        this.scene.add(grid);
+        this.grid = this.buildGrid();
+        this.scene.add(this.grid);
         this.scene.add(new THREE.AxesHelper(20)); // X red, Y green, Z blue
 
         this.contentGroup = new THREE.Group();
@@ -125,7 +132,7 @@ export class Renderer3D {
         this.requestRender();
     }
 
-    // ─── Public data API ─────────────────────────────────────────────
+    // Public data API
 
     /**
      * @param {Array<ToolpathPlan>} plans - machine-ready (post-processor)
@@ -151,31 +158,105 @@ export class Renderer3D {
         this.requestRender();
     }
 
+    /**
+     * GridHelper lies in XZ by default → rotate into XY (Z-up).
+     */
+    buildGrid() {
+        const grid = new THREE.GridHelper(this.options.gridSize, this.options.gridDivisions, this.options.gridCenterColor, this.options.gridColor);
+        grid.rotation.x = Math.PI / 2;
+        return grid;
+    }
+
+    /**
+     * Re-theme in place. Merges over the live options, resets what this class
+     * owns (background, grid) and leaves the sub-layers to the caller's
+     * refresh - CamController.refresh3D re-pushes stock, layers and plans, so
+     * every material that reads core.options is rebuilt from the new palette.
+     */
+    setOptions(options = {}) {
+        Object.assign(this.options, options);
+        if (this.scene) this.scene.background = new THREE.Color(this.options.background);
+        if (this.hemi) {
+            this.hemi.color.set(this.options.skyColor);
+            this.hemi.groundColor.set(this.options.groundColor);
+            this.hemi.intensity = this.options.fillIntensity;
+        }
+        if (this.dir) {
+            this.dir.color.set(this.options.skyColor);
+            this.dir.intensity = this.options.keyIntensity;
+        }
+        if (this.grid) {
+            this.scene.remove(this.grid);
+            this.grid.geometry?.dispose?.();
+            const m = this.grid.material;
+            Array.isArray(m) ? m.forEach(x => x.dispose?.()) : m?.dispose?.();
+            this.grid = this.buildGrid();
+            this.scene.add(this.grid);
+        }
+        this.requestRender();
+    }
+
     fitToContent() {
+        this.contentGroup.updateMatrixWorld(true);
         const box = new THREE.Box3().setFromObject(this.contentGroup);
         if (box.isEmpty()) return;
-        const sphere = box.getBoundingSphere(new THREE.Sphere());
-        if (!Number.isFinite(sphere.radius) || sphere.radius <= 0) return;
-        const dist = sphere.radius /
-            Math.sin((this.camera.fov * Math.PI / 180) / 2) * 1.15;
 
-        // Iso direction, preserving Z-up
+
+        const center = box.getCenter(new THREE.Vector3());
+        const size = box.getSize(new THREE.Vector3());
+        if (!Number.isFinite(size.x) || (size.x <= 0 && size.y <= 0 && size.z <= 0)) return;
+
+        // Isometric view direction (Z-up)
         const dirV = new THREE.Vector3(0.55, -0.55, 0.63).normalize();
-        this.camera.position.copy(sphere.center)
-            .add(dirV.multiplyScalar(dist));
+        const fovV = (this.camera.fov * Math.PI) / 180;
+        const aspect = Math.max(0.1, this.camera.aspect || 1);
+        const tanV = Math.tan(fovV / 2);
+        const tanH = tanV * aspect;
+
+        // Camera coordinate frame looking at center from dirV
+        const camPosTemp = center.clone().add(dirV);
+        const lookMat = new THREE.Matrix4().lookAt(camPosTemp, center, new THREE.Vector3(0, 0, 1));
+        const camRight = new THREE.Vector3(lookMat.elements[0], lookMat.elements[1], lookMat.elements[2]);
+        const camUp = new THREE.Vector3(lookMat.elements[4], lookMat.elements[5], lookMat.elements[6]);
+
+        // 8 corners of the bounding box
+        const corners = [
+            new THREE.Vector3(box.min.x, box.min.y, box.min.z),
+            new THREE.Vector3(box.min.x, box.min.y, box.max.z),
+            new THREE.Vector3(box.min.x, box.max.y, box.min.z),
+            new THREE.Vector3(box.min.x, box.max.y, box.max.z),
+            new THREE.Vector3(box.max.x, box.min.y, box.min.z),
+            new THREE.Vector3(box.max.x, box.min.y, box.max.z),
+            new THREE.Vector3(box.max.x, box.max.y, box.min.z),
+            new THREE.Vector3(box.max.x, box.max.y, box.max.z)
+        ];
+
+        let maxDist = 0;
+        for (const pt of corners) {
+            const rel = pt.clone().sub(center);
+            const x = Math.abs(rel.dot(camRight));
+            const y = Math.abs(rel.dot(camUp));
+            const z = -rel.dot(dirV); // depth along camera view vector
+            const reqDist = z + Math.max(x / tanH, y / tanV);
+            if (reqDist > maxDist) maxDist = reqDist;
+        }
+
+        const dist = Math.max(5, maxDist * 1.15);
+
+        this.camera.position.copy(center).add(dirV.multiplyScalar(dist));
         this.camera.near = Math.max(0.01, dist / 1000);
-        this.camera.far = dist * 20;
+        this.camera.far = Math.max(1000, dist * 20);
         this.camera.updateProjectionMatrix();
-        this.camera.lookAt(sphere.center);
+        this.camera.lookAt(center);
 
         if (this.controls) {
-            this.controls.target.copy(sphere.center);
+            this.controls.target.copy(center);
             this.controls.update();
         }
         this.requestRender();
     }
 
-    // ─── Render loop (on-demand) ─────────────────────────────────────
+    // Render loop (on-demand)
 
     requestRender() {
         if (this._renderQueued || this._disposed) return;
@@ -197,7 +278,7 @@ export class Renderer3D {
         this.requestRender();
     }
 
-    // ─── Animation loop (simulator only) ─────────────────────────────
+    // Animation loop (simulator only)
     // The on-demand requestRender path stays authoritative for static
     // viewing; this continuous loop runs ONLY while the simulator plays.
 
@@ -259,7 +340,7 @@ export class Renderer3D {
         return true;
     }
 
-    // ─── Lifecycle ───────────────────────────────────────────────────
+    // Lifecycle
 
     dispose() {
         this._disposed = true;

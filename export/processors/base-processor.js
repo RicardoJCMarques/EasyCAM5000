@@ -46,6 +46,7 @@
                 supportsToolChange: false,
                 supportsArcCommands: true,
                 supportsCannedCycles: false,
+                supportsLineNumbers: true,
                 useM6: false,
                 // Where the Z offset comes from. A boolean could only express
                 // "table" vs "nothing"; there are four real behaviours and
@@ -112,6 +113,7 @@
                     supportsArcCommands: this.config.supportsArcCommands !== false,
                     supportsCannedCycles: this.config.supportsCannedCycles || false,
                     supportsComments: this.config.supportsComments !== false,
+                    supportsLineNumbers: this.config.supportsLineNumbers !== false,
                     arcFormat: this.config.arcFormat || null,
                     // 4th-axis capability. Normalized object.
                     rotary: BasePostProcessor.normalizeRotary(this.config.rotary),
@@ -226,6 +228,16 @@
             if (!options?.includeComments || !text) return;
             linesArray.push(this.formatComment(text, options));
         }
+
+        /**
+         * Last chance to clamp a job context to machine limits, called by
+         * CamCore.buildToolpathContext just before Object.freeze.
+         *
+         * The core cannot know which post is loaded, so anything that used to
+         * be a `postProcessor === 'x'` test in the core belongs here instead.
+         * Mutate ctx in place; the return value is ignored.
+         */
+        prepareContext(ctx, operation) {}
 
         // Abstract methods
         generateHeader(options) {
@@ -929,9 +941,12 @@
          * own their address - '%' tape marks, O-numbers, an existing N, and
          * '/' block-delete (numbering it would change what the switch skips).
          */
-        applyLineNumbers(gcodeText) {
-            if (!this.config.lineNumbering) return gcodeText;
-            const step  = this.config.lineNumberStep  || 10;
+        applyLineNumbers(gcodeText, options = {}) {
+            // The post's constant is now a DEFAULT, not a veto: a controller
+            // that always wants N still gets it with the setting off.
+            if (!(options.lineNumbers ?? this.config.lineNumbering)) return gcodeText;
+            const userStep = options.lineNumberStep != null ? parseInt(options.lineNumberStep, 10) : null;
+            const step = (userStep && userStep > 0) ? userStep : (this.config.lineNumberStep);
             const start = this.config.lineNumberStart ?? step;
             const max   = this.config.lineNumberMax   || 99999;
             let n = start;
@@ -996,6 +1011,26 @@
             // REVIEW - maxSafeDepth needs to be managed per app since valid depths
             // aren't the same. Single source of truth, or 1 warning + 1 validation.
             const maxSafeDepth = options.maxSafeDepth;
+
+            // Non-finite words. `cmd.f > limit` below is NaN-blind - NaN > x is
+            // false - so a NaN feed passed every check and reached the post as
+            // the literal "FNaN". An ERROR, not a warning: GCodeGenerator throws
+            // on errors, and a file with NaN in it is worse than no file.
+            // Number.isFinite per word, because 0 is a valid X, Y, Z, I and J
+            // and a truthiness test would reject a legitimate origin move.
+            for (const word of ['x', 'y', 'z', 'i', 'j', 'a', 'f']) {
+                const v = cmd[word];
+                if (v === undefined || v === null) continue;
+                if (!Number.isFinite(v)) {
+                    errors.push(`Command word ${word.toUpperCase()} is ${v} - the toolpath carries a non-finite value.`);
+                }
+            }
+
+            // A feed move at F0 stalls or faults on every control that does not
+            // silently reuse the previous modal feed, which is the worse case.
+            if (Number.isFinite(cmd.f) && cmd.f <= 0 && cmd.type !== 'RAPID') {
+                errors.push('Feed rate is zero on a cutting move.');
+            }
 
             // Feed rate check - UNIT-AWARE. Under G93 F is 1/minutes (the
             // reciprocal of the move's duration), not mm/min:

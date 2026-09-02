@@ -78,6 +78,8 @@
 
     /* Render3d Colors */
     --color-render3d-background: #16181c;
+    --color-render3d-sky: #ffffff;
+    --color-render3d-ground: #c9ced6;
     --color-render3d-grid: #2a2e34;
     --color-render3d-grid-center: #3a3f46;
     --color-render3d-rapid: #565b63;

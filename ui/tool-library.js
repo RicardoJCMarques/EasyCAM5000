@@ -49,34 +49,46 @@
         }
 
         /**
-         * Gets the effective tool diameter for a given tool ID.
-         * For V-bits, returns tipDiameter. For all others, returns diameter.
+         * Three tool sizes, and every consumer names the one it means.
+         *     diameter  - the tool's diameter. maxDiameter for a tapered bit, the
+         *                 plain diameter otherwise. One meaning for every tool in
+         *                 every form, and what a V-carve's reach clamp reads.
+         *     tipRadius - the flat or ball at the very tip. V-carve only.
+         *     effective - the width a tapered bit actually cuts at engraving
+         *                 depth. DECLARED per tool, not derived: it depends on how
+         *                 deep the operator runs and on how the bit was ground.
+         *                 Copper operations read this and ignore the diameter.
+         * For a straight bit the first and third are the same number, which is why
+         * only isolation, clearing and engrave declare toolSizing: 'effective'.
          */
-        getToolDiameter(toolId) {
-            const tool = this.getTool(toolId);
-            if (!tool || !tool.geometry) return null;
-
-            // V-bits and tapered-ball tools report their at-the-tip width -
-            // the widest point is depth-dependent and is ToolProfile's job
-            // (see geometry-utils-toolprofile.js h(d) / kernelRadius), not
-            // a fixed "diameter" this method could return.
-            if ((tool.type === 'v_bit' || tool.type === 'tapered_ball') &&
-                tool.geometry.tipDiameter !== undefined) {
-                return tool.geometry.tipDiameter;
-            }
-            return tool.geometry.diameter;
+        static isTapered(tool) {
+            return tool?.type === 'v_bit' || tool?.type === 'tapered_ball';
         }
 
-        /**
-         * Gets full tool data including computed effective diameter.
-         */
-        getToolWithEffectiveDiameter(toolId) {
+        getToolDiameter(toolId) {
+            const g = this.getTool(toolId)?.geometry;
+            return g ? (g.maxDiameter ?? g.diameter ?? null) : null;
+        }
+
+        getEffectiveDiameter(toolId) {
+            const tool = this.getTool(toolId);
+            if (!tool?.geometry) return null;
+            if (!ToolLibrary.isTapered(tool)) return this.getToolDiameter(toolId);
+            return tool.geometry.effectiveDiameter ?? tool.geometry.tipDiameter;
+        }
+
+        getToolSizes(toolId) {
             const tool = this.getTool(toolId);
             if (!tool) return null;
-
+            const g = tool.geometry || {};
             return {
-                ...tool,
-                effectiveDiameter: this.getToolDiameter(toolId)
+                tapered: ToolLibrary.isTapered(tool),
+                diameter: this.getToolDiameter(toolId),
+                effective: this.getEffectiveDiameter(toolId),
+                tipRadius: (g.tipDiameter ?? 0) / 2,
+                angle: g.angle ?? g.angleDeg ?? null,
+                cornerRadius: g.cornerRadius,
+                tipType: g.tipType
             };
         }
 
@@ -139,13 +151,20 @@
 
             // Check required geometry properties based on tool type
             if (tool.type === 'v_bit' || tool.type === 'tapered_ball') {
-                if (tool.geometry.tipDiameter === undefined || tool.geometry.tipDiameter === null) {
-                    throw new Error(`[Fatal] Tool validation failed: Tool '${toolIdentifier}' is missing 'geometry.tipDiameter'.`);
+                // Tip, angle and max are load-time requirements: they seed
+                // vbitTipRadius, vbitAngle and toolDiameter with no fallback
+                // behind them. effectiveDiameter is optional and falls back to
+                // the tip, but a value wider than the bit is a typo, not a
+                // preference.
+                if (!(tool.geometry.tipDiameter > 0)) throw new Error(`[Fatal] Tool validation failed: Tool '${toolIdentifier}' needs a positive 'geometry.tipDiameter'.`);
+                if (!((tool.geometry.angle ?? tool.geometry.angleDeg) > 0)) throw new Error(`[Fatal] Tool validation failed: Tool '${toolIdentifier}' needs 'geometry.angle' (v-bit, included) or 'geometry.angleDeg' (tapered ball, per side).`);
+                if (!(tool.geometry.maxDiameter > 0)) throw new Error(`[Fatal] Tool validation failed: Tool '${toolIdentifier}' needs a positive 'geometry.maxDiameter'.`);
+                if (tool.geometry.effectiveDiameter != null &&
+                    !(tool.geometry.effectiveDiameter > 0 && tool.geometry.effectiveDiameter <= tool.geometry.maxDiameter)) {
+                    throw new Error(`[Fatal] Tool validation failed: Tool '${toolIdentifier}' has a 'geometry.effectiveDiameter' outside (0, maxDiameter].`);
                 }
-            } else {
-                if (tool.geometry.diameter === undefined || tool.geometry.diameter === null) {
-                    throw new Error(`[Fatal] Tool validation failed: Tool '${toolIdentifier}' is missing 'geometry.diameter'.`);
-                }
+            } else if (tool.geometry.diameter === undefined || tool.geometry.diameter === null) {
+                throw new Error(`[Fatal] Tool validation failed: Tool '${toolIdentifier}' is missing 'geometry.diameter'.`);
             }
 
             // Check required cutting properties
@@ -179,8 +198,8 @@
         }
 
         getDefaultToolForOperation(operationType) {
-            // Try to get default from config
-            const defaultId = this.appProfile.defaultTools?.[operationType];
+            // Profile default, via the operation registry
+            const defaultId = this.registry?.defaultToolFor(operationType);
             if (defaultId) {
                 const tool = this.getTool(defaultId);
                 if (tool) return tool;
@@ -293,6 +312,7 @@
             }
         }
 
+        // REVIEW - Dead code? Worth keeping?
         logToolStats() {
             if (debugState.enabled) {
                 console.log('[ToolLibrary] Statistics:');
@@ -304,18 +324,6 @@
                     console.log(`   ${type}: ${tools.length} tools`);
                 });
             }
-        }
-
-        // REVIEW - Dead Code?
-        getStats() {
-            return {
-                totalTools: this.tools.length,
-                types: Array.from(this.toolsByType.keys()),
-                operations: Array.from(this.toolsByOperation.keys()),
-                categories: this.getToolCategories(),
-                isLoaded: this.isLoaded,
-                loadError: this.loadError
-            };
         }
 
         debug(message, data = null) {

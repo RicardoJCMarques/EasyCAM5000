@@ -32,7 +32,8 @@
         shape: (shapeId) => `shape_${shapeId}`,
         batch: (opType) => `batch_${opType}`,
         bucketOffset: (bucketId) => `bucket_offset_${bucketId}`,
-        bucketPreview: (bucketId) => `bucket_preview_${bucketId}`,
+        // REVIEW - why no (parenthesis)? this used to be bucketPreview: (bucketId) => `bucket_preview_${bucketId}`,
+        bucketPreview: bucketId => `bucket_preview_${bucketId}`,
 
         // Shared
         stock: () => '__stock__'
@@ -147,58 +148,57 @@
             // silently pins the fallback.
             this.colors = {
                 render2d: {
-                    background: read('--color-render2d-background', '#0f0f0f'),
-                    grid: read('--color-render2d-grid', '#aaaaaa'),
-                    origin: read('--color-render2d-origin', '#aaaaaa'),
-                    originOutline: read('--color-render2d-origin-outline', '#000000'),
-                    bounds: read('--color-render2d-bounds', '#aaaaaa'),
-                    ruler: read('--color-render2d-ruler', '#aaaaaa'),
-                    rulerText: read('--color-render2d-ruler-text', '#aaaaaa')
+                    background: read('--color-render2d-background'),
+                    grid: read('--color-render2d-grid'),
+                    origin: read('--color-render2d-origin'),
+                    originOutline: read('--color-render2d-origin-outline'),
+                    bounds: read('--color-render2d-bounds'),
+                    ruler: read('--color-render2d-ruler'),
+                    rulerText: read('--color-render2d-ruler-text')
                 },
                 primitives: {
-                    offsetInternal: read('--color-primitive-offset-internal', '#00aa00'),
-                    offsetExternal: read('--color-primitive-offset-external', '#ff0000'),
-                    peckMarkGood: read('--color-primitive-peck-mark-good', '#16d329'),
-                    peckMarkWarn: read('--color-primitive-peck-mark-warn', '#d2cb00'),
-                    peckMarkError: read('--color-primitive-peck-mark-error', '#ff0000'),
-                    peckMarkSlow: read('--color-primitive-peck-mark-slow', '#ff5e00'),
-                    reconstructed: read('--color-primitive-reconstructed', '#00ffff'),
-                    reconstructedPath: read('--color-primitive-reconstructed-path', '#ffff00')
+                    offsetInternal: read('--color-primitive-offset-internal'),
+                    offsetExternal: read('--color-primitive-offset-external'),
+                    peckMarkGood: read('--color-primitive-peck-mark-good'),
+                    peckMarkWarn: read('--color-primitive-peck-mark-warn'),
+                    peckMarkError: read('--color-primitive-peck-mark-error'),
+                    peckMarkSlow: read('--color-primitive-peck-mark-slow'),
+                    reconstructed: read('--color-primitive-reconstructed'),
+                    reconstructedPath: read('--color-primitive-reconstructed-path')
                 },
                 // Consumed by renderer-layer (laser fills) and CanvasExporter.
                 geometry: {
-                    preview: read('--color-geometry-preview', '#0060dd'),
-                    toolpath: read('--color-geometry-toolpath', '#00ffff'),
-                    selection: read('--color-geometry-selection', '#00ffff'),
+                    preview: read('--color-geometry-preview'),
+                    selection: read('--color-geometry-selection'),
                     offset: {
-                        external: read('--color-geometry-offset-external', '#a60000'),
-                        internal: read('--color-geometry-offset-internal', '#00a600'),
-                        on: read('--color-geometry-offset-on', '#bcbc02')
+                        external: read('--color-geometry-offset-external'),
+                        internal: read('--color-geometry-offset-internal'),
+                        on: read('--color-geometry-offset-on')
                     },
                     laser: {
-                        filled: read('--color-geometry-laser-filled', '#0060dd')
+                        filled: read('--color-geometry-laser-filled')
                     }
                 },
                 // EasyTrace source-layer fills, read by CanvasExporter's <style>.
                 source: {
-                    isolation: read('--color-geometry-source-isolation', '#ff8844'),
-                    drill: read('--color-geometry-source-drill', '#4488ff'),
-                    clearing: read('--color-geometry-source-clearing', '#44ff88'),
-                    cutout: read('--color-geometry-source-cutout', '#333333'),
-                    stencil: read('--color-geometry-source-stencil', '#90177d'),
-                    unassigned: read('--color-geometry-source-unassigned', '#228b9d')
+                    isolation: read('--color-geometry-source-isolation'),
+                    drill: read('--color-geometry-source-drill'),
+                    clearing: read('--color-geometry-source-clearing'),
+                    cutout: read('--color-geometry-source-cutout'),
+                    stencil: read('--color-geometry-source-stencil'),
+                    unassigned: read('--color-geometry-source-unassigned')
                 },
                 bw: {
-                    black: read('--color-bw-black', '#000000'),
-                    white: read('--color-bw-white', '#ffffff')
+                    black: read('--color-bw-black'),
+                    white: read('--color-bw-white')
                 },
                 debug: {
-                    wireframe: read('--color-debug-wireframe', '#00aa00'),
-                    points: read('--color-debug-points', '#ff00ff'),
-                    arcs: read('--color-debug-arcs', '#00ffff'),
-                    bounds: read('--color-debug-bounds', '#ff0000'),
-                    preprocessedStroke: read('--color-debug-preprocessed-stroke', '#00ffff'),
-                    preprocessedFill: read('--color-debug-preprocessed-fill', '#0a3333')
+                    wireframe: read('--color-debug-wireframe'),
+                    points: read('--color-debug-points'),
+                    arcs: read('--color-debug-arcs'),
+                    bounds: read('--color-debug-bounds'),
+                    preprocessedStroke: read('--color-debug-preprocessed-stroke'),
+                    preprocessedFill: read('--color-debug-preprocessed-fill')
                 }
             };
         }

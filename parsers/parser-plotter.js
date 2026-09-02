@@ -382,7 +382,7 @@
                                 });
                             } else {
                                 // This is an elliptical arc, tessellate it
-                                const tessellated = GeometryUtils.tessellateEllipticalArc(
+                                const tessellated = GeometryTessellation.tessellateEllipticalArc(
                                     p0, seg.p1, seg.rx, seg.ry,
                                     seg.phi, seg.fA, seg.fS
                                 );
@@ -399,7 +399,7 @@
                                 this.debug(`Converted cubic Bézier to round arc: r=${cubicArc.radius.toFixed(3)}, sweep=${(cubicArc.sweepAngle * 180 / Math.PI).toFixed(1)}°`);
                                 this.registerDetectedArc(points, arcSegments, seg.p3, cubicArc, 'bezier_cubic_detect');
                             } else {
-                                const tessCubic = GeometryUtils.tessellateCubicBezier(
+                                const tessCubic = GeometryTessellation.tessellateCubicBezier(
                                     p0, seg.p1, seg.p2, seg.p3
                                 );
                                 points.push(...tessCubic.slice(1));
@@ -416,7 +416,7 @@
                                 this.debug(`Converted quadratic Bézier to round arc: r=${quadArc.radius.toFixed(3)}, sweep=${(quadArc.sweepAngle * 180 / Math.PI).toFixed(1)}°`);
                                 this.registerDetectedArc(points, arcSegments, seg.p2, quadArc, 'bezier_quad_detect');
                             } else {
-                                const tessQuad = GeometryUtils.tessellateQuadraticBezier(
+                                const tessQuad = GeometryTessellation.tessellateQuadraticBezier(
                                     p0, seg.p1, seg.p2
                                 );
                                 points.push(...tessQuad.slice(1));
@@ -467,11 +467,11 @@
 
                     // Enforce: outer=CCW, hole=CW
                     if (!isHole && isCW) {
-                        GeometryUtils.reverseContourWinding(contourObj);
+                        GeometryTopology.reverseContourWinding(contourObj);
                         isCW = false;
                         this.debug(`Normalized outer contour to CCW.`);
                     } else if (isHole && !isCW) {
-                        GeometryUtils.reverseContourWinding(contourObj);
+                        GeometryTopology.reverseContourWinding(contourObj);
                         isCW = true;
                         this.debug(`Normalized hole contour to CW.`);
                     }
@@ -500,7 +500,7 @@
             // Explodes the compound path, sorts by absolute area, builds a true nesting tree,
             // corrects winding, and reassembles distinct shapes into separate PathPrimitives.
             // This safely splits disjoint shapes (like 'i' dots) without destroying true hole topology.
-            const resolvedPrimitives = GeometryUtils.resolveCompoundContours(rawPrimitive);
+            const resolvedPrimitives = GeometryTopology.resolveCompoundContours(rawPrimitive);
 
             // Update stats to reflect the actual number of distinct shapes generated
             this.creationStats.regionsCreated += resolvedPrimitives.length;
@@ -850,7 +850,15 @@
                 } else if (prim.type === 'path' && prim.contours) {
                     // Process arcSegments embedded inside PathPrimitive contours
                     this.mergePathContourArcs(prim, TOL);
-                    result.push(prim);
+
+                    // Promote qualifying 360-degree closed paths to CirclePrimitives
+                    const circlePrim = this.detectCircleFromPath(prim, TOL);
+                    if (circlePrim) {
+                        this.creationStats.flashesCreated++;
+                        result.push(circlePrim);
+                    } else {
+                        result.push(prim);
+                    }
                 } else {
                     result.push(prim);
                 }
@@ -944,6 +952,115 @@
         }
 
         /**
+         * Detects if a PathPrimitive is geometrically a full circle and promotes it.
+         * Requires endpoint coincidence and full angular span around a shared center.
+         *
+         * @param {PathPrimitive} pathPrim
+         * @param {number} TOL
+         * @returns {CirclePrimitive|null}
+         */
+        detectCircleFromPath(pathPrim, TOL) {
+            if (!pathPrim.contours || pathPrim.contours.length !== 1) return null;
+            const contour = pathPrim.contours[0];
+            if (contour.isHole) return null;
+            const pts = contour.points;
+            if (!pts || pts.length < 3) return null;
+
+            // Enforce endpoint coincidence
+            const p0 = pts[0];
+            const pEnd = pts[pts.length - 1];
+            const closeDistSq = (p0.x - pEnd.x) * (p0.x - pEnd.x) + (p0.y - pEnd.y) * (p0.y - pEnd.y);
+            if (closeDistSq > (TOL * 4) * (TOL * 4)) return null;
+
+            const props = {
+                ...pathPrim.properties,
+                fill: pathPrim.properties?.fill !== false,
+                stroke: pathPrim.properties?.stroke || false,
+                strokeWidth: pathPrim.properties?.strokeWidth || 0,
+                polarity: pathPrim.properties?.polarity || 'dark'
+            };
+
+            // Branch 1: Analytic arc-based full circle (Vectric, CAD arc commands)
+            if (contour.arcSegments && contour.arcSegments.length > 0) {
+                const firstArc = contour.arcSegments[0];
+                const cx = firstArc.center.x;
+                const cy = firstArc.center.y;
+                const r = firstArc.radius;
+
+                let allSame = true;
+                let totalSweep = 0;
+
+                for (const arc of contour.arcSegments) {
+                    if (Math.abs(arc.center.x - cx) > TOL * 2 ||
+                        Math.abs(arc.center.y - cy) > TOL * 2 ||
+                        Math.abs(arc.radius - r) > TOL * 2) {
+                        allSame = false;
+                        break;
+                    }
+                    let sweep = arc.sweepAngle !== undefined ? arc.sweepAngle : (arc.endAngle - arc.startAngle);
+                    if (arc.clockwise && sweep > 0) sweep -= 2 * Math.PI;
+                    if (!arc.clockwise && sweep < 0) sweep += 2 * Math.PI;
+                    totalSweep += sweep;
+                }
+
+                if (allSame && Math.abs(Math.abs(totalSweep) - 2 * Math.PI) < TOL * 10) {
+                    this.debug(`[ParserPlotter] Promoted arc-based PathPrimitive to CirclePrimitive at (${cx.toFixed(3)}, ${cy.toFixed(3)}), r=${r.toFixed(3)}`);
+                    return new CirclePrimitive({ x: cx, y: cy }, r, props);
+                }
+            }
+
+            // Branch 2: Point-based/Bézier ring detection (symmetric point bounds)
+            if (pts.length >= 4) {
+                let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+                for (let i = 0; i < pts.length; i++) {
+                    const p = pts[i];
+                    if (p.x < minX) minX = p.x;
+                    if (p.x > maxX) maxX = p.x;
+                    if (p.y < minY) minY = p.y;
+                    if (p.y > maxY) maxY = p.y;
+                }
+
+                const w = maxX - minX;
+                const h = maxY - minY;
+                if (w < TOL * 2 || h < TOL * 2) return null;
+
+                const maxDev = Math.max(TOL * 2, w * 0.015);
+                if (Math.abs(w - h) <= maxDev) {
+                    const cx = (minX + maxX) / 2;
+                    const cy = (minY + maxY) / 2;
+                    const radius = (w + h) / 4;
+
+                    let isCircle = true;
+                    let q1 = false, q2 = false, q3 = false, q4 = false;
+
+                    for (let i = 0; i < pts.length - 1; i++) {
+                        const p = pts[i];
+                        const dx = p.x - cx;
+                        const dy = p.y - cy;
+                        const d = Math.hypot(dx, dy);
+
+                        if (Math.abs(d - radius) > maxDev) {
+                            isCircle = false;
+                            break;
+                        }
+
+                        if (dx >= 0 && dy >= 0) q1 = true;
+                        if (dx <= 0 && dy >= 0) q2 = true;
+                        if (dx <= 0 && dy <= 0) q3 = true;
+                        if (dx >= 0 && dy <= 0) q4 = true;
+                    }
+
+                    if (isCircle && q1 && q2 && q3 && q4) {
+                        this.debug(`[ParserPlotter] Promoted point-ring PathPrimitive to CirclePrimitive at (${cx.toFixed(3)}, ${cy.toFixed(3)}), r=${radius.toFixed(3)}`);
+                        return new CirclePrimitive({ x: cx, y: cy }, radius, props);
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        /**
          * Calculates signed sweep angle for an ArcPrimitive
          */
         getArcSweep(arc) {
@@ -988,7 +1105,7 @@
 
                         const totalSweep = sweep1 + sweep2;
 
-                        if (Math.abs(totalSweep) < 2 * Math.PI - TOL) {
+                        if (Math.abs(totalSweep) <= 2 * Math.PI + TOL) {
                             prev.endIndex = arc.endIndex;
                             prev.endAngle = arc.endAngle;
                             prev.sweepAngle = totalSweep;

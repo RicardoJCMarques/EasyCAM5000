@@ -13,7 +13,7 @@
         SPDX-License-Identifier: AGPL-3.0-or-later
     -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>EasyTrace5000 | CNC Milling Guide</title>
+    <title>EasyTrace5000 Doc - PCB CNC Milling Guide</title>
 
     <meta name="description" content="Complete PCB isolation routing guide: Gerber to G-code, drill strategy, per-diameter tooling, automatic tool changes, and all ten post-processors.">
     <meta name="author" content="Eltryus">
@@ -24,12 +24,12 @@
 
     <meta property="og:type" content="article">
     <meta property="og:url" content="https://cam.eltryus.design/easytrace5000/doc/cnc">
-    <meta property="og:title" content="EasyTrace5000 | CNC Milling Guide">
+    <meta property="og:title" content="EasyTrace5000 Doc - PCB CNC Milling Guide">
     <meta property="og:description" content="Complete PCB isolation routing guide: Gerber to G-code, drill strategy, per-diameter tooling, automatic tool changes, and all ten post-processors.">
     <meta property="og:image" content="https://cam.eltryus.design/images/social-trace.jpg">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
-    <meta property="og:site_name" content="Eltryus EasyCAM5000 Suite">
+    <meta property="og:site_name" content="EasyCAM5000">
     <meta property="og:locale" content="en_US">
 
     <link rel="icon" type="image/png" href="../../images/favicon/favicon-96x96.png" sizes="96x96">
@@ -43,35 +43,76 @@
     <link rel="stylesheet" href="../../css/theme.css">
     <link rel="stylesheet" href="../../css/doc.css">
 
-    <script type="application/ld+json">
+<script type="application/ld+json">
     {
-      "@context": "https://schema.org",
-      "@graph": [
-        {
-            "@type": "TechArticle",
-            "@id": "https://cam.eltryus.design/easytrace5000/doc/cnc#article",
-            "headline": "CNC Milling Guide for PCB Isolation Routing",
-            "description": "Comprehensive guide on generating G-code for PCB manufacturing using EasyTrace5000.",
-            "image": "https://cam.eltryus.design/images/social-trace.jpg",
-            "url": "https://cam.eltryus.design/easytrace5000/doc/cnc",
-            "inLanguage": "en",
-            "isPartOf": { "@id": "https://cam.eltryus.design/easytrace5000/doc/#docs" },
-            "about": { "@id": "https://cam.eltryus.design/easytrace5000/#app" },
-            "author": { "@id": "https://www.eltryus.design/#organization" },
-            "publisher": { "@id": "https://www.eltryus.design/#organization" },
-            "datePublished": "2025-01-16",
-            "dateModified": "2026-08-24"
-        },
-        {
-            "@type": "BreadcrumbList",
-            "itemListElement": [
-                { "@type": "ListItem", "position": 1, "name": "Eltryus EasyCAM5000 Suite", "item": "https://cam.eltryus.design/" },
-                { "@type": "ListItem", "position": 2, "name": "EasyTrace5000", "item": "https://cam.eltryus.design/easytrace5000/" },
-                { "@type": "ListItem", "position": 3, "name": "Documentation", "item": "https://cam.eltryus.design/easytrace5000/doc/" },
-                { "@type": "ListItem", "position": 4, "name": "CNC Guide", "item": "https://cam.eltryus.design/easytrace5000/doc/cnc" }
-            ]
-        }
-      ]
+        "@context": "https://schema.org",
+        "@graph": [
+            {
+                "@type": "Organization",
+                "@id": "https://www.eltryus.design/#organization",
+                "name": "Eltryus",
+                "url": "https://www.eltryus.design/"
+            },
+            {
+                "@type": "WebSite",
+                "@id": "https://cam.eltryus.design/#website",
+                "name": "EasyCAM5000",
+                "alternateName": "Eltryus EasyCAM5000 Suite",
+                "url": "https://cam.eltryus.design/",
+                "inLanguage": "en",
+                "publisher": { "@id": "https://www.eltryus.design/#organization" }
+            },
+            {
+                "@type": "WebApplication",
+                "@id": "https://cam.eltryus.design/easytrace5000/#app",
+                "name": "EasyTrace5000",
+                "url": "https://cam.eltryus.design/easytrace5000/"
+            },
+            {
+                "@type": "CollectionPage",
+                "@id": "https://cam.eltryus.design/easytrace5000/doc/#docs",
+                "name": "EasyTrace5000 Documentation",
+                "url": "https://cam.eltryus.design/easytrace5000/doc/"
+            },
+            {
+                "@type": "WebPage",
+                "@id": "https://cam.eltryus.design/easytrace5000/doc/cnc#webpage",
+                "url": "https://cam.eltryus.design/easytrace5000/doc/cnc",
+                "name": "EasyTrace5000 Doc - PCB CNC Milling Guide",
+                "inLanguage": "en",
+                "isPartOf": { "@id": "https://cam.eltryus.design/#website" },
+                "about": { "@id": "https://cam.eltryus.design/easytrace5000/#app" },
+                "mainEntity": { "@id": "https://cam.eltryus.design/easytrace5000/doc/cnc#article" },
+                "breadcrumb": { "@id": "https://cam.eltryus.design/easytrace5000/doc/cnc#breadcrumb" },
+                "primaryImageOfPage": "https://cam.eltryus.design/images/social-trace.jpg"
+            },
+            {
+                "@type": "TechArticle",
+                "@id": "https://cam.eltryus.design/easytrace5000/doc/cnc#article",
+                "headline": "EasyTrace5000 CNC Milling Guide",
+                "description": "Learn how to generate G-code for multi-pass isolation routing, peck and helical milling, copper clearing, and board cutouts.",
+                "image": "https://cam.eltryus.design/images/social-trace.jpg",
+                "url": "https://cam.eltryus.design/easytrace5000/doc/cnc",
+                "inLanguage": "en",
+                "mainEntityOfPage": { "@id": "https://cam.eltryus.design/easytrace5000/doc/cnc#webpage" },
+                "isPartOf": { "@id": "https://cam.eltryus.design/easytrace5000/doc/#docs" },
+                "about": { "@id": "https://cam.eltryus.design/easytrace5000/#app" },
+                "author": { "@id": "https://www.eltryus.design/#organization" },
+                "publisher": { "@id": "https://www.eltryus.design/#organization" },
+                "datePublished": "2025-01-16",
+                "dateModified": "2026-08-24"
+            },
+            {
+                "@type": "BreadcrumbList",
+                "@id": "https://cam.eltryus.design/easytrace5000/doc/cnc#breadcrumb",
+                "itemListElement": [
+                    { "@type": "ListItem", "position": 1, "name": "EasyCAM5000", "item": "https://cam.eltryus.design/" },
+                    { "@type": "ListItem", "position": 2, "name": "EasyTrace5000", "item": "https://cam.eltryus.design/easytrace5000/" },
+                    { "@type": "ListItem", "position": 3, "name": "Docs", "item": "https://cam.eltryus.design/easytrace5000/doc/" },
+                    { "@type": "ListItem", "position": 4, "name": "CNC Guide", "item": "https://cam.eltryus.design/easytrace5000/doc/cnc" }
+                ]
+            }
+        ]
     }
     </script>
 </head>
@@ -81,34 +122,29 @@
 
     <!-- Header -->
     <header class="doc-header">
-        <div class="doc-brand">
-            <a href="/" aria-label="EasyCAM5000 Homepage">EasyCAM5000</a>
-        </div>
+        <div class="doc-brand"><a href="/" aria-label="EasyCAM5000 Homepage">EasyCAM5000</a></div>
+
+        <nav class="doc-breadcrumb" aria-label="Breadcrumb">
+            <ol>
+                <li><a href="/easytrace5000/" draggable="false">EasyTrace5000</a></li>
+                <li><a href="./" draggable="false">Docs</a></li>
+                <li><span aria-current="page">CNC Guide</span></li>
+            </ol>
+        </nav>
 
         <button class="doc-menu-toggle" aria-label="Toggle Navigation Menu" aria-expanded="false">
-            <svg class="icon-menu" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <line x1="3" y1="12" x2="21" y2="12"></line>
-                <line x1="3" y1="6" x2="21" y2="6"></line>
-                <line x1="3" y1="18" x2="21" y2="18"></line>
-            </svg>
-            <svg class="icon-close" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <line x1="18" y1="6" x2="6" y2="18"></line>
-                <line x1="6" y1="6" x2="18" y2="18"></line>
-            </svg>
+            <svg class="icon-menu cam-icon" width="24" height="24" aria-hidden="true"><use href="#icon-menu"></use></svg>
+            <svg class="icon-close cam-icon" width="24" height="24" aria-hidden="true"><use href="#icon-close"></use></svg>
         </button>
 
         <nav class="doc-nav" aria-label="Main Navigation">
-            <a href="/" draggable="false" aria-label="Return to Homepage">← Home</a>
-            <a href="/easytrace5000/" draggable="false" aria-label="Launch Workspace">Launch App</a>
+            <a href="cnc" class="active" aria-current="page" draggable="false">CNC Guide</a>
+            <a href="laser" draggable="false">Laser Guide</a>
+            <a href="operations" draggable="false">Operations</a>
+            <a href="parameters" draggable="false">Parameters</a>
+            <a href="accessibility" draggable="false">Accessibility</a>
             <span class="separator" aria-hidden="true"></span>
-            
-            <a href="./" draggable="false" aria-label="Documentation Index">Docs</a>
-            <a href="cnc" class="active" draggable="false" aria-current="page" aria-label="CNC Milling Guide">CNC Guide</a>
-            <a href="laser" draggable="false" aria-label="Laser Processing Guide">Laser Guide</a>
-            <a href="operations" draggable="false" aria-label="Operation Reference">Operations</a>
-            <a href="parameters" draggable="false" aria-label="Parameter Reference">Parameters</a>
-            <a href="accessibility" draggable="false" aria-label="Accessibility Statement">Accessibility</a>
-            <span class="separator" aria-hidden="true"></span>
+            <a href="/easytrace5000/" draggable="false">Launch App</a>
             <a href="https://github.com/RicardoJCMarques/EasyCAM5000" target="_blank" draggable="false" aria-label="GitHub Repository (opens in a new tab)">GitHub</a>
 
             <button id="theme-toggle" class="btn btn--icon" title="Toggle Theme" aria-label="Toggle Theme">
@@ -119,7 +155,7 @@
 
     <div class="doc-wrapper has-sidebar">
         <!-- Sidebar TOC -->
-        <nav class="doc-sidebar" id="toc">
+        <nav class="doc-sidebar" id="toc" aria-label="Table of contents">
             <h2>Contents <span class="doc-badge doc-badge--stable">Stable</span></h2>
             <ol>
                 <li><a href="#interface" draggable="false">Interface Overview</a></li>
@@ -152,8 +188,8 @@
         <!-- Main Content -->
         <main id="doc-content" class="doc-main">
             <section class="hero hero--compact">
-                <h1>EasyTrace5000 - CNC Milling Guide</h1>
-                <p class="tagline">G-code generation for PCB isolation routing</p>
+                <h1>EasyTrace5000 CNC Milling Guide</h1>
+                <p class="tagline">G-code generation workflow for PCB fabrication and prototyping</p>
             </section>
 
             <section id="safety-warning">
@@ -178,27 +214,27 @@
                 <figure>
                     <svg viewBox="0 0 800 500" style="width:100%;max-width:800px;background:#1a1a1a;border-radius:8px;">
                         <!-- Toolbar -->
-                        <rect x="0" y="0" width="800" height="40" fill="#2a2a2a"/>
-                        <text x="400" y="25" fill="#888" font-size="12" text-anchor="middle">1. TOOLBAR</text>
+                        <rect x="0" y="0" width="800" height="40" fill="var(--color-bg-tertiary)"/>
+                        <text x="400" y="25" fill="var(--color-text-secondary)" font-size="12" text-anchor="middle">1. TOOLBAR</text>
                         <!-- Left Sidebar -->
-                        <rect x="0" y="40" width="200" height="420" fill="#252525"/>
-                        <text x="100" y="250" fill="#888" font-size="12" text-anchor="middle">2. OPERATIONS</text>
-                        <text x="100" y="270" fill="#888" font-size="12" text-anchor="middle">TREE</text>
+                        <rect x="0" y="40" width="200" height="420" fill="var(--color-bg-tertiary)"/>
+                        <text x="100" y="250" fill="var(--color-text-secondary)" font-size="12" text-anchor="middle">2. OPERATIONS</text>
+                        <text x="100" y="270" fill="var(--color-text-secondary)" font-size="12" text-anchor="middle">TREE</text>
                         <!-- Canvas -->
-                        <rect x="200" y="40" width="400" height="420" fill="#1a1a1a"/>
-                        <text x="400" y="250" fill="#888" font-size="12" text-anchor="middle">3. CANVAS</text>
+                        <rect x="200" y="40" width="400" height="420" fill="var(--color-bg-secondary)"/>
+                        <text x="400" y="250" fill="var(--color-text-secondary)" font-size="12" text-anchor="middle">3. CANVAS</text>
                         <!-- Grid hint -->
-                        <line x1="250" y1="100" x2="250" y2="400" stroke="#333" stroke-dasharray="4"/>
-                        <line x1="350" y1="100" x2="350" y2="400" stroke="#333" stroke-dasharray="4"/>
-                        <line x1="450" y1="100" x2="450" y2="400" stroke="#333" stroke-dasharray="4"/>
-                        <line x1="550" y1="100" x2="550" y2="400" stroke="#333" stroke-dasharray="4"/>
+                        <line x1="250" y1="100" x2="250" y2="400" stroke="var(--color-border-secondary)" stroke-dasharray="4"/>
+                        <line x1="350" y1="100" x2="350" y2="400" stroke="var(--color-border-secondary)" stroke-dasharray="4"/>
+                        <line x1="450" y1="100" x2="450" y2="400" stroke="var(--color-border-secondary)" stroke-dasharray="4"/>
+                        <line x1="550" y1="100" x2="550" y2="400" stroke="var(--color-border-secondary)" stroke-dasharray="4"/>
                         <!-- Right Sidebar -->
-                        <rect x="600" y="40" width="200" height="420" fill="#252525"/>
-                        <text x="700" y="250" fill="#888" font-size="12" text-anchor="middle">4. PROPERTIES</text>
-                        <text x="700" y="270" fill="#888" font-size="12" text-anchor="middle">PANEL</text>
+                        <rect x="600" y="40" width="200" height="420" fill="var(--color-bg-tertiary)"/>
+                        <text x="700" y="250" fill="var(--color-text-secondary)" font-size="12" text-anchor="middle">4. PROPERTIES</text>
+                        <text x="700" y="270" fill="var(--color-text-secondary)" font-size="12" text-anchor="middle">PANEL</text>
                         <!-- Footer -->
-                        <rect x="0" y="460" width="800" height="40" fill="#2a2a2a"/>
-                        <text x="400" y="485" fill="#888" font-size="12" text-anchor="middle">5. STATUS BAR</text>
+                        <rect x="0" y="460" width="800" height="40" fill="var(--color-bg-tertiary)"/>
+                        <text x="400" y="485" fill="var(--color-text-secondary)" font-size="12" text-anchor="middle">5. STATUS BAR</text>
                     </svg>
                     <figcaption>The main interface: (1) Toolbar, (2) Operations Tree, (3) Canvas, (4) Properties Panel, (5) Status Bar</figcaption>
                 </figure>
@@ -221,22 +257,22 @@
 
                 <figure>
                     <svg viewBox="0 0 400 350" style="width:100%;max-width:400px;background:#1a1a1a;border-radius:8px;">
-                        <rect x="10" y="10" width="380" height="330" fill="#252525" rx="4"/>
+                        <rect x="10" y="10" width="380" height="330" fill="var(--color-bg-tertiary)" rx="4"/>
                         <!-- Category: Isolation -->
-                        <text x="30" y="45" fill="#4a9eff" font-size="14" font-weight="bold">▼ Isolation Routing</text>
-                        <text x="50" y="75" fill="#aaa" font-size="12">└ board.gtl</text>
-                        <text x="70" y="100" fill="#888" font-size="11">├ Pass 1</text>
-                        <text x="70" y="120" fill="#888" font-size="11">├ Pass 2</text>
-                        <text x="70" y="140" fill="#6c6" font-size="11">└ Preview ✓</text>
+                        <text x="30" y="45" fill="var(--color-operation-isolation)" font-size="14" font-weight="bold">▼ Isolation Routing</text>
+                        <text x="50" y="75" fill="var(--color-text-secondary)" font-size="12">└ board.gtl</text>
+                        <text x="70" y="100" fill="var(--color-text-secondary)" font-size="11">├ Pass 1</text>
+                        <text x="70" y="120" fill="var(--color-text-secondary)" font-size="11">├ Pass 2</text>
+                        <text x="70" y="140" fill="var(--color-success)" font-size="11">└ Preview ✓</text>
                         <!-- Category: Drilling -->
-                        <text x="30" y="175" fill="#ff9f4a" font-size="14" font-weight="bold">▶ Drilling</text>
-                        <text x="50" y="200" fill="#666" font-size="12">(empty)</text>
+                        <text x="30" y="175" fill="var(--color-operation-drill)" font-size="14" font-weight="bold">▶ Drilling</text>
+                        <text x="50" y="200" fill="var(--color-text-hint)" font-size="12">(empty)</text>
                         <!-- Category: Clearing -->
-                        <text x="30" y="235" fill="#9f4aff" font-size="14" font-weight="bold">▶ Copper Clearing</text>
-                        <text x="50" y="260" fill="#666" font-size="12">(empty)</text>
+                        <text x="30" y="235" fill="var(--color-operation-clearing)" font-size="14" font-weight="bold">▶ Copper Clearing</text>
+                        <text x="50" y="260" fill="var(--color-text-hint)" font-size="12">(empty)</text>
                         <!-- Category: Cutout -->
-                        <text x="30" y="295" fill="#ff4a9f" font-size="14" font-weight="bold">▶ Board Cutout</text>
-                        <text x="50" y="320" fill="#666" font-size="12">(empty)</text>
+                        <text x="30" y="295" fill="var(--color-operation-cutout)" font-size="14" font-weight="bold">▶ Board Cutout</text>
+                        <text x="50" y="320" fill="var(--color-text-hint)" font-size="12">(empty)</text>
                     </svg>
                     <figcaption>The operations tree with an expanded isolation file showing offset passes and preview</figcaption>
                 </figure>
@@ -264,37 +300,37 @@
 
                 <figure>
                     <svg viewBox="0 0 380 500" style="width:100%;max-width:380px;background:#1a1a1a;border-radius:8px;">
-                        <rect x="10" y="10" width="360" height="480" fill="#252525" rx="4"/>
+                        <rect x="10" y="10" width="360" height="480" fill="var(--color-bg-tertiary)" rx="4"/>
                         <!-- Header -->
-                        <text x="190" y="40" fill="#fff" font-size="14" font-weight="bold" text-anchor="middle">board.gtl</text>
+                        <text x="190" y="40" fill="var(--color-text-primary)" font-size="14" font-weight="bold" text-anchor="middle">board.gtl</text>
                         <!-- Section: Tool -->
-                        <text x="20" y="75" fill="#888" font-size="11">TOOL SELECTION</text>
-                        <rect x="20" y="85" width="340" height="30" fill="#333" rx="3"/>
-                        <text x="30" y="105" fill="#aaa" font-size="12">End Mill 0.2mm ▼</text>
+                        <text x="20" y="75" fill="var(--color-text-secondary)" font-size="11">TOOL SELECTION</text>
+                        <rect x="20" y="85" width="340" height="30" fill="var(--color-border-secondary)" rx="3"/>
+                        <text x="30" y="105" fill="var(--color-text-secondary)" font-size="12">End Mill 0.2mm ▼</text>
                         <!-- Tool Diameter -->
-                        <text x="20" y="140" fill="#aaa" font-size="12">Tool Diameter</text>
-                        <rect x="250" y="125" width="80" height="24" fill="#333" rx="3"/>
-                        <text x="290" y="142" fill="#fff" font-size="12" text-anchor="middle">0.2 mm</text>
+                        <text x="20" y="140" fill="var(--color-text-secondary)" font-size="12">Tool Diameter</text>
+                        <rect x="250" y="125" width="80" height="24" fill="var(--color-border-secondary)" rx="3"/>
+                        <text x="290" y="142" fill="var(--color-text-secondary)" font-size="12" text-anchor="middle">0.2 mm</text>
                         <!-- Section: Offset -->
-                        <text x="20" y="180" fill="#888" font-size="11">OFFSET GENERATION</text>
-                        <text x="20" y="205" fill="#aaa" font-size="12">Passes</text>
-                        <rect x="250" y="190" width="80" height="24" fill="#333" rx="3"/>
-                        <text x="290" y="207" fill="#fff" font-size="12" text-anchor="middle">3</text>
-                        <text x="20" y="240" fill="#aaa" font-size="12">Step Over</text>
-                        <rect x="250" y="225" width="80" height="24" fill="#333" rx="3"/>
-                        <text x="290" y="242" fill="#fff" font-size="12" text-anchor="middle">50 %</text>
+                        <text x="20" y="180" fill="var(--color-text-secondary)" font-size="11">OFFSET GENERATION</text>
+                        <text x="20" y="205" fill="var(--color-text-secondary)" font-size="12">Passes</text>
+                        <rect x="250" y="190" width="80" height="24" fill="var(--color-border-secondary)" rx="3"/>
+                        <text x="290" y="207" fill="var(--color-text-secondary)" font-size="12" text-anchor="middle">3</text>
+                        <text x="20" y="240" fill="var(--color-text-secondary)" font-size="12">Step Over</text>
+                        <rect x="250" y="225" width="80" height="24" fill="var(--color-border-secondary)" rx="3"/>
+                        <text x="290" y="242" fill="var(--color-text-secondary)" font-size="12" text-anchor="middle">50 %</text>
                         <!-- Generate button -->
-                        <rect x="20" y="270" width="340" height="36" fill="#4a9eff" rx="4"/>
-                        <text x="190" y="294" fill="#fff" font-size="13" font-weight="bold" text-anchor="middle">Generate Offsets</text>
+                        <rect x="20" y="270" width="340" height="36" fill="var(--color-accent-hover)" rx="4"/>
+                        <text x="190" y="294" fill="var(--color-text-secondary)" font-size="13" font-weight="bold" text-anchor="middle">Generate Offsets</text>
                         <!-- Divider -->
-                        <line x1="20" y1="325" x2="360" y2="325" stroke="#444"/>
-                        <!-- Section: Strategy (grayed out) -->
-                        <text x="20" y="355" fill="#555" font-size="11">DEPTH SETTINGS (after offsets)</text>
-                        <text x="20" y="380" fill="#555" font-size="12">Cut Depth</text>
-                        <text x="20" y="405" fill="#555" font-size="12">Multi-Depth</text>
-                        <!-- Section: Machine (grayed out) -->
-                        <text x="20" y="445" fill="#555" font-size="11">FEEDS &amp; SPEEDS (after preview)</text>
-                        <text x="20" y="470" fill="#555" font-size="12">Feed Rate, Plunge Rate, Spindle</text>
+                        <line x1="20" y1="325" x2="360" y2="325" stroke="var(--color-border-secondary)"/>
+                        <!-- Section: Strategy -->
+                        <text x="20" y="355" fill="var(--color-text-secondary)" font-size="11">DEPTH SETTINGS (after offsets)</text>
+                        <text x="20" y="380" fill="var(--color-text-secondary)" font-size="12">Cut Depth</text>
+                        <text x="20" y="405" fill="var(--color-text-secondary)" font-size="12">Multi-Depth</text>
+                        <!-- Section: Machine -->
+                        <text x="20" y="445" fill="var(--color-text-secondary)" font-size="11">FEEDS &amp; SPEEDS (after preview)</text>
+                        <text x="20" y="470" fill="var(--color-text-secondary)" font-size="12">Feed Rate, Plunge Rate, Spindle</text>
                     </svg>
                     <figcaption>The properties panel showing isolation routing parameters at the Geometry stage</figcaption>
                 </figure>
@@ -325,38 +361,38 @@
                 <figure>
                     <svg viewBox="0 0 800 200" style="width:100%;max-width:800px;background:#1a1a1a;border-radius:8px;">
                         <!-- Boxes -->
-                        <rect x="20" y="60" width="120" height="80" fill="#333" rx="6"/>
-                        <rect x="170" y="60" width="120" height="80" fill="#333" rx="6"/>
-                        <rect x="320" y="60" width="120" height="80" fill="#333" rx="6"/>
-                        <rect x="470" y="60" width="120" height="80" fill="#333" rx="6"/>
-                        <rect x="620" y="60" width="140" height="80" fill="#333" rx="6"/>
+                        <rect x="20" y="60" width="120" height="80" fill="var(--color-border-secondary)" rx="6"/>
+                        <rect x="170" y="60" width="120" height="80" fill="var(--color-border-secondary)" rx="6"/>
+                        <rect x="320" y="60" width="120" height="80" fill="var(--color-border-secondary)" rx="6"/>
+                        <rect x="470" y="60" width="120" height="80" fill="var(--color-border-secondary)" rx="6"/>
+                        <rect x="620" y="60" width="140" height="80" fill="var(--color-border-secondary)" rx="6"/>
                         <!-- Arrows -->
-                        <path d="M145 100 L165 100" stroke="#666" stroke-width="2" marker-end="url(#arrow)"/>
-                        <path d="M295 100 L315 100" stroke="#666" stroke-width="2" marker-end="url(#arrow)"/>
-                        <path d="M445 100 L465 100" stroke="#666" stroke-width="2" marker-end="url(#arrow)"/>
-                        <path d="M595 100 L615 100" stroke="#666" stroke-width="2" marker-end="url(#arrow)"/>
+                        <path d="M145 100 L165 100" stroke="var(--color-text-hint)" stroke-width="2" marker-end="url(#arrow)"/>
+                        <path d="M295 100 L315 100" stroke="var(--color-text-hint)" stroke-width="2" marker-end="url(#arrow)"/>
+                        <path d="M445 100 L465 100" stroke="var(--color-text-hint)" stroke-width="2" marker-end="url(#arrow)"/>
+                        <path d="M595 100 L615 100" stroke="var(--color-text-hint)" stroke-width="2" marker-end="url(#arrow)"/>
                         <defs>
                             <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
-                                <path d="M 0 0 L 10 5 L 0 10 z" fill="#666"/>
+                                <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--color-text-hint)"/>
                             </marker>
                         </defs>
                         <!-- Labels -->
-                        <text x="80" y="95" fill="#4a9eff" font-size="13" font-weight="bold" text-anchor="middle">SOURCE</text>
-                        <text x="80" y="115" fill="#888" font-size="10" text-anchor="middle">Gerber/Excellon</text>
-                        <text x="230" y="95" fill="#9f4aff" font-size="13" font-weight="bold" text-anchor="middle">OFFSETS</text>
-                        <text x="230" y="115" fill="#888" font-size="10" text-anchor="middle">2D Geometry</text>
-                        <text x="380" y="95" fill="#ff9f4a" font-size="13" font-weight="bold" text-anchor="middle">PREVIEW</text>
-                        <text x="380" y="115" fill="#888" font-size="10" text-anchor="middle">Depth + Strategy</text>
-                        <text x="530" y="95" fill="#6c6" font-size="13" font-weight="bold" text-anchor="middle">MACHINE</text>
-                        <text x="530" y="115" fill="#888" font-size="10" text-anchor="middle">Feeds + Speeds</text>
-                        <text x="690" y="95" fill="#fff" font-size="13" font-weight="bold" text-anchor="middle">G-CODE</text>
-                        <text x="690" y="115" fill="#888" font-size="10" text-anchor="middle">Export</text>
+                        <text x="80" y="95" fill="var(--color-accent-hover)" font-size="13" font-weight="bold" text-anchor="middle">SOURCE</text>
+                        <text x="80" y="115" fill="var(--color-text-secondary)" font-size="10" text-anchor="middle">Gerber/Excellon</text>
+                        <text x="230" y="95" fill="var(--color-geometry-offset-external)" font-size="13" font-weight="bold" text-anchor="middle">OFFSETS</text>
+                        <text x="230" y="115" fill="var(--color-text-secondary)" font-size="10" text-anchor="middle">2D Geometry</text>
+                        <text x="380" y="95" fill="var(--color-operation-isolation)" font-size="13" font-weight="bold" text-anchor="middle">PREVIEW</text>
+                        <text x="380" y="115" fill="var(--color-text-secondary)" font-size="10" text-anchor="middle">Depth + Strategy</text>
+                        <text x="530" y="95" fill="var(--color-success)" font-size="13" font-weight="bold" text-anchor="middle">MACHINE</text>
+                        <text x="530" y="115" fill="var(--color-text-secondary)" font-size="10" text-anchor="middle">Feeds + Speeds</text>
+                        <text x="690" y="95" fill="var(--color-text-primary)" font-size="13" font-weight="bold" text-anchor="middle">G-CODE</text>
+                        <text x="690" y="115" fill="var(--color-text-secondary)" font-size="10" text-anchor="middle">Export</text>
                         <!-- Stage indicators -->
-                        <text x="80" y="165" fill="#555" font-size="9" text-anchor="middle">Stage 1</text>
-                        <text x="230" y="165" fill="#555" font-size="9" text-anchor="middle">Stage 2</text>
-                        <text x="380" y="165" fill="#555" font-size="9" text-anchor="middle">Stage 3</text>
-                        <text x="530" y="165" fill="#555" font-size="9" text-anchor="middle">Stage 4</text>
-                        <text x="690" y="165" fill="#555" font-size="9" text-anchor="middle">Stage 5</text>
+                        <text x="80" y="165" fill="var(--color-text-hint)" font-size="9" text-anchor="middle">Stage 1</text>
+                        <text x="230" y="165" fill="var(--color-text-hint)" font-size="9" text-anchor="middle">Stage 2</text>
+                        <text x="380" y="165" fill="var(--color-text-hint)" font-size="9" text-anchor="middle">Stage 3</text>
+                        <text x="530" y="165" fill="var(--color-text-hint)" font-size="9" text-anchor="middle">Stage 4</text>
+                        <text x="690" y="165" fill="var(--color-text-hint)" font-size="9" text-anchor="middle">Stage 5</text>
                     </svg>
                     <figcaption>The five-stage workflow from source files to G-code export</figcaption>
                 </figure>
@@ -373,28 +409,28 @@
                 <figure>
                     <svg viewBox="0 0 600 400" style="width:100%;max-width:600px;background:#1a1a1a;border-radius:8px;">
                         <!-- Modal frame -->
-                        <rect x="30" y="30" width="540" height="340" fill="#252525" rx="8"/>
-                        <text x="300" y="60" fill="#fff" font-size="16" font-weight="bold" text-anchor="middle">Add PCB Files</text>
+                        <rect x="30" y="30" width="540" height="340" fill="var(--color-bg-tertiary)" rx="8"/>
+                        <text x="300" y="60" fill="var(--color-text-primary)" font-size="16" font-weight="bold" text-anchor="middle">Add PCB Files</text>
                         <!-- Drop zones -->
-                        <rect x="50" y="80" width="240" height="120" fill="#333" rx="6" stroke="#4a9eff" stroke-width="2" stroke-dasharray="8"/>
-                        <text x="170" y="130" fill="#4a9eff" font-size="12" text-anchor="middle">Isolation Routing</text>
-                        <text x="170" y="150" fill="#666" font-size="10" text-anchor="middle">.gbr, .ger, .gtl, .gbl</text>
-                        <text x="170" y="175" fill="#888" font-size="20" text-anchor="middle">↑</text>
+                        <rect x="50" y="80" width="240" height="120" fill="var(--color-border-secondary)" rx="6" stroke="var(--color-operation-isolation)" stroke-width="2" stroke-dasharray="8"/>
+                        <text x="170" y="130" fill="var(--color-operation-isolation)" font-size="12" text-anchor="middle">Isolation Routing</text>
+                        <text x="170" y="150" fill="var(--color-text-hint)" font-size="10" text-anchor="middle">.gbr, .ger, .gtl, .gbl</text>
+                        <text x="170" y="175" fill="var(--color-text-secondary)" font-size="20" text-anchor="middle">↑</text>
                         
-                        <rect x="310" y="80" width="240" height="120" fill="#333" rx="6" stroke="#ff9f4a" stroke-width="2" stroke-dasharray="8"/>
-                        <text x="430" y="130" fill="#ff9f4a" font-size="12" text-anchor="middle">Drilling</text>
-                        <text x="430" y="150" fill="#666" font-size="10" text-anchor="middle">.drl, .xln, .txt</text>
-                        <text x="430" y="175" fill="#888" font-size="20" text-anchor="middle">↑</text>
+                        <rect x="310" y="80" width="240" height="120" fill="var(--color-border-secondary)" rx="6" stroke="var(--color-operation-drill)" stroke-width="2" stroke-dasharray="8"/>
+                        <text x="430" y="130" fill="var(--color-operation-drill)" font-size="12" text-anchor="middle">Drilling</text>
+                        <text x="430" y="150" fill="var(--color-text-hint)" font-size="10" text-anchor="middle">.drl, .xln, .txt</text>
+                        <text x="430" y="175" fill="var(--color-text-secondary)" font-size="20" text-anchor="middle">↑</text>
                         
-                        <rect x="50" y="210" width="240" height="120" fill="#333" rx="6" stroke="#9f4aff" stroke-width="2" stroke-dasharray="8"/>
-                        <text x="170" y="260" fill="#9f4aff" font-size="12" text-anchor="middle">Copper Clearing</text>
-                        <text x="170" y="280" fill="#666" font-size="10" text-anchor="middle">.gbr, .gpl, .gnd</text>
-                        <text x="170" y="305" fill="#888" font-size="20" text-anchor="middle">↑</text>
+                        <rect x="50" y="210" width="240" height="120" fill="var(--color-border-secondary)" rx="6" stroke="var(--color-operation-clearing)" stroke-width="2" stroke-dasharray="8"/>
+                        <text x="170" y="260" fill="var(--color-operation-clearing)" font-size="12" text-anchor="middle">Copper Clearing</text>
+                        <text x="170" y="280" fill="var(--color-text-hint)" font-size="10" text-anchor="middle">.gbr, .gpl, .gnd</text>
+                        <text x="170" y="305" fill="var(--color-text-secondary)" font-size="20" text-anchor="middle">↑</text>
                         
-                        <rect x="310" y="210" width="240" height="120" fill="#333" rx="6" stroke="#ff4a9f" stroke-width="2" stroke-dasharray="8"/>
-                        <text x="430" y="260" fill="#ff4a9f" font-size="12" text-anchor="middle">Board Cutout</text>
-                        <text x="430" y="280" fill="#666" font-size="10" text-anchor="middle">.gbr, .gko, .gm1</text>
-                        <text x="430" y="305" fill="#888" font-size="20" text-anchor="middle">↑</text>
+                        <rect x="310" y="210" width="240" height="120" fill="var(--color-border-secondary)" rx="6" stroke="var(--color-operation-cutout)" stroke-width="2" stroke-dasharray="8"/>
+                        <text x="430" y="260" fill="var(--color-operation-cutout)" font-size="12" text-anchor="middle">Board Cutout</text>
+                        <text x="430" y="280" fill="var(--color-text-hint)" font-size="10" text-anchor="middle">.gbr, .gko, .gm1</text>
+                        <text x="430" y="305" fill="var(--color-text-secondary)" font-size="20" text-anchor="middle">↑</text>
                     </svg>
                     <figcaption>The file upload modal with four operation-specific drop zones</figcaption>
                 </figure>
@@ -415,30 +451,30 @@
                 <figure>
                     <svg viewBox="0 0 600 300" style="width:100%;max-width:600px;background:#1a1a1a;border-radius:8px;">
                         <!-- Board geometry -->
-                        <rect x="100" y="50" width="250" height="180" fill="none" stroke="#4a9eff" stroke-width="2"/>
+                        <rect x="100" y="50" width="250" height="180" fill="none" stroke="var(--color-accent-hover)" stroke-width="2"/>
                         <!-- Origin marker -->
-                        <circle cx="100" cy="230" r="8" fill="#6c6"/>
-                        <line x1="100" y1="210" x2="100" y2="250" stroke="#6c6" stroke-width="2"/>
-                        <line x1="80" y1="230" x2="120" y2="230" stroke="#6c6" stroke-width="2"/>
-                        <text x="100" y="270" fill="#6c6" font-size="11" text-anchor="middle">Origin (0,0)</text>
+                        <circle cx="100" cy="230" r="8" fill="var(--color-success)"/>
+                        <line x1="100" y1="210" x2="100" y2="250" stroke="var(--color-success)" stroke-width="2"/>
+                        <line x1="80" y1="230" x2="120" y2="230" stroke="var(--color-success)" stroke-width="2"/>
+                        <text x="100" y="270" fill="var(--color-success)" font-size="11" text-anchor="middle">Origin (0,0)</text>
                         <!-- Controls panel -->
-                        <rect x="400" y="50" width="180" height="200" fill="#252525" rx="6"/>
-                        <text x="490" y="80" fill="#888" font-size="11" text-anchor="middle">ORIGIN OFFSET</text>
-                        <text x="420" y="110" fill="#aaa" font-size="12">X:</text>
-                        <rect x="440" y="95" width="60" height="22" fill="#333" rx="3"/>
-                        <text x="470" y="111" fill="#fff" font-size="11" text-anchor="middle">0.00</text>
-                        <text x="510" y="110" fill="#666" font-size="10">mm</text>
-                        <text x="420" y="145" fill="#aaa" font-size="12">Y:</text>
-                        <rect x="440" y="130" width="60" height="22" fill="#333" rx="3"/>
-                        <text x="470" y="146" fill="#fff" font-size="11" text-anchor="middle">0.00</text>
-                        <text x="510" y="145" fill="#666" font-size="10">mm</text>
+                        <rect x="400" y="50" width="180" height="200" fill="var(--color-bg-tertiary)" rx="6"/>
+                        <text x="490" y="80" fill="var(--color-text-secondary)" font-size="11" text-anchor="middle">ORIGIN OFFSET</text>
+                        <text x="420" y="110" fill="var(--color-text-secondary)" font-size="12">X:</text>
+                        <rect x="440" y="95" width="60" height="22" fill="var(--color-border-secondary)" rx="3"/>
+                        <text x="470" y="111" fill="var(--color-text-primary)" font-size="11" text-anchor="middle">0.00</text>
+                        <text x="510" y="110" fill="var(--color-text-hint)" font-size="10">mm</text>
+                        <text x="420" y="145" fill="var(--color-text-secondary)" font-size="12">Y:</text>
+                        <rect x="440" y="130" width="60" height="22" fill="var(--color-border-secondary)" rx="3"/>
+                        <text x="470" y="146" fill="var(--color-text-primary)" font-size="11" text-anchor="middle">0.00</text>
+                        <text x="510" y="145" fill="var(--color-text-hint)" font-size="10">mm</text>
                         <!-- Buttons -->
-                        <rect x="410" y="165" width="70" height="26" fill="#333" rx="3"/>
-                        <text x="445" y="183" fill="#aaa" font-size="10" text-anchor="middle">Center</text>
-                        <rect x="490" y="165" width="80" height="26" fill="#333" rx="3"/>
-                        <text x="530" y="183" fill="#aaa" font-size="10" text-anchor="middle">Bottom-Left</text>
-                        <rect x="410" y="200" width="160" height="30" fill="#4a9eff" rx="4"/>
-                        <text x="490" y="220" fill="#fff" font-size="11" text-anchor="middle">Apply Origin</text>
+                        <rect x="410" y="165" width="70" height="26" fill="var(--color-border-secondary)" rx="3"/>
+                        <text x="445" y="183" fill="var(--color-text-secondary)" font-size="10" text-anchor="middle">Center</text>
+                        <rect x="490" y="165" width="80" height="26" fill="var(--color-border-secondary)" rx="3"/>
+                        <text x="530" y="183" fill="var(--color-text-secondary)" font-size="10" text-anchor="middle">Bottom-Left</text>
+                        <rect x="410" y="200" width="160" height="30" fill="var(--color-accent-hover)" rx="4"/>
+                        <text x="490" y="220" fill="var(--color-text-primary)" font-size="11" text-anchor="middle">Apply Origin</text>
                     </svg>
                     <figcaption>Origin controls showing the current offset position on the board</figcaption>
                 </figure>
@@ -496,25 +532,23 @@
                 <figure>
                     <svg viewBox="0 0 800 350" style="width:100%;max-width:800px;background:#1a1a1a;border-radius:8px;">
                         <!-- Left: Source -->
-                        <text x="180" y="30" fill="#888" font-size="12" text-anchor="middle">Source Geometry</text>
+                        <text x="180" y="30" fill="var(--color-text-secondary)" font-size="12" text-anchor="middle">Source Geometry</text>
                         <!-- Trace with pad -->
-                        <rect x="80" y="120" width="200" height="120" fill="#ff9f4a" rx="2"/>
-                        <rect x="100" y="100" width="40" height="40" fill="#ff9f4a"/>
-                        <rect x="220" y="200" width="40" height="40" fill="#ff9f4a"/>
+                        <rect x="80" y="120" width="200" height="120" fill="var(--color-operation-isolation)"/>
                         <!-- Arrow -->
-                        <path d="M320 180 L380 180" stroke="#666" stroke-width="3" marker-end="url(#arrow)"/>
-                        <text x="350" y="200" fill="#666" font-size="10" text-anchor="middle">Generate</text>
+                        <path d="M320 180 L380 180" stroke="var(--color-text-hint)" stroke-width="3" marker-end="url(#arrow)"/>
+                        <text x="350" y="200" fill="var(--color-text-hint)" font-size="10" text-anchor="middle">Generate</text>
                         <!-- Right: Offsets -->
-                        <text x="580" y="30" fill="#888" font-size="12" text-anchor="middle">Offset Paths (Tool Centerlines)</text>
+                        <text x="580" y="30" fill="var(--color-text-secondary)" font-size="12" text-anchor="middle">Offset Paths (Tool Centerlines)</text>
                         <!-- Offset outlines -->
-                        <rect x="470" y="110" width="220" height="140" fill="none" stroke="#f44" stroke-width="1.5"/>
-                        <rect x="460" y="100" width="240" height="160" fill="none" stroke="#f44" stroke-width="1.5"/>
-                        <rect x="450" y="90" width="260" height="180" fill="none" stroke="#f44" stroke-width="1.5"/>
+                        <rect x="470" y="110" width="220" height="140" fill="none" stroke="var(--color-error)" stroke-width="1.5" rx="10" ry="10"/>
+                        <rect x="460" y="100" width="240" height="160" fill="none" stroke="var(--color-error)" stroke-width="1.5" rx="20" ry="20"/>
+                        <rect x="450" y="90" width="260" height="180" fill="none" stroke="var(--color-error)" stroke-width="1.5" rx="30" ry="30"/>
                         <!-- Inner trace (dimmed) -->
-                        <rect x="480" y="120" width="200" height="120" fill="none" stroke="#ff9f4a55" stroke-width="1"/>
+                        <rect x="480" y="120" width="200" height="120" fill="var(--color-operation-isolation)"/>
                         <!-- Labels -->
-                        <text x="580" y="320" fill="#f44" font-size="10" text-anchor="middle">Pass 1, 2, 3 (red outlines)</text>
-                        <text x="180" y="320" fill="#ff9f4a" font-size="10" text-anchor="middle">Copper (orange fill)</text>
+                        <text x="580" y="320" fill="var(--color-error)" font-size="10" text-anchor="middle">Pass 1, 2, 3 (red outlines)</text>
+                        <text x="180" y="320" fill="var(--color-operation-isolation)" font-size="10" text-anchor="middle">Copper (orange fill)</text>
                     </svg>
                     <figcaption>Before and after: Source geometry (copper fill) and generated offset paths (red outlines)</figcaption>
                 </figure>
@@ -558,23 +592,23 @@
                 <figure>
                     <svg viewBox="0 0 700 300" style="width:100%;max-width:700px;background:#1a1a1a;border-radius:8px;">
                         <!-- Left: Offset -->
-                        <text x="175" y="30" fill="#888" font-size="12" text-anchor="middle">Offset (Centerline)</text>
-                        <line x1="50" y1="150" x2="300" y2="150" stroke="#f44" stroke-width="2"/>
-                        <circle cx="50" cy="150" r="4" fill="#f44"/>
-                        <circle cx="300" cy="150" r="4" fill="#f44"/>
-                        <text x="175" y="180" fill="#f44" font-size="10" text-anchor="middle">Thin line = tool center path</text>
+                        <text x="175" y="30" fill="var(--color-text-secondary)" font-size="12" text-anchor="middle">Offset (Centerline)</text>
+                        <line x1="50" y1="150" x2="300" y2="150" stroke="var(--color-error)" stroke-width="2"/>
+                        <circle cx="50" cy="150" r="4" fill="var(--color-error)"/>
+                        <circle cx="300" cy="150" r="4" fill="var(--color-error)"/>
+                        <text x="175" y="180" fill="var(--color-error)" font-size="10" text-anchor="middle">Thin line = tool center path</text>
                         <!-- Divider -->
-                        <line x1="350" y1="50" x2="350" y2="250" stroke="#444" stroke-dasharray="4"/>
+                        <line x1="350" y1="50" x2="350" y2="250" stroke="var(--color-border-secondary)" stroke-dasharray="4"/>
                         <!-- Right: Preview -->
-                        <text x="525" y="30" fill="#888" font-size="12" text-anchor="middle">Preview (Tool Width)</text>
-                        <rect x="400" y="130" width="250" height="40" fill="#4a9eff44" stroke="#4a9eff" stroke-width="2" rx="20"/>
-                        <line x1="400" y1="150" x2="650" y2="150" stroke="#4a9eff" stroke-width="1" stroke-dasharray="4"/>
-                        <text x="525" y="200" fill="#4a9eff" font-size="10" text-anchor="middle">Thick stroke = material removed</text>
+                        <text x="525" y="30" fill="var(--color-text-secondary)" font-size="12" text-anchor="middle">Preview (Tool Width)</text>
+                        <rect x="400" y="130" width="250" height="40" fill="var(--color-accent-hover)" stroke="var(--color-accent-hover)" stroke-width="2" rx="20"/>
+                        <line x1="400" y1="150" x2="650" y2="150" stroke="var(--color-accent-hover)" stroke-width="1" stroke-dasharray="4"/>
+                        <text x="525" y="200" fill="var(--color-accent-hover)" font-size="10" text-anchor="middle">Thick stroke = material removed</text>
                         <!-- Tool diameter indicator -->
-                        <line x1="620" y1="130" x2="620" y2="170" stroke="#6c6" stroke-width="1"/>
-                        <line x1="615" y1="130" x2="625" y2="130" stroke="#6c6" stroke-width="1"/>
-                        <line x1="615" y1="170" x2="625" y2="170" stroke="#6c6" stroke-width="1"/>
-                        <text x="640" y="155" fill="#6c6" font-size="9">Tool Ø</text>
+                        <line x1="620" y1="130" x2="620" y2="170" stroke="var(--color-success)" stroke-width="1"/>
+                        <line x1="615" y1="130" x2="625" y2="130" stroke="var(--color-success)" stroke-width="1"/>
+                        <line x1="615" y1="170" x2="625" y2="170" stroke="var(--color-success)" stroke-width="1"/>
+                        <text x="640" y="155" fill="var(--color-success)" font-size="9">Tool Ø</text>
                     </svg>
                     <figcaption>Offset (thin centerline) vs Preview (full tool width simulation)</figcaption>
                 </figure>
@@ -607,38 +641,38 @@
                 <figure>
                     <svg viewBox="0 0 700 450" style="width:100%;max-width:700px;background:#1a1a1a;border-radius:8px;">
                         <!-- Modal frame -->
-                        <rect x="30" y="20" width="640" height="410" fill="#252525" rx="8"/>
-                        <text x="350" y="55" fill="#fff" font-size="16" font-weight="bold" text-anchor="middle">Toolpath Manager &amp; Export</text>
+                        <rect x="30" y="20" width="640" height="410" fill="var(--color-bg-tertiary)" rx="8"/>
+                        <text x="350" y="55" fill="var(--color-text-primary)" font-size="16" font-weight="bold" text-anchor="middle">Toolpath Manager &amp; Export</text>
                         <!-- Operation list -->
-                        <text x="60" y="90" fill="#888" font-size="11">SELECT OPERATIONS</text>
-                        <rect x="50" y="100" width="280" height="30" fill="#333" rx="4"/>
-                        <text x="70" y="120" fill="#6c6" font-size="12">☑ Isolation: board.gtl</text>
-                        <rect x="50" y="135" width="280" height="30" fill="#333" rx="4"/>
-                        <text x="70" y="155" fill="#6c6" font-size="12">☑ Drilling: board.drl</text>
-                        <rect x="50" y="170" width="280" height="30" fill="#333" rx="4"/>
-                        <text x="70" y="190" fill="#888" font-size="12">☐ Cutout: board.gko</text>
+                        <text x="60" y="90" fill="var(--color-text-secondary)" font-size="11">SELECT OPERATIONS</text>
+                        <rect x="50" y="100" width="280" height="30" fill="var(--color-border-secondary)" rx="4"/>
+                        <text x="70" y="120" fill="var(--color-success)" font-size="12">☑ Isolation: board.gtl</text>
+                        <rect x="50" y="135" width="280" height="30" fill="var(--color-border-secondary)" rx="4"/>
+                        <text x="70" y="155" fill="var(--color-success)" font-size="12">☑ Drilling: board.drl</text>
+                        <rect x="50" y="170" width="280" height="30" fill="var(--color-border-secondary)" rx="4"/>
+                        <text x="70" y="190" fill="var(--color-text-secondary)" font-size="12">☐ Cutout: board.gko</text>
                         <!-- Options -->
-                        <text x="60" y="230" fill="#888" font-size="11">OUTPUT OPTIONS</text>
-                        <text x="70" y="255" fill="#6c6" font-size="12">☑ Export as single file</text>
-                        <text x="70" y="280" fill="#6c6" font-size="12">☑ Include operation comments</text>
-                        <text x="70" y="305" fill="#6c6" font-size="12">☑ Optimize toolpaths</text>
+                        <text x="60" y="230" fill="var(--color-text-secondary)" font-size="11">OUTPUT OPTIONS</text>
+                        <text x="70" y="255" fill="var(--color-success)" font-size="12">☑ Export as single file</text>
+                        <text x="70" y="280" fill="var(--color-success)" font-size="12">☑ Include operation comments</text>
+                        <text x="70" y="305" fill="var(--color-success)" font-size="12">☑ Optimize toolpaths</text>
                         <!-- Preview area -->
-                        <rect x="360" y="100" width="290" height="250" fill="#1a1a1a" rx="4"/>
-                        <text x="505" y="90" fill="#888" font-size="11" text-anchor="middle">G-CODE PREVIEW</text>
-                        <text x="375" y="125" fill="#666" font-size="10" font-family="monospace">G21 G90 G17</text>
-                        <text x="375" y="140" fill="#666" font-size="10" font-family="monospace">G0 Z5.000</text>
-                        <text x="375" y="155" fill="#666" font-size="10" font-family="monospace">T1 M3 S10000</text>
-                        <text x="375" y="170" fill="#666" font-size="10" font-family="monospace">G0 X0.000 Y0.000</text>
-                        <text x="375" y="185" fill="#666" font-size="10" font-family="monospace">G0 Z2.000</text>
-                        <text x="375" y="200" fill="#666" font-size="10" font-family="monospace">G1 Z-0.100 F50</text>
-                        <text x="375" y="215" fill="#555" font-size="10" font-family="monospace">...</text>
+                        <rect x="360" y="100" width="290" height="250" fill="var(--color-bg-secondary)" rx="4"/>
+                        <text x="505" y="90" fill="var(--color-text-secondary)" font-size="11" text-anchor="middle">G-CODE PREVIEW</text>
+                        <text x="375" y="125" fill="var(--color-text-hint)" font-size="10" font-family="monospace">G21 G90 G17</text>
+                        <text x="375" y="140" fill="var(--color-text-hint)" font-size="10" font-family="monospace">G0 Z5.000</text>
+                        <text x="375" y="155" fill="var(--color-text-hint)" font-size="10" font-family="monospace">T1 M3 S10000</text>
+                        <text x="375" y="170" fill="var(--color-text-hint)" font-size="10" font-family="monospace">G0 X0.000 Y0.000</text>
+                        <text x="375" y="185" fill="var(--color-text-hint)" font-size="10" font-family="monospace">G0 Z2.000</text>
+                        <text x="375" y="200" fill="var(--color-text-hint)" font-size="10" font-family="monospace">G1 Z-0.100 F50</text>
+                        <text x="375" y="215" fill="var(--color-text-hint)" font-size="10" font-family="monospace">...</text>
                         <!-- Stats -->
-                        <text x="380" y="330" fill="#888" font-size="10">Lines: 1,247  |  Ops: 2  |  Time: 12:34  |  Dist: 2,450mm</text>
+                        <text x="380" y="330" fill="var(--color-text-secondary)" font-size="10">Lines: 1,247  |  Ops: 2  |  Time: 12:34  |  Dist: 2,450mm</text>
                         <!-- Buttons -->
-                        <rect x="360" y="355" width="130" height="35" fill="#333" rx="4"/>
-                        <text x="425" y="378" fill="#aaa" font-size="12" text-anchor="middle">Calculate</text>
-                        <rect x="510" y="355" width="140" height="35" fill="#4a9eff" rx="4"/>
-                        <text x="580" y="378" fill="#fff" font-size="12" text-anchor="middle">Export G-code</text>
+                        <rect x="360" y="355" width="130" height="35" fill="var(--color-border-secondary)" rx="4"/>
+                        <text x="425" y="378" fill="var(--color-text-secondary)" font-size="12" text-anchor="middle">Calculate</text>
+                        <rect x="510" y="355" width="140" height="35" fill="var(--color-accent-hover)" rx="4"/>
+                        <text x="580" y="378" fill="var(--color-text-primary)" font-size="12" text-anchor="middle">Export G-code</text>
                     </svg>
                     <figcaption>The Operations Manager modal with operation selection and G-code preview</figcaption>
                 </figure>
@@ -683,19 +717,19 @@
                 <figure>
                     <svg viewBox="0 0 600 300" style="width:100%;max-width:600px;background:#1a1a1a;border-radius:8px;">
                         <!-- Copper trace -->
-                        <rect x="200" y="100" width="200" height="100" fill="#ff9f4a" rx="4"/>
-                        <text x="300" y="155" fill="#000" font-size="11" text-anchor="middle">Copper Trace</text>
+                        <rect x="200" y="100" width="200" height="100" fill="var(--color-operation-isolation)" rx="4"/>
+                        <text x="300" y="155" fill="var(--color-bw-black)" font-size="11" text-anchor="middle">Copper Trace</text>
                         <!-- Offset passes -->
-                        <rect x="190" y="90" width="220" height="120" fill="none" stroke="#f44" stroke-width="2"/>
-                        <rect x="180" y="80" width="240" height="140" fill="none" stroke="#f44" stroke-width="2" stroke-dasharray="4"/>
-                        <rect x="170" y="70" width="260" height="160" fill="none" stroke="#f44" stroke-width="2" stroke-dasharray="8"/>
+                        <rect x="190" y="90" width="220" height="120" fill="none" stroke="var(--color-error)" stroke-width="2" rx="10" ry="10"/>
+                        <rect x="180" y="80" width="240" height="140" fill="none" stroke="var(--color-error)" stroke-width="2" stroke-dasharray="4" rx="20" ry="20"/>
+                        <rect x="170" y="70" width="260" height="160" fill="none" stroke="var(--color-error)" stroke-width="2" stroke-dasharray="8" rx="30" ry="30"/>
                         <!-- Labels -->
-                        <text x="440" y="95" fill="#f44" font-size="10">← Pass 1</text>
-                        <text x="440" y="115" fill="#f44" font-size="10">← Pass 2</text>
-                        <text x="440" y="135" fill="#f44" font-size="10">← Pass 3</text>
+                        <text x="440" y="95" fill="var(--color-error)" font-size="10">← Pass 1</text>
+                        <text x="440" y="115" fill="var(--color-error)" font-size="10">← Pass 2</text>
+                        <text x="440" y="135" fill="var(--color-error)" font-size="10">← Pass 3</text>
                         <!-- Arrow showing offset direction -->
-                        <line x1="300" y1="200" x2="300" y2="250" stroke="#888" stroke-width="1"/>
-                        <text x="300" y="270" fill="#888" font-size="10" text-anchor="middle">Offset Direction: Outward</text>
+                        <line x1="300" y1="200" x2="300" y2="250" stroke="var(--color-text-secondary)" stroke-width="1"/>
+                        <text x="300" y="270" fill="var(--color-text-secondary)" font-size="10" text-anchor="middle">Offset Direction: Outward</text>
                     </svg>
                     <figcaption>Isolation passes around a copper trace, showing multiple offset distances</figcaption>
                 </figure>
@@ -737,34 +771,34 @@
                     <svg viewBox="0 0 600 300" style="width:100%;max-width:600px;background:#1a1a1a;border-radius:8px;">
                         <!-- Grid of holes -->
                         <!-- Exact fit (green) -->
-                        <circle cx="100" cy="100" r="15" fill="none" stroke="#6c6" stroke-width="3"/>
-                        <circle cx="100" cy="100" r="3" fill="#6c6"/>
-                        <text x="100" y="140" fill="#6c6" font-size="10" text-anchor="middle">Exact</text>
-                        <text x="100" y="155" fill="#666" font-size="9" text-anchor="middle">Tool = Hole</text>
+                        <circle cx="100" cy="100" r="15" fill="none" stroke="var(--color-success)" stroke-width="3"/>
+                        <circle cx="100" cy="100" r="3" fill="var(--color-success)"/>
+                        <text x="100" y="140" fill="var(--color-success)" font-size="10" text-anchor="middle">Exact</text>
+                        <text x="100" y="155" fill="var(--color-text-hint)" font-size="9" text-anchor="middle">Tool = Hole</text>
                         <!-- Undersized (yellow) -->
-                        <circle cx="250" cy="100" r="20" fill="none" stroke="#fc0" stroke-width="3"/>
-                        <circle cx="250" cy="100" r="8" fill="none" stroke="#fc0" stroke-width="2" stroke-dasharray="4"/>
-                        <text x="250" y="140" fill="#fc0" font-size="10" text-anchor="middle">Undersized</text>
-                        <text x="250" y="155" fill="#666" font-size="9" text-anchor="middle">Tool &lt; Hole (mill)</text>
+                        <circle cx="250" cy="100" r="20" fill="none" stroke="var(--color-warning)" stroke-width="3"/>
+                        <circle cx="250" cy="100" r="8" fill="none" stroke="var(--color-warning)" stroke-width="2" stroke-dasharray="4"/>
+                        <text x="250" y="140" fill="var(--color-warning)" font-size="10" text-anchor="middle">Undersized</text>
+                        <text x="250" y="155" fill="var(--color-text-hint)" font-size="9" text-anchor="middle">Tool &lt; Hole (mill)</text>
                         <!-- Oversized (red) -->
-                        <circle cx="400" cy="100" r="10" fill="none" stroke="#f44" stroke-width="3"/>
-                        <circle cx="400" cy="100" r="15" fill="none" stroke="#f4455" stroke-width="2" stroke-dasharray="4"/>
-                        <text x="400" y="140" fill="#f44" font-size="10" text-anchor="middle">Oversized</text>
-                        <text x="400" y="155" fill="#666" font-size="9" text-anchor="middle">Tool &gt; Hole (warn)</text>
+                        <circle cx="400" cy="100" r="10" fill="none" stroke="var(--color-error)" stroke-width="3"/>
+                        <circle cx="400" cy="100" r="15" stroke="var(--color-error)" fill="color-mix(in srgb, var(--color-error) 60%, transparent)" stroke-width="2" stroke-dasharray="4"/>
+                        <text x="400" y="140" fill="var(--color-error)" font-size="10" text-anchor="middle">Oversized</text>
+                        <text x="400" y="155" fill="var(--color-text-hint)" font-size="9" text-anchor="middle">Tool &gt; Hole (warn)</text>
                         <!-- Slot -->
-                        <rect x="480" y="80" width="80" height="40" rx="20" fill="none" stroke="#4a9eff" stroke-width="3"/>
-                        <line x1="500" y1="100" x2="540" y2="100" stroke="#4a9eff" stroke-width="2" stroke-dasharray="4"/>
-                        <text x="520" y="140" fill="#4a9eff" font-size="10" text-anchor="middle">Slot</text>
-                        <text x="520" y="155" fill="#666" font-size="9" text-anchor="middle">Milled path</text>
+                        <rect x="480" y="80" width="80" height="40" rx="20" fill="none" stroke="var(--color-accent-hover)" stroke-width="3"/>
+                        <line x1="500" y1="100" x2="540" y2="100" stroke="var(--color-accent-hover)" stroke-width="2" stroke-dasharray="4"/>
+                        <text x="520" y="140" fill="var(--color-accent-hover)" font-size="10" text-anchor="middle">Slot</text>
+                        <text x="520" y="155" fill="var(--color-text-hint)" font-size="9" text-anchor="middle">Milled path</text>
                         <!-- Legend -->
-                        <rect x="80" y="200" width="440" height="70" fill="#252525" rx="4"/>
-                        <text x="300" y="225" fill="#888" font-size="11" text-anchor="middle">Strategy Selection</text>
-                        <circle cx="130" cy="250" r="6" fill="#6c6"/>
-                        <text x="150" y="254" fill="#aaa" font-size="10">Peck drill</text>
-                        <circle cx="260" cy="250" r="6" fill="#fc0"/>
-                        <text x="280" y="254" fill="#aaa" font-size="10">Helix mill</text>
-                        <circle cx="380" cy="250" r="6" fill="#f44"/>
-                        <text x="400" y="254" fill="#aaa" font-size="10">Warning</text>
+                        <rect x="80" y="200" width="440" height="70" fill="var(--color-bg-tertiary)" rx="4"/>
+                        <text x="300" y="225" fill="var(--color-text-secondary)" font-size="11" text-anchor="middle">Strategy Selection</text>
+                        <circle cx="130" cy="250" r="6" fill="var(--color-success)"/>
+                        <text x="150" y="254" fill="var(--color-text-secondary)" font-size="10">Peck drill</text>
+                        <circle cx="260" cy="250" r="6" fill="var(--color-warning)"/>
+                        <text x="280" y="254" fill="var(--color-text-secondary)" font-size="10">Helix mill</text>
+                        <circle cx="380" cy="250" r="6" fill="var(--color-error)"/>
+                        <text x="400" y="254" fill="var(--color-text-secondary)" font-size="10">Warning</text>
                     </svg>
                     <figcaption>Color-coded drill holes: green (exact fit), yellow (undersized tool), red (oversized tool)</figcaption>
                 </figure>
@@ -828,20 +862,20 @@
                 <figure>
                     <svg viewBox="0 0 600 300" style="width:100%;max-width:600px;background:#1a1a1a;border-radius:8px;">
                         <!-- Board outline -->
-                        <rect x="100" y="50" width="400" height="200" fill="none" stroke="#ff4a9f" stroke-width="3"/>
+                        <rect x="100" y="50" width="400" height="200" fill="none" stroke="var(--color-operation-cutout)" stroke-width="3"/>
                         <!-- Cut path (outside) -->
-                        <rect x="90" y="40" width="420" height="220" fill="none" stroke="#4a9eff" stroke-width="2" stroke-dasharray="8"/>
+                        <rect x="90" y="40" width="420" height="220" fill="none" stroke="var(--color-accent-hover)" stroke-width="2" stroke-dasharray="8"/>
                         <!-- Tabs -->
-                        <rect x="280" y="35" width="40" height="10" fill="#fc0"/>
-                        <rect x="280" y="255" width="40" height="10" fill="#fc0"/>
-                        <rect x="85" y="130" width="10" height="40" fill="#fc0"/>
-                        <rect x="505" y="130" width="10" height="40" fill="#fc0"/>
+                        <rect x="280" y="35" width="40" height="10" fill="var(--color-warning)"/>
+                        <rect x="280" y="255" width="40" height="10" fill="var(--color-warning)"/>
+                        <rect x="85" y="130" width="10" height="40" fill="var(--color-warning)"/>
+                        <rect x="505" y="130" width="10" height="40" fill="var(--color-warning)"/>
                         <!-- Labels -->
-                        <text x="300" y="150" fill="#ff4a9f" font-size="11" text-anchor="middle">Board Outline</text>
-                        <line x1="520" y1="100" x2="560" y2="80" stroke="#888" stroke-width="1"/>
-                        <text x="560" y="75" fill="#4a9eff" font-size="10">Cut Path</text>
-                        <line x1="330" y1="40" x2="370" y2="20" stroke="#888" stroke-width="1"/>
-                        <text x="410" y="25" fill="#fc0" font-size="10">Holding Tabs</text>
+                        <text x="300" y="150" fill="var(--color-operation-cutout)" font-size="11" text-anchor="middle">Board Outline</text>
+                        <line x1="520" y1="100" x2="560" y2="80" stroke="var(--color-text-secondary)" stroke-width="1"/>
+                        <text x="560" y="75" fill="var(--color-accent-hover)" font-size="10">Cut Path</text>
+                        <line x1="330" y1="40" x2="370" y2="20" stroke="var(--color-text-secondary)" stroke-width="1"/>
+                        <text x="410" y="25" fill="var(--color-warning)" font-size="10">Holding Tabs</text>
                     </svg>
                     <figcaption>Board cutout path showing holding tabs that keep the board attached during cutting</figcaption>
                 </figure>
@@ -1013,6 +1047,7 @@
                 <h4>Offset Generation Takes Long</h4>
                 <p>Boolean operations on complex geometry are computationally intensive. More passes takes longer to calculate.</p>
             </section>
+
         </main>
         <!-- Footer -->
         <footer class="doc-footer" aria-label="Footer">
@@ -1020,12 +1055,12 @@
                 <a href="#doc-content" draggable="false" aria-label="Scroll back to top">Back to Top</a> |
                 <a href="https://github.com/RicardoJCMarques/EasyCAM5000" target="_blank" draggable="false" aria-label="GitHub Repository (opens in a new tab)">GitHub</a> |
                 <a href="/#support" draggable="false" aria-label="Support Development via Sponsorship">Support Development</a> |
-                <a href="../../LICENSE" target="_blank" draggable="false" aria-label="AGPLv3 License (opens in a new tab)">AGPLv3 Licensed</a>
+                <a href="../../LICENSE" target="_blank" draggable="false" aria-label="AGPLv3 License (opens in a new tab)">AGPLv3 Licensed</a> |
+                <a href="https://www.eltryus.design/" draggable="false" aria-label="Eltryus, developer of EasyCAM5000">by ELTRYUS</a>
             </p>
         </footer>
+
     </div>
-
-
 
     <!-- Scripts -->
     <script defer src="../../themes/theme-loader.js"></script>

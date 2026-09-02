@@ -40,8 +40,6 @@
 
         getFormContainer() { return document.getElementById('operation-form-container'); }
 
-        getPipelineType() { return 'cnc'; }
-
         init(scene, selection, core, paramManager, appProfile, lang) {
             this.scene = scene;
             this.selection = selection;
@@ -71,37 +69,21 @@
             };
         }
 
-        normalizeForCommit(resolved) {
-            // Shape panel: resolved is the shape node, operation is nested
-            const shape = resolved;
-            if (!shape?.operation) return null;
-            // Also persist to the shape's local params via saveToSelection
-            this.saveToSelection(shape.operation.type);
-            // Must be the LIVE params object - `|| {}` hands commit a
-            // throwaway and the write goes nowhere.
-            if (!shape.operation.params) shape.operation.params = {};
-            return this.paramSourceFor(shape, shape.operation.type, shape.operation.params);
-        }
-
         /**
-         * Two contexts, two persistence targets.
-         *  - shape context: the base behaviour (commit into the shape's
-         *    operation.params via normalizeForCommit).
-         *  - bucket context: write the bucket's own settings.
+         * Bucket context: the form is keyed by bucket id but its values also
+         * mirror onto every shape the bucket references, and a value typed but
+         * not yet in bucket.settings is not a userOverride, so commit alone
+         * would delete it. Capture first, then commit.
          */
         saveCurrentState() {
             if (!this.currentOperationId) return;
+            if (!this.currentBucket) { super.saveCurrentState(); return; }
 
-            if (this.currentBucket) {
-                // Through commitToOperation, not a blind spread: save and
-                // load have to agree on what userOverrides means, or the
-                // load side reverts everything the spread just wrote.
-                this.parameterManager.commitToOperation(this.currentBucket.toParamSource());
-                this.debug(`Saved bucket state for ${this.currentOperationId}`);
-                return;
-            }
-
-            super.saveCurrentState();
+            const bucket = this.currentBucket;
+            const captured = this.captureFormStateForId(bucket.id, bucket.type, bucket.shapeRefs);
+            bucket.settings = { ...bucket.settings, ...captured };
+            this.parameterManager.commitToOperation(bucket.toParamSource());
+            this.debug(`Saved bucket state for ${this.currentOperationId}`);
         }
 
         clearProperties() {
@@ -110,36 +92,11 @@
         }
 
         /**
-         * Geometry-stage changes make existing offsets stale. EasyShape had
-         * no implementation of this hook, so flipping the Z datum, the blank
-         * width or a workholding mode after generating left the OLD geometry
-         * exportable - and because the generation-time value is stamped on
-         * the primitives, the exported file silently used the old datum while
-         * the panel showed the new one.
-         *
-         * Fires once per invalidation (isInvalidated latches) so a slider
-         * drag doesn't spam the status bar. resetOperationState clears both
-         * flags on the next generation.
+         * Bucket tree draws the stage nodes; refresh them when stale.
          */
-        checkInvalidation(paramName) {
-            const bucket = this.currentBucket;
-            if (!bucket) return;
-
-            const def = this.parameterManager.parameterDefinitions[paramName];
-            if (!def || def.stage !== 'geometry') return;
-            // Identity-carrying geometry-stage fields (tool number) change no
-            // geometry; invalidating would discard offsets on every keystroke.
-            if (def.invalidates === false) return;
-
-            const op = this.core.getOperation(bucket.id);
-            if (!op || !op.offsets || op.offsets.length === 0) return;
-            if (op.isInvalidated) return;
-
-            this.core.invalidateOperationState(bucket.id);
-            op.isInvalidated = true;
-            op.invalidatedReason = `'${def.label || paramName}' changed after ` +
-                `generation - regenerate before exporting.`;
-            this.ui.setStatus(op.invalidatedReason, 'warning');
+        onInvalidated(operation) {
+            this.ui.opsPanel?.updateBucketDOM?.(
+                this.ui.opsPanel.getBucket(operation.id), this.core);
         }
 
         /**
@@ -153,64 +110,6 @@
             if (this.currentBucket) {
                 this.showBucketStage(container, this.currentBucket, 'geometry');
                 return;
-            }
-            const shape = this.resolveCurrentOperation();
-            if (shape) this.showOperationProperties(container, shape);
-        }
-
-        // ═══════════════════════════════════════════════════════════════
-        // showOperationProperties
-        // ═══════════════════════════════════════════════════════════════
-
-        /**
-         * Renders the operation form for the given shape into the container.
-         *
-         * @param {HTMLElement} container  The #operation-form-container element
-         * @param {Object}      shape      The anchor shape from selection
-         * @param {string}      stage      'geometry' | 'strategy' | 'machine'
-         */
-        showOperationProperties(container, shape) {
-            if (!shape?.operation) {
-                this.clearProperties();
-                if (container) container.innerHTML = '';
-                return;
-            }
-
-            this.currentBucket = null;
-            const formStage = 'geometry';
-            this.currentStage = formStage;
-
-            const isSameShape = this.currentOperationId === shape.id;
-
-            if (!isSameShape) {
-                // Persist outgoing state before switching
-                if (this.currentOperationId) this.saveCurrentState();
-                this.currentOperationId = shape.id;
-
-                // Load incoming shape's params into ParameterManager
-                if (!shape.operation.params) shape.operation.params = {};
-                this.parameterManager.loadFromOperation(
-                    this.paramSourceFor(shape, shape.operation.type, shape.operation.params));
-            }
-
-            if (!container) return;
-            container.innerHTML = '';
-
-            const opType = shape.operation.type;
-            const values = this.parameterManager.getAllParameters(shape.id);
-
-            // Mixed-operation warning
-            this.renderMixedOpWarning(container, opType);
-
-            // Header with operation name + remove button
-            this.renderHeader(container, opType);
-
-            // Parameter form (shared)
-            this.renderParameterForm(container, opType, formStage, values);
-
-            const actionInfo = this.getActionButtonInfo(formStage, opType);
-            if (actionInfo) {
-                container.appendChild(this.createActionButton(actionInfo.text, actionInfo.disabled));
             }
         }
 
@@ -263,18 +162,15 @@
 
             const opType = bucket.type;
 
-            // Tree nodes map onto the operation's OWN stage list: the header
-            // is stage 0, each node below it is the next stage in order. A 3D
-            // operation has no strategy stage, so its single node is machine.
-            const stages = this.parameterManager.getStagesForPipeline(
-                this.getPipelineType(), opType);
-            const paramStage = stage === 'geometry' ? stages[0]
-                             : stage === 'offsets'  ? (stages[1] || 'machine')
-                             : (stages[2] || 'machine');
-            // PARAMETER stage, not the UI stage name. setParameter keys state
-            // by this, so 'offsets'/'preview' created phantom stage buckets
-            // that getStageParameters never queries - they only surfaced at
-            // all because getAllParameters merges every key it finds.
+            // Node → form. `stage` here is the ARTIFACT node name ('offsets',
+            // 'preview', 'toolpath') or 'geometry' for the bucket header.
+            // Artifact node i shows stages[i + 1]; the header shows stages[0].
+            // The old positional `stages[1] || 'machine'` fallback is what
+            // rendered Feeds & Speeds under a node captioned "Offsets".
+            const ctx = this.getOperationContext(opType);
+            const { stages, artifacts } = ctx;
+            const nodeIndex = artifacts.indexOf(stage);
+            const paramStage = nodeIndex === -1 ? stages[0] : stages[nodeIndex + 1];
             this.currentStage = paramStage;
 
             // Load bucket settings into parameter manager
@@ -294,53 +190,55 @@
             const values = this.parameterManager.getAllParameters(bucket.id);
             this.renderParameterForm(container, opType, paramStage, values);
 
+            if (paramStage === 'output') {
+                const op = this.core.getOperation(bucket.id);
+                if (op) container.appendChild(this.createOutputBlock(op));
+            }
+
             // Drill tooling sits directly above the action button, same as
             // EasyTrace. Bucket context only: the shape context has no core
             // operation yet, so there is no summary to describe.
-            if ('drill' === opType && 'geometry' === stage) {
+            if ('drill' === opType && ('geometry' === stage || 'strategy' === stage) && this.supportsDrillTooling()) {
                 const operation = this.core.getOperation(bucket.id);
-                if (operation) container.appendChild(this.createDrillToolingCard(operation, values));
+                if (operation) container.appendChild(this.createDrillToolingCard(operation, values, stage));
             }
 
             // Stage-appropriate action button
             const actionInfo = this.getBucketActionInfo(stage, bucket);
             if (actionInfo) {
-                const wrapper = document.createElement('div');
-                wrapper.className = 'property-actions';
-                const btn = document.createElement('button');
-                btn.className = 'btn btn--primary btn--block';
-                btn.id = 'action-button';
-                btn.textContent = actionInfo.text;
-                btn.disabled = actionInfo.disabled;
-                if (actionInfo.title) btn.title = actionInfo.title;
-                btn.addEventListener('click', () => this.emit('bucketAction', { bucketId: bucket.id, stage }));
-                wrapper.appendChild(btn);
-                container.appendChild(wrapper);
+                container.appendChild(this.createActionButton(
+                    actionInfo.text, actionInfo.disabled, actionInfo.title || ''));
             }
         }
 
         /**
-         * Two entry points, deliberately separate. In the SHAPE context there
-         * is no core operation yet - currentOperationId is a shape id and the
-         * action is bucket CREATION, so it emits 'createAndGenerate'. In the
-         * BUCKET context showBucketStage builds its own button and dispatches
-         * 'bucketAction' directly, so the super call below is a safety net for
-         * any base-built button that reaches here with a bucket loaded.
-         *
-         * EasyTrace has no override: TraceOperationPanel builds its buttons
-         * with createActionButton, which wires the base handleAction.
-         * REVIEW - If EasyTrace5000 extends the base handleAction, why is it shared like that? Shouldn't it be an extendable stub with the EasyTrace5000 code in ui-trace-operation-panel.js?
+         * Shape context has no core operation yet: currentOperationId is a
+         * scene id and the action is bucket CREATION. Bucket context is the
+         * shared stage table.
          */
         async handleAction() {
-            if (this.currentBucket) return super.handleAction();
+            // Shape context has no core operation and no stage chain; its
+            // button emits createAndGenerate directly from showFreshSelection.
+            if (!this.currentBucket) return;
 
-            this.saveCurrentState();
-            const shape = this.resolveCurrentOperation();
-            if (!shape?.operation) return;
-            this.emit('createAndGenerate', {
-                shapeId: shape.id,
-                opType: shape.operation.type
-            });
+            if (this._bucketBusy) {
+                this.debug('Busy: ignored a bucket action while one is still running.');
+                return;
+            }
+            this._bucketBusy = true;
+            try { await super.handleAction(); }
+            finally { this._bucketBusy = false; }
+        }
+
+        /**
+         * Node transforms are baked into pipeline space at generation, not at
+         * edit time, so a moved shape needs a re-sync before every run.
+         */
+        async runGeneration(operationId) {
+            if (this.currentBucket?.id === operationId) {
+                this.currentBucket.syncPrimitives(this.core, this.scene);
+            }
+            return super.runGeneration(operationId);
         }
 
         // ═══════════════════════════════════════════════════════════════
@@ -350,8 +248,7 @@
         /**
          * The object that owns userOverrides for whatever is being edited.
          * A BUCKET is its own owner - its id is not a scene node id, so
-         * findShape returned null and onParameterChange recorded no override
-         * at all for every parameter edited through a bucket.
+         * findShape returns null for it.
          */
         resolveCurrentOperation() {
             if (this.currentBucket) return this.currentBucket;
@@ -359,8 +256,9 @@
             return node?.operation ? node : null;
         }
 
+        /** Shape nodes carry `.operation.type`; buckets carry `.type`. */
         resolveOperationType(operation) {
-            return operation?.operation?.type || '';
+            return operation?.operation?.type || operation?.type || '';
         }
 
         getSpinnerLabel(stage, opType) {
@@ -369,30 +267,48 @@
                 // handler's own ticks take over once jobs are dispatched.
                 if (opType === 'relief' || opType === 'rotary') return 'Slicing model...';
                 if (opType === 'vcarve') return 'Building medial skeleton';
-                return 'Generating... pass 1'; // REVIEW - pass 1 isn't good enough, this isn't consistent now.
+                return 'Generating…';
             }
             if (stage === 'strategy') return 'Generating preview...';
+            if (stage === 'machine') return 'Calculating toolpaths...';
             return null;
         }
 
         async onGenerationSuccess(opId, operation) {
-            if (this.ui.rebuildLayers) this.ui.rebuildLayers();
-            this.ui.ctrl.refresh3DPlans();
+            this.ui.rebuildLayers?.();
+            this.selectArtifactNode(opId, 'offsets');
         }
 
-        onGenerationFailure(opId, operation, stage) { // EasyTrace5000 uses the base ,stage parameter.
+        onGenerationFailure(opId, operation, stage) {
             const container = this.getFormContainer();
-            if (container) this.showOperationProperties(container, operation);
+            if (!container) return;
+            // `operation` is a bucket here and has no `.operation` to render.
+            if (this.currentBucket) this.showBucketStage(container, this.currentBucket, 'geometry');
         }
 
         async onPreviewSuccess(opId, operation) {
-            if (this.ui.rebuildLayers) this.ui.rebuildLayers();
-            this.ui.ctrl.refresh3DPlans();
+            this.ui.rebuildLayers?.();
+            this.selectArtifactNode(opId, 'preview');
         }
 
-        onStageTransition(newStage) {
-            this.emit('stageChanged', newStage);
+        async onToolpathSuccess(opId, operation) {
+            this.ui.rebuildLayers?.();
+            this.selectArtifactNode(opId, "toolpath");
         }
+
+        /**
+         * Selecting the node the action just produced is what advances the
+         * form: the tree's 'select' handler owns both showBucketStage and the
+         * viewport route, so nothing else may re-render here.
+         */
+        selectArtifactNode(opId, artifact) {
+            const panel = this.ui.opsPanel;
+            if (!panel?.getBucket(opId)) return;
+            panel.updateBucketAfterGeneration(opId, this.core);
+            panel.selectStage(opId, artifact);
+        }
+
+        onStageTransition(newStage) {}
 
         onExportStage(opId, operation) {
             this.emit('openExportManager', { opType: this.resolveOperationType(operation) });
@@ -421,7 +337,8 @@
                 return { text: labels[opType] || 'Generate', disabled: false };
             }
             if (stage === 'strategy') return { text: 'Generate Preview', disabled: false };
-            if (stage === 'machine') return { text: 'Export Manager', disabled: false };
+            if (stage === 'machine') return { text: 'Calculate Toolpaths', disabled: false };
+            if (stage === 'output') return { text: 'Export Manager', disabled: false };
             return null;
         }
 
@@ -438,15 +355,25 @@
                 }
                 return { text, disabled: false };
             }
-            const stages = this.parameterManager.getStagesForPipeline(
-                this.getPipelineType(), bucket.type);
-            if (stage === 'offsets') {
-                return stages.includes('strategy')
-                    ? { text: 'Generate Preview', disabled: !bucket.hasOffsets }
-                    : { text: 'Export Manager',  disabled: !bucket.hasOffsets };
+            
+            const { artifacts } = this.getOperationContext(bucket.type);
+            const nodeIndex = artifacts.indexOf(stage);
+            if (nodeIndex === -1) return null;
+
+            const produces = artifacts[nodeIndex + 1];
+            const hasThis = stage === 'offsets' ? bucket.hasOffsets
+                          : stage === 'preview' ? bucket.hasPreview
+                          : !!bucket.getOperation(this.core)?.stamps?.[stage];
+
+            if (!produces) {
+                return {
+                    text: stage === 'toolpath' ? 'Export G-code' : 'Export Manager',
+                    disabled: !hasThis
+                };
             }
-            if (stage === 'preview') return { text: 'Export Manager', disabled: !bucket.hasPreview };
-            return null;
+
+            const LABELS = { preview: 'Generate Preview', toolpath: 'Calculate Toolpaths' };
+            return { text: LABELS[produces] || `Generate ${produces}`, disabled: !hasThis };
         }
 
         // ═══════════════════════════════════════════════════════════════
@@ -469,24 +396,6 @@
                 if (source[name] !== undefined) out[name] = source[name];
             }
             return out;
-        }
-
-        /**
-         * Fans the current parameters out to every selected shape of the same
-         * operation type. Values come from PM state, which onParameterChange
-         * has already validated and clamped - re-reading the DOM here was a
-         * second extraction path that ran on the debounce and could capture
-         * half-typed input PM never accepted.
-         */
-        saveToSelection(opType) {
-            if (!this.parameterManager || !this.currentOperationId) return;
-
-            const values = this.collectParamsForType(this.currentOperationId, opType);
-            for (const id of this.selection.toArray()) {
-                const s = this.scene.findShape(id);
-                if (!s?.operation || s.operation.type !== opType) continue;
-                s.operation.params = { ...s.operation.params, ...values };
-            }
         }
 
         /**
@@ -515,44 +424,6 @@
             }
 
             return captured;
-        }
-
-        // ═══════════════════════════════════════════════════════════════
-        // Rendering Helpers
-        // ═══════════════════════════════════════════════════════════════
-
-        renderMixedOpWarning(container, opType) {
-            const selIds = this.selection.toArray();
-            const opTypes = new Set();
-            for (const id of selIds) {
-                const s = this.scene.findShape(id);
-                if (s?.operation?.type) opTypes.add(s.operation.type);
-            }
-            if (opTypes.size <= 1) return;
-
-            const warn = document.createElement('div');
-            warn.className = 'warning-panel warning-panel--inline';
-            warn.textContent = `Mixed operations selected. Changes apply only to ${opType} shapes.`;
-            container.appendChild(warn);
-        }
-
-        renderHeader(container, opType) {
-            const header = document.createElement('div');
-            header.className = 'param-form-header';
-
-            const title = document.createElement('span');
-            title.className = 'op-title';
-            title.style.color = opColorVar(opType);
-            title.textContent = opType.charAt(0).toUpperCase() + opType.slice(1);
-            header.appendChild(title);
-
-            const removeBtn = document.createElement('button');
-            removeBtn.className = 'op-clear';
-            removeBtn.textContent = 'Remove';
-            removeBtn.addEventListener('click', () => this.emit('clearOp'));
-            header.appendChild(removeBtn);
-
-            container.appendChild(header);
         }
     }
 

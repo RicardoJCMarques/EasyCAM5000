@@ -157,7 +157,7 @@ const getTemplate = (sidebarHtml, mainBodyHtml, heroTitle, tagline) => `<!DOCTYP
     <meta charset="UTF-8">
     <!--!
         @file        index.html
-        @description EasyTrace5000 | Accessibility Information
+        @description EasyTrace5000 Accessibility Guide
         @author      Eltryus - Ricardo Marques
         @copyright   2025-2026 Eltryus - Ricardo Marques
         @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
@@ -166,7 +166,7 @@ const getTemplate = (sidebarHtml, mainBodyHtml, heroTitle, tagline) => `<!DOCTYP
         SPDX-License-Identifier: AGPL-3.0-or-later
     -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>EasyTrace5000 | Accessibility Information</title>
+    <title>EasyTrace5000 Doc - Accessibility Guide</title>
 
     <meta name="description" content="Accessibility information for EasyTrace5000. Details on keyboard navigation, focus management, screen reader support, and WCAG 2.1 compliance.">
     <meta name="author" content="Eltryus">
@@ -177,12 +177,12 @@ const getTemplate = (sidebarHtml, mainBodyHtml, heroTitle, tagline) => `<!DOCTYP
 
     <meta property="og:type" content="article">
     <meta property="og:url" content="${CONFIG.siteUrl}/easytrace5000/doc/accessibility">
-    <meta property="og:title" content="EasyTrace5000 | Accessibility">
+    <meta property="og:title" content="EasyTrace5000 Doc - Accessibility Guide">
     <meta property="og:description" content="Keyboard controls and accessibility compliance for EasyTrace5000.">
     <meta property="og:image" content="${CONFIG.siteUrl}/images/social-trace.jpg">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
-    <meta property="og:site_name" content="Eltryus EasyCAM5000 Suite">
+    <meta property="og:site_name" content="EasyCAM5000">
     <meta property="og:locale" content="en_US">
 
     <link rel="icon" type="image/png" href="../../images/favicon/favicon-96x96.png" sizes="96x96">
@@ -201,26 +201,67 @@ const getTemplate = (sidebarHtml, mainBodyHtml, heroTitle, tagline) => `<!DOCTYP
         "@context": "https://schema.org",
         "@graph": [
             {
+                "@type": "Organization",
+                "@id": "https://www.eltryus.design/#organization",
+                "name": "Eltryus",
+                "url": "https://www.eltryus.design/"
+            },
+            {
+                "@type": "WebSite",
+                "@id": "${CONFIG.siteUrl}/#website",
+                "name": "EasyCAM5000",
+                "alternateName": "Eltryus EasyCAM5000 Suite",
+                "url": "${CONFIG.siteUrl}/",
+                "inLanguage": "en",
+                "publisher": { "@id": "https://www.eltryus.design/#organization" }
+            },
+            {
+                "@type": "WebApplication",
+                "@id": "${CONFIG.siteUrl}/easytrace5000/#app",
+                "name": "EasyTrace5000",
+                "url": "${CONFIG.siteUrl}/easytrace5000/"
+            },
+            {
+                "@type": "CollectionPage",
+                "@id": "${CONFIG.siteUrl}/easytrace5000/doc/#docs",
+                "name": "EasyTrace5000 Documentation",
+                "url": "${CONFIG.siteUrl}/easytrace5000/doc/"
+            },
+            {
+                "@type": "WebPage",
+                "@id": "${CONFIG.siteUrl}/easytrace5000/doc/accessibility#webpage",
+                "url": "${CONFIG.siteUrl}/easytrace5000/doc/accessibility",
+                "name": "EasyTrace5000 Doc - Accessibility Guide",
+                "inLanguage": "en",
+                "isPartOf": { "@id": "${CONFIG.siteUrl}/#website" },
+                "about": { "@id": "${CONFIG.siteUrl}/easytrace5000/#app" },
+                "mainEntity": { "@id": "${CONFIG.siteUrl}/easytrace5000/doc/accessibility#article" },
+                "breadcrumb": { "@id": "${CONFIG.siteUrl}/easytrace5000/doc/accessibility#breadcrumb" },
+                "primaryImageOfPage": "${CONFIG.siteUrl}/images/social-trace.jpg"
+            },
+            {
                 "@type": "TechArticle",
                 "@id": "${CONFIG.siteUrl}/easytrace5000/doc/accessibility#article",
-                "headline": "Accessibility Information for EasyTrace5000",
+                "headline": "${heroTitle}",
                 "description": "Accessibility information for EasyTrace5000. Details on keyboard navigation, focus management, screen reader support, and WCAG 2.1 compliance.",
                 "image": "${CONFIG.siteUrl}/images/social-trace.jpg",
                 "url": "${CONFIG.siteUrl}/easytrace5000/doc/accessibility",
                 "inLanguage": "en",
+                "mainEntityOfPage": { "@id": "${CONFIG.siteUrl}/easytrace5000/doc/accessibility#webpage" },
                 "isPartOf": { "@id": "${CONFIG.siteUrl}/easytrace5000/doc/#docs" },
                 "about": { "@id": "${CONFIG.siteUrl}/easytrace5000/#app" },
                 "author": { "@id": "https://www.eltryus.design/#organization" },
                 "publisher": { "@id": "https://www.eltryus.design/#organization" },
                 "datePublished": "2025-01-16",
-                "dateModified": "2026-05-16"
+                "dateModified": "${new Date().toISOString().split('T')[0]}"
             },
             {
                 "@type": "BreadcrumbList",
+                "@id": "${CONFIG.siteUrl}/easytrace5000/doc/accessibility#breadcrumb",
                 "itemListElement": [
-                    { "@type": "ListItem", "position": 1, "name": "Eltryus EasyCAM5000 Suite", "item": "${CONFIG.siteUrl}/" },
+                    { "@type": "ListItem", "position": 1, "name": "EasyCAM5000", "item": "${CONFIG.siteUrl}/" },
                     { "@type": "ListItem", "position": 2, "name": "EasyTrace5000", "item": "${CONFIG.siteUrl}/easytrace5000/" },
-                    { "@type": "ListItem", "position": 3, "name": "Documentation", "item": "${CONFIG.siteUrl}/easytrace5000/doc/" },
+                    { "@type": "ListItem", "position": 3, "name": "Docs", "item": "${CONFIG.siteUrl}/easytrace5000/doc/" },
                     { "@type": "ListItem", "position": 4, "name": "Accessibility", "item": "${CONFIG.siteUrl}/easytrace5000/doc/accessibility" }
                 ]
             }
@@ -234,34 +275,29 @@ const getTemplate = (sidebarHtml, mainBodyHtml, heroTitle, tagline) => `<!DOCTYP
 
     <!-- Header -->
     <header class="doc-header">
-        <div class="doc-brand">
-            <a href="/" aria-label="EasyCAM5000 Homepage">EasyCAM5000</a>
-        </div>
+        <div class="doc-brand"><a href="/" aria-label="EasyCAM5000 Homepage">EasyCAM5000</a></div>
+
+        <nav class="doc-breadcrumb" aria-label="Breadcrumb">
+            <ol>
+                <li><a href="/easytrace5000/" draggable="false">EasyTrace5000</a></li>
+                <li><a href="./" draggable="false">Docs</a></li>
+                <li><span aria-current="page">Accessibility</span></li>
+            </ol>
+        </nav>
 
         <button class="doc-menu-toggle" aria-label="Toggle Navigation Menu" aria-expanded="false">
-            <svg class="icon-menu" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <line x1="3" y1="12" x2="21" y2="12"></line>
-                <line x1="3" y1="6" x2="21" y2="6"></line>
-                <line x1="3" y1="18" x2="21" y2="18"></line>
-            </svg>
-            <svg class="icon-close" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <line x1="18" y1="6" x2="6" y2="18"></line>
-                <line x1="6" y1="6" x2="18" y2="18"></line>
-            </svg>
+            <svg class="icon-menu cam-icon" width="24" height="24" aria-hidden="true"><use href="#icon-menu"></use></svg>
+            <svg class="icon-close cam-icon" width="24" height="24" aria-hidden="true"><use href="#icon-close"></use></svg>
         </button>
 
         <nav class="doc-nav" aria-label="Main Navigation">
-            <a href="/" draggable="false" aria-label="Return to Homepage">← Home</a>
-            <a href="/easytrace5000/" draggable="false" aria-label="Launch Workspace">Launch App</a>
+            <a href="cnc" draggable="false">CNC Guide</a>
+            <a href="laser" draggable="false">Laser Guide</a>
+            <a href="operations" draggable="false">Operations</a>
+            <a href="parameters" draggable="false">Parameters</a>
+            <a href="accessibility" class="active" aria-current="page" draggable="false">Accessibility</a>
             <span class="separator" aria-hidden="true"></span>
-
-            <a href="./" draggable="false" aria-label="Documentation Index">Docs</a>
-            <a href="cnc" draggable="false" aria-label="CNC Milling Guide">CNC Guide</a>
-            <a href="laser" draggable="false" aria-label="Laser Processing Guide">Laser Guide</a>
-            <a href="operations" draggable="false" aria-label="Operation Reference">Operations</a>
-            <a href="parameters" draggable="false" aria-label="Parameter Reference">Parameters</a>
-            <a href="accessibility" class="active" draggable="false" aria-current="page" aria-label="Accessibility Statement">Accessibility</a>
-            <span class="separator" aria-hidden="true"></span>
+            <a href="/easytrace5000/" draggable="false">Launch App</a>
             <a href="https://github.com/RicardoJCMarques/EasyCAM5000" target="_blank" draggable="false" aria-label="GitHub Repository (opens in a new tab)">GitHub</a>
 
             <button id="theme-toggle" class="btn btn--icon" title="Toggle Theme" aria-label="Toggle Theme">
@@ -272,7 +308,7 @@ const getTemplate = (sidebarHtml, mainBodyHtml, heroTitle, tagline) => `<!DOCTYP
 
     <div class="doc-wrapper has-sidebar">
         <!-- Sidebar TOC -->
-        <nav class="doc-sidebar" aria-label="Table of Contents">
+        <nav class="doc-sidebar" id="toc" aria-label="Table of contents">
             <h2>${heroTitle}</h2> ${sidebarHtml}
         </nav>
 
@@ -292,9 +328,11 @@ ${mainBodyHtml}
                 <a href="#doc-content" draggable="false" aria-label="Scroll back to top">Back to Top</a> |
                 <a href="${CONFIG.githubUrl}" target="_blank" draggable="false" aria-label="GitHub Repository (opens in a new tab)">GitHub</a> |
                 <a href="/#support" draggable="false" aria-label="Support Development via Sponsorship">Support Development</a> |
-                <a href="../../LICENSE" target="_blank" draggable="false" aria-label="AGPLv3 License (opens in a new tab)">AGPLv3 Licensed</a>
+                <a href="../../LICENSE" target="_blank" draggable="false" aria-label="AGPLv3 License (opens in a new tab)">AGPLv3 Licensed</a> |
+                <a href="https://www.eltryus.design/" draggable="false" aria-label="Eltryus, developer of EasyCAM5000">by ELTRYUS</a>
             </p>
         </footer>
+
     </div>
 
     <!-- Scripts -->

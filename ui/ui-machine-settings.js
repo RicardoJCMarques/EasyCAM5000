@@ -33,12 +33,12 @@
         setup() {
             const loadedSettings = this.ui.core.settings;
 
-            // --- Roland machine profiles ---
+            // Roland machine profiles
             const rolandProcessor = this.ui.ctrl.gcodeGenerator.getProcessor('roland');
             const ROLAND_PROFILES = rolandProcessor?.profiles || {};
             const rolandSettings = loadedSettings.processorSettings?.roland || {};
 
-            // --- Post-Processor Dropdown ---
+            // Post-Processor Dropdown
             const postProcessorSelect = document.getElementById('post-processor');
             const startCodeTA = document.getElementById('start-code-ta');
             const endCodeTA = document.getElementById('end-code-ta');
@@ -112,7 +112,7 @@
                 });
             }
 
-            // --- Start/End Code ---
+            // Start/End Code
             if (startCodeTA) {
                 const processor = loadedSettings.gcode.postProcessor;
                 const generator = this.ui.ctrl.gcodeGenerator;
@@ -135,7 +135,7 @@
                 });
             }
 
-            // --- G-code Units ---
+            // G-code Units
             const gcodeUnitsSelect = document.getElementById('gcode-units');
             if (gcodeUnitsSelect) {
                 gcodeUnitsSelect.value = loadedSettings.gcode.units;
@@ -144,7 +144,28 @@
                 });
             }
 
-            // --- Roland-specific fields ---
+            // G-code Line Numbers
+            const lineNumbersCheckbox = document.getElementById('gcode-line-numbers');
+            const lineNumberStepInput = document.getElementById('gcode-line-number-step');
+            if (lineNumbersCheckbox) {
+                lineNumbersCheckbox.checked = !!loadedSettings.gcode.lineNumbers;
+                lineNumbersCheckbox.addEventListener('change', (e) => {
+                    this.ui.core.updateSettings('gcode', { lineNumbers: e.target.checked });
+                    this.updateLineNumbersField(this.ui.core.settings.gcode.postProcessor);
+                    this.ui.ctrl.modalManager?.clearExportPreview?.();
+                });
+            }
+            if (lineNumberStepInput) {
+                lineNumberStepInput.value = loadedSettings.gcode.lineNumberStep;
+                lineNumberStepInput.addEventListener('change', (e) => {
+                    const step = Math.max(1, parseInt(e.target.value, 10));
+                    e.target.value = step;
+                    this.ui.core.updateSettings('gcode', { lineNumberStep: step });
+                    this.ui.ctrl.modalManager?.clearExportPreview?.();
+                });
+        }
+
+            // Roland-specific fields
             const rolandModelSelect = document.getElementById('roland-machine-model');
             const rolandStepsInput = document.getElementById('roland-steps-per-mm');
             const rolandMaxFeedInput = document.getElementById('roland-max-feed');
@@ -237,7 +258,7 @@
                 });
             }
 
-            // --- Laser-specific fields ---
+            // Laser-specific fields
             const laserProfileSelect = document.getElementById('laser-profile-select');
             const laserSpotSizeInput = document.getElementById('laser-spot-size');
             const laserExportFormatSelect = document.getElementById('laser-export-format');
@@ -417,7 +438,7 @@
                 });
             }
 
-            // --- Universal fields ---
+            // Universal fields
             const thicknessInput = document.getElementById('pcb-thickness');
             if (thicknessInput) {
                 thicknessInput.value = loadedSettings.machine.pcb?.thickness ?? '';
@@ -496,9 +517,41 @@
                 el.style.display = isRoland ? '' : 'none';
             });
 
+            // REVIEW - Is this the correct place?
+            ParameterManager.hideEmptySections(machineControls);
+
+            this.updateLineNumbersField(processorName);
             this.updateRotaryRouteField(processorName);
             this.updateToolLengthCompField(processorName);
             this.updateProcessorCustomParameters(processorName);
+        }
+
+        updateLineNumbersField(processorName) {
+            const checkbox = document.getElementById('gcode-line-numbers');
+            const stepField = document.getElementById('gcode-line-number-step-field');
+            const stepInput = document.getElementById('gcode-line-number-step');
+            if (!checkbox) return;
+
+            const generator = this.ui.ctrl?.gcodeGenerator;
+            const caps = generator?.getProcessorInfo(processorName)?.capabilities;
+            const supported = caps?.supportsLineNumbers !== false;
+
+            checkbox.disabled = !supported;
+            const label = checkbox.closest('label');
+            if (!supported) {
+                checkbox.checked = false;
+                label && (label.title = `${processorName} does not support line numbers (N-words).`);
+                if (stepField) stepField.style.display = 'none';
+            } else {
+                checkbox.checked = !!this.ui.core.settings.gcode.lineNumbers;
+                label && label.removeAttribute('title');
+                if (stepField) {
+                    stepField.style.display = checkbox.checked ? '' : 'none';
+                }
+                if (stepInput) {
+                    stepInput.value = this.ui.core.settings.gcode.lineNumberStep || 10;
+                }
+            }
         }
 
         /**
@@ -775,7 +828,6 @@
             const ctrl = this.ui.ctrl;
             if (!ctrl) return;
 
-            const pipelineType = ctrl.pipelineState?.type || 'cnc';
             const machineSection = document.querySelector('.sidebar-section.machine-section');
             if (!machineSection) return;
             machineSection.style.display = '';
@@ -783,15 +835,20 @@
             const machineControls = document.getElementById('machine-controls');
             if (!machineControls) return;
 
-            const isCNC = pipelineType === 'cnc' || pipelineType === 'hybrid';
-            const isLaser = ctrl.isLaserPipeline?.() || false;
+            // A session can run both classes at once, so the groups are not
+            // exclusive. Fall back to the session default before any file loads.
+            const classes = new Set(this.ui.core.operations.map(op => ctrl.machineClassOf(op)));
+            for (const cls of Object.values(ctrl.pipelineState?.classByType || {})) classes.add(cls);
+            if (classes.size === 0) classes.add(ctrl.pipelineState?.machineClass || 'router');
 
-            machineControls.querySelectorAll('[data-pipeline-group="cnc"]').forEach(el => {
-                el.style.display = isCNC ? '' : 'none';
-            });
-            machineControls.querySelectorAll('[data-pipeline-group="laser"]').forEach(el => {
-                el.style.display = isLaser ? '' : 'none';
-            });
+            const show = (selector, visible) => machineControls
+                .querySelectorAll(selector)
+                .forEach(el => { el.style.display = visible ? '' : 'none'; });
+
+            show('[data-pipeline-group="router"]', classes.has('router'));
+            show('[data-pipeline-group="laser"]', classes.has('laser'));
+
+            ParameterManager.hideEmptySections(machineControls);
         }
 
         updateRolandProfileFields(profile) {
@@ -834,7 +891,7 @@
             let invalidated = false;
 
             this.ui.core.operations.forEach(op => {
-                if (!this.ui.ctrl?.isLaserExportForOperation?.(op.type)) return;
+                if (this.ui.ctrl?.machineClassOf?.(op) !== 'laser') return;
                 if (!this.ui.core.isExportReady(op)) return;
                 if (affectedTypes && !affectedTypes.includes(op.type)) return;
 

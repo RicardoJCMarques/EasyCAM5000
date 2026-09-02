@@ -112,17 +112,18 @@
                 const layerName = window.LayerNaming.source(operation.id);
                 visBtn.dataset.layerName = layerName;
 
-                // Set initial state
-                let isVisible = true;
-                if (this.ui.renderer && this.ui.renderer.layers.has(layerName)) {
-                    isVisible = this.ui.renderer.layers.get(layerName).visible;
-                }
-                visBtn.classList.toggle('is-hidden', !isVisible);
+                // Paint the ICON, never `is-hidden`. Hiding the button removed
+                // the only control that could bring the source back, and the
+                // stencil block writes that same class for a different reason -
+                // two writers, one class, and neither could tell which meaning
+                // was in effect.
+                const isVisible = operation.layerVisibility?.source !== false;
+                visBtn.title = isVisible ? 'Hide' : 'Show';
+                visBtn.querySelector('use')?.setAttribute('href', isVisible ? '#icon-eye' : '#icon-eye-off');
 
-                // Attach the "smart" re-usable toggle function
-                visBtn.addEventListener('click', (e) => {
+                visBtn.addEventListener('click', e => {
                     e.stopPropagation();
-                    this.emit('action', { id: operation.id, action: 'visibility', layerName, element: visBtn });
+                    this.emit('action', { id: operation.id, action: 'visibility', artifactKey: 'source', layerName, element: visBtn });
                 });
             }
 
@@ -171,7 +172,7 @@
             geometriesContainer.innerHTML = '';
             fileData.geometries.clear();
 
-            const isLaser = this.ui.ctrl.isLaserPipeline?.() || false;
+            const isLaser = this.ui.ctrl.machineClassOf?.(operation) === 'laser';
 
             // Offset nodes
             if (operation.offsets && operation.offsets.length > 0) {
@@ -219,14 +220,18 @@
                 });
             }
 
-            // Toolpath nodes
-            const toolpaths = this.core.toolpaths?.get(operation.id);
-            if (toolpaths && toolpaths.paths) {
-                toolpaths.paths.forEach((path, index) => {
-                    this.addGeometryNode(fileId, `toolpath_${index}`,
-                        `Toolpath ${index + 1}`,
-                        path.primitives?.length || 0);
-                });
+            // Toolpath node - ONE per operation. executePipeline returns
+            // machine-ready plans, not primitive groups and a relief job
+            // produces hundreds of them.
+            const toolpaths = this.core.getToolpaths?.(operation.id);
+            if (toolpaths?.plans?.length) {
+                const mins = Math.floor(toolpaths.metrics.estimatedTime / 60);
+                const secs = Math.floor(toolpaths.metrics.estimatedTime % 60);
+                this.addGeometryNode(fileId, 'toolpath', 'Toolpaths',
+                    toolpaths.plans.length, {
+                        estimatedTime: `${mins}:${String(secs).padStart(2, '0')}`,
+                        distance: `${toolpaths.metrics.totalDistance.toFixed(0)}mm`
+                    });
             }
 
             // Stencil source visibility
@@ -306,7 +311,7 @@
             } else if (extraData.offset) {
                 infoEl.textContent = `${extraData.offset}mm`;
             } else {
-                infoEl.textContent = count > 0 ? `${count}` : '';
+                infoEl.textContent = '';
             }
 
             content.addEventListener('click', (e) => {
@@ -322,51 +327,44 @@
                 });
             }
 
+            // A toolpath has no 2D layer - it is drawn by the 3D view - so its
+            // eye writes straight to the operation's visibility record and
+            // refresh3D filters the plan push on it.
             if (visBtn) {
-                // Determine the exact layer name this button controls
                 const operationId = fileData.operation.id;
-                let layerName;
+                const artifactKey = NavTreePanel.artifactKeyOf(geometryType);
 
-                if (geometryType === 'offsets_combined') {
+                // A toolpath has no 2D layer - it is drawn by the 3D view - so
+                // layerName stays null there and the record alone drives it.
+                let layerName = null;
+                if (geometryType === "offsets_combined") {
                     layerName = window.LayerNaming.offsetCombined(operationId);
-                } else if (geometryType.startsWith('offset_')) {
-                    const passIndex = parseInt(geometryType.split('_')[1]);
+                } else if (geometryType.startsWith("offset_")) {
+                    const passIndex = parseInt(geometryType.split("_")[1]);
                     layerName = window.LayerNaming.offsetPass(operationId, passIndex + 1);
-                } else if (geometryType === 'preview') {
+                } else if (geometryType === "preview") {
                     layerName = window.LayerNaming.preview(operationId);
                 }
 
-                visBtn.dataset.layerName = layerName || '';
-
-                visBtn.addEventListener('click', (e) => {
+                visBtn.dataset.layerName = layerName || "";
+                visBtn.addEventListener("click", e => {
                     e.stopPropagation();
-                    this.emit('action', { id: operationId, action: 'visibility', layerName, element: visBtn, geometryType });
+                    this.emit("action", {
+                        id: operationId,
+                        action: "visibility",
+                        artifactKey: artifactKey,
+                        layerName: layerName,
+                        element: visBtn
+                    });
                 });
 
-                // Set initial button state from persisted override or computed default
-                let isVisible = false;
-                const operation = fileData.operation;
-
-                if (operation.layerVisibility && layerName && operation.layerVisibility[layerName] !== undefined) {
-                    // User has explicitly toggled this layer before - respect their choice
-                    isVisible = operation.layerVisibility[layerName];
-                } else if (layerName && this.ui.renderer) {
-                    if (geometryType.startsWith('offset') || geometryType === 'offsets_combined') {
-                        const hasPreview = operation.preview && operation.preview.ready;
-                        isVisible = !hasPreview && this.ui.renderer.options.showOffsets;
-                    } else if (geometryType === 'preview') {
-                        // Preview visibility is just the global toggle.
-                        isVisible = this.ui.renderer.options.showPreviews;
-                    } else {
-                        // Fallback for other types (like toolpaths)
-                        const layer = this.ui.renderer.layers.get(layerName);
-                        if (layer) isVisible = layer.visible;
-                    }
-                }
-
+                // Paint from the persisted record. Reading renderer.options.show*
+                // here made the icon report a GLOBAL toggle while the layer
+                // followed a per-operation override, so a rebuild could leave
+                // the two pointing opposite ways.
+                const isVisible = fileData.operation.layerVisibility?.[artifactKey] !== false;
                 visBtn.title = isVisible ? 'Hide' : 'Show';
-                const useEl = visBtn.querySelector('use');
-                if (useEl) useEl.setAttribute('href', isVisible ? '#icon-eye' : '#icon-eye-off');
+                visBtn.querySelector('use')?.setAttribute('href', isVisible ? '#icon-eye' : '#icon-eye-off');
             }
 
             fileData.geometries.set(geometryId, {
@@ -412,6 +410,7 @@
             }
 
             this.selectedNode = { type: 'file', id: fileId, operation };
+            this.ui.ctrl.setViewportForNode?.(null, operation);
             this.emit('select', { id: fileId, kind: 'file', operation, stage: 'geometry' });
         }
 
@@ -433,19 +432,24 @@
 
             this.selectedNode = { type: 'geometry', id: geometryId, operation, geometryType };
 
-            // Determine stage (pipeline-aware)
-            const isLaser = this.ui.ctrl.isLaserPipeline?.() || false;
-            let stage;
-            if (isLaser) {
-                // Laser: generated geometry nodes exist only after generation succeeded.
-                // They are the exportable result - always show export summary.
-                stage = 'export_summary';
-            } else {
-                // CNC: 3-stage mapping
-                if (geometryType === 'preview') stage = 'machine';
-                else if (geometryType.startsWith('offset') || geometryType === 'offsets_combined') stage = 'strategy';
-                else stage = 'geometry';
-            }
+            // Artifact node - the form that produces the NEXT artifact.
+            // Same invariant the bucket tree uses: node i shows stages[i+1].
+            const cls = this.ui.ctrl.machineClassOf?.(operation)
+                || this.ui.ctrl.pipelineState?.machineClass || 'router';
+            const pm = this.ui.ctrl.parameterManager;
+            const stages = pm.getStages(operation.type, cls);
+            const artifacts = pm.getArtifacts(operation.type, cls);
+
+            const artifact = geometryType === 'toolpath' ? 'toolpath'
+                           : geometryType === 'preview' ? 'preview'
+                           : (geometryType.startsWith('offset') || geometryType === 'offsets_combined')
+                               ? 'offsets' : null;
+
+            const idx = artifact ? artifacts.indexOf(artifact) : -1;
+            const stage = idx === -1 ? 'geometry' : (stages[idx + 1] || stages[stages.length - 1]);
+
+            // Viewport follows the artifact, not a global mode.
+            this.ui.ctrl.setViewportForNode?.(artifact, operation);
 
             this.emit('select', { id: geometryId, kind: 'geometry', operation, geometryType, stage });
         }
@@ -474,31 +478,47 @@
         // Layer visibility, removal
         // ═══════════════════════════════════════════════════════════════
 
-        toggleLayerVisibility(button, layerName) {
-            if (!layerName || !this.ui.renderer) return;
+        /**
+         * The Record is the truth; the renderer layer is a consequence of it.
+         * This used to open `const layer = layers.get(layerName); if (layer) {…}`
+         * with the repaint and the persist both inside, so a click on a node
+         * whose layer had not been built yet was swallowed whole - no toggle, no
+         * icon change, and an open eye over geometry that was hidden.
+         * @param {string} artifactKey - source/offsets/offset_N/preview/toolpath,
+         *                               the same keyspace refresh3D and 
+         *                               _push3DPlans read.
+         * @param {string} layerName - the renderer layer, when one exists.
+         */
+        toggleLayerVisibility(button, artifactKey, layerName) {
+            if (!artifactKey) return;
 
-            // Find the layer
-            const layer = this.ui.renderer.layers.get(layerName);
-            if (layer) {
-                // Toggle only that layer
-                layer.visible = !layer.visible;
-                this.ui.renderer.render();
+            const fileId = button.closest('.file-node')?.dataset.fileId;
+            const operation = this.nodes.get(fileId)?.operation;
+            if (!operation) return;
 
-                button.title = layer.visible ? 'Hide' : 'Show';
-                const useEl = button.querySelector('use');
-                if (useEl) useEl.setAttribute('href', layer.visible ? '#icon-eye' : '#icon-eye-off');
+            operation.layerVisibility ||= {};
+            const visible = operation.layerVisibility[artifactKey] === false;
+            operation.layerVisibility[artifactKey] = visible;
 
-                // Persist visibility override on the operation object
-                const fileNode = button.closest('.file-node');
-                if (fileNode) {
-                    const fileId = fileNode.dataset.fileId;
-                    const nodeData = this.nodes.get(fileId);
-                    if (nodeData?.operation) {
-                        if (!nodeData.operation.layerVisibility) nodeData.operation.layerVisibility = {};
-                        nodeData.operation.layerVisibility[layerName] = layer.visible;
-                    }
-                }
-            }
+            // Repaint unconditionally - the icon reports the record, not
+            // whether a layer happened to exist at click time.
+            button.title = visible ? 'Hide' : 'Show';
+            button.querySelector('use')?.setAttribute('href', visible ? '#icon-eye' : '#icon-eye-off');
+
+            const layer = layerName ? this.ui.renderer?.layers.get(layerName) : null;
+            if (layer) layer.visible = visible;
+            this.ui.renderer?.render();
+            this.ui.ctrl.refresh3D?.();
+        }
+
+        /**
+         * Artifact key for a tree node type. Per-pass offsets keep their own
+         * key so a single pass can still be hidden; everything else collapses
+         * onto the names the 3D push and the skill's contract already use.
+         */
+        static artifactKeyOf(geometryType) {
+            if (geometryType === 'offsets_combined') return 'offsets';
+            return geometryType;
         }
 
         removeFileNode(operationId) {
@@ -892,7 +912,20 @@
         // Utilities
         // ═══════════════════════════════════════════════════════════════
 
-        getSelectedOperation() { return this.selectedNode?.operation || null; }
+        selectGeometryByType(operationId, geometryType) {
+            for (const [, fileData] of this.nodes) {
+                if (fileData.operation?.id === operationId) {
+                    for (const [geoId, geoData] of fileData.geometries) {
+                        if (geoData.type === geometryType || 
+                            ('offsets' === geometryType && (geoData.type === 'offsets_combined' || geoData.type.startsWith('offset_')))) {
+                            this.selectGeometry(geoId, fileData.operation, geoData.type);
+                            return true;
+                        }
+                    }
+                }
+            }
+            return false;
+        }
 
         getNodeByOperationId(operationId) {
             for (const [, node] of this.nodes) {

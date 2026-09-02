@@ -239,7 +239,7 @@
             // External: Original UNION Ring → expands polygon outward.
             // Tessellate arc segments for Clipper2 (works with polygons only).
             const maskContours = path.contours.map(c => {
-                const tessellated = GeometryUtils.contourArcsToPath(c);
+                const tessellated = GeometryTessellation.contourArcsToPath(c);
                 let points = tessellated.points;
 
                 // Normalize to CCW - Clipper2 needs positive winding for subject polygons.

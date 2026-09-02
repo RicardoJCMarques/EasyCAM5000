@@ -122,14 +122,47 @@
             });
         }
 
+        /**
+         * Repaints lock/visibility state on the rows that already exist.
+         * A flag flip changes two icons and two classes, and refreshTree()
+         * rebuilds every row to do it - which drops keyboard focus and the
+         * scroll position on every eye click.
+         */
+        updateFlagStates() {
+            if (!this.treeContainer || !this.sceneRef) return;
+            this.treeContainer.querySelectorAll('.path-row, .group-row').forEach(row => {
+                const id = row.dataset.pathId || row.dataset.groupId;
+                const node = id ? this.sceneRef.findNode(id) : null;
+                if (!node) return;
+
+                const visible = node.visible !== false;
+                row.classList.toggle('is-hidden-shape', !visible);
+                const visBtn = row.querySelector('.path-visibility');
+                if (visBtn) {
+                    visBtn.title = visible ? 'Hide' : 'Show';
+                    visBtn.querySelector('use')?.setAttribute('href', visible ? '#icon-eye' : '#icon-eye-off');
+                }
+
+                const localLocked = !!node.locked;
+                const descendantLock = node.kind === 'group' && this.hasLockedDescendant(node);
+                row.classList.toggle('is-locked-shape', !!node.isLocked || descendantLock);
+                const lockBtn = row.querySelector('.path-lock');
+                if (lockBtn) {
+                    lockBtn.querySelector('use')?.setAttribute('href', localLocked ? '#icon-lock-locked' : '#icon-lock-unlocked');
+                    lockBtn.title = this.hasLockedAncestor(node) ? 'Locked by parent'
+                        : descendantLock && !localLocked ? 'Contains locked items'
+                        : localLocked ? 'Unlock' : 'Lock';
+                }
+            });
+        }
+
         // ═══════════════════════════════════════════════════════════════
         // Tree Toolbar
         // ═══════════════════════════════════════════════════════════════
 
         setupTreeToolbar() {
-            const bind = (id, action) => {
-                document.getElementById(id)?.addEventListener('click', () => this.emit('toolbar', action));
-            };
+            const bind = (id, action) => { document.getElementById(id)?.addEventListener('click', () => this.emit('toolbar', action)); };
+            bind('tree-btn-add', 'add');
             bind('tree-btn-group', 'group');
             bind('tree-btn-ungroup', 'ungroup');
             bind('tree-btn-lock', 'lock');
@@ -159,13 +192,11 @@
             if (!list || !this.sceneRef) return;
 
             const emptyState = document.getElementById('scene-empty-state');
-            const clearBtn = document.getElementById('btn-clear-all');
 
             list.querySelectorAll('.path-row, .group-row').forEach(r => r.remove());
 
             if (this.sceneRef.shapeCount() === 0) {
                 if (emptyState) emptyState.style.display = '';
-                if (clearBtn) clearBtn.style.display = 'none';
                 // Empty tree owns no treeitems. Drop the role so it doesn't
                 // trip aria-required-children.
                 list.removeAttribute('role');
@@ -173,7 +204,6 @@
                 return;
             }
             if (emptyState) emptyState.style.display = 'none';
-            if (clearBtn) clearBtn.style.display = '';
             list.setAttribute('role', 'tree');
             list.setAttribute('aria-label', 'Scene tree');
 
@@ -300,68 +330,6 @@
             row.querySelector('.path-name').textContent = displayLabel;
 
             list.appendChild(row);
-        }
-
-        // ═══════════════════════════════════════════════════════════════
-        // In-place flag updates
-        // ═══════════════════════════════════════════════════════════════
-
-        /**
-         * Updates lock/visibility classes and button states on existing rows
-         * without destroying and recreating the DOM. Called by the controller's
-         * afterFlagMutation() path for SetNodeFlagCommand and similar
-         * non-structural mutations.
-         */
-        updateFlagStates() {
-            if (!this.treeContainer || !this.sceneRef) return;
-
-            this.treeContainer.querySelectorAll('.path-row, .group-row').forEach(row => {
-                const id = row.dataset.pathId || row.dataset.groupId;
-                if (!id) return;
-                const node = this.sceneRef.findNode(id);
-                if (!node) return;
-
-                // Visibility
-                row.classList.toggle('is-hidden-shape', !node.isVisible);
-                const visBtn = row.querySelector('.path-visibility');
-                if (visBtn) {
-                    const useEl = visBtn.querySelector('use');
-                    if (useEl) useEl.setAttribute('href', node.visible ? '#icon-eye' : '#icon-eye-off');
-                    visBtn.title = node.visible ? 'Hide' : 'Show';
-                }
-
-                // Lock state
-                const localLocked = node.locked;
-                const ancestorLocked = this.hasLockedAncestor(node);
-                const descendantLock = node.children ? this.hasLockedDescendant(node) : false;
-                const effectivelyLocked = node.isLocked || descendantLock;
-
-                row.classList.toggle('is-locked-shape', effectivelyLocked);
-
-                const lockBtn = row.querySelector('.path-lock, [data-action="lock"]');
-                if (lockBtn) {
-                    lockBtn.disabled = ancestorLocked;
-                    lockBtn.title = ancestorLocked ? 'Locked by parent'
-                        : (descendantLock && !localLocked) ? 'Contains locked items'
-                        : (localLocked ? 'Unlock' : 'Lock');
-
-                    // Update lock icon dash style
-                    const lockUse = lockBtn.querySelector('use');
-                    if (lockUse) {
-                        lockUse.setAttribute('href', localLocked ? '#icon-lock-locked' : '#icon-lock-unlocked');
-                    }
-
-                    // Update class modifiers
-                    lockBtn.classList.remove('btn--locked-by-ancestor', 'btn--locked-by-descendant');
-                    if (ancestorLocked) lockBtn.classList.add('btn--locked-by-ancestor');
-                    else if (descendantLock && !localLocked) lockBtn.classList.add('btn--locked-by-descendant');
-                }
-
-                // Operation badge (for shapes with data-op attribute)
-                if (row.dataset.op !== undefined) {
-                    row.dataset.op = this.ui.opsPanel?.getShapeOpType(id) || 'none';
-                }
-            });
         }
 
         // ═══════════════════════════════════════════════════════════════

@@ -103,42 +103,6 @@
     }
 
     /**
-     * Assign or clear an operation on N shapes. `entries` is built by the
-     * controller - each entry captures the previous and new op so undo is
-     * symmetric (it can revert to whatever was there before, including
-     * different-typed operations across the selection).
-     */
-    class AssignOperationCommand extends Command {
-        constructor(entries, labelVerb = 'Assign') {
-            super();
-            // Shallow-clone the op refs so external mutation can't poison history.
-            this.entries = entries.map(e => ({
-                shapeId: e.shapeId,
-                prevOp: e.prevOp ? { ...e.prevOp, params: { ...(e.prevOp.params || {}) } } : null,
-                newOp:  e.newOp  ? { ...e.newOp,  params: { ...(e.newOp.params  || {}) } } : null
-            }));
-            this.labelVerb = labelVerb;
-        }
-        execute(ctrl) {
-            for (const e of this.entries) {
-                const s = ctrl.scene.findShape(e.shapeId);
-                if (!s) continue;
-                s.operation = e.newOp ? { ...e.newOp, params: { ...(e.newOp.params || {}) } } : null;
-            }
-            ctrl.afterFlagMutation();
-        }
-        undo(ctrl) {
-            for (const e of this.entries) {
-                const s = ctrl.scene.findShape(e.shapeId);
-                if (!s) continue;
-                s.operation = e.prevOp ? { ...e.prevOp, params: { ...(e.prevOp.params || {}) } } : null;
-            }
-            ctrl.afterFlagMutation();
-        }
-        get label() { return `${this.labelVerb} operation (${this.entries.length})`; }
-    }
-
-    /**
      * Delete N shapes. The shape NODE itself is kept by reference so undo
      * just re-inserts it.
      *
@@ -409,7 +373,6 @@
     window.TranslateCommand = TranslateCommand;
     window.GroupCommand = GroupCommand;
     window.UngroupCommand = UngroupCommand;
-    window.AssignOperationCommand = AssignOperationCommand;
     window.DeleteShapesCommand = DeleteShapesCommand;
     window.SetNodeFlagCommand = SetNodeFlagCommand;
     window.SetShapeTransformCommand = SetShapeTransformCommand;

@@ -88,13 +88,15 @@
 
     "render3d": {
       "background": "#e8eaed",
+      "sky": "#ffffff",
+      "ground": "#c9ced6",
       "grid": "#c4c8cd",
       "gridCenter": "#a8adb4",
       "rapid": "#8b9199",
       "cutShallow": "#0284c7",
       "cutDeep": "#b45309",
-      "stock": "#b9a77f",
-      "surface": "#8a8168",
+      "stock": "#cfbd93",
+      "surface": "#d6ccb4",
       "tool": "#6b7280"
     },
 

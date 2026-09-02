@@ -13,7 +13,7 @@
         SPDX-License-Identifier: AGPL-3.0-or-later
     -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>EasyShape5000 | Workflow Guide</title>
+    <title>EasyShape5000 Doc - CNC Routing Workflow Guide</title>
 
     <meta name="description" content="Step-by-step CNC router workflow: import SVG or STL, assign operations, generate 2D and 3D toolpaths, set tool numbers, and export G-code with tool changes.">
     <meta name="author" content="Eltryus">
@@ -24,12 +24,12 @@
 
     <meta property="og:type" content="article">
     <meta property="og:url" content="https://cam.eltryus.design/easyshape5000/doc/guide">
-    <meta property="og:title" content="EasyShape5000 | Workflow Guide">
+    <meta property="og:title" content="EasyShape5000 Doc - CNC Routing Workflow Guide">
     <meta property="og:description" content="Step-by-step CNC router workflow: import SVG or STL, assign operations, generate 2D and 3D toolpaths, set tool numbers, and export G-code with tool changes.">
     <meta property="og:image" content="https://cam.eltryus.design/images/social-shape.jpg">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
-    <meta property="og:site_name" content="Eltryus EasyCAM5000 Suite">
+    <meta property="og:site_name" content="EasyCAM5000">
     <meta property="og:locale" content="en_US">
 
     <link rel="icon" type="image/png" href="../../images/favicon/favicon-96x96.png" sizes="96x96">
@@ -48,13 +48,53 @@
         "@context": "https://schema.org",
         "@graph": [
             {
+                "@type": "Organization",
+                "@id": "https://www.eltryus.design/#organization",
+                "name": "Eltryus",
+                "url": "https://www.eltryus.design/"
+            },
+            {
+                "@type": "WebSite",
+                "@id": "https://cam.eltryus.design/#website",
+                "name": "EasyCAM5000",
+                "alternateName": "Eltryus EasyCAM5000 Suite",
+                "url": "https://cam.eltryus.design/",
+                "inLanguage": "en",
+                "publisher": { "@id": "https://www.eltryus.design/#organization" }
+            },
+            {
+                "@type": "WebApplication",
+                "@id": "https://cam.eltryus.design/easyshape5000/#app",
+                "name": "EasyShape5000",
+                "url": "https://cam.eltryus.design/easyshape5000/"
+            },
+            {
+                "@type": "CollectionPage",
+                "@id": "https://cam.eltryus.design/easyshape5000/doc/#docs",
+                "name": "EasyShape5000 Documentation",
+                "url": "https://cam.eltryus.design/easyshape5000/doc/"
+            },
+            {
+                "@type": "WebPage",
+                "@id": "https://cam.eltryus.design/easyshape5000/doc/guide#webpage",
+                "url": "https://cam.eltryus.design/easyshape5000/doc/guide",
+                "name": "EasyShape5000 Doc - CNC Routing Workflow Guide",
+                "inLanguage": "en",
+                "isPartOf": { "@id": "https://cam.eltryus.design/#website" },
+                "about": { "@id": "https://cam.eltryus.design/easyshape5000/#app" },
+                "mainEntity": { "@id": "https://cam.eltryus.design/easyshape5000/doc/guide#article" },
+                "breadcrumb": { "@id": "https://cam.eltryus.design/easyshape5000/doc/guide#breadcrumb" },
+                "primaryImageOfPage": "https://cam.eltryus.design/images/social-shape.jpg"
+            },
+            {
                 "@type": "TechArticle",
                 "@id": "https://cam.eltryus.design/easyshape5000/doc/guide#article",
-                "headline": "EasyShape5000 Workflow Guide",
-                "description": "Step-by-step guide to CNC routing with EasyShape5000.",
+                "headline": "EasyShape5000 Routing Workflow Guide",
+                "description": "Step-by-step CNC router workflow: import SVG or STL, assign operations, generate 2D and 3D toolpaths, set tool numbers, and export G-code with tool changes.",
                 "image": "https://cam.eltryus.design/images/social-shape.jpg",
                 "url": "https://cam.eltryus.design/easyshape5000/doc/guide",
                 "inLanguage": "en",
+                "mainEntityOfPage": { "@id": "https://cam.eltryus.design/easyshape5000/doc/guide#webpage" },
                 "isPartOf": { "@id": "https://cam.eltryus.design/easyshape5000/doc/#docs" },
                 "about": { "@id": "https://cam.eltryus.design/easyshape5000/#app" },
                 "author": { "@id": "https://www.eltryus.design/#organization" },
@@ -64,10 +104,11 @@
             },
             {
                 "@type": "BreadcrumbList",
+                "@id": "https://cam.eltryus.design/easyshape5000/doc/guide#breadcrumb",
                 "itemListElement": [
-                    { "@type": "ListItem", "position": 1, "name": "Eltryus EasyCAM5000 Suite", "item": "https://cam.eltryus.design/" },
+                    { "@type": "ListItem", "position": 1, "name": "EasyCAM5000", "item": "https://cam.eltryus.design/" },
                     { "@type": "ListItem", "position": 2, "name": "EasyShape5000", "item": "https://cam.eltryus.design/easyshape5000/" },
-                    { "@type": "ListItem", "position": 3, "name": "Documentation", "item": "https://cam.eltryus.design/easyshape5000/doc/" },
+                    { "@type": "ListItem", "position": 3, "name": "Docs", "item": "https://cam.eltryus.design/easyshape5000/doc/" },
                     { "@type": "ListItem", "position": 4, "name": "Workflow Guide", "item": "https://cam.eltryus.design/easyshape5000/doc/guide" }
                 ]
             }
@@ -79,22 +120,28 @@
     <a href="#doc-content" class="skip-link">Skip to Main Content</a>
 
     <header class="doc-header">
-        <div class="doc-brand"><a href="/" aria-label="Eltryus CAM Suite Homepage">EasyShape5000</a></div>
+        <div class="doc-brand"><a href="/" aria-label="EasyCAM5000 Homepage">EasyCAM5000</a></div>
+
+        <nav class="doc-breadcrumb" aria-label="Breadcrumb">
+            <ol>
+                <li><a href="/easyshape5000/" draggable="false">EasyShape5000</a></li>
+                <li><a href="./" draggable="false">Docs</a></li>
+                <li><span aria-current="page">Workflow Guide</span></li>
+            </ol>
+        </nav>
+
         <button class="doc-menu-toggle" aria-label="Toggle Navigation Menu" aria-expanded="false">
-            <svg class="icon-menu" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
-            <svg class="icon-close" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            <svg class="icon-menu cam-icon" width="24" height="24" aria-hidden="true"><use href="#icon-menu"></use></svg>
+            <svg class="icon-close cam-icon" width="24" height="24" aria-hidden="true"><use href="#icon-close"></use></svg>
         </button>
+
         <nav class="doc-nav" aria-label="Main Navigation">
-            <a href="/" draggable="false">← Home</a>
+            <a href="guide" class="active" aria-current="page" draggable="false">Workflow Guide</a>
+            <a href="operations" draggable="false">Operations</a>
+            <a href="parameters" draggable="false">Parameters</a>
+            <span class="separator" aria-hidden="true"></span>
             <a href="/easyshape5000/" draggable="false">Launch App</a>
-            <span class="separator" aria-hidden="true"></span>
-            <a href="./" draggable="false">Docs</a>
-            <a href="guide" class="active" draggable="false" aria-current="page">Workflow Guide</a>
-            <a href="operations" draggable="false" aria-label="Operation Reference">Operations</a>
-            <a href="parameters" draggable="false" aria-label="Parameter Reference">Parameters</a>
-            <a href="/easytrace5000/doc/accessibility" draggable="false">Accessibility</a>
-            <span class="separator" aria-hidden="true"></span>
-            <a href="https://github.com/RicardoJCMarques/EasyCAM5000" target="_blank" draggable="false">GitHub</a>
+            <a href="https://github.com/RicardoJCMarques/EasyCAM5000" target="_blank" draggable="false" aria-label="GitHub Repository (opens in a new tab)">GitHub</a>
 
             <button id="theme-toggle" class="btn btn--icon" title="Toggle Theme" aria-label="Toggle Theme">
                 <svg class="cam-icon" width="16" height="16"><use href="#icon-sun"></use></svg>
@@ -103,8 +150,8 @@
     </header>
 
     <div class="doc-wrapper has-sidebar">
-        <nav class="doc-sidebar" id="toc">
-            <h2>Contents <span class="doc-badge doc-badge--stable">v1.0</span></h2>
+        <nav class="doc-sidebar" id="toc" aria-label="Table of contents">
+            <h2>Contents <span class="doc-badge doc-badge--stable">Stable</span></h2>
             <ol>
                 <li><a href="#interface" draggable="false">Interface Overview</a></li>
                 <li>
@@ -131,14 +178,14 @@
                 <li><a href="#transforms" draggable="false">Shape Transforms</a></li>
                 <li><a href="#machine-settings" draggable="false">Machine Settings</a></li>
                 <li><a href="#export-manager" draggable="false">The Export Manager</a></li>
-                <li><a href="#tips" draggable="false">Tips & Limitations</a></li>
+                <li><a href="#tips" draggable="false">Tips</a></li>
             </ol>
         </nav>
 
         <main id="doc-content" class="doc-main">
 
             <section class="hero hero--compact">
-                <h1>EasyShape5000 - Workflow Guide</h1>
+                <h1>EasyShape5000 Routing Workflow Guide</h1>
                 <p class="tagline">From SVG design to G-code for your CNC router</p>
             </section>
 
@@ -149,29 +196,29 @@
 
                 <figure>
                     <svg viewBox="0 0 800 500" style="width:100%;max-width:800px;background:var(--color-canvas-background, #0f0f0f);border-radius:8px;">
-                        <rect x="0" y="0" width="800" height="40" fill="#2a2a2a"/>
-                        <text x="400" y="25" fill="#888" font-size="12" text-anchor="middle">1. TOOLBAR (Actions, Zoom, Theme)</text>
-                        <rect x="0" y="250" width="200" height="210" fill="#222222"/>
-                        <text x="100" y="130" fill="#888" font-size="12" text-anchor="middle">2. OPERATIONS</text>
-                        <text x="100" y="150" fill="#666" font-size="10" text-anchor="middle">(Buckets: Geo → Offset → Preview)</text>
-                        <rect x="0" y="40" width="200" height="210" fill="#252525"/>
-                        <text x="100" y="350" fill="#888" font-size="12" text-anchor="middle">3. SCENE TREE</text>
-                        <text x="100" y="370" fill="#666" font-size="10" text-anchor="middle">(Groups, Shapes, Lock/Hide)</text>
-                        <rect x="200" y="40" width="400" height="420" fill="#1a1a1a"/>
-                        <text x="400" y="240" fill="#888" font-size="12" text-anchor="middle">4. CANVAS</text>
-                        <text x="400" y="260" fill="#666" font-size="10" text-anchor="middle">(Select, Move, Marquee, Zoom)</text>
-                        <line x1="250" y1="100" x2="250" y2="400" stroke="#333" stroke-dasharray="4"/>
-                        <line x1="350" y1="100" x2="350" y2="400" stroke="#333" stroke-dasharray="4"/>
-                        <line x1="450" y1="100" x2="450" y2="400" stroke="#333" stroke-dasharray="4"/>
-                        <line x1="550" y1="100" x2="550" y2="400" stroke="#333" stroke-dasharray="4"/>
-                        <rect x="600" y="40" width="200" height="210" fill="#252525"/>
-                        <text x="700" y="130" fill="#888" font-size="12" text-anchor="middle">5. SHAPE INSPECTOR</text>
-                        <text x="700" y="150" fill="#666" font-size="10" text-anchor="middle">(Position, Rotation, Scale, Mirror)</text>
-                        <rect x="600" y="250" width="200" height="210" fill="#222222"/>
-                        <text x="700" y="350" fill="#888" font-size="12" text-anchor="middle">6. OPERATION PANEL</text>
-                        <text x="700" y="370" fill="#666" font-size="10" text-anchor="middle">(Parameters, Generate, Export)</text>
-                        <rect x="0" y="460" width="800" height="40" fill="#2a2a2a"/>
-                        <text x="400" y="485" fill="#888" font-size="12" text-anchor="middle">7. STATUS BAR & COORDINATES</text>
+                        <rect x="0" y="0" width="800" height="40" fill="var(--color-bg-tertiary)"/>
+                        <text x="400" y="25" fill="var(--color-text-secondary)" font-size="12" text-anchor="middle">1. TOOLBAR (Actions, Zoom, Theme)</text>
+                        <rect x="0" y="250" width="200" height="210" fill="var(--color-bg-secondary)"/>
+                        <text x="100" y="130" fill="var(--color-text-secondary)" font-size="12" text-anchor="middle">2. OPERATIONS</text>
+                        <text x="100" y="150" fill="var(--color-text-hint)" font-size="10" text-anchor="middle">(Buckets: Geo → Offset → Preview)</text>
+                        <rect x="0" y="40" width="200" height="210" fill="var(--color-bg-tertiary)"/>
+                        <text x="100" y="350" fill="var(--color-text-secondary)" font-size="12" text-anchor="middle">3. SCENE TREE</text>
+                        <text x="100" y="370" fill="var(--color-text-hint)" font-size="10" text-anchor="middle">(Groups, Shapes, Lock/Hide)</text>
+                        <rect x="200" y="40" width="400" height="420" fill="var(--color-bg-secondary)"/>
+                        <text x="400" y="240" fill="var(--color-text-secondary)" font-size="12" text-anchor="middle">4. CANVAS</text>
+                        <text x="400" y="260" fill="var(--color-text-hint)" font-size="10" text-anchor="middle">(Select, Move, Marquee, Zoom)</text>
+                        <line x1="250" y1="100" x2="250" y2="400" stroke="var(--color-border-secondary)" stroke-dasharray="4"/>
+                        <line x1="350" y1="100" x2="350" y2="400" stroke="var(--color-border-secondary)" stroke-dasharray="4"/>
+                        <line x1="450" y1="100" x2="450" y2="400" stroke="var(--color-border-secondary)" stroke-dasharray="4"/>
+                        <line x1="550" y1="100" x2="550" y2="400" stroke="var(--color-border-secondary)" stroke-dasharray="4"/>
+                        <rect x="600" y="40" width="200" height="210" fill="var(--color-bg-tertiary)"/>
+                        <text x="700" y="130" fill="var(--color-text-secondary)" font-size="12" text-anchor="middle">5. SHAPE INSPECTOR</text>
+                        <text x="700" y="150" fill="var(--color-text-hint)" font-size="10" text-anchor="middle">(Position, Rotation, Scale, Mirror)</text>
+                        <rect x="600" y="250" width="200" height="210" fill="var(--color-bg-secondary)"/>
+                        <text x="700" y="350" fill="var(--color-text-secondary)" font-size="12" text-anchor="middle">6. OPERATION PANEL</text>
+                        <text x="700" y="370" fill="var(--color-text-hint)" font-size="10" text-anchor="middle">(Parameters, Generate, Export)</text>
+                        <rect x="0" y="460" width="800" height="40" fill="var(--color-bg-tertiary)"/>
+                        <text x="400" y="485" fill="var(--color-text-secondary)" font-size="12" text-anchor="middle">7. STATUS BAR & COORDINATES</text>
                     </svg>
                     <figcaption>The EasyShape5000 interface: (1) Toolbar, (2) Scene Tree, (3) Operations List, (4) Canvas, (5) Shape Inspector, (6) Operation Parameters, (7) Status Bar</figcaption>
                 </figure>
@@ -221,7 +268,6 @@
                     <li>Review the G-code preview in the text area</li>
                     <li>Click <strong>Export Files</strong> to download</li>
                 </ol>
-                <p>Operations using different tools must be exported as separate files - automatic tool change (M6) is not yet supported.</p>
             </section>
 
             <!-- Operation Types -->
@@ -366,9 +412,9 @@
                 <p><strong>GRBL</strong> is the only post-processor tested on real hardware, and it declares no tool-change support - a multi-tool job must be exported one file per tool on GRBL. The posts that do emit T/M6 are <strong>grblHAL, UCCNC, Mach3, LinuxCNC, Fanuc, WinPC-NC and Makera</strong>; <strong>Marlin</strong> and <strong>Roland RML</strong> are single-tool. All non-GRBL posts generate syntactically correct output but are experimental. Always dry-run G-code on your controller before cutting material.</p>
             </section>
 
-            <!-- Tips & Limitations -->
+            <!-- Tips -->
             <section id="tips">
-                <h2>Tips & Current Limitations</h2>
+                <h2>Tips</h2>
 
                 <div class="callout callout--info">
                     <h3>SVG Preparation</h3>
@@ -417,36 +463,23 @@
                 <h4>Offset Generation Takes a Long Time</h4>
                 <p><strong>Cause:</strong> Boolean operations on complex geometry (many points, many passes) are computationally intensive.</p>
                 <p><strong>Solution:</strong> Reduce the number of passes, increase stepover, or simplify the SVG geometry before import.</p>
-
-                <h3>Current Limitations (v1.0)</h3>
-                <dl>
-                    <dt>No laser pipeline</dt>
-                    <dd>CNC G-code export only. Laser/vector export is planned.</dd>
-                    <dt>No tool change commands</dt>
-                    <dd>Operations using different tools must be exported as separate G-code files.</dd>
-                    <dt>Engraving, V-Carve, Pattern, and 3D Relief</dt>
-                    <dd>Listed in the UI but not yet functional. Engraving and pattern generation are coming shortly; v-carve and 3D relief require the planned 3D preview system.</dd>
-                    <dt>Bézier offsetting</dt>
-                    <dd>Bézier curves from SVGs are interpolated into line segments before offsetting. True analytic Bézier offsetting is not yet supported.</dd>
-                    <dt>Touch pinch-to-zoom</dt>
-                    <dd>Two-finger pinch zoom works during pan but is not available on the default select tool. Known gap.</dd>
-                    <dt>No undo for operation assignment changes</dt>
-                    <dd>Operation assignment is undoable via Ctrl+Z, but parameter edits within the operation panel are not individually tracked in the undo stack.</dd>
-                </dl>
             </section>
 
         </main>
+        <!-- Footer -->
+        <footer class="doc-footer" aria-label="Footer">
+            <p>
+                <a href="#doc-content" draggable="false">Back to Top</a> |
+                <a href="https://github.com/RicardoJCMarques/EasyCAM5000" target="_blank" draggable="false">GitHub</a> |
+                <a href="/#support" draggable="false">Support Development</a> |
+                <a href="../../LICENSE" target="_blank" draggable="false">AGPLv3 Licensed</a> |
+                <a href="https://www.eltryus.design/" draggable="false" aria-label="Eltryus, developer of EasyCAM5000">by ELTRYUS</a>
+            </p>
+        </footer>
+
     </div>
 
-    <footer class="doc-footer" aria-label="Footer">
-        <p>
-            <a href="#doc-content" draggable="false">Back to Top</a> |
-            <a href="https://github.com/RicardoJCMarques/EasyCAM5000" target="_blank" draggable="false">GitHub</a> |
-            <a href="/#support" draggable="false">Support Development</a> |
-            <a href="../../LICENSE" target="_blank" draggable="false">AGPLv3 Licensed</a>
-        </p>
-    </footer>
-
+    <!-- Scripts -->
     <script defer src="../../themes/theme-loader.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {

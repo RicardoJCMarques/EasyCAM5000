@@ -38,11 +38,11 @@ const Base = (typeof window !== 'undefined' && window.BaseTool)
         getOverlayState() { return null; }
     };
 
-const ORBIT_SPEED = 0.008;     // rad per CSS px
-const DOLLY_SPEED = 0.0015;    // wheel exponent factor
-const MIN_RADIUS = 1;          // mm
-const MAX_RADIUS = 50000;      // mm
-const POLAR_EPS = 0.02;        // keep off the poles (lookAt degeneracy)
+const ORBIT_SPEED = 0.008; // rad per CSS px
+const DOLLY_SPEED = 0.0015; // wheel exponent factor
+const MIN_RADIUS = 0.05; // mm - allows close-up inspection of micro-traces and small drills
+const MAX_RADIUS = 50000; // mm
+const POLAR_EPS = 0.02; // keep off the poles (lookAt degeneracy)
 const PINCH_DEADBAND = 0.005;
 
 export class Orbit3DTool extends Base {
@@ -101,11 +101,14 @@ export class Orbit3DTool extends Base {
             this.target.y + this.radius * sp * Math.sin(this.azimuth),
             this.target.z + this.radius * Math.cos(this.polar)
         );
+        this.view.camera.near = Math.max(0.01, this.radius / 1000);
+        this.view.camera.far = Math.max(1000, this.radius * 20);
+        this.view.camera.updateProjectionMatrix();
         this.view.camera.lookAt(this.target);
         this.view.requestRender();
     }
 
-    // ─── Pointer handling ────────────────────────────────────────────
+    // Pointer handling
 
     onPointerDown(data, ctx) {
         const active = ctx.input ? ctx.input.activePointers.size : 1;
@@ -218,7 +221,7 @@ export class Orbit3DTool extends Base {
         return true;
     }
 
-    // ─── Pan: move the target in the camera's screen plane ──────────
+    // Pan: move the target in the camera's screen plane
 
     pan(dxPx, dyPx) {
         const cam = this.view.camera;
@@ -233,7 +236,7 @@ export class Orbit3DTool extends Base {
             .addScaledVector(this._up, dyPx * worldPerPx);
     }
 
-    // ─── Pinch (dolly + midpoint pan), same shape as PanZoomTool ────
+    // Pinch (dolly + midpoint pan), same shape as PanZoomTool
 
     startPinch(ctx) {
         const pts = Array.from(ctx.input.activePointers.values());

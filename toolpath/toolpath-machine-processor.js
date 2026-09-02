@@ -160,16 +160,35 @@
 
                 // Handle centerline slots
                 if (meta.isCenterlinePath && meta.strategy?.zigzag) {
-                    this.debug(`Processing Centerline Slot (Macro) ${i+1}/${toolpathPlans.length}`);
+                    this.debug(`Processing Centerline Slot (Macro) ${i + 1}/${toolpathPlans.length}`);
                     const slotPlan = new ToolpathPlan(plan.operationId);
                     Object.assign(slotPlan.metadata, meta);
                     const strategy = meta.strategy;
                     const startXY = meta.entryPoint;
                     const endXY = { x: plan.commands[0].x, y: plan.commands[0].y };
 
-                    // Validate strategy parameters
-                    if (strategy.feedRate === undefined || strategy.plungeRate === undefined || strategy.cutDepth === undefined) {
-                        console.error('[MachineProcessor] Missing strategy parameters for centerline slot');
+                    // Resolve against the plan's own metadata before giving up.
+                    // `strategy` is a copy taken at translation; a drill row can
+                    // rewrite metadata.feedRate/plungeRate after it was built, and
+                    // every other branch in this switch reads the metadata.
+                    const slotFeed = strategy.feedRate ?? meta.feedRate;
+                    const slotPlunge = strategy.plungeRate ?? meta.plungeRate;
+                    const levels = meta.depthLevels;
+                    const finalZ = levels?.length ? levels[levels.length - 1] : null;
+
+                    if (!(slotFeed > 0 && slotPlunge > 0 && finalZ !== null)) {
+                        // Dropping here removes a slot from the program with nothing
+                        // on screen to show for it. Name the value that is missing.
+                        // TODO(processor-warnings) - this belongs on the operation.
+                        // MachineProcessor has no warning channel yet, which is why
+                        // this failure went unnoticed for a whole release.
+                        const missing = [
+                            slotFeed > 0 ? null : 'feed rate',
+                            slotPlunge > 0 ? null : 'plunge rate',
+                            finalZ === null ? 'cut depth' : null
+                        ].filter(Boolean).join(', ');
+                        console.error(`[MachineProcessor] Centerline slot dropped - no ${missing}.`,
+                            { feedRate: strategy.feedRate, plungeRate: strategy.plungeRate, depthPerPass: strategy.depthPerPass, depthLevels: levels });
                         continue;
                     }
 
@@ -177,27 +196,14 @@
                     slotPlan.addRapid(startXY.x, startXY.y, this.context.machine.travelZ);
                     slotPlan.addRapid(null, null, this.FEED_HEIGHT);
 
-                    // Execute Zig-Zag Depth Loop
-                    const surfaceZ = startXY.z !== undefined ? startXY.z : 0; 
-                    let currentZ = surfaceZ;
-
-                    const finalZ = meta.depthLevels[meta.depthLevels.length - 1];
-                    const stepZ = Math.abs(strategy.depthPerPass);
+                    // Zig-zag down the ladder metadata.depthLevels already holds.
                     let goingForward = true;
-
-                    while (currentZ > finalZ) {
-                        // Calculate next depth
-                        let nextZ = currentZ - stepZ;
-                        if (nextZ < finalZ) nextZ = finalZ;
-
+                    for (const levelZ of levels) {
                         // Plunge to next depth at current position
-                        slotPlan.addLinear(null, null, nextZ, strategy.plungeRate);
-                        currentZ = nextZ;
-
+                        slotPlan.addLinear(null, null, levelZ, slotPlunge);
                         // Cut to the other side
                         const target = goingForward ? endXY : startXY;
-                        slotPlan.addLinear(target.x, target.y, currentZ, strategy.feedRate);
-
+                        slotPlan.addLinear(target.x, target.y, levelZ, slotFeed);
                         // Toggle direction for next pass
                         goingForward = !goingForward;
                     }
@@ -211,7 +217,6 @@
                         y: goingForward ? startXY.y : endXY.y,
                         z: this.context.machine.travelZ
                     };
-
                     machineReadyPlans.push(slotPlan);
                     continue;
                 }
@@ -401,8 +406,23 @@
                             machineReadyPlans.push(plungePlan);
                         }
                         this.currentPosition.z = plungeZ;
+                    } else if (meta.perLevelReturn === 'retract') {
+                        // A welded chain ends at its innermost ring. Feeding
+                        // straight back to the entry at the NEW depth would
+                        // cut a slot across the pocket, so lift, rapid over
+                        // cleared air and plunge - once per level instead of
+                        // once per ring.
+                        const returnPlan = new ToolpathPlan('level_return');
+                        returnPlan.metadata.synthetic = true;
+                        returnPlan.addRetract(this.FEED_HEIGHT);
+                        returnPlan.addRapid(entryPoint.x, entryPoint.y, null);
+                        returnPlan.addLinear(null, null, plungeZ, plungeRate);
+                        machineReadyPlans.push(returnPlan);
+                        this.currentPosition.x = entryPoint.x;
+                        this.currentPosition.y = entryPoint.y;
+                        this.currentPosition.z = plungeZ;
                     } else {
-                        const plungePlan = new ToolpathPlan('depth_plunge');
+                        const plungePlan = new ToolpathPlan("depth_plunge");
                         plungePlan.metadata.synthetic = true;
                         plungePlan.addLinear(entryPoint.x, entryPoint.y, plungeZ, plungeRate);
                         machineReadyPlans.push(plungePlan);

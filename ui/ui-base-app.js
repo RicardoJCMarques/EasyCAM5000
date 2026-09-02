@@ -35,8 +35,8 @@
             // Resolved custom properties, cleared whenever the theme changes.
             // getComputedStyle forces a style recalc and resolveLayerColor runs
             // once per layer per rebuildLayers.
-            this._cssVarCache = new Map();
-            window.addEventListener('themechange', () => this._cssVarCache.clear());
+            this._cssVarCache = new Map;
+            window.addEventListener('themechange', () => { this._cssVarCache.clear(); this.onThemeChanged(); });
         }
 
         // Shared init sequence
@@ -191,7 +191,16 @@
 
         // Zoom helpers
 
-        zoomFit()  { this.renderer?.core?.zoomFit(true); this.renderer?.render(); this.canvasReadout?.updateZoom(); }
+        zoomFit()  {
+            if (this.ctrl.renderMode === '3d') {
+                this.ctrl.renderer3D?.fitToContent();
+                return;
+            }
+            this.renderer?.core?.zoomFit(true);
+            this.renderer?.render();
+            this.canvasReadout?.updateZoom();
+        }
+
         zoomIn()   { this.renderer?.core?.zoomIn(); this.renderer?.render(); this.canvasReadout?.updateZoom(); }
         zoomOut()  { this.renderer?.core?.zoomOut(); this.renderer?.render(); this.canvasReadout?.updateZoom(); }
 
@@ -232,7 +241,21 @@
             return value || fallback;
         }
 
-       /**
+        /**
+         * A theme swap invalidates three caches, and only one of them repaints:
+         * this memo, RendererCore.colors (its own listener refreshes the values
+         * but cannot repaint), and whatever the canvas last painted. Refreshing
+         * the renderer palette explicitly rather than relying on its listener
+         * keeps this independent of registration order.
+         */
+        onThemeChanged() {
+            if (!this.renderer) return;
+            this.renderer.setOptions({ theme: document.documentElement.getAttribute('data-theme') || 'dark' });
+            this.renderer.core?.updateThemeColors?.();
+            this.renderer.render();
+        }
+
+        /**
          * Colour for an operation TYPE, from the theme's operation palette.
          * Returns null when the theme has not mapped that type, so callers
          * can fall through to a role colour.
@@ -244,36 +267,58 @@
 
         resolveLayerColor(layer) {
             const isBW = this.renderer?.options?.blackAndWhite;
-            if (isBW) return this.readCSSVar('--color-bw-white', '#ffffff');
+            if (isBW) return this.readCSSVar('--color-bw-white');
+
+            if (layer.operationType === 'stencil' || layer.type === 'stencil') {
+                if (layer.isPreview || layer.type === 'preview') {
+                    return this.readCSSVar('--color-geometry-preview');
+                }
+                return this.readCSSVar('--color-geometry-source-stencil');
+            }
 
             switch (layer.type) {
                 case 'offset':
-                    if (layer.offsetType === 'external') return this.readCSSVar('--color-geometry-offset-external', '#a60000');
-                    if (layer.offsetType === 'internal') return this.readCSSVar('--color-geometry-offset-internal', '#00a600');
-                    if (layer.offsetType === 'on') return this.readCSSVar('--color-geometry-offset-on', '#bcbc02');
+                    if (layer.offsetType === 'external') return this.readCSSVar('--color-geometry-offset-external');
+                    if (layer.offsetType === 'internal') return this.readCSSVar('--color-geometry-offset-internal');
+                    if (layer.offsetType === 'on') return this.readCSSVar('--color-geometry-offset-on');
                     return '#FF0000';
                 case 'preview':
-                    return this.readCSSVar('--color-geometry-preview', '#0060dd');
+                    return this.readCSSVar('--color-geometry-preview');
                 case 'unassigned':
-                    return layer.color || this.readCSSVar('--color-text-secondary', '#a0a0a0');
+                    return layer.color || this.readCSSVar('--color-text-secondary');
             }
             return null; // signal subclass to handle
         }
 
-        // REVIEW - Shouldn't this be handled by the renderer modules?
+        /**
+         * Layer rendering order hierarchy across 2D canvas and 3D WebGPU layers
+         */
         getLayerZIndex(type, opts = {}) {
-            if (opts.operationType === 'stencil' || type === 'stencil') return 250;
             if (opts.isStock || type === 'stock') return 0;
+
             const isDrill = opts.operationType === 'drill' || type === 'drill';
-            switch (type) {
-                case 'drill':      return 300;
-                case 'fused':      return 400;
-                case 'offset':
-                    if (opts.isHatch || opts.strategy === 'filled') return 500;
-                    return isDrill ? 650 : 600;
-                case 'preview':    return isDrill ? 850 : 800;
+            const isCutout = opts.operationType === 'cutout' || type === 'cutout';
+            const isStencil = opts.operationType === 'stencil' || type === 'stencil';
+
+            // Toolpath Previews (Highest)
+            if (opts.isPreview || type === 'preview') return isDrill ? 950 : isCutout ? 920 : 900;
+
+            // Offsets and Generated Toolpaths
+            if (opts.isOffset || type === 'offset') {
+                if (isDrill) return 850;
+                if (isCutout) return 800;
+                if (isStencil) return 300;
+                if (opts.isHatch || opts.strategy === 'filled') return 450;
+                return 500;
             }
-            return null; // signal subclass to handle
+
+            // Source Geometries
+            if (isDrill) return 750; // Drills cut through everything
+            if (isCutout) return 100; // Cutout source is the board substrate (sits directly on stock, below everything else)
+            if (type === 'fused') return 400;
+            if (isStencil) return 250;
+
+            return null; // signal subclass to handle (isolation=200, clearing=200, etc.)
         }
 
         // Debug

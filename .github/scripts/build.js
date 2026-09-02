@@ -66,9 +66,11 @@ const CONFIG = {
         'licensepasta.txt',
         'other',
         'context-gen.js',
-        'repo-bundle.js',
+        'file-bundle.js',
         'PROJECT_CONTEXT.txt',
-        'REPO_BUNDLE.txt',
+        'FILE_BUNDLE.txt',
+        'package.json',
+        'package-lock.json',
         // Analytic offsetting files
         'geometry-offsetter-analytic.js',
         'geometry-utils-math.js',
@@ -508,16 +510,21 @@ class Builder {
         if (!m) return;
 
         const deps = [...m[1].matchAll(/['"]([^'"]+)['"]/g)].map(x => x[1]);
-        let bundle = buildHeader('Field Worker', 'Bundled', 'js');
+        let inlinedBundle = '/* importScripts inlined by build */\n';
         for (const dep of deps) {
             const p = path.join(this.distDir, 'geometry', dep);
             if (!fs.existsSync(p)) {
                 throw new Error(`field-worker importScripts dep not found in dist: ${dep}`);
             }
-            bundle += `\n/*! --- ${this.repoPath(p)} --- */\n${stripComments(readFile(p), 'js', this.keepComments)}\n`;
+            inlinedBundle += `\n/*! --- ${this.repoPath(p)} --- */\n${stripComments(readFile(p), 'js', this.keepComments)}\n`;
         }
-        worker = worker.replace(m[0], '// importScripts inlined by build');
-        writeFile(workerPath, bundle + `\n/*! --- ${this.repoPath(workerPath)} --- */\n` + stripComments(worker, 'js', this.keepComments));
+
+        // Inline dependencies inside ensureModules() where importScripts was,
+        // ensuring self.CAMConfig is set before module IIFEs execute.
+        worker = worker.replace(m[0], inlinedBundle);
+        const finalContent = buildHeader('Field Worker', 'Bundled', 'js') + stripComments(worker, 'js', this.keepComments);
+        writeFile(workerPath, finalContent);
+
         // Inlining succeeded - the standalone dep copies are now dead weight
         for (const dep of deps) {
             const p = path.join(this.distDir, 'geometry', path.basename(dep));

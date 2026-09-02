@@ -87,6 +87,42 @@
 }
 
 /* ============================================================================
+   3D VIEWPORT
+   ============================================================================ */
+
+.viewport-3d {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    background: var(--color-render3d-background);
+    touch-action: none;
+    user-select: none;
+}
+
+/* three.js creates this canvas at mount; it has no id to target. */
+.viewport-3d canvas {
+    display: block;
+    touch-action: none;
+}
+
+.viewport-3d[hidden] {
+    display: none;
+}
+
+.canvas-container[data-render-mode="3d"] #preview-canvas {
+    display: none;
+}
+
+/* Tree toolbar - This sounds like it should belong to EasyShape5000?*/
+.tree-toolbar {
+    display: flex;
+    gap: 4px;
+    padding: 4px 8px;
+    border-bottom: 1px solid var(--color-border-primary);
+    background: var(--color-bg-primary);
+}
+
+/* ============================================================================
    SIDEBARS
    ============================================================================ */
 
@@ -268,6 +304,14 @@
 }
 
 .origin-buttons + .origin-buttons {
+    margin-top: var(--spacing-sm);
+}
+
+/* The `*` reset zeroes button margins, so a bare <button> sitting between
+   two grids in the stock panel touches both. Scoped: EasyTrace keeps its
+   origin buttons inside .origin-section and needs none of this. */
+#stock-controls > * + .btn,
+#stock-controls > .btn + .origin-buttons {
     margin-top: var(--spacing-sm);
 }
 

@@ -226,7 +226,9 @@
                 }
 
                 const isStencil = layer.type === 'stencil' || layer.operationType === 'stencil';
+                const isKnifeStencil = isStencil && (layer.metadata?.isKnife || (layer.metadata?.cornerRadius !== undefined && !layer.metadata?.toolDiameter) || layer.metadata?.strategy === 'knife');
                 const isStencilSource = isStencil && !layer.isOffset && !layer.isPreview && layer.type !== 'offset' && layer.type !== 'preview';
+                // REVIEW - Rename isStencilGenerated to isCNCStencil or something of the sort? Make eveyrthing more consistent.
                 const isStencilGenerated = isStencil && !isStencilSource;
 
                 // EasyShape5000: per-layer world transform.
@@ -252,7 +254,7 @@
                     this.renderHatchLayerBatched(layer);
                 } else if (isStencilSource) {
                     this.renderStencilSourceImmediate(layer);
-                } else if (isStencilGenerated) {
+                } else if (isKnifeStencil && isStencilGenerated) {
                     this.renderStencilGeneratedImmediate(layer);
                 } else if (layer.metadata?.strategy === 'filled') {
                     this.renderFilledLayerImmediate(layer);
@@ -861,7 +863,7 @@
                         if (hasReconstruction && prim.properties?.reconstructed) continue;
 
                         if (!hasReconstruction && prim.properties?.reconstructed) {
-                            const segments = GeometryUtils.getOptimalSegments(prim.radius, 'circle');
+                            const segments = GeometryTessellation.getOptimalSegments(prim.radius, 'circle');
                             const step = (2 * Math.PI) / segments;
                             for (let s = 0; s < segments; s++) {
                                 const angle = s * step;
@@ -915,7 +917,7 @@
                                     else if (!arc.clockwise && sweep < 0) sweep += 2 * Math.PI;
                                 }
 
-                                const fullCircleSegs = GeometryUtils.getOptimalSegments(arc.radius, 'arc');
+                                const fullCircleSegs = GeometryTessellation.getOptimalSegments(arc.radius, 'arc');
                                 const arcSegs = Math.max(2, Math.ceil(fullCircleSegs * Math.abs(sweep) / (2 * Math.PI)));
 
                                 for (let s = 1; s < arcSegs; s++) {

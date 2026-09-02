@@ -248,12 +248,6 @@
                     stockStartRadius: cm.meta.appliedStockStartRadius || 0,
                     refRadius: cm.refRadius,
                     axisKind: cm.axis,               // 'x' | 'y'
-                    // SLICED cross-u, not world. ShapeRotaryHandler's
-                    // onJobPrimitives applies axisBSign after the job returns;
-                    // the generator cannot know the sign because internalOrient
-                    // is a slicer detail.
-                    axisB: cm.axisB,
-                    axisC: cm.axisC,                 // cross-v is +worldZ, no sign
                     role: 'rotary_path',
                     machiningPhase: phase,           // 'roughing' | 'finishing'
                     preserveOrder: true,

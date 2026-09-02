@@ -317,6 +317,8 @@
     // ║  but recoverable results - it never crashes the engine.               ║
     // ╚═══════════════════════════════════════════════════════════════════════╝
     defaults: {
+        // REVIEW - Is this really necessary? Seems like an over complication?
+        pipeline: { machineClass: 'router', classByType: null, laser: null },
 
         // ====================================================================
         // WORKERS
@@ -338,29 +340,19 @@
         // ====================================================================
         machine: {
             pcb: {
-                thickness: 1.6,
+                thickness: 1.8,
                 minFeatureSize: 0.1
             },
             heights: {
                 safeZ: 5.0,
                 travelZ: 2.0,
                 feedHeight: 1.0,    // Clearance above Z0 where G0→G1 handoff occurs.
-                maxSafeDepth: -10.1 // Negative Z limit. Calculated values below this throw an error.
+                maxSafeDepth: -10.1 // Negative Z limit. Calculated values below this throw a warning. These checks get annoying in EasyShape5000 though.
             },
             speeds: {
                 rapidFeed: 1000,
                 maxFeed: 2000
             },
-            // REVIEW - There is currently no workspace validation
-            // workspace: {
-            //     system: 'G54',
-            //     maxX: 200,
-            //     maxY: 200,
-            //     maxZ: 50,
-            //     minX: 0,
-            //     minY: 0,
-            //     minZ: -5
-            // },
             coolant: 'none',
             vacuum: false
         },
@@ -387,7 +379,13 @@
             // controller - one post drives both kinds, so the machine
             // setting has to be able to override the post's guess.
             indexDwell: '',
-
+            // N words. The POST owns the dialect (start/step/max, which
+            // characters must never be numbered); the USER owns whether.
+            // Inert on GRBL and grblHAL (the parser strips them), honoured by
+            // Fanuc, LinuxCNC, Mach3, UCCNC and WinPC-NC, and useful on any
+            // sender that echoes the failing block back.
+            lineNumbers: false,
+            lineNumberStep: 10,
             decimals: {
                 coordinates: 3,
                 feedrate: 0,
@@ -738,11 +736,6 @@
         // ====================================================================
         debug: {
             enabled: false,
-            // Cross-section slicer smoke check: rebuilds each face's top
-            // envelope from SectionSlicer and diffs it against the
-            // heightmap the face actually machined from. Stage 1 of the
-            // section-stack migration - validation only, no output change.
-            sections: false,
             // REVIEW - Many are disconnected? Worth connecting?
             logging: {
                 operations: false,

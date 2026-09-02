@@ -25,6 +25,15 @@
         }
 
         /**
+         * Copper pours clear concentrically like a pocket. A pour that breaks
+         * into islands yields more than one contour in a pass and the translator
+         * stops welding there, so this is safe to declare unconditionally.
+         */
+        allowsInternalStaydown() {
+            return true;
+        }
+
+        /**
          * Clearing intentionally collapses geometry inward until nothing
          * remains - the circle-collapse guard must not fire.
          */

@@ -33,14 +33,13 @@
         'default': 1
     };
 
-    class Toolpath3DTranslator {
+    class Toolpath3DTranslator{
         /** @param {GeometryTranslator} parent - owns applyTransforms */
-        constructor(parent) {
-            this.parent = parent;
+        constructor(parent){this.parent=parent;
             // Reusable read cursor - avoids one allocation per point
-            this._pt = { x: 0, y: 0, z: 0 };
+            this._pt = {x:0,y:0,z:0};
+            this._warnedOpId=null;
         }
-
         /**
          * Translates one is3DContour primitive into one open-path plan
          * per chain. Every point carries its own Z; downstream stages
@@ -48,27 +47,24 @@
          * MachineProcessor Z-stamp, the optimizer's staydown links,
          * entry-point rotation, and the 2D collinear simplifier).
          */
-        translate(primitive, ctx) {
-            const { operationId, tool, cutting } = ctx;
+        translate(primitive, ctx){
+            const{ operationId: operationId, tool: tool, cutting: cutting } = ctx;
             const props = primitive.properties || {};
-
-            const developed = props.developed === true;
+            const developed = !0 === props.developed;
             // [INDEXED] Indexed 3+1 chains are already MACHINE-frame:
             // x = axial along the rotary axis, y = 0 ON the axis line,
             // z = 0 at the blank face top (the handler's offset +
-            // surfaceRefZ contract). Like developed rotary they bypass
-            // the workspace matrix - rotating/mirroring a chucked blank
-            // in software has no physical meaning - and must not be
-            // shifted by surfaceZ (flat-stock zeroReference math): the
-            // Z0-is-face-top contract is stated in the G-code header.
-            const indexed = props.indexed === true;
+            // surfaceRefZ contract).
+            const indexed =! 0 === props.indexed;
             const machineFrame = developed || indexed;
             const transforms = ctx.transforms;
-            if (machineFrame && transforms && !this.parent.isIdentityTransforms(transforms)) {
-                console.warn('[Toolpath3DTranslator] Workspace transforms/origin are ' +
-                    `ignored for ${developed ? 'rotary developed' : 'indexed 3+1'} ` +
-                    'chains (the machine pass owns their frame).');
+            if (machineFrame && transforms && !this.parent.isIdentityTransforms(transforms) && this._warnedOpId !== operationId){
+                this._warnedOpId = operationId;
+                console.warn(`[Toolpath3DTranslator] Workspace transforms/origin are `+ 
+                    `ignored for ${developed?"rotary developed":"indexed 3+1"} ` +
+                    `chains (the machine pass owns their frame).`);
             }
+
             const mapPt = machineFrame
                 ? (p) => ({ x: p.x, y: p.y })
                 : (p) => this.parent.applyTransforms(p, transforms);
@@ -112,13 +108,6 @@
                 plan.metadata.developedSpace = developed;
                 plan.metadata.refRadius = props.refRadius || 0;
                 plan.metadata.stockStartRadius = props.stockStartRadius || 0;
-                // Rotation-axis line in WORLD cross coordinates. The offset-
-                // geometry mirror (GeometryLayer3D) reads these off primitive
-                // properties to place the wrapped cylinder; without them on
-                // the plan, walkPlans wraps the toolpath at the origin and an
-                // off-centre axis puts the two previews in different places.
-                plan.metadata.axisB = props.axisB || 0;
-                plan.metadata.axisC = props.axisC || 0;
                 // [INDEXED] Face identity for the machine pass, optimizer,
                 // and 3D preview. indexedA is DEGREES on the A/B word,
                 // verbatim from the handler (the sign-calibration point

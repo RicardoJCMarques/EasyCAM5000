@@ -9,21 +9,64 @@
   },
   "meta": {
     "app": "EasyTrace5000",
-    "version": "1.0"
+    "version": "1.1"
   },
   "clipper2scale": 10000,
-  "defaultTools": {
-    "isolation": "vbit_45deg_0.2mm",
-    "clearing": "em_0.8mm_flat",
-    "drill": "em_1.0mm_flat",
-    "cutout": "em_1.0mm_flat"
+  "chains": {
+    "2d": {
+      "stages":    ["geometry", "output"],
+      "artifacts": ["offsets"]
+    },
+    "2.5d": {
+      "stages":    ["geometry", "strategy", "machine", "output"],
+      "artifacts": ["offsets", "preview", "toolpath"]
+    }
   },
-  "fileTypes": {
-    "isolation": {"extensions": [".gbr",".gbl",".gtl",".gbx",".svg"] },
-    "clearing": {"extensions": [".gbr",".gbl",".gtl",".gbx",".svg"] },
-    "cutout": {"extensions": [".gbr",".gko",".gml",".gm1",".svg"] },
-    "drill": {"extensions": [".drl",".xln",".txt",".tap",".svg"] },
-    "stencil": {"extensions": [".gbr",".gtp",".gbp",".svg"] }
+  "operations": {
+    "isolation": {
+      "handler": "TraceIsolationHandler",
+      "toolSizing": "effective",
+      "optionalHandler": true,
+      "label": "Copper Isolation",
+      "extensions": [".gbr", ".gbl", ".gtl", ".gbx", ".svg"],
+      "defaultTool": "vbit_45deg_0.2mm",
+      "machineClasses": { "router": "2.5d", "laser": "2d" }
+    },
+    "clearing": {
+      "handler": "TraceClearingHandler",
+      "toolSizing": "effective",
+      "optionalHandler": true,
+      "label": "Copper Clearing",
+      "extensions": [".gbr", ".gbl", ".gtl", ".gbx", ".svg"],
+      "defaultTool": "em_0.8mm_flat",
+      "machineClasses": { "router": "2.5d", "laser": "2d" }
+    },
+    "cutout": {
+      "handler": "TraceCutoutHandler",
+      "optionalHandler": true,
+      "label": "Board Cutout",
+      "extensions": [".gbr", ".gko", ".gml", ".gm1", ".svg"],
+      "defaultTool": "em_1.0mm_flat",
+      "machineClasses": { "router": "2.5d", "laser": "2d" },
+      "defaults": { "cutDepth": -1.8, "depthPerPass": 0.3 }
+    },
+    "drill": {
+      "handler": "DrillHandler",
+      "optionalHandler": true,
+      "label": "Drill",
+      "extensions": [".drl", ".xln", ".txt", ".tap", ".svg"],
+      "defaultTool": "em_1.0mm_flat",
+      "machineClasses": { "router": "2.5d", "laser": "2d" },
+      "defaults": { "cutDepth": -1.8, "drillDepthPerPass": 0.5, "drillEntryType": "helix" }
+    },
+    "stencil": {
+      "handler": "TraceStencilHandler",
+      "optionalHandler": true,
+      "label": "Stencil",
+      "extensions": [".gbr", ".gtp", ".gbp", ".svg"],
+      "defaultTool": "em_0.5mm_flat",
+      "machineClasses": { "router": "2.5d", "knife": "2d" }
+    }
   },
   "examples": {
     "exampleSMD1": {
@@ -53,34 +96,35 @@
       "files": { "cutout": "../examples/100mmSquare.svg" }
     }
   },
-  "operationDefaults": {
-    "drill": {
-      "cutDepth": -1.8,
-      "drillDepthPerPass": 0.5,
-      "drillEntryType": "helix"
-    },
-    "cutout": {
-      "cutDepth": -1.8,
-      "depthPerPass": 0.3
-    }
-  },
   "ui": {
     "categories": {
-      "tool": "Tool Selection",
-      "offset": "Offset Generation",
-      "depth": "Depth Settings",
-      "feeds": "Feeds & Speeds",
-      "strategy": "Cutting Strategy",
-      "drill": "Peck Drill Parameters",
-      "cutout": "Cutout Settings",
       "stencil": "Stencil Settings",
-      "machine": "Machine Configuration",
-      "general": "General Settings",
+      "tool": "Tool Selection",
       "laser_tool": "Laser Tool",
+      "offset": "Offset Generation",
       "laser_geometry": "Isolation",
       "laser_strategy": "Clearing Strategy",
       "laser_cutout": "Cut Settings",
-      "laser_export": "Export Settings"
+      "strategy": "Cutting Strategy",
+      "depth": "Depth Settings",
+      "cutout": "Cutout Settings",
+      "drill": "Peck Drill Parameters",
+      "feeds": "Feeds & Speeds",
+      "toolpath": "Toolpath Options",
+      "machine": "Machine Configuration",
+      "laser_export": "Export Settings",
+      "general": "General Settings"
+    },
+    "stages": {
+      "geometry": { "label": "Source Geometry", "icon": "icon-geometry-stage" },
+      "strategy": { "label": "Z Strategy", "icon": "icon-offsets-stage" },
+      "machine": { "label": "Feeds & Toolpaths", "icon": "icon-machine-stage" },
+      "output": { "label": "Output", "icon": "icon-output-stage" }
+    },
+    "artifacts": {
+      "offsets": { "label": "Offsets", "label3d": "3D Paths", "icon": "icon-offsets-stage" },
+      "preview": { "label": "Preview", "icon": "icon-preview-stage" },
+      "toolpath": { "label": "Toolpaths", "icon": "icon-toolpath-stage" }
     },
     "icons": {
       "warning": "icon-warning",
@@ -229,7 +273,7 @@
       "stage": "geometry",
       "category": "tool",
       "conditional": "!drillMultiTool",
-      "operationTypes": ["isolation", "clearing", "cutout", "drill"]
+      "operationTypes": ["isolation", "clearing", "cutout", "drill", "stencil"]
     },
     "toolNumber": {
       "type": "number",
@@ -242,7 +286,7 @@
       "step": 1,
       "invalidates": false,
       "conditional": "!drillMultiTool",
-      "operationTypes": ["isolation", "clearing", "cutout", "drill"]
+      "operationTypes": ["isolation", "clearing", "cutout", "drill", "stencil"]
     },
     "toolDiameter": {
       "type": "number",
@@ -253,7 +297,7 @@
       "step": 0.01,
       "stage": "geometry",
       "category": "tool",
-      "operationTypes": ["isolation", "clearing", "cutout", "drill"]
+      "operationTypes": ["isolation", "clearing", "cutout", "drill", "stencil"]
     },
     "passes": {
       "type": "number",
@@ -309,7 +353,7 @@
       "default": -0.1,
       "stage": "strategy",
       "category": "depth",
-      "operationTypes": ["isolation", "clearing", "cutout", "drill"]
+      "operationTypes": ["isolation", "clearing", "cutout", "drill", "stencil"]
     },
     "multiDepth": {
       "type": "checkbox",
@@ -317,7 +361,7 @@
       "default": true,
       "stage": "strategy",
       "category": "depth",
-      "operationTypes": ["isolation", "clearing", "cutout"]
+      "operationTypes": ["isolation", "clearing", "cutout", "stencil"]
     },
     "depthPerPass": {
       "type": "number",
@@ -329,7 +373,7 @@
       "default": 0.1,
       "stage": "strategy",
       "category": "depth",
-      "operationTypes": ["isolation", "clearing", "cutout"],
+      "operationTypes": ["isolation", "clearing", "cutout", "stencil"],
       "conditional": "multiDepth"
     },
     "entryType": {
@@ -338,7 +382,7 @@
       "stage": "strategy",
       "category": "strategy",
       "default": "plunge",
-      "operationTypes": ["isolation", "clearing", "cutout"],
+      "operationTypes": ["isolation", "clearing", "cutout", "stencil"],
       "options": [
         { "value": "plunge", "label": "Plunge (Vertical)" }
       ]
@@ -540,7 +584,7 @@
       "max": 1.0,
       "stage": "geometry",
       "category": "laser_tool",
-      "pipelineType": "laser",
+      "machineClasses": ["laser"],
       "readOnly": true
     },
     "laserIsolationWidth": {
@@ -553,7 +597,7 @@
       "default": 0.3,
       "stage": "geometry",
       "category": "laser_geometry",
-      "pipelineType": "laser",
+      "machineClasses": ["laser"],
       "operationTypes": "isolation"
     },
     "laserClearingPadding": {
@@ -566,8 +610,8 @@
       "default": 1.0,
       "stage": "geometry",
       "category": "laser_geometry",
-      "pipelineType": "laser",
-      "operationTypes": "_board_fill"
+      "machineClasses": ["laser"],
+      "operationTypes": "clearing"
     },
     "laserClearStrategy": {
       "type": "select",
@@ -575,7 +619,7 @@
       "default": "offset",
       "stage": "geometry",
       "category": "laser_strategy",
-      "pipelineType": "laser",
+      "machineClasses": ["laser"],
       "operationTypes": ["isolation", "clearing"],
       "options": [
         { "value": "offset", "label": "Offset Paths - Concentric, streak-proof" },
@@ -589,7 +633,7 @@
       "default": "stepover",
       "stage": "geometry",
       "category": "laser_strategy",
-      "pipelineType": "laser",
+      "machineClasses": ["laser"],
       "operationTypes": ["isolation", "clearing"],
       "conditional": "laserClearStrategy:offset,hatch",
       "options": [
@@ -608,7 +652,7 @@
       "default": 50,
       "stage": "geometry",
       "category": "laser_strategy",
-      "pipelineType": "laser",
+      "machineClasses": ["laser"],
       "operationTypes": ["isolation", "clearing"],
       "conditional": "laserClearStrategy:offset,hatch&&laserSpacingMode:stepover"
     },
@@ -622,7 +666,7 @@
       "default": 200,
       "stage": "geometry",
       "category": "laser_strategy",
-      "pipelineType": "laser",
+      "machineClasses": ["laser"],
       "operationTypes": ["isolation", "clearing"],
       "conditional": "laserClearStrategy:offset,hatch&&laserSpacingMode:lpcm"
     },
@@ -636,7 +680,7 @@
       "default": 508,
       "stage": "geometry",
       "category": "laser_strategy",
-      "pipelineType": "laser",
+      "machineClasses": ["laser"],
       "operationTypes": ["isolation", "clearing"],
       "conditional": "laserClearStrategy:offset,hatch&&laserSpacingMode:lpi"
     },
@@ -649,7 +693,7 @@
       "default": 2,
       "stage": "geometry",
       "category": "laser_strategy",
-      "pipelineType": "laser",
+      "machineClasses": ["laser"],
       "operationTypes": ["isolation", "clearing"],
       "conditional": "laserClearStrategy:hatch"
     },
@@ -663,7 +707,7 @@
       "default": 45,
       "stage": "geometry",
       "category": "laser_strategy",
-      "pipelineType": "laser",
+      "machineClasses": ["laser"],
       "operationTypes": ["isolation", "clearing"],
       "conditional": "laserClearStrategy:hatch"
     },
@@ -673,12 +717,26 @@
       "default": "outside",
       "stage": "geometry",
       "category": "laser_cutout",
-      "pipelineType": "laser",
+      "machineClasses": ["laser"],
       "operationTypes": ["cutout", "drill"],
       "options": [
         { "value": "outside", "label": "Outside (Kerf outward)" },
         { "value": "inside", "label": "Inside (Kerf inward)" },
         { "value": "on", "label": "On Line (No compensation)" }
+      ]
+    },
+    "stencilMachine": {
+      "label": "Output",
+      "type": "select",
+      "stage": "geometry",
+      "category": "stencil",
+      "operationTypes": ["stencil"],
+      "machineClasses": ["router", "knife"],
+      "bindsMachineClass": true,
+      "default": "router",
+      "options": [
+        { "value": "router", "label": "CNC Milling (G-code)" },
+        { "value": "knife", "label": "Vinyl / CO2 Laser (SVG)" }
       ]
     },
     "stencilOffset": {
@@ -691,7 +749,8 @@
       "default": -0.05,
       "stage": "geometry",
       "category": "stencil",
-      "operationTypes": "stencil"
+      "operationTypes": "stencil",
+      "machineClasses": ["router", "laser", "knife"]
     },
     "stencilIgnoreRegions": {
       "type": "checkbox",
@@ -699,7 +758,8 @@
       "default": true,
       "stage": "geometry",
       "category": "stencil",
-      "operationTypes": "stencil"
+      "operationTypes": "stencil",
+      "machineClasses": ["router", "laser", "knife"]
     },
     "stencilExcludeDrillPads": {
       "type": "checkbox",
@@ -707,7 +767,8 @@
       "default": true,
       "stage": "geometry",
       "category": "stencil",
-      "operationTypes": "stencil"
+      "operationTypes": "stencil",
+      "machineClasses": ["router", "laser", "knife"]
     },
     "stencilAddRegHoles": {
       "type": "checkbox",
@@ -715,7 +776,8 @@
       "default": false,
       "stage": "geometry",
       "category": "stencil",
-      "operationTypes": "stencil"
+      "operationTypes": "stencil",
+      "machineClasses": ["router", "laser", "knife"]
     },
     "stencilRegDiameter": {
       "type": "number",
@@ -728,7 +790,8 @@
       "stage": "geometry",
       "category": "stencil",
       "operationTypes": "stencil",
-      "conditional": "stencilAddRegHoles"
+      "conditional": "stencilAddRegHoles",
+      "machineClasses": ["router", "laser", "knife"]
     },
     "stencilRegMargin": {
       "type": "number",
@@ -741,7 +804,32 @@
       "stage": "geometry",
       "category": "stencil",
       "operationTypes": "stencil",
-      "conditional": "stencilAddRegHoles"
+      "conditional": "stencilAddRegHoles",
+      "machineClasses": ["router", "laser", "knife"]
+    },
+    "stencilCornerRadius": {
+      "type": "number",
+      "label": "Corner Radius",
+      "unit": "mm",
+      "step": 0.01,
+      "min": 0,
+      "max": 2,
+      "default": 0,
+      "stage": "geometry",
+      "category": "stencil",
+      "operationTypes": "stencil",
+      "machineClasses": ["knife"],
+      "help": "Rounds aperture corners. A drag knife cannot pivot in place and a laser dwells at a direction reversal; both cut a rounded corner more predictably than a square one. 0 leaves corners square. Costs one extra boolean pass per aperture."
+    },
+        "optimizeToolpath": {
+      "type": "checkbox",
+      "label": "Optimize Path Order",
+      "default": true,
+      "stage": "machine",
+      "category": "toolpath",
+      "machineClasses": ["router"],
+      "invalidates": false,
+      "help": "Reorders cuts within this operation to cut rapid travel. Off keeps the generation order. The job exporter has its own setting for a combined program."
     }
   }
 }

@@ -38,6 +38,27 @@
         isOnLine(operation, settings) {
             return settings.cutSide === 'on';
         }
+        
+        /**
+         * Signed offset distance for a pass, or null when the run is over.
+         * @param {number} passIndex
+         * @param {{isOnLine:boolean, radius:number, sign:number, step:number, settings:Object}} ctx
+         */
+        // REVIEW - This was regular logic inside a method, why extract it? Does it need propagating through other modules?
+        passDistance(passIndex, { isOnLine, radius, sign, step, settings }) {
+            if (isOnLine) return 0 === passIndex ? 0 : null;
+
+            // Laser: walk outward until targetWidth reached
+            if (null !== settings.targetWidth && settings.targetWidth > 0) {
+                if (passIndex >= maxPasses) return null;
+                const currentOffset = radius + (0 === passIndex ? 0 : passIndex * step);
+                return currentOffset + radius > settings.targetWidth + PRECISION ? null : sign * currentOffset;
+            }
+
+            // CNC: explicit pass count
+            const count = Math.min(settings.passes || 1, maxPasses);
+            return passIndex >= count ? null : sign * (radius + (0 === passIndex ? 0 : passIndex * step));
+        }
 
         /**
          * Whether to skip a primitive during offset generation.
@@ -58,6 +79,18 @@
          */
         shouldGuardCircleCollapse() {
             return true;
+        }
+
+        /**
+         * Whether this operation's internal offsets form one concentric nest
+         * per region, safe to cut as a single continuous chain. True only where
+         * every pass is contained in its predecessor and one step from it:
+         * pocketing and copper clearing. External offsets are excluded - pass
+         * N+1 sits OUTSIDE pass N, so the link between them can cross stock the
+         * previous pass never touched.
+         */
+        allowsInternalStaydown() {
+            return false;
         }
 
         /**
@@ -89,13 +122,14 @@
 
             // Compile parameters
             const opParams = core.compileOperationParams(operation, params);
-
+            // Both branches get the same bag. compileOperationParams only emits
+            // the pipeline-agnostic strategy fields, so a handler reading its own
+            // profile parameters (every stencil* key) sees undefined without this.
+            const settings = { ...params, ...opParams };
             if (opParams.isLaser) {
                 operation.clearancePolygon = null;
-                await this.generateLaserFills(operation, opParams);
-            } else {
-                await this.generateGeometry(operation, { ...params, ...opParams });
-            }
+                await this.generateLaserFills(operation, settings);
+            } else await this.generateGeometry(operation, settings);
 
             if (this.isStale(operation, token)) {
                 return { success: false, message: 'Generation superseded by a newer request', status: 'warning' };
@@ -287,23 +321,10 @@
                     : settings.toolDiameter * (stepOverPct / 100.0);
             }
 
-            // Distance generator: returns null when exhausted.
-            const getOffsetDistance = (passIndex) => {
-                if (isOnLine) return passIndex === 0 ? 0 : null;
-
-                // Laser: walk outward until targetWidth reached
-                if (settings.targetWidth !== null && settings.targetWidth > 0) {
-                    if (passIndex >= maxPasses) return null;
-                    const currentOffset = radius + (passIndex === 0 ? 0 : passIndex * step);
-                    if ((currentOffset + radius) > settings.targetWidth + PRECISION) return null;
-                    return sign * currentOffset;
-                }
-
-                // CNC: explicit pass count
-                const count = Math.min(settings.passes || 1, maxPasses);
-                if (passIndex >= count) return null;
-                return sign * (radius + (passIndex === 0 ? 0 : passIndex * step)); // REVIEW - Double check if these 0 value safeguard are needed to make sure step values aren't NaN
-            };
+            // Distance generator: returns null when exhausted. Subclasses that
+            // do not derive their distance from the tool radius override
+            // passDistance() instead of reimplementing the pipeline.
+            const getOffsetDistance = passIndex => this.passDistance(passIndex, { isOnLine, radius, sign, step, settings });
 
             // Guard: prevent internal offsets from collapsing small circular features
             let forceOnLine = false;
@@ -526,6 +547,8 @@
 
                 const thermalGroup = distance < 0 ? 'internal' : 'external';
 
+                const chainable = isInternal && !isOnLine && !forceOnLine && this.allowsInternalStaydown();
+
                 const reconstructedGeometry = passGeometry.map(p => {
                     if (!p.properties) p.properties = {};
                     p.properties.isOffset = true;
@@ -535,6 +558,16 @@
                     p.properties.thermalGroup = thermalGroup;
                     p.properties.hasAnalyticArcs = (p.type === 'circle') || (p.contours?.some(c => c.arcSegments?.length > 0));
                     p.properties.shapeKey = this.attributeShapeKey(p, srcIndex);   // identity surviving the boolean union
+                    if (chainable) {
+                        // The translator welds a key's rings into one plan so the
+                        // depth ladder runs across the whole nest instead of once
+                        // per ring. Only the offsetter knows the passes are
+                        // concentric and one step apart; nothing downstream can
+                        // re-derive it from the geometry.
+                        p.properties.staydownChain = true;
+                        p.properties.chainKey = p.properties.shapeKey;
+                        p.properties.chainPass = passIndex + 1;
+                    }
                     return p;
                 });
 
