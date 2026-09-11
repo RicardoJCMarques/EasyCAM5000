@@ -118,7 +118,7 @@
             const dpr = window.devicePixelRatio || 1;
             const dx = (data.clientX - this.lastClient.x) * dpr;
             const dy = (data.clientY - this.lastClient.y) * dpr;
-            ctx.renderer.core.pan(dx, dy);
+            ctx.renderer.pan(dx, dy);
             ctx.renderer.render();
             this.lastClient = { x: data.clientX, y: data.clientY };
             return true;
@@ -151,7 +151,7 @@
 
         onWheel(data, ctx) {
             const zoomFactor = Math.exp(-data.deltaY * this.wheelZoomSpeed);
-            ctx.renderer.core.zoomToPoint(data.canvasX, data.canvasY, zoomFactor);
+            ctx.renderer.zoomToPoint(data.canvasX, data.canvasY, zoomFactor);
             ctx.renderer.render();
             return true;
         }
@@ -193,7 +193,7 @@
             const panDx = (midX - this.pinchLastMid.x) * dpr;
             const panDy = (midY - this.pinchLastMid.y) * dpr;
             if (Math.abs(panDx) > 1 || Math.abs(panDy) > 1) {
-                ctx.renderer.core.pan(panDx, panDy);
+                ctx.renderer.pan(panDx, panDy);
             }
 
             // Then zoom about the midpoint.
@@ -203,7 +203,7 @@
                     const rect = ctx.canvas.getBoundingClientRect();
                     const canvasX = (midX - rect.left) * dpr;
                     const canvasY = (midY - rect.top) * dpr;
-                    ctx.renderer.core.zoomToPoint(canvasX, canvasY, ratio);
+                    ctx.renderer.zoomToPoint(canvasX, canvasY, ratio);
                     if (ctx.canvasReadout) ctx.canvasReadout.updateZoom();
                 }
             }

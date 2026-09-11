@@ -11,6 +11,7 @@
 
 (function() {
     'use strict';
+    const ROOT = globalThis;
 
     class TraceCutoutHandler extends OffsetOperationHandler {
         // Base OffsetOperationHandler hooks already handle cutSide-driven offset direction.
@@ -92,5 +93,5 @@
         }
     }
 
-    window.TraceCutoutHandler = TraceCutoutHandler;
+    ROOT.TraceCutoutHandler = TraceCutoutHandler;
 })();

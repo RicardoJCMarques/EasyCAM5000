@@ -136,7 +136,7 @@
                 minSegmentLength: o.minSegmentLength ?? 0.2,
 
                 rough: {
-                    enabled: o.roughing !== false && reliefDepth > FP.VALUE_EPS,
+                    enabled: o.roughing !== false && reliefDepth > FP.scalarField,
                     startVal: -startDepth,
                     stepdown: o.roughStepdown || 1.5,
                     stepover: o.roughStepover || toolDiameter / 2,

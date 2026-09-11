@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 250" role="img" aria-labelledby="title desc" xmlns:c2pa="http://c2pa.org/manifest">
+  <title id="title">Cut side: outside, inside and on the line</title>
+  <desc id="desc">Outside places the tool beyond the boundary so the part keeps its size. Inside places it within, so the opening keeps its size. On the line runs the tool centre along the boundary with no compensation.</desc>
+  <style>
+    /* Inlined by figures.js, so these resolve against the page theme.
+       Fallbacks match the dark theme in css/theme.css. */
+    svg{
+      --bg:var(--color-bg-primary,#0f0f0f);
+      --panel:var(--color-bg-secondary,#1a1a1a);
+      --panel2:var(--color-bg-tertiary,#242424);
+      --line:var(--color-border-secondary,#3a3a3a);
+      --text:var(--color-text-primary,#e5e5e5);
+      --muted:var(--color-text-secondary,#a0a0a0);
+      --accent:var(--color-accent-primary,#2563eb);
+      --ext:var(--color-geometry-offset-external,#a60000);
+      --int:var(--color-geometry-offset-internal,#00a600);
+      --on:var(--color-geometry-offset-on,#bcbc02);
+      --preview:var(--color-geometry-preview,#0060dd);
+      --toolpath:var(--color-geometry-toolpath,#00ffff);
+      --copper:var(--color-geometry-source-isolation,#ff8844);
+      --drillc:var(--color-operation-drill,#4488ff);
+      --clearc:var(--color-operation-clearing,#44ff88);
+      --cutc:var(--color-operation-cutout,#ff00ff);
+      --stenc:var(--color-operation-stencil,#90177d);
+      --ok:var(--color-primitive-peck-mark-good,#16d329);
+      --warn:var(--color-primitive-peck-mark-warn,#d2cb00);
+      --bad:var(--color-primitive-peck-mark-error,#ff0000);
+      --stock:var(--color-render3d-stock,#8a7a5c);
+    }
+    .bg{fill:var(--bg)}
+    .panel{fill:var(--panel)}
+    .panel2{fill:var(--panel2)}
+    .edge{fill:none;stroke:var(--line);stroke-width:1.5}
+    .t{fill:var(--text);font:13px system-ui,sans-serif}
+    .tb{fill:var(--text);font:bold 14px system-ui,sans-serif}
+    .tm{fill:var(--muted);font:12px system-ui,sans-serif}
+  </style>
+  <rect class="bg" width="800" height="250"/>
+  <text class="tm" x="24" y="30">Grey = your geometry &#160;&#160; Coloured = the path the tool centre follows, in the colours the app uses</text>
+  <rect class="panel2" x="70" y="70" width="130" height="100" stroke="var(--muted)" stroke-width="2"/>
+  <rect x="56" y="56" width="158" height="128" fill="none" stroke="var(--ext)" stroke-width="3"/>
+  <text class="t" x="135" y="206" text-anchor="middle">Outside</text>
+  <text class="tm" x="135" y="228" text-anchor="middle">the part keeps its size</text>
+  <rect class="panel2" x="335" y="70" width="130" height="100" stroke="var(--muted)" stroke-width="2"/>
+  <rect x="349" y="84" width="102" height="72" fill="none" stroke="var(--int)" stroke-width="3"/>
+  <text class="t" x="400" y="206" text-anchor="middle">Inside</text>
+  <text class="tm" x="400" y="228" text-anchor="middle">the opening keeps its size</text>
+  <rect class="panel2" x="600" y="70" width="130" height="100" stroke="var(--muted)" stroke-width="2"/>
+  <rect x="600" y="70" width="130" height="100" fill="none" stroke="var(--on)" stroke-width="3"/>
+  <text class="t" x="665" y="206" text-anchor="middle">On the line</text>
+  <text class="tm" x="665" y="228" text-anchor="middle">half a tool each side</text>
+</svg>

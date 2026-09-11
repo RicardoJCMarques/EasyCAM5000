@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 380" role="img" aria-labelledby="title desc" xmlns:c2pa="http://c2pa.org/manifest">
+  <title id="title">The operations tree with an expanded isolation file</title>
+  <desc id="desc">Five operation categories. The isolation category holds a Gerber file, and the offsets, preview and toolpaths it has generated appear underneath it.</desc>
+  <style>
+    /* Inlined by figures.js, so these resolve against the page theme.
+       Fallbacks match the dark theme in css/theme.css. */
+    svg{
+      --bg:var(--color-bg-primary,#0f0f0f);
+      --panel:var(--color-bg-secondary,#1a1a1a);
+      --panel2:var(--color-bg-tertiary,#242424);
+      --line:var(--color-border-secondary,#3a3a3a);
+      --text:var(--color-text-primary,#e5e5e5);
+      --muted:var(--color-text-secondary,#a0a0a0);
+      --accent:var(--color-accent-primary,#2563eb);
+      --ext:var(--color-geometry-offset-external,#a60000);
+      --int:var(--color-geometry-offset-internal,#00a600);
+      --on:var(--color-geometry-offset-on,#bcbc02);
+      --preview:var(--color-geometry-preview,#0060dd);
+      --toolpath:var(--color-geometry-toolpath,#00ffff);
+      --copper:var(--color-geometry-source-isolation,#ff8844);
+      --drillc:var(--color-operation-drill,#4488ff);
+      --clearc:var(--color-operation-clearing,#44ff88);
+      --cutc:var(--color-operation-cutout,#ff00ff);
+      --stenc:var(--color-operation-stencil,#90177d);
+      --ok:var(--color-primitive-peck-mark-good,#16d329);
+      --warn:var(--color-primitive-peck-mark-warn,#d2cb00);
+      --bad:var(--color-primitive-peck-mark-error,#ff0000);
+      --stock:var(--color-render3d-stock,#8a7a5c);
+    }
+    .bg{fill:var(--bg)}
+    .panel{fill:var(--panel)}
+    .panel2{fill:var(--panel2)}
+    .edge{fill:none;stroke:var(--line);stroke-width:1.5}
+    .t{fill:var(--text);font:13px system-ui,sans-serif}
+    .tb{fill:var(--text);font:bold 14px system-ui,sans-serif}
+    .tm{fill:var(--muted);font:12px system-ui,sans-serif}
+  </style>
+  <rect class="bg" width="800" height="380"/>
+  <rect class="panel2" x="24" y="20" width="420" height="32" rx="4" stroke="var(--line)"/>
+  <rect x="24" y="20" width="4" height="32" fill="var(--copper)"/>
+  <text class="t" x="44" y="41">Copper Isolation</text>
+  <rect class="panel" x="52" y="58" width="392" height="30" rx="4" stroke="var(--line)"/>
+  <text class="t" x="72" y="78">top-copper.gbr</text>
+  <rect class="panel" x="80" y="94" width="364" height="28" rx="4" stroke="var(--line)"/>
+  <text class="tm" x="100" y="113">Offsets - 3 passes</text>
+  <rect class="panel" x="80" y="128" width="364" height="28" rx="4" stroke="var(--line)"/>
+  <text class="tm" x="100" y="147">Preview</text>
+  <rect class="panel" x="80" y="162" width="364" height="28" rx="4" stroke="var(--accent)" stroke-width="2"/>
+  <text class="tm" x="100" y="181">Toolpaths</text>
+  <path d="M66 88v88M66 108h14M66 142h14M66 176h14" stroke="var(--line)" stroke-width="1.5" fill="none"/>
+  <rect class="panel2" x="24" y="206" width="420" height="32" rx="4" stroke="var(--line)"/>
+  <rect x="24" y="206" width="4" height="32" fill="var(--drillc)"/>
+  <text class="t" x="44" y="227">Drill</text>
+  <rect class="panel2" x="24" y="246" width="420" height="32" rx="4" stroke="var(--line)"/>
+  <rect x="24" y="246" width="4" height="32" fill="var(--clearc)"/>
+  <text class="t" x="44" y="267">Copper Clearing</text>
+  <rect class="panel2" x="24" y="286" width="420" height="32" rx="4" stroke="var(--line)"/>
+  <rect x="24" y="286" width="4" height="32" fill="var(--cutc)"/>
+  <text class="t" x="44" y="307">Board Cutout</text>
+  <rect class="panel2" x="24" y="326" width="420" height="32" rx="4" stroke="var(--line)"/>
+  <rect x="24" y="326" width="4" height="32" fill="var(--stenc)"/>
+  <text class="t" x="44" y="347">Stencil</text>
+  <text class="tm" x="480" y="41">Each category takes the files that operation accepts.</text>
+  <text class="tm" x="480" y="78">Click a file to select it - its parameters appear</text>
+  <text class="tm" x="480" y="100">on the right.</text>
+  <text class="tm" x="480" y="137">What each stage generates appears underneath</text>
+  <text class="tm" x="480" y="159">the file, with its own eye toggle, and can be</text>
+  <text class="tm" x="480" y="181">deleted on its own.</text>
+</svg>

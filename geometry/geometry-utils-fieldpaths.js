@@ -42,12 +42,11 @@
     const debugState = ROOT.CAMConfig?.defaults?.debug || { enabled: false };
 
     // Value-space "removes material" threshold (mm for both Z and R)
-    const VALUE_EPS = 1e-4;
+    const scalarField = ROOT.CAMConfig.constants.precision.scalarField;
 
+    // REVIEW - Why is this a const and not a class?
     const FieldPaths = {
-
-        // REVIEW - this looks lost and useless?
-        VALUE_EPS,
+        scalarField: scalarField,
 
         // ════════════════════════════════════════════════════════════
         // Level sequence — descending from startVal (exclusive) to
@@ -57,10 +56,10 @@
         // ════════════════════════════════════════════════════════════
         layers(startVal, endVal, step) {
             const s = Math.abs(step) || 1.5;
-            if (!(endVal < startVal - VALUE_EPS)) return [endVal];
+            if (!(endVal < startVal - scalarField)) return [endVal];
             const out = [];
             let v = startVal;
-            while (v - s > endVal + VALUE_EPS) {
+            while (v - s > endVal + scalarField) {
                 v -= s;
                 out.push(v);
             }
@@ -156,10 +155,10 @@
                     // allowance and get cut to the EXACT floor (see the
                     // relief handler's skipFloor rationale).
                     const atFloor = skipFloor && floorVal !== null &&
-                        compVal <= floorVal + VALUE_EPS;
+                        compVal <= floorVal + scalarField;
                     const surface = compVal + (atFloor ? 0 : stock);
 
-                    if (surface < prevVal - VALUE_EPS) {
+                    if (surface < prevVal - scalarField) {
                         const v = Math.max(surface, layerVal);
                         if (!span) span = { start: si, end: si, points: [] };
                         span.end = si;
@@ -319,7 +318,7 @@
                         if (!coveredAt(si, li)) { flushSpan(null); lastFloorPt = null; continue; }
                         const pt = pointAt(si, li);
                         const val = view.get(alongX ? si : li, alongX ? li : si);
-                        if (val <= floorVal + VALUE_EPS) {
+                        if (val <= floorVal + scalarField) {
                             flushSpan(pt);       // trailing edge sample onto the flat
                             lastFloorPt = pt;
                         } else {

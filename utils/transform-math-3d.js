@@ -51,7 +51,6 @@
 
 (function() {
     'use strict';
-
     const ROOT = (typeof self !== 'undefined') ? self : window;
 
     const DEG = Math.PI / 180;
@@ -366,47 +365,93 @@
          * @returns {{minX,maxX,minY,maxY,minZ,maxZ}}
          */
         transformPointsSoA(src, m, offset, vx, vy, vz) {
-            const nVerts = (src.length / 3) | 0;
-            const ox = offset ? (offset[0] || 0) : 0;
-            const oy = offset ? (offset[1] || 0) : 0;
-            const oz = offset ? (offset[2] || 0) : 0;
-
-            let minX = Infinity, maxX = -Infinity;
-            let minY = Infinity, maxY = -Infinity;
-            let minZ = Infinity, maxZ = -Infinity;
-
+            const nVerts = src.length / 3 | 0;
+            const ox = offset && offset[0] || 0;
+            const oy = offset && offset[1] || 0;
+            const oz = offset && offset[2] || 0;
+            let minX = 1 / 0, maxX = -1 / 0;
+            let minY = 1 / 0, maxY = -1 / 0;
+            let minZ = 1 / 0, maxZ = -1 / 0;
             if (m) {
                 const m0 = m[0], m1 = m[1], m2 = m[2];
                 const m3 = m[3], m4 = m[4], m5 = m[5];
                 const m6 = m[6], m7 = m[7], m8 = m[8];
                 for (let v = 0; v < nVerts; v++) {
-                    const b = v * 3;
+                    const b = 3 * v;
                     const sx = src[b], sy = src[b + 1], sz = src[b + 2];
                     const x = m0 * sx + m1 * sy + m2 * sz - ox;
                     const y = m3 * sx + m4 * sy + m5 * sz - oy;
                     const z = m6 * sx + m7 * sy + m8 * sz - oz;
-                    vx[v] = x; vy[v] = y; vz[v] = z;
-                    if (x < minX) minX = x; if (x > maxX) maxX = x;
-                    if (y < minY) minY = y; if (y > maxY) maxY = y;
-                    if (z < minZ) minZ = z; if (z > maxZ) maxZ = z;
+                    vx[v] = x;
+                    vy[v] = y;
+                    vz[v] = z;
+                    x < minX && (minX = x);
+                    x > maxX && (maxX = x);
+                    y < minY && (minY = y);
+                    y > maxY && (maxY = y);
+                    z < minZ && (minZ = z);
+                    z > maxZ && (maxZ = z);
                 }
-            } else {
-                for (let v = 0; v < nVerts; v++) {
-                    const b = v * 3;
-                    const x = src[b] - ox, y = src[b + 1] - oy, z = src[b + 2] - oz;
-                    vx[v] = x; vy[v] = y; vz[v] = z;
-                    if (x < minX) minX = x; if (x > maxX) maxX = x;
-                    if (y < minY) minY = y; if (y > maxY) maxY = y;
-                    if (z < minZ) minZ = z; if (z > maxZ) maxZ = z;
-                }
+            } else for (let v = 0; v < nVerts; v++) {
+                const b = 3 * v;
+                const x = src[b] - ox, y = src[b + 1] - oy, z = src[b + 2] - oz;
+                vx[v] = x;
+                vy[v] = y;
+                vz[v] = z;
+                x < minX && (minX = x);
+                x > maxX && (maxX = x);
+                y < minY && (minY = y);
+                y > maxY && (maxY = y);
+                z < minZ && (minZ = z);
+                z > maxZ && (maxZ = z);
             }
-
-            if (nVerts === 0) {
-                minX = maxX = minY = maxY = minZ = maxZ = 0;
-            }
-            return { minX, maxX, minY, maxY, minZ, maxZ };
+            0 === nVerts && (minX = maxX = minY = maxY = minZ = maxZ = 0);
+            return {
+                minX: minX,
+                maxX: maxX,
+                minY: minY,
+                maxY: maxY,
+                minZ: minZ,
+                maxZ: maxZ
+            };
         },
 
+        /**
+         * Transforms packed 3D triangle coordinates (Float32Array) by a 2D affine similarity matrix m {a,b,c,d,e,f}.
+         * XY are transformed by m; Z is scaled uniformly by scaleZ (or Math.hypot(a,b)).
+         * Returns { triangles: Float32Array, bounds3D: {minX,minY,minZ,maxX,maxY,maxZ} }.
+         */
+        transformTrianglesByAffine2D(src, m, scaleZ = null) {
+            if (!src || 0 === src.length) return { triangles: src, bounds3D: null };
+            const sc = null !== scaleZ ? scaleZ : Math.hypot(m.a, m.b) || 1;
+            const isIdentity = !m || (1 === m.a && 0 === m.b && 0 === m.c && 1 === m.d && 0 === m.e && 0 === m.f && 1 === sc);
+            if (isIdentity) return { triangles: src, bounds3D: null };
+
+            const out = new Float32Array(src.length);
+            let minX = 1 / 0, minY = 1 / 0, minZ = 1 / 0;
+            let maxX = -1 / 0, maxY = -1 / 0, maxZ = -1 / 0;
+
+            for (let i = 0; i < src.length; i += 3) {
+                const x = src[i], y = src[i + 1], z = src[i + 2];
+                const tx = m.a * x + m.c * y + m.e;
+                const ty = m.b * x + m.d * y + m.f;
+                const tz = z * sc;
+                out[i] = tx;
+                out[i + 1] = ty;
+                out[i + 2] = tz;
+                tx < minX && (minX = tx);
+                tx > maxX && (maxX = tx);
+                ty < minY && (minY = ty);
+                ty > maxY && (maxY = ty);
+                tz < minZ && (minZ = tz);
+                tz > maxZ && (maxZ = tz);
+            }
+
+            return {
+                triangles: out,
+                bounds3D: { minX: minX, minY: minY, minZ: minZ, maxX: maxX, maxY: maxY, maxZ: maxZ }
+            };
+        }
     };
 
     ROOT.Transform3D = Transform3D;

@@ -11,23 +11,31 @@
 
 (function() {
     'use strict';
+    const ROOT = globalThis;
 
-    const C = window.CAMConfig.constants;
-    const D = window.CAMConfig.defaults;
+    const C = ROOT.CAMConfig.constants;
+    const D = ROOT.CAMConfig.defaults;
+    const MP = ROOT.CAMConfig.machineParameters;
     const PRECISION = C.precision.coordinate;
     const debugState = D.debug;
 
     class CamCore {
         constructor(options = {}) {
+            this._emit = options.emit || null;
+            // Settings persistence. Injected for the same reason the emitter is:
+            // localStorage is the last browser global in this file, and a
+            // headless caller supplies its own store or none at all.
+            this._storage = options.storage || { getItem: () => null, setItem: () => {} };
             // Operation lifetime and artifact state.
             // Hooks, not a back-reference: the store must not be able to reach
             // parsers, geometry, tools or export through this object.
             this.store = new OperationStore({
                 settingsRevision: () => this.settingsRevision,
-                machineClassOf: (operation) => this.machineClassOf(operation),
+                machineClassOf: operation => this.machineClassOf(operation),
+                machineClassForType: type => this.machineClassForType(type),
             });
 
-            // Operation + ParameterManager values -> frozen pipeline context.
+            // Operation + parameterStore values -> frozen pipeline context.
             // Pipeline stage, so it takes core - same shape as
             // new GeometryTranslator(this) / new MachineProcessor(this).
             this.pipelineContext = new PipelineContextBuilder(this);
@@ -46,6 +54,8 @@
             this.geometryTranslator = null;
             this.toolpathOptimizer = null;
             this.machineProcessor = null;
+            this.gcodeGenerator = null;
+            this.graphicsExporter = null;
 
             // Operation registry - installed by CamController.loadProfile
             this.registry = null;
@@ -57,29 +67,23 @@
             // Scene owns the geometry tree, selection, the global workspace
             // transform (origin/rotation/mirror), spatial queries (pick,
             // marquee, viewport), AND coordinate-space conversions.
-            // sceneInteraction is kept as an alias so existing call sites
-            // (tools, readouts, buildToolContext) work unchanged.
             this.scene = new Scene();
-            this.sceneInteraction = this.scene;
 
             this.machineClass = 'router';
             this.classByType = null;
 
-            /**
-             * Monotonic counter for every GLOBAL input a generated artifact
-             * depends on but no per-operation flag watched: machine heights,
-             * stock thickness and zero reference, the workspace transform,
-             * the post-processor and the tool library. Artifacts stamp it;
-             * isArtifactStale compares. One integer beats six invalidation
-             * call sites, and an unknown state reads as stale, so the
-             * failure mode is a recompute rather than a wrong file.
-             */
+            // Monotonic counter for every GLOBAL input a generated artifact
+            // depends on but no per-operation flag watched: machine heights,
+            // stock thickness and zero reference, the workspace transform,
+            // the post-processor and the tool library. Artifacts stamp it;
+            // isArtifactStale compares.
             this.settingsRevision = 0;
 
             this.scene.addTransformListener((change) => {
+                if (change.action === 'setBoardBounds' || change.action === 'boardBoundsCleared') return;
                 this.bumpSettingsRevision({ source: 'scene', action: change.action });
                 for (const op of this.operations) {
-                    this.refreshStaleFlags(op.id, 'Workspace transform changed - recalculate toolpaths before export.');
+                    this.store.refreshStaleFlags(op.id, 'Workspace transform changed - recalculate toolpaths before export.');
                 }
             });
 
@@ -94,13 +98,17 @@
             this.geometryOffsetter = null;
             this.processorInitialized = false;
             this.initializationPromise = null;
+
+            // Computed export programs, keyed by exportIntentKey. Reuse is a
+            // decision, not a view concern - a headless caller of
+            // computeExportPrograms gets the same reuse the modal does.
+            this.exportPrograms = { key: null, results: null };
         }
 
         // Stock getter/setter - canonical location is settings.machine.stock.
         // Direct property mutations (core.stock.width = 600) work because the
         // getter returns the settings reference. Full replacement (core.stock = {...})
-        // goes through the setter. Either way, call saveSettings() to persist.
-
+        // goes through the setter.
         get stock() {
             return this.settings?.machine?.stock || null;
         }
@@ -113,10 +121,7 @@
         }
 
         /**
-         * Installs the operation registry. Replaces the old setFileTypes(),
-         * which synthesised a per-type `color` from profiles that never
-         * declared one - the renderer resolves colour through
-         * options.resolveLayerColor and has never read layer.color.
+         * Installs the operation registry.
          */
         setRegistry(registry) {
             this.registry = registry;
@@ -207,18 +212,15 @@
             this.debug('G-code generator set');
         }
 
+        setGraphicsExporter(exporter) {
+            this.graphicsExporter=exporter;
+            this.debug("Graphics exporter set")
+        }
+
         setToolLibrary(toolLibrary) {
             this.toolLibrary = toolLibrary;
             this.debug('Tool library set');
         }
-
-        /**
-         * Registers a parser for a file extension.
-         * @param {string} extension - e.g. '.svg', '.drl', '.gbr'
-         * @param {Object} parser - Must have a .parse(content) method
-         */
-        registerParser(extension, parser) { return this.ingest.registerParser(extension, parser); }
-        getParser(fileName) { return this.ingest.getParser(fileName); }
 
         /**
          * Sets the session machine class. `classByType` carries per-type
@@ -231,12 +233,18 @@
             this.debug(`Machine class set: ${this.machineClass}`, classByType);
         }
 
-        /**
-         * Class an operation runs on. Stamp first, then override, then session.
-         */
+        /** Class an operation runs on. */
         machineClassOf(operation) {
             if (operation?.machineClass) return operation.machineClass;
-            const type = operation?.type;
+            return this.machineClassForType(operation?.type);
+        }
+
+        /**
+         * Same rule with no operation to consult. Callers holding only a type are
+         * building a synthetic `{ type }` so the stamp lookup above would miss on
+         * it, which reads as an operation that exists.
+         */
+        machineClassForType(type) {
             const preferred = (type && this.classByType?.[type]) || this.machineClass;
             return this.registry?.resolveMachineClass(type, preferred) || preferred;
         }
@@ -245,65 +253,75 @@
             return this.machineClassOf(operation) === 'laser';
         }
 
+        // Settings
+
         /**
-         * Settings
+         * Base declarations under the app's deltas. `null` removes an entry;
+         * anything else is merged INTO the base entry, so a profile that only
+         * overrides `default` keeps the type, category, unit and bounds.
+         * Both the defaults seed and the settings form read this, so a profile
+         * can never render one shape and seed another.
          */
+        machineSchema(appProfile) {
+            const schema = { ...MP };
+            for (const [path, override] of Object.entries(appProfile?.machineParameters || {})) {
+                if (override === null) delete schema[path];
+                else schema[path] = { ...schema[path], ...override };
+            }
+            return schema;
+        }
+
+        /**
+         * The machine schema is the only declaration of the machine, gcode and
+         * laser settings: this writes each entry's default at its own key path.
+         * An app overrides a default, or drops the setting with null, in its
+         * profile.
+         */
+        buildMachineDefaults(appProfile) {
+            const out = {};
+            for (const [path, def] of Object.entries(this.machineSchema(appProfile))) {
+                const segments = path.split('.');
+                let node = out;
+                for (const key of segments.slice(0, -1)) node = node[key] ||= {};
+                node[segments[segments.length - 1]] = structuredClone(def.default);
+            }
+            return out;
+        }
 
         loadSettings(storageKey, appProfile = null) {
             this.settingsStorageKey = storageKey;
             const defaults = JSON.parse(JSON.stringify(D));
 
-            // Merge app-profile defaults into the factory baseline BEFORE
-            // localStorage is applied on top.  Final precedence:
-            //   factory D  <  profile machineDefaults/laserDefaults  <  saved localStorage
-            if (appProfile?.machineDefaults) {
-                mergeDeep(defaults.machine, appProfile.machineDefaults);
-            }
-            if (appProfile?.laserDefaults) {
-                mergeDeep(defaults.laser, appProfile.laserDefaults);
-            }
+            mergeDeep(defaults, this.buildMachineDefaults(appProfile));
+
+            // Device settings are namespaced by device id and declared by the
+            // device, so nothing here names a post or a laser profile.
+            const seed = (root, descriptors) => {
+                for (const desc of descriptors) {
+                    const branch = root[desc.id] ||= {};
+                    for (const p of desc.parameters || []) {
+                        if (branch[p.name] === undefined) branch[p.name] = structuredClone(p.default);
+                    }
+                }
+            };
+            seed(defaults.processorSettings, this.gcodeGenerator.getAllProcessorDescriptors() || []);
+            seed(defaults.laserSettings, this.graphicsExporter.getAllProfileDescriptors() || []);
+
 
             try {
-                const raw = localStorage.getItem(this.settingsStorageKey);
+                const raw = this._storage.getItem(this.settingsStorageKey);
                 if (!raw) return defaults;
-
                 const saved = JSON.parse(raw);
-
-                // Intercept Laser Profiles to prevent aggressive caching
-                if (saved.laser && saved.laser.profiles) {
-                    for (const [profId, savedProf] of Object.entries(saved.laser.profiles)) {
-                        if (defaults.laser.profiles[profId] && savedProf.layerColors) {
-                            defaults.laser.profiles[profId].layerColors = {
-                                ...defaults.laser.profiles[profId].layerColors,
-                                ...savedProf.layerColors
-                            };
-                        }
-                    }
-                    delete saved.laser.profiles;
-                }
-
-                // Migrate: fold legacy separate pipeline key into the settings blob
-                // REVIEW - Possibly useless by now. Or maybe do something when there's an error?
-                if (!saved.pipeline) {
-                    try {
-                        const legacyPipeline = localStorage.getItem(this.settingsStorageKey.replace('_settings', '_pipeline'));
-                        if (legacyPipeline) {
-                            saved.pipeline = JSON.parse(legacyPipeline);
-                        }
-                    } catch (e) { /* ignore */ }
-                }
-
-                const mergedSettings = mergeDeep({}, defaults, saved);
-                return mergedSettings;
+                return mergeDeep({}, defaults, saved);
             } catch (error) {
-                console.warn('Error loading settings from localStorage:', error);
+                console.warn('Error loading settings:', error);
                 return defaults;
             }
         }
 
         saveSettings() {
             try {
-                localStorage.setItem(this.settingsStorageKey , JSON.stringify(this.settings));
+                this._storage.setItem(this.settingsStorageKey, JSON.stringify(this.settings));
             } catch (error) {
                 console.warn('Error saving settings:', error);
             }
@@ -313,7 +331,7 @@
          * Merges a settings category and persists.
          *
          * Post-processor changes invalidate INDEXED rotary operations only.
-         * Nothing else under machine/gcode feeds EasyShape geometry - surfaceZ,
+         * Nothing else under machine/gcode feeds EasyShape5000 geometry - surfaceZ,
          * depthLevels, feeds and clearances are all re-derived in
          * buildPipelineContext at export - but indexed generation reads the
          * post's rotary capability at GENERATION time (postCapabilityWarning)
@@ -324,19 +342,45 @@
          */
         updateSettings(category, settings) {
             if (!this.settings[category]) return;
-
-            const postChanged = category === 'gcode' &&
-                settings.postProcessor !== undefined &&
-                settings.postProcessor !== this.settings.gcode.postProcessor;
-
+            const postChanged = "gcode" === category && void 0 !== settings.postProcessor && settings.postProcessor !== this.settings.gcode.postProcessor;
             Object.assign(this.settings[category], settings);
             this.saveSettings();
+            this.exportPrograms = { key: null, results: null };
+            "pipeline" !== category && this.bumpSettingsRevision({ category: category });
+            postChanged && this.store.invalidateIndexedOperations(settings.postProcessor);
+        }
 
-            // Heights, stock, post and laser all feed toolpath translation.
-            // 'pipeline' is bookkeeping and cannot move a coordinate.
-            if ('pipeline' !== category) this.bumpSettingsRevision({ category }); // REVIEW - This was previously if (category !== 'pipeline') this.bumpSettingsRevision(); does the current version make more sense?
+        /**
+         * Writes one value at a dot path and runs the same commit tail as
+         * updateSettings. Intermediate objects are created rather than assumed:
+         * a post declaring a new parameter must not need a config edit to be
+         * writable.
+         */
+        setSetting(path, value) {
+            const segments = path.split(".");
+            const category = segments[0];
+            let node = this.settings[category];
+            if (!node) return false;
+            for (let i = 1; i < segments.length - 1; i++) {
+                if (!node[segments[i]] || typeof node[segments[i]] !== "object") node[segments[i]] = {};
+                node = node[segments[i]];
+            }
+            const leaf = segments[segments.length - 1];
+            if (node[leaf] === value) return false;
+            const postChanged = "gcode.postProcessor" === path;
+            node[leaf] = value;
+            this.saveSettings();
 
-            if (postChanged) this.invalidateIndexedOperations(settings.postProcessor);
+            // The renderer still needs the event; only the revision is held
+            // back, so nothing is marked stale by a change nothing reads.
+            if (CamCore.PRESENTATION_SETTINGS.has(path)) {
+                this._emit?.('settingschange', { category, path, presentation: true });
+            } else if (category !== 'pipeline') {
+                this.bumpSettingsRevision({ category });
+            }
+
+            if (postChanged) this.store.invalidateIndexedOperations(value);
+            return true;
         }
 
         // Operation state (delegated to OperationStore)
@@ -345,57 +389,44 @@
         get toolpaths() { return this.store.toolpaths; }
         get stats() { return this.store.stats; }
 
-        createOperation(operationType, source) { return this.store.createOperation(operationType, source); }
-        getOperation(id) { return this.store.getOperation(id); }
-        indexOperation(operation) { return this.store.indexOperation(operation); }
-        unindexOperation(operationId) { return this.store.unindexOperation(operationId); }
-        resetOperationState(operationId) { return this.store.resetOperationState(operationId); }
-        generateCNCPreview(operationId) { return this.store.generateCNCPreview(operationId); }
-
-        removeOperation(operationId) {
-            // updateBoardBounds needs the scene, which the store deliberately
-            // cannot reach.
-            if (!this.store.removeOperation(operationId)) return false;
-            this.updateBoardBounds();
-            return true;
-        }
-
-        clearAll() {
-            this.store.clearAll();
-            this.updateBoardBounds();
-        }
-
-        bumpOperationRevision(operationId, stage) { return this.store.bumpOperationRevision(operationId, stage); }
-        currentStamp(operationId) { return this.store.currentStamp(operationId); }
-        stampArtifact(operationId, name) { return this.store.stampArtifact(operationId, name); }
-        artifactDependencies(operation, name) { return this.store.artifactDependencies(operation, name); }
-        isArtifactStale(operation, name) { return this.store.isArtifactStale(operation, name); }
-        refreshStaleFlags(operationId, reason = null) { return this.store.refreshStaleFlags(operationId, reason); }
-        invalidateOperationState(operationId) { return this.store.invalidateOperationState(operationId); }
-        invalidateIndexedOperations(postProcessor) { return this.store.invalidateIndexedOperations(postProcessor); }
-        deleteOperationGeometry(operationId, geometryType) { return this.store.deleteOperationGeometry(operationId, geometryType); }
-
-        getToolpaths(operationId) { return this.store.getToolpaths(operationId); }
-        clearToolpaths(operationId) { return this.store.clearToolpaths(operationId); }
-
-        updateStatistics() { return this.store.updateStatistics(); }
-        getStats() { return this.store.getStats(); }
-        hasValidOperations() { return this.store.hasValidOperations(); }
-        isExportReady(op) { return this.store.isExportReady(op); }
-
         // Revisions & artifact stamps
 
+        /*Setting paths that no pipeline stage reads.*/
+        static PRESENTATION_SETTINGS = new Set([
+            'machine.stock.width',
+            'machine.stock.length',
+            'machine.stock.margin'
+        ]);
+
         /**
-         * A global input changed: heights, stock, workspace, post, tools.
-         * The event is what lets a view that mirrors settings (the 3D stock box)
-         * rebuild without every settings writer knowing it exists.
+         * Announces that a settings revision moved. The emitter is injected in
+         * CamController.initCore so the engine can run with no window. Absent
+         * one, the event is dropped rather than routed to a global: a caller
+         * that wanted the event and did not supply an emitter has a wiring bug,
+         * and a silent global dispatch hides it.
          */
         bumpSettingsRevision(detail = {}) {
             this.settingsRevision++;
-            window.dispatchEvent(new CustomEvent('settingschange', { detail }));
+            this._emit?.('settingschange', { ...detail, revision: this.settingsRevision });
         }
 
         // Per-operation toolpaths
+
+        /**
+         * Context pairs → plans → metrics.
+         */
+        async computePlans(operationIds, parameterStore, opts = {}) {
+            const pairs = this.buildOperationContextPairs(operationIds, parameterStore, { warnLabel: opts.warnLabel });
+            if (pairs.length === 0) return { pairs: [], plans: [], warnings: [], metrics: null };
+
+            const { plans, warnings } = await this.runStages(pairs, {
+                optimize: opts.optimize !== false,
+                convertRotary: opts.convertRotary !== false,
+                groupByTool: opts.groupByTool === true
+            });
+            const metrics = this.machineProcessor.calculatePathMetrics(plans, pairs[0].context);
+            return { pairs, plans, warnings: warnings || [], metrics };
+        }
 
         /**
          * Machine-ready plans for ONE operation, stopping before G-code.
@@ -407,7 +438,7 @@
          * WITHIN the operation and has no defined relationship to its
          * neighbours:
          *
-         *   - executePipeline threads currentMachinePos across operations;
+         *   - runStages threads currentMachinePos across operations;
          *     here it starts at safeZ over the origin.
          *   - MachineProcessor.processPlans backward-fills metadata.tool
          *     over the list it is given, so this run assumes its own tool
@@ -417,104 +448,23 @@
          * The job export recomputes as a batch rather than concatenating
          * these. Do not "optimise" that away.
          */
-        // TODO(pipeline-entry) - computeToolpaths (plans, one operation),
-        // generateCNCResults (G-code, a batch) and CamController.calculateToolpaths
-        // (a forward to the second) are three names for two artifacts. The
-        // difference is currentMachinePos, backward-filled metadata.tool and one
-        // convertDevelopedToRotary cursor.
-        async computeToolpaths(operationId, parameterManager, options = {}) {
-            const operation = this.getOperation(operationId);
+        async computeToolpaths(operationId, parameterStore, options = {}) {
+            const operation = this.store.getOperation(operationId);
             if (!operation) throw new Error(`Operation ${operationId} not found`);
 
-            const pairs = this.buildOperationContextPairs(
-                [operationId], parameterManager, { warnLabel: 'toolpath' });
-
-            if (pairs.length === 0) {
-                throw new Error('Could not build a toolpath context for this operation');
-            }
-
-            const { plans, warnings } = await this.executePipeline(pairs, {
-                optimize: options.optimize !== false,
-                // Preview frame: rotary stays in developed space and
-                // insertIndexMoves runs in previewMode.
-                convertRotary: false
+            // Preview frame: rotary stays in developed space and insertIndexMoves
+            // runs in previewMode.
+            const { plans, warnings, metrics } = await this.computePlans([operationId], parameterStore, {
+                optimize: options.optimize,
+                convertRotary: false,
+                warnLabel: 'toolpath'
             });
+            if (!plans.length && !metrics) throw new Error('Could not build a toolpath context for this operation');
 
-            const metrics = this.machineProcessor.calculatePathMetrics(plans, pairs[0].context);
-
-            this.store.setToolpaths(operationId, {
-                plans,
-                warnings: warnings || [],
-                metrics,
-                generatedAt: Date.now(),
-            });
-            this.stampArtifact(operationId, 'toolpath');
-            this.updateStatistics();
-
-            return { plans, warnings: warnings || [], metrics };
-        }
-
-        // Ingest (delegated to OperationIngest)
-        // Forwards, so call sites migrate to core.ingest.* gradually rather
-        // than in the commit that moved the code.
-        parseOperation(operation) { return this.ingest.parseOperation(operation); }
-        analyzeGeometricContext(operation, primitives) { return this.ingest.analyzeGeometricContext(operation, primitives); }
-        validateAndOptimizePrimitives(primitives) { return this.ingest.validateAndOptimizePrimitives(primitives); }
-        compositeByPolarity(primitives) { return this.ingest.compositeByPolarity(primitives); }
-        getGeometrySummary(operation) { return this.ingest.getGeometrySummary(operation); }
-        recalculateBounds(primitives) { return this.ingest.recalculateBounds(primitives); }
-
-        // PipelineContextBuilder delegators
-        // Call sites migrate to core.pipelineContext.* opportunistically, the
-        // same way store and ingest did. TODO(context-delegators) - delete
-        // once nothing outside this file calls these on CamCore.
-
-        getTransforms() {
-            return this.pipelineContext.getTransforms();
-        }
-
-        buildPipelineContext(operationId, parameterManager, resolvedTool = null) {
-            return this.pipelineContext.buildPipelineContext(operationId, parameterManager, resolvedTool);
-        }
-
-        compileOperationParams(operation, params) {
-            return this.pipelineContext.compileOperationParams(operation, params);
-        }
-
-        resolveSurfaceZ(operation) {
-            return this.pipelineContext.resolveSurfaceZ(operation);
-        }
-
-        calculateDepthLevels(cutDepth, depthPerPass, multiDepth, surfaceZ = 0) {
-            return this.pipelineContext.calculateDepthLevels(cutDepth, depthPerPass, multiDepth, surfaceZ);
-        }
-
-        buildDrillDepthLevels(operation, params, depthPerPass, multiDepth, surfaceZ) {
-            return this.pipelineContext.buildDrillDepthLevels(operation, params, depthPerPass, multiDepth, surfaceZ);
-        }
-
-        resolveToolDescriptor(operation, params, override = null) {
-            return this.pipelineContext.resolveToolDescriptor(operation, params, override);
-        }
-
-        describeToolSharing(descriptors) {
-            return this.pipelineContext.describeToolSharing(descriptors);
-        }
-
-        stageToolDescriptors(operationIds, parameterManager, toolIndexMap = {}) {
-            return this.pipelineContext.stageToolDescriptors(operationIds, parameterManager, toolIndexMap);
-        }
-
-        checkToolAssignment(operationIds, parameterManager, opts = {}) {
-            return this.pipelineContext.checkToolAssignment(operationIds, parameterManager, opts);
-        }
-
-        flattenDrillMap(descriptor) {
-            return this.pipelineContext.flattenDrillMap(descriptor);
-        }
-
-        resolveDrillAlias(operation, params, plainKey, drillKey) {
-            return this.pipelineContext.resolveDrillAlias(operation, params, plainKey, drillKey);
+            this.store.setToolpaths(operationId, { plans, warnings, metrics, generatedAt: Date.now() });
+            this.store.stampArtifact(operationId, 'toolpath'); 
+            this.store.updateStatistics();
+            return { plans, warnings, metrics };
         }
 
         /*
@@ -533,7 +483,7 @@
          * @param {{x,y,z}} [options.startPos]       Override starting position
          * @returns {{ plans: Array, endPos: {x,y,z} }}
          */
-        async executePipeline(operationContextPairs, options = {}) {
+        async runStages(operationContextPairs, options = {}) {
             if (!this.geometryTranslator || !this.machineProcessor) {
                 throw new Error('Pipeline components not initialized - call initializePipeline() first');
             }
@@ -547,7 +497,7 @@
                 return { plans: allMachineReadyPlans, endPos: { x: 0, y: 0, z: 0 } };
             }
 
-            // Tool batching. The optimizer can never do this - executePipeline
+            // Tool batching. The optimizer can never do this - runStages
             // hands it ONE operation at a time, so cross-operation ordering has
             // to happen here, before the loop. Gated: with tool changes off, the
             // export modal's drag order is the user's explicit instruction and
@@ -626,6 +576,9 @@
                         `axis replacement, which cannot position a rotary axis. ` +
                         `Choose a compatible post and set the route to 'a-word'.`);
                 }
+                for (const w of this.machineProcessor.warnings || []) {
+                    pipelineWarnings.push(`${operation.type} '${operation.id}': ${w}`);
+                }
 
                 allMachineReadyPlans.push(...machineReadyPlans);
                 currentMachinePos = endPos;
@@ -647,11 +600,37 @@
         }
 
         /**
+         * Not delegators: each keeps the aggregate board AABB in step with the
+         * store's operation list. Calling store.removeOperation directly leaves
+         * the workspace rect on the bounds of geometry that is gone, and every
+         * fit-to-content read after it is wrong.
+         */
+        removeOperation(operationId) {
+            if (!this.store.removeOperation(operationId)) return false;
+            this.updateBoardBounds();
+            return true;
+        }
+
+        detachOperation(operationId) {
+            const token = this.store.detachOperation(operationId);
+            if (token) this.updateBoardBounds();
+            return token;
+        }
+
+        attachOperation(token) {
+            if (!this.store.attachOperation(token)) return false;
+            this.updateBoardBounds();
+            return true;
+        }
+
+        clearAll() {
+            this.store.clearAll();
+            this.updateBoardBounds();
+        }
+
+        /**
          * Recomputes scene.boardBounds from the aggregate of all operation
-         * bounds. Called after every operation parse/removal. EasyShape
-         * doesn't populate operations, so it calls
-         * scene.recomputeBoardBoundsFromShapes() instead.
-         * REVIEW - This may need to go into one of the unique modules then?
+         * bounds.
          */
         updateBoardBounds() {
             const merged = GeometryUtils.mergeBounds(this.operations.map(op => op.bounds));
@@ -661,9 +640,6 @@
                 this.scene.initializeEmptyBoardBounds();
             }
         }
-
-        validateFileType(fileName, operationType) { return this.ingest.validateFileType(fileName, operationType); }
-        getFileExtension(fileName) { return this.ingest.getFileExtension(fileName); }
 
         /**
          * Generates CNC toolpath results (G-code strings + metrics) without downloading.
@@ -675,30 +651,19 @@
          * @param {boolean} [intent.optimize]
          * @param {boolean} [intent.includeComments]
          * @param {boolean} [intent.toolChanges]
-         * @param {ParameterManager} parameterManager
+         * @param {parameterStore} parameterStore
          * @returns {Object} keyed results: { [key]: { gcode, lineCount, planCount, estimatedTime, totalDistance, label } }
          */
-        // TODO(pipeline-entry) - computeToolpaths (plans, one operation),
-        // generateCNCResults (G-code, a batch) and CamController.calculateToolpaths
-        // (a forward to the second) are three names for two artifacts. The
-        // difference is currentMachinePos, backward-filled metadata.tool and one
-        // convertDevelopedToRotary cursor.
-        async generateCNCResults(intent, parameterManager) {
+        async generateGCodeResults(intent, parameterStore) {
             if (!this.gcodeGenerator) {
                 throw new Error('G-code generator not set - call setGCodeGenerator() first');
             }
 
             const gcodeConfig = this.settings.gcode;
-            const processorSettings = this.settings.processorSettings || {};
-            const rolandSettings = processorSettings.roland || {};
 
-            // Resolve declared customParameters against the saved settings
-            // first, falling back to each parameter's own default.
-            const customPostParams = {};
-            for (const p of (this.gcodeGenerator
-                    .getProcessorInfo(gcodeConfig.postProcessor)?.customParameters || [])) {
-                customPostParams[p.key] = gcodeConfig[p.key] ?? p.default;
-            }
+            // The post's own settings, already seeded from its declared parameters
+            // and namespaced by post id.
+            const postSettings = this.settings.processorSettings?.[gcodeConfig.postProcessor] || {};
 
             const genOptions = {
                 postProcessor: gcodeConfig.postProcessor,
@@ -708,36 +673,30 @@
                 singleFile: intent.singleFile,
                 toolChanges: intent.toolChanges,
                 groupByTool: intent.groupByTool,
-                toolIndexMap: intent.toolIndexMap,
                 userStartCode: gcodeConfig.userStartCode,
                 userEndCode: gcodeConfig.userEndCode,
                 units: gcodeConfig.units,
                 toolLengthCompMode: gcodeConfig.toolLengthCompMode,
-                ...customPostParams,
+                ...postSettings,
                 safeZ: this.settings.machine.heights.safeZ,
                 travelZ: this.settings.machine.heights.travelZ,
                 maxSafeDepth: this.settings.machine.heights.maxSafeDepth,
                 maxFeed: this.settings.machine.speeds.maxFeed,
                 coolant: this.settings.machine.coolant,
-                vacuum: this.settings.machine.vacuum,
-                rolandModel: rolandSettings.rolandModel,
-                rolandStepsPerMM: rolandSettings.rolandStepsPerMM,
-                rolandMaxFeed: rolandSettings.rolandMaxFeed,
-                rolandZMode: rolandSettings.rolandZMode,
-                rolandSpindleMode: rolandSettings.rolandSpindleMode
+                vacuum: this.settings.machine.vacuum
             };
 
             const results = {};
 
             if (intent.singleFile) {
-                const result = await this.runCNCPipeline(intent.operationIds, intent.optimize !== false, genOptions, parameterManager);
+                const result = await this.generateGCode(intent.operationIds, intent.optimize !== false, genOptions, parameterStore);
                 results['__combined__'] = result;
             } else {
                 for (const opId of intent.operationIds) {
-                    const op = this.getOperation(opId);
+                    const op = this.store.getOperation(opId);
                     if (!op) continue;
 
-                    if (!this.isExportReady(op)) {
+                    if (!this.store.isExportReady(op)) {
                         this.debug(`Skipping ${op.sourceLabel || op.file?.name || op.id}: not export ready`);
                         continue;
                     }
@@ -752,7 +711,7 @@
                             op.preview = { ...savedPreview, primitives, ready: true };
                             op.offsets = [{ ...savedOffsets[0], primitives }];
                             try {
-                                const result = await this.runCNCPipeline([op.id], intent.optimize !== false, genOptions, parameterManager);
+                                const result = await this.generateGCode([op.id], intent.optimize !== false, genOptions, parameterStore);
                                 if (result?.gcode) {
                                     results[resultKey] = { ...result, label };
                                 } else {
@@ -776,7 +735,7 @@
                             );
                         }
                     } else {
-                        const result = await this.runCNCPipeline([op.id], intent.optimize !== false, genOptions, parameterManager);
+                        const result = await this.generateGCode([op.id], intent.optimize !== false, genOptions, parameterStore);
                         if (result?.gcode) {
                             results[opId] = { ...result, label: `${op.type}: ${op.file.name}` };
                         } else {
@@ -790,31 +749,124 @@
         }
 
         /**
+         * Everything that changes the emitted files, in one string. currentStamp
+         * already folds each operation's per-stage revisions and the global
+         * settingsRevision together, so a post-processor change made in machine
+         * settings invalidates this key without the export modal knowing machine
+         * settings exists.
+         */
+        exportIntentKey(intent) {
+            const ids = intent.operationIds || [];
+            return JSON.stringify({
+                // Order is meaningful: the drag order is the cut order.
+                ops: ids.map(id => `${id}:${JSON.stringify(this.store.currentStamp(id))}`),
+                singleFile: !!intent.singleFile,
+                splitDrillOpIds: [...(intent.splitDrillOpIds || [])].sort(),
+                optimize: intent.optimize ?? true,
+                includeComments: !!intent.includeComments,
+                toolChanges: !!intent.toolChanges,
+                groupByTool: !!intent.groupByTool
+            });
+        }
+
+        /**
+         * Turns an export intent into G-code programs. DOM-free, and the entry a
+         * headless caller uses: the modal builds the intent by reading its
+         * controls, a script passes one as a literal.
+         * The router filter, the readiness gate and the split-drill narrowing
+         * live here because they are decisions about the job, not about the panel
+         * showing it. Rendering the result is the caller's problem, and so is
+         * deciding what to say about a refusal - this returns the reason, not a
+         * status string.
+         * @param {Object} intent {operations, operationIds, singleFile,
+         *         splitDrillOpIds, toolChanges, groupByTool, includeComments, ...}
+         * @param {ParameterStore} parameterStore
+         * @returns {Promise<{ok:boolean, reason:?string, notReady:Array,
+         *         intent:?Object, key:?string, results:?Object}>}
+         */
+        // REVIEW - Outdated comment?
+        async computeExportPrograms(intent, parameterStore) {
+            const cncOps = (intent.operations || []).filter(op => "router" === this.machineClassOf(op));
+            if (0 === cncOps.length) return { ok: false, reason: "no-cnc-operations", notReady: [], intent: null, key: null, results: null };
+            const notReady = cncOps.filter(op => !this.store.isExportReady(op));
+            if (notReady.length > 0) return { ok: false, reason: "not-ready", notReady: notReady, intent: null, key: null, results: null };
+
+            const ids = cncOps.map(op => op.id);
+            const cncIntent = {
+                ...intent,
+                operations: cncOps,
+                operationIds: ids,
+                splitDrillOpIds: (intent.splitDrillOpIds || []).filter(id => ids.includes(id))
+            };
+
+            const key = this.exportIntentKey(cncIntent);
+            if (this.exportPrograms.key === key && this.exportPrograms.results) {
+                return { ok: true, reason: null, notReady: [], intent: cncIntent, key: key, results: this.exportPrograms.results };
+            }
+
+            let results = {};
+            // Stencils use separate physical material/setup. In single-file mode,
+            // combine board operations only; stencils are always generated individually.
+            const isStencil = op => "stencil" === op.type;
+            const boardOps = cncOps.filter(op => !isStencil(op));
+            const stencilOps = cncOps.filter(isStencil);
+
+            if (intent.singleFile && boardOps.length > 0) {
+                const boardIntent = {
+                    ...cncIntent,
+                    operations: boardOps,
+                    operationIds: boardOps.map(op => op.id),
+                    singleFile: true
+                };
+                const boardResults = await this.generateGCodeResults(boardIntent, parameterStore);
+                Object.assign(results, boardResults);
+
+                if (stencilOps.length > 0) {
+                    const stencilIntent = {
+                        ...cncIntent,
+                        operations: stencilOps,
+                        operationIds: stencilOps.map(op => op.id),
+                        singleFile: false
+                    };
+                    const stencilResults = await this.generateGCodeResults(stencilIntent, parameterStore);
+                    Object.assign(results, stencilResults);
+                }
+            } else {
+                results = await this.generateGCodeResults(cncIntent, parameterStore);
+            }
+
+            this.exportPrograms = { key: key, results: results };
+            return { ok: true, reason: null, notReady: [], intent: cncIntent, key: key, results: results };
+        }
+
+        /**
          * Assembles { operation, context } pairs for the toolpath pipeline.
-         *
          * Tool numbers are resolved for the WHOLE batch before any context is
          * built: buildPipelineContext ends in Object.freeze, so a descriptor
          * assembled per-operation could not see its siblings' claims, and a
          * post-hoc `context.tool = …` would throw under 'use strict'.
-         *
-         * @param {string[]|null} operationIds  null = every export-ready op
-         * @param {ParameterManager} parameterManager
-         * @param {{warnLabel?:string, toolIndexMap?:Object}} [options]
+         * @param {string[]|null} operationIds null = every export-ready op
+         * @param {parameterStore} parameterStore
+         * @param {{warnLabel?:string}} [options]
          */
-        buildOperationContextPairs(operationIds, parameterManager, options = {}) {
-            const label = options.warnLabel || 'pipeline';
+        buildOperationContextPairs(operationIds, parameterStore, options = {}) {
+            const label = options.warnLabel || "pipeline";
 
-            // Commit params and resolve descriptors
-            const staged = this.stageToolDescriptors(
-                operationIds, parameterManager, options.toolIndexMap);
+            // Commit pending edits before staging.
+            for (const id of operationIds || []) {
+                if (!parameterStore.hasUnsavedChanges(id)) continue;
+                const op = this.store.getOperation(id);
+                if (op) parameterStore.commitToOperation(op);
+            }
+
+            const staged = this.pipelineContext.stageToolDescriptors(operationIds, parameterStore);
 
             // Build contexts against the resolved descriptors
             const pairs = [];
             for (const entry of staged) {
                 try {
-                    const context = this.buildPipelineContext(
-                        entry.opId, parameterManager, entry.tool);
-                    pairs.push({ operation: entry.operation, context });
+                    const context = this.pipelineContext.buildPipelineContext(entry.opId, parameterStore, entry.tool);
+                    pairs.push({ operation: entry.operation, context: context });
                 } catch (err) {
                     console.warn(`[${label}] skipping operation ${entry.opId}: ${err.message}`);
                 }
@@ -823,44 +875,35 @@
         }
 
         /**
-         * Internal: buildContext → executePipeline → generate G-code → metrics.
+         * Internal: buildContext → computePlans → generate G-code.
          */
-        async runCNCPipeline(operationIds, optimize, genOptions, parameterManager) {
-            const operationContextPairs = this.buildOperationContextPairs(
-                operationIds, parameterManager, {
-                    warnLabel: 'CNC',
-                    toolIndexMap: genOptions?.toolIndexMap
-                });
-
-            if (operationContextPairs.length === 0) {
+        async generateGCode(operationIds, optimize, genOptions, parameterStore) {
+            // Reordering is the user's call, not a side effect of asking for
+            // tool-change commands: it overrides the drag order they set in the
+            // export list.
+            const { pairs, plans, warnings, metrics } = await this.computePlans(operationIds, parameterStore, {
+                optimize,
+                groupByTool: genOptions?.groupByTool === true && genOptions?.singleFile === true,
+                warnLabel: 'CNC'
+            });
+            if (pairs.length === 0) {
                 return { gcode: '; No valid operations to process', lineCount: 1, planCount: 0, estimatedTime: 0, totalDistance: 0 };
             }
-
-            const { plans, warnings } = await this.executePipeline(operationContextPairs, {
-                optimize,
-                // Reordering is the user's call, not a side effect of asking
-                // for tool-change commands: it overrides the drag order they
-                // set in the export list.
-                groupByTool: genOptions?.groupByTool === true
-                    && genOptions?.singleFile === true
-            });
-            if (warnings?.length) {
-                // executePipeline collects these (dropped rotary plans, etc.)
+            if (warnings.length) {
+                // runStages collects these (dropped rotary plans, etc.)
                 console.warn(`[Core] Pipeline warnings:\n  ${warnings.join('\n  ')}`);
             }
+
             const gcode = this.gcodeGenerator.generate(plans, genOptions);
-            const firstContext = operationContextPairs[0].context;
-            const lineCount = (typeof gcode === 'string' && gcode.length > 0)
-                ? gcode.trim().split('\n').length
-                : 0;
-
-            const { estimatedTime, totalDistance } = this.machineProcessor.calculatePathMetrics(plans, firstContext);
-
+            const lineCount = typeof gcode === 'string' && gcode.length > 0 ? gcode.trim().split('\n').length : 0;
             return {
-                gcode, lineCount, planCount: plans.length,
-                estimatedTime, totalDistance,
+                gcode,
+                lineCount,
+                planCount: plans.length,
+                estimatedTime: metrics.estimatedTime,
+                totalDistance: metrics.totalDistance,
                 toolChanges: this.gcodeGenerator.lastToolChangeCount || 0,
-                warnings: [...(warnings || []), ...(this.gcodeGenerator.lastWarnings || [])]
+                warnings: [...warnings, ...this.gcodeGenerator.lastWarnings || []]
             };
         }
 
@@ -868,16 +911,16 @@
          * Vector/raster export. The engine supplies the session facts; the
          * exporter owns the mapping and the rendering.
          */
-        // REVIEW - what ever calls this can call the graphics-exporter directly no?
-        generateLaserExportFiles(operations, parameterManager, exportOverrides = {}) {
-            return new GraphicsExporter().exportOperations(operations, {
+        generateLaserExportFiles(operations, parameterStore, exportOverrides = {}) {
+            return this.graphicsExporter.exportOperations(operations, {
                 laser: this.settings.laser,
-                transforms: this.getTransforms(),
+                profile: this.graphicsExporter.resolveOptions(this.settings),
+                transforms: this.pipelineContext.getTransforms(),
                 bounds: this.scene.boardBounds,
                 appName: this.appProfile.meta.app,
-                spotSizeFor: (op) => {
+                spotSizeFor: op => {
                     try {
-                        return this.buildPipelineContext(op.id, parameterManager).laser?.spotSize ?? null;
+                        return this.pipelineContext.buildPipelineContext(op.id, parameterStore).laser?.spotSize ?? null;
                     } catch (e) {
                         this.debug(`buildPipelineContext failed for ${op.id}, using global spotSize: ${e.message}`);
                         return null;
@@ -923,5 +966,5 @@
         return target;
     }
 
-    window.CamCore = CamCore;
+    ROOT.CamCore = CamCore;
 })();

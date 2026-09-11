@@ -92,8 +92,9 @@
 
 (function() {
     'use strict';
+    const ROOT = globalThis;
 
-    const T3D = () => window.Transform3D;
+    const T3D = ROOT.Transform3D;
 
     class ShapeIndexedHandler extends FieldOperationHandler {
 
@@ -134,6 +135,7 @@
          * direction - resolves through this. A literal 'x' here is always a
          * bug that only shows on B-axis jobs.
          */
+        // Direction keys are semantic ('axial' / 'cross'); the machine axis they land on is resolved here.
         static axialGridAxis(machineAxis) {
             return (machineAxis === 'y') ? 'y' : 'x';
         }
@@ -187,11 +189,13 @@
             return out;
         }
 
-        /** Plain-data holder descriptor (postMessage-safe) or null.
-         *  cuttingLength doubles as fluteLength until the library grows an
-         *  explicit override. */
+        /**
+         * Plain-data holder descriptor (postMessage-safe) or null.
+         * cuttingLength doubles as fluteLength until the library grows an
+         * explicit override.
+         */
         buildHolder(settings) {
-            if (settings.indexedCollisionGuard !== true) return null;
+            if (settings.indexedCollisionGuard !== true) return null; // Inert until a rotary tool select exists: the guard needs settings.tool.
             const tool = this.core?.toolLibrary?.getTool?.(settings.tool);
             const g = tool?.geometry;
             if (!g) {
@@ -317,7 +321,7 @@
                 : Math.max(0.005, Math.max(
                     survey.axialExt, 2 * prism.stockHalfSpan) / gridMaxDim);
 
-            const C = window.CAMConfig.constants.rotary;
+            const C = ROOT.CAMConfig.constants.rotary;
 
             // Axial datum. Resolved ONCE on the survey, not per face: the axial
             // extent is rotation-invariant so every face would resolve the same
@@ -408,7 +412,7 @@
             // R_axis(-A)·(X,Y,Z) and the A word is emitted verbatim as θk.
             // The preview's walkPlans wrap uses the SAME R_axis(-A) sense so
             // screen == G-code; flip together or not at all.
-            const R = T3D().rotAboutAxis(ix.machineAxis, ix.angles[k]);
+            const R = T3D.rotAboutAxis(ix.machineAxis, ix.angles[k]);
 
             // Grid reserved PER END from that end's own reach - the same
             // numbers the generator's axial window consumes, so the window
@@ -416,16 +420,10 @@
             // Cross gets one cutting radius + slack for the dilated
             // silhouette collar; the outermost collar cell may clip at the
             // grid edge by ≤ 1 cell - bounded.
-            const alongLow  = Math.max(0, ix.ends.chuck.reach) + window.CAMConfig.constants.rotary.padSlackMm;
-            const alongHigh = Math.max(0, ix.ends.tail.reach)  + window.CAMConfig.constants.rotary.padSlackMm;
-            // Grid must span the BLANK across the face, not just the model:
-            // stock outside the silhouette is what the next face collides
-            // with. The axis is at 0 in the cross direction by the offset
-            // contract, so the band is symmetric. crossGridHalf is resolved
-            // on the prism and is ALWAYS finite - the three-way facet width
-            // used to arrive as null here and `> 0` read it as zero, leaving
-            // every 2-face job with a model-width grid and no severance band.
-            const across = ix.toolDiameter / 2 + window.CAMConfig.constants.rotary.padSlackMm;
+            const alongLow  = Math.max(0, ix.ends.chuck.reach) + ROOT.CAMConfig.constants.rotary.padSlackMm;
+            const alongHigh = Math.max(0, ix.ends.tail.reach)  + ROOT.CAMConfig.constants.rotary.padSlackMm;
+            // crossGridHalf is ALWAYS finite here - null would read as zero through > 0.
+            const across = ix.toolDiameter / 2 + ROOT.CAMConfig.constants.rotary.padSlackMm;
             const expandTo = (ix.axialAxis === 'y')
                 ? { minX: -ix.crossGridHalf, maxX: ix.crossGridHalf }
                 : { minY: -ix.crossGridHalf, maxY: ix.crossGridHalf };
@@ -440,7 +438,7 @@
                 // Rotates WITH the frame: the axis lands at (y=0, z=0) in
                 // every face's sliced coordinates → shared XY frame, face
                 // plane at exactly z = +apothem (the surfaceRefZ contract).
-                offset: T3D().applyVec(R, ix.Cvis),
+                offset: T3D.applyVec(R, ix.Cvis),
                 cellSize: ix.cellSize > 0 ? ix.cellSize : null,
                 gridMaxDim: ix.gridMaxDim,
                 padding: axialPad,
@@ -632,5 +630,5 @@
         }
     }
 
-    window.ShapeIndexedHandler = ShapeIndexedHandler;
+    ROOT.ShapeIndexedHandler = ShapeIndexedHandler;
 })();

@@ -22,8 +22,28 @@
             this.hideTimeout = null;
             this.delayShow = D.ui.tooltips.delayShow;
             this.delayHide = D.ui.tooltips.delayHide;
-
+            this._seq = 0;
+            this._suppressUntilMove = false;
             this.createTooltip();
+
+            // Content shown on hover must be dismissible without moving the
+            // pointer or focus (WCAG 1.4.13). currentTarget is what tracks the
+            // visible tooltip - there is no activeElement on this class.
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && this.currentTarget) {
+                    clearTimeout(this.showTimeout);
+                    clearTimeout(this.hideTimeout);
+                    this.tooltip.classList.remove('visible');
+                    this.currentTarget = null;
+                    this._suppressUntilMove = true;
+                }
+            }, true);
+            document.addEventListener('mousemove', () => { this._suppressUntilMove = false; }, { passive: true });
+
+            // Hoverable: moving onto the tooltip keeps it open long enough to
+            // read one that overflows its trigger.
+            this.tooltip.addEventListener('mouseenter', () => clearTimeout(this.hideTimeout));
+            this.tooltip.addEventListener('mouseleave', () => this.hide());
         }
 
         createTooltip() {
@@ -34,6 +54,7 @@
         }
 
         show(target, content, options = {}) {
+            if (this._suppressUntilMove) return;
             clearTimeout(this.hideTimeout);
 
             if (this.showTimeout) {
@@ -166,18 +187,55 @@
             }
         }
 
-        // Helper to attach tooltip with icon
+        /**
+         * The trigger is DECORATIVE. Making it a role="button" forced it out of
+         * the <label> (an interactive control inside a label forwards its
+         * activation to the field), which broke the layout everywhere the label
+         * is not a lone flex row. A decorative span can live inside the label,
+         * and the help text reaches assistive tech the correct way: as the
+         * field's description, announced on focus, with no extra tab stop.
+         */
         attachWithIcon(element, content, options = {}) {
             const icon = document.createElement('span');
             icon.className = 'tooltip-trigger';
-            icon.innerHTML = `<svg class="cam-icon" width="14" height="14"><use href="#icon-help"></use></svg>`;
-            icon.setAttribute('tabindex', '0');
-            icon.setAttribute('role', 'button');
-            icon.setAttribute('aria-label', 'Show help');
-
+            icon.innerHTML = `<svg class="cam-icon" width="12" height="12" aria-hidden="true"><use href="#icon-help"></use></svg>`;
+            icon.setAttribute('aria-hidden', 'true');
             element.appendChild(icon);
 
-            this.attach(icon, content, { ...options, showOnFocus: true });
+            // Inside a <label> a click anywhere - including on the icon -
+            // activates the control. A help affordance must not toggle it.
+            icon.addEventListener('mousedown', e => e.stopPropagation());
+            icon.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); });
+
+            // BEFORE the description work below, which returns early on any
+            // target that is not a label with a control - a toolbar icon would
+            // otherwise end up with no tooltip at all.
+            this.attach(icon, content, { ...options, showOnFocus: false });
+
+            const control = element.tagName === 'LABEL'
+                ? (element.control || element.querySelector('input, select, textarea'))
+                : null;
+            if (!control || !content?.text) return icon;
+
+            // The help text reaches assistive tech as the field's DESCRIPTION,
+            // announced on focus, rather than as a button to hunt for.
+            if (!control.id) control.id = `ctl-${++this._seq}`;
+            const helpId = `help-${control.id}`;
+            let help = document.getElementById(helpId);
+            if (!help) {
+                help = document.createElement('span');
+                help.id = helpId;
+                help.className = 'visually-hidden';
+                (element.parentNode || element).appendChild(help);
+            }
+            help.textContent = content.text;
+            control.setAttribute('aria-describedby', helpId);
+
+            // Focus lands on the control, not the icon, so the popup binds there.
+            if (options.showOnFocus !== false) {
+                control.addEventListener('focus', () => this.show(icon, content, { immediate: true }));
+                control.addEventListener('blur', () => this.hide());
+            }
 
             return icon;
         }

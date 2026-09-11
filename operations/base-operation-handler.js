@@ -11,8 +11,9 @@
 
 (function() {
     'use strict';
+    const ROOT = globalThis;
 
-    const D = window.CAMConfig.defaults;
+    const D = ROOT.CAMConfig.defaults;
     const debugState = D.debug;
 
     class BaseOperationHandler {
@@ -26,7 +27,7 @@
          * and delegates to generateGeometry(). Subclasses can override for custom pipelines.
          *
          * @param {Object} operation - The operation object
-         * @param {Object} params - Merged parameters from ParameterManager
+         * @param {Object} params - Merged parameters from parameterStore
          * @param {Object} core - App core reference
          * @param {Object} [options={}] - Pipeline options ({ onProgress })
          * @returns {Promise<{success: boolean, message: string, status: string}>}
@@ -287,7 +288,7 @@
 
         /** Closed-region gate shared by V-Carve and the offset handlers. */
         countOpenPaths(operation) {
-            const precision = window.CAMConfig.constants.precision.coordinate;
+            const precision = ROOT.CAMConfig.constants.precision.coordinate;
             return (operation.primitives || []).filter(p => {
                 if (p.type === 'circle' || p.type === 'rectangle' || p.type === 'obround') return false;
                 return !GeometryTopology.isPrimitiveClosed(p, precision);
@@ -319,7 +320,7 @@
         beginRun(operation, options, core) {
             this.resolveProgress(operation, options);
             const token = this.beginGeneration(operation);
-            if (core) core.resetOperationState(operation.id);
+            if (core) core.store.resetOperationState(operation.id);
             return token;
         }
 
@@ -361,5 +362,5 @@
         }
     }
 
-    window.BaseOperationHandler = BaseOperationHandler;
+    ROOT.BaseOperationHandler = BaseOperationHandler;
 })();

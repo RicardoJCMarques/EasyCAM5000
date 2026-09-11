@@ -75,7 +75,6 @@
             return {
                 scene: ctrl.scene,
                 selection: ctrl.selection,
-                sceneInteraction: ctrl.sceneInteraction,
                 renderer: this.renderer,
                 canvas,
                 canvasReadout: this.canvasReadout,
@@ -249,8 +248,8 @@
             this.opsPanel.init('operations-bucket-list');
             this.opsPanel.setSceneResolver(() => this.ctrl.scene);
             this.opsPanel.setArtifactResolver((opType) => {
-                const cls = this.ctrl.resolveMachineClass(opType);
-                return this.ctrl.parameterManager.getArtifacts(opType, cls);
+                const cls = this.core.machineClassForType(opType);
+                return this.ctrl.parameterStore.getArtifacts(opType, cls);
             });
 
             this.opsPanel.on('select', ({ bucketId, stage }) => {
@@ -262,9 +261,8 @@
                 if (panel) panel.dataset.rightPanelState = 'bucket-stage';
 
                 const container = document.getElementById('operation-form-container');
-                const operation = bucket.getOperation(this.ctrl.core);
-                this.ctrl.setViewportForNode?.('geometry' === stage ? null : stage, operation);
-                // REVIEW - Is this if (container && this.shapeOperationPanel) { this.shapeOperationPanel.showBucketStage(container, bucket, stage); } check still needed?
+                const operation = this.ctrl.core.store.getOperation(bucket.id);
+                this.ctrl.setViewportForNode('geometry' === stage ? null : stage, operation);
                 if (container && this.shapeOperationPanel) {
                     this.shapeOperationPanel.showBucketStage(container, bucket, stage);
                 }
@@ -277,7 +275,12 @@
                     return;
                 }
                 if ('delete' === action) {
-                    this.opsPanel.removeBucket(bucketId, this.ctrl.core);
+                    const bucket = this.opsPanel.buckets.get(bucketId);
+                    this.ctrl.confirmDestructive(
+                        'Delete operation',
+                        `Remove ${bucket?.label || 'this operation'} and its generated paths? This can be undone with Ctrl+Z.`,
+                        () => this.ctrl.history.executeAndRecord(new RemoveBucketsCommand([bucketId]))
+                    );
                     this.rebuildLayers();
                 } else if (action === 'delete-stage') {
                     this.opsPanel.clearBucketStage(bucketId, stage, this.ctrl.core);
@@ -286,13 +289,17 @@
                     const bucket = this.opsPanel.getBucket(bucketId);
                     const bucketType = bucket?.type;
                     const artifacts = bucketType
-                        ? this.ctrl.parameterManager.getArtifacts(
-                              bucketType, this.ctrl.resolveMachineClass(bucketType))
+                        ? this.ctrl.parameterStore.getArtifacts(bucketType, this.core.machineClassForType(bucketType))
                         : [];
                     const idx = artifacts.indexOf(stage);
                     const prevStage = idx > 0 ? artifacts[idx - 1] : 'geometry';
                     if (bucket && !bucket.hasOffsets && !bucket.hasPreview) {
-                        this.opsPanel.removeBucket(bucketId, this.ctrl.core);
+                        const bucket = this.opsPanel.buckets.get(bucketId);
+                        this.ctrl.confirmDestructive(
+                            'Delete operation',
+                            `Remove ${bucket?.label || 'this operation'} and its generated paths? This can be undone with Ctrl+Z.`,
+                            () => this.ctrl.history.executeAndRecord(new RemoveBucketsCommand([bucketId]))
+                        );
                     } else {
                         this.opsPanel.selectStage(bucketId, prevStage);
                     }
@@ -302,6 +309,7 @@
 
             this.opsPanel.on('stageCleared', () => this.rebuildLayers());
             this.opsPanel.on('bucketRemoved', () => this.rebuildLayers());
+            this.opsPanel.on('bucketRestored', () => this.rebuildLayers());
         }
 
         /**
@@ -320,26 +328,39 @@
             const types = registry.tabTypes().filter(t => this.ctrl.allowsOperationType(t));
             strip.innerHTML = '';
 
+            strip.setAttribute('role', 'tablist');
+            strip.setAttribute('aria-label', 'Operation type');
+
             types.forEach((opType, i) => {
                 const label = registry.labelFor(opType);
                 const btn = document.createElement('button');
                 btn.className = 'op-type-tab' + (i === 0 ? ' active' : '');
                 btn.dataset.op = opType;
                 btn.title = label;
+                btn.setAttribute('role', 'tab');
                 btn.setAttribute('aria-label', label);
+                // .active is a paint. Without aria-selected the chosen
+                // operation type is invisible to assistive tech.
+                btn.setAttribute('aria-selected', i === 0 ? 'true' : 'false');
+                btn.setAttribute('tabindex', i === 0 ? '0' : '-1');
                 btn.innerHTML =
-                    `<svg class="cam-icon" width="16" height="16"><use href="#${registry.iconFor(opType)}"></use></svg>`;
+                    `<svg class="cam-icon" width="16" height="16" aria-hidden="true"><use href="#${registry.iconFor(opType)}"></use></svg>`;
                 strip.appendChild(btn);
             });
 
             if (this._opTabsBound) return;
             this._opTabsBound = true;
 
-            strip.addEventListener('click', (e) => {
-                const tab = e.target.closest('.op-type-tab');
+            const activate = (tab) => {
                 if (!tab || tab.disabled) return;
-                strip.querySelectorAll('.op-type-tab').forEach(t => t.classList.remove('active'));
+                strip.querySelectorAll('.op-type-tab').forEach(t => {
+                    t.classList.remove('active');
+                    t.setAttribute('aria-selected', 'false');
+                    t.setAttribute('tabindex', '-1');
+                });
                 tab.classList.add('active');
+                tab.setAttribute('aria-selected', 'true');
+                tab.setAttribute('tabindex', '0');
 
                 const anchorId = this.ctrl.selection.anchor();
                 const container = document.getElementById('fresh-params-form');
@@ -349,19 +370,36 @@
                         anchorId, tab.dataset.op
                     );
                 }
+            };
+
+            this.updateOpTypeTabsForSelection();
+            strip.addEventListener("click", e => activate(e.target.closest(".op-type-tab")));
+            strip.addEventListener("keydown", e => {
+                if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) return;
+                const tabs = Array.from(strip.querySelectorAll('.op-type-tab:not([disabled])'));
+                const idx = tabs.indexOf(document.activeElement);
+                if (idx === -1) return;
+                e.preventDefault();
+                const next = e.key === 'ArrowRight' ? tabs[(idx + 1) % tabs.length]
+                           : e.key === 'ArrowLeft' ? tabs[(idx - 1 + tabs.length) % tabs.length]
+                           : e.key === 'Home' ? tabs[0]
+                           : tabs[tabs.length - 1];
+                activate(next);
+                next.focus();
             });
         }
 
         initShapeOperationPanel() {
             this.shapeOperationPanel = new ShapeOperationPanel(this);
-            this.shapeOperationPanel.init(
-                this.ctrl.scene,
-                this.ctrl.selection,
-                this.ctrl.core,
-                this.ctrl.parameterManager,
-                this.ctrl.appProfile,
-                this.lang
-            );
+            this.shapeOperationPanel.init({
+                core: this.core,
+                scene: this.ctrl.scene,
+                selection: this.ctrl.selection,
+                store: this.ctrl.parameterStore,
+                renderer: this.ctrl.inputRenderer,
+                appProfile: this.ctrl.appProfile,
+                lang: this.lang
+            });
 
             // Export manager
             this.shapeOperationPanel.on('openExportManager', () => this.openExportModal());
@@ -381,20 +419,18 @@
                     if (n.kind === 'shape') { if (!refs.includes(id)) refs.push(id); }
                     else { for (const sid of this.ctrl.scene.collectShapeIds(n)) { if (!refs.includes(sid)) refs.push(sid); } }
                 }
-                if (refs.length === 0) { this.setStatus('No shapes in selection', 'warning'); return; }
-
-                await this.runBucketStage('Generation', async () => {
-                    const bucketId = this.opsPanel.createBucket(
-                        this.ctrl.core, this.ctrl.scene, opType, label, refs
-                    );
+                if (refs.length !== 0) await this.runBucketStage("Generation", async () => {
+                    const bucketId = this.opsPanel.createBucket(this.ctrl.core, this.ctrl.scene, opType, label, refs);
                     const bucket = this.opsPanel.getBucket(bucketId);
-                    const captured = this.shapeOperationPanel.captureFormStateForId(bucketId, opType); // REVIEW - This syntax isn't consistent with the next use of this.shapeOperationPanel.captureFormStateForId(?
+                    const captured = this.shapeOperationPanel.captureFormStateForId(bucketId, opType);
                     bucket.settings = { ...bucket.settings, ...captured };
-
                     const result = await this.shapeOperationPanel.runGeneration(bucketId);
                     this.opsPanel.updateBucketAfterGeneration(bucketId, this.ctrl.core);
                     this.setStatus(result.message, result.status);
-                    if (result.success) { this.opsPanel.selectStage(bucketId, 'offsets'); this.rebuildLayers(); }
+                    if (result.success) {
+                        this.opsPanel.selectStage(bucketId, "offsets");
+                        await this.rebuildLayers();
+                    }
                 });
             })
         }
@@ -457,10 +493,7 @@
         // Renderer layer management
         // ═══════════════════════════════════════════════════════════════
 
-        // REVIEW - Any reason this is named differently than in EasyTrace5000?
-        rebuildLayers() {
-            if (!this.renderer) return;
-            this.renderer.clearLayers();
+        async collectLayers() {
             this.addStockLayer();
             const f = this.vizFilters;
 
@@ -524,12 +557,7 @@
 
             // Generated geometry (offsets + previews) from operation buckets
             this.addBucketLayers();
-
-            // Mirror the fresh layer snapshot into the 3D view (no-op in 2D mode)
-            this.ctrl.refresh3D?.();
-
-            this.renderer.render();
-        }
+    }
 
         onThemeChanged() { super.onThemeChanged(); this.rebuildLayers(); }
 
@@ -544,7 +572,7 @@
             const core = this.ctrl.core;
 
             for (const bucket of this.opsPanel.getAllBuckets()) {
-                const op = bucket.getOperation(core);
+                const op = core.store.getOperation(bucket.id);
                 if (!op) continue;
 
                 // Rotary developed strips carry y = θ·refRadius starting at
@@ -681,48 +709,114 @@
         // Selection change handler
         // ═══════════════════════════════════════════════════════════════
 
-        onSelectionChanged() {
-            if (this.ctrl.selection.size() === 0) {
-                const panel = document.getElementById('right-panel');
-                if (panel) panel.dataset.rightPanelState = 'no-selection';
-                this.navScenePanel?.updateSelectionHighlights(new Set());
-                if (this.renderer) this.renderer.render();
-                return;
+        updateOpTypeTabsForSelection() {
+        const strip = document.getElementById("op-type-selector");
+        if (!strip) return;
+        const tabs = strip.querySelectorAll(".op-type-tab");
+        if (0 === tabs.length) return;
+
+        const selection = this.ctrl.selection;
+        let hasMesh = false;
+        let hasVector = false;
+
+        if (selection && selection.size() > 0) {
+            for (const id of selection.toSet()) {
+                const node = this.ctrl.scene.findNode(id);
+                if (!node) continue;
+                const shapeIds = this.ctrl.scene.collectShapeIds(node);
+                for (const sid of shapeIds) {
+                    const s = this.ctrl.scene.findShape(sid);
+                    if (!s) continue;
+                    if (s.reliefMesh?.triangles?.length || "relief_mesh" === s.primitive?.properties?.role || s.sourceFile?.toLowerCase().endsWith(".stl")) {
+                        hasMesh = true;
+                    } else {
+                        hasVector = true;
+                    }
+                }
             }
-
-            const anchorId = this.ctrl.selection.anchor();
-            const panel = document.getElementById('right-panel');
-            const container = document.getElementById('operation-form-container');
-
-            // A shape never carries its own operation - buckets own that
-            // relationship - so a selection always opens the fresh-selection
-            // form with whichever op type the strip has active.
-            if (panel) panel.dataset.rightPanelState = 'source-selected';
-            if (container && this.shapeOperationPanel) {
-                const activeTab = document.querySelector('.op-type-tab.active');
-                this.shapeOperationPanel.showFreshSelection(container, anchorId, activeTab?.dataset.op || 'profile');
-            }
-
-            if (this.controls?.collapseRightSidebar) {
-                this.controls.collapseRightSidebar();
-                // Expand the specific section header for cut settings
-                UIControls.expandSection('#sidebar-right .inspector-section .section-header');
-            }
-
-            this.navScenePanel?.syncTreeToolbar(this.ctrl.selection, this.ctrl.scene);
-            this.navScenePanel?.updateSelectionHighlights(this.ctrl.selection.toSet());
-            this.syncTransformFromSelection();
-            this.renderer.render();
         }
+
+        const registry = this.ctrl.registry;
+        tabs.forEach(tab => {
+            const opType = tab.dataset.op;
+            const exts = registry ? registry.extensionsFor(opType) : [];
+            const originalLabel = registry ? registry.labelFor(opType) : opType;
+            let allowed = this.ctrl.allowsOperationType(opType);
+
+            if (allowed && (hasMesh || hasVector)) {
+                if (hasMesh && hasVector) {
+                    allowed = false;
+                    tab.title = "Cannot combine 2D vector shapes and 3D mesh models";
+                } else if (hasMesh) {
+                    allowed = exts.includes(".stl");
+                    tab.title = allowed ? originalLabel : `${originalLabel} requires 2D vector (SVG) geometry`;
+                } else if (hasVector) {
+                    allowed = exts.includes(".svg");
+                    tab.title = allowed ? originalLabel : `${originalLabel} requires 3D mesh (STL) geometry`;
+                }
+            } else {
+                tab.title = originalLabel;
+            }
+            tab.disabled = !allowed;
+        });
+
+        // If the active tab is disabled, switch to the first enabled tab
+        const activeTab = strip.querySelector(".op-type-tab.active");
+        if (activeTab && activeTab.disabled) {
+            const firstValid = strip.querySelector(".op-type-tab:not(:disabled)");
+            if (firstValid) {
+                tabs.forEach(t => {
+                    t.classList.remove("active");
+                    t.setAttribute("aria-selected", "false");
+                    t.setAttribute("tabindex", "-1");
+                });
+                firstValid.classList.add("active");
+                firstValid.setAttribute("aria-selected", "true");
+                firstValid.setAttribute("tabindex", "0");
+            }
+        }
+    }
+
+    onSelectionChanged() {
+        if (0 === this.ctrl.selection.size()) {
+            const panel = document.getElementById("right-panel");
+            panel && (panel.dataset.rightPanelState = "no-selection");
+            this.navScenePanel?.updateSelectionHighlights(new Set);
+            this.updateOpTypeTabsForSelection();
+            this.renderer && this.renderer.render();
+            return;
+        }
+
+        this.updateOpTypeTabsForSelection();
+        const anchorId = this.ctrl.selection.anchor();
+        const panel = document.getElementById("right-panel");
+        const container = document.getElementById("operation-form-container");
+        panel && (panel.dataset.rightPanelState = "source-selected");
+
+        if (container && this.shapeOperationPanel) {
+            const activeTab = document.querySelector(".op-type-tab.active:not(:disabled)") || document.querySelector(".op-type-tab:not(:disabled)");
+            if (activeTab) {
+                this.shapeOperationPanel.showFreshSelection(container, anchorId, activeTab.dataset.op);
+            } else {
+                container.innerHTML = '<div class="empty-state"><strong>Incompatible Selection</strong><p>Cannot combine 2D vector shapes and 3D mesh models into a single operation.</p></div>';
+            }
+        }
+        UIControls.collapseAllIn("#sidebar-right");
+        // Expand the specific section header for cut settings
+        UIControls.expandSection("#sidebar-right .inspector-section .section-header");
+
+        this.navScenePanel?.syncTreeToolbar(this.ctrl.selection, this.ctrl.scene);
+        this.navScenePanel?.updateSelectionHighlights(this.ctrl.selection.toSet());
+        this.syncTransformFromSelection();
+        this.renderer.render();
+    }
 
         // ═══════════════════════════════════════════════════════════════
         // Right Panel State
         // ═══════════════════════════════════════════════════════════════
 
-        renderStatusBar() {}
-
         openExportModal() {
-            const readyOps = this.ctrl.core.operations.filter(op => this.ctrl.core.isExportReady(op));
+            const readyOps = this.ctrl.core.operations.filter(op => this.ctrl.core.store.isExportReady(op));
             if (readyOps.length === 0) { this.setStatus('No operations ready for export. Finish each operation through its Toolpaths stage first.', 'warning'); return; }
             this.ctrl.ensureBucketParamsLoaded(readyOps);
             this.ctrl.modalManager.showModal('exportManager', { operations: readyOps });
@@ -763,16 +857,16 @@
             }
 
             // Position (X/Y nudge) - Apply adds to committed position; Reset reloads fields to 0.
-            document.getElementById('shape-apply-transform')?.addEventListener('click', () => this.commitPosition());
-            document.getElementById('shape-reset-transform')?.addEventListener('click', () => this.resetPosition());
+            document.getElementById("shape-apply-transform")?.addEventListener("click", () => this.commitPosition());
+            document.getElementById("shape-reset-transform")?.addEventListener("click", () => this.syncTransformFromSelection());
             // Rotation - absolute, independent of scale.
-            document.getElementById('shape-apply-rotation')?.addEventListener('click', () => this.commitRotation());
-            document.getElementById('shape-reset-rotation')?.addEventListener('click', () => this.resetRotation());
+            document.getElementById("shape-apply-rotation")?.addEventListener("click", () => this.commitRotation());
+            document.getElementById("shape-reset-rotation")?.addEventListener("click", () => this.resetRotation());
             // Scale - absolute magnitude, preserves mirror sign and rotation.
-            document.getElementById('shape-apply-scale')?.addEventListener('click', () => this.commitScale());
-            document.getElementById('shape-reset-scale')?.addEventListener('click', () => this.resetScale());
-            document.getElementById('shape-align-center')?.addEventListener('click', () => this.ctrl.alignSelectionTo('center'));
-            document.getElementById('shape-align-bl')?.addEventListener('click', () => this.ctrl.alignSelectionTo('bottom-left'));
+            document.getElementById("shape-apply-scale")?.addEventListener("click", () => this.commitScale());
+            document.getElementById("shape-reset-scale")?.addEventListener("click", () => this.resetScale());
+            document.getElementById("shape-align-center")?.addEventListener("click", () => this.ctrl.alignSelectionTo("center"));
+            document.getElementById("shape-align-bl")?.addEventListener("click", () => this.ctrl.alignSelectionTo("bottom-left"));
         }
 
         syncTransformFromSelection() {
@@ -817,7 +911,7 @@
             ));
         }
 
-        // Shared guard: resolve the anchor node, bail (and resync) if locked/missing.
+        /** Shared guard: resolve the anchor node, bail (and resync) if locked/missing. */
         resolveTransformTarget() {
             const anchorId = this.ctrl.selection.anchor();
             if (!anchorId) return null;
@@ -831,7 +925,7 @@
             return { anchorId, node, t: node.transform };
         }
 
-        // Snapshot of the full committed transform, for SetShapeTransformCommand's `prev`.
+        /** Snapshot of the full committed transform, for SetShapeTransformCommand's `prev`. */
         transformSnapshot(t) {
             return {
                 x: t.x, y: t.y, rotation: t.rotation,
@@ -840,7 +934,7 @@
             };
         }
 
-        // Rotation is absolute. Scale and mirror are untouched.
+        /** Rotation is absolute. Scale and mirror are untouched. */
         commitRotation() {
             const ctx = this.resolveTransformTarget();
             if (!ctx) return;
@@ -862,7 +956,7 @@
             ));
         }
 
-        // Scale is absolute magnitude. Mirror sign and rotation are preserved.
+        /** Scale is absolute magnitude. Mirror sign and rotation are preserved. */
         commitScale() {
             const ctx = this.resolveTransformTarget();
             if (!ctx) return;
@@ -884,7 +978,7 @@
             ));
         }
 
-        // Reset rotation to 0 and release the pinned pivot; scale/mirror untouched.
+        /** Reset rotation to 0 and release the pinned pivot; scale/mirror untouched. */
         resetRotation() {
             const ctx = this.resolveTransformTarget();
             if (!ctx) return;
@@ -896,7 +990,7 @@
             ));
         }
 
-        // Reset scale magnitude to 1, keeping mirror sign; rotation untouched.
+        /** Reset scale magnitude to 1, keeping mirror sign; rotation untouched. */
         resetScale() {
             const ctx = this.resolveTransformTarget();
             if (!ctx) return;
@@ -910,14 +1004,11 @@
             ));
         }
 
-        // Position fields are relative nudges resting at 0 - Reset just reloads them.
-        resetPosition() {
-            this.syncTransformFromSelection();
-        }
-
-        // Mirror toggle is absolute and instant. It commits using the COMMITTED
-        // x/y/rotation/scale (not the staged text inputs), so a toggle never
-        // flushes a half-typed rotation or scale edit.
+        /**
+         * Mirror toggle is absolute and instant. It commits using the COMMITTED
+         * x/y/rotation/scale (not the staged text inputs), so a toggle never
+         * flushes a half-typed rotation or scale edit.
+         */
         commitMirrorToggle() {
             const anchorId = this.ctrl.selection.anchor();
             if (!anchorId) return;
@@ -943,11 +1034,10 @@
         // ═══════════════════════════════════════════════════════════════
 
         renderAll() {
-            this.navScenePanel?.refreshTree();
-            this.navScenePanel?.syncTreeToolbar(this.ctrl.selection, this.ctrl.scene);
+            this.navScenePanel.refreshTree();
+            this.navScenePanel.syncTreeToolbar(this.ctrl.selection, this.ctrl.scene);
             this.syncTransformFromSelection();
             this.rebuildLayers();
-            this.renderStatusBar();
         }
 
         updateHistoryButtons() {

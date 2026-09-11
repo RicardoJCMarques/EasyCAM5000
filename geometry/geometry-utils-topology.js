@@ -13,7 +13,6 @@
  */
 (function () {
     'use strict';
-
     const ROOT = globalThis;
     const C = ROOT.CAMConfig.constants;
     const debugState = ROOT.CAMConfig.defaults.debug;
@@ -300,7 +299,6 @@
                 fill: true,
                 stroke: false,
                 closed: true,
-                mergedFromSegments: segments.length,
                 polarity: 'dark',
             });
 

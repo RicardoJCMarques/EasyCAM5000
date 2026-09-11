@@ -11,10 +11,12 @@
 
 (function() {
     'use strict';
+    const ROOT = globalThis;
 
-    const C = window.CAMConfig.constants;
-    const D = window.CAMConfig.defaults;
+    const C = ROOT.CAMConfig.constants;
+    const D = ROOT.CAMConfig.defaults;
     const PRECISION = C.precision.coordinate;
+    const EPSILON = C.precision.epsilon;
     const debugState = D.debug;
 
     const GeometryUtils = {
@@ -39,7 +41,7 @@
 
             if (!points || points.length < 3) return reject('too-few-points');
 
-            const registry = window.globalCurveRegistry;
+            const registry = ROOT.globalCurveRegistry;
             if (!registry) return reject('no-registry');
 
             let curveId = null;
@@ -98,63 +100,6 @@
         },
 
         /**
-         * AABB of an array of {x,y} points. Returns null for empty input or
-         * if any coordinate is non-finite (callers treat null as "no bounds").
-         * Main-thread only — worker/field primitives can't reach GeometryUtils.
-         */
-        boundsOfPoints(points) {
-            if (!points || points.length === 0) return null;
-            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-            for (const p of points) {
-                if (!p) continue;
-                if (p.x < minX) minX = p.x;
-                if (p.y < minY) minY = p.y;
-                if (p.x > maxX) maxX = p.x;
-                if (p.y > maxY) maxY = p.y;
-            }
-            return Number.isFinite(minX) && Number.isFinite(maxX) ? { minX, minY, maxX, maxY } : null;
-        },
-
-        /**
-         * Merges an array of AABB objects ({minX,minY,maxX,maxY}), skipping
-         * null/undefined entries. Returns null if nothing merged or the
-         * result is non-finite.
-         */
-        mergeBounds(boundsList) {
-            if (!boundsList || boundsList.length === 0) return null;
-            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-            for (const b of boundsList) {
-                if (!b) continue;
-                if (b.minX < minX) minX = b.minX;
-                if (b.minY < minY) minY = b.minY;
-                if (b.maxX > maxX) maxX = b.maxX;
-                if (b.maxY > maxY) maxY = b.maxY;
-            }
-            return Number.isFinite(minX) && Number.isFinite(maxX)
-                ? { minX, minY, maxX, maxY } : null;
-        },
-
-        // Calculate winding (signed area)
-        calculateWinding(points) {
-            if (!points || points.length < 3) return 0;
-
-            let area = 0;
-            const len = points.length;
-            for (let i = 0; i < len; i++) {
-                const j = i === len - 1 ? 0 : i + 1;
-                area += points[i].x * points[j].y;
-                area -= points[j].x * points[i].y;
-            }
-
-            return area / 2;
-        },
-
-        // Check if points are clockwise
-        isClockwise(points) {
-            return this.calculateWinding(points) < 0;
-        },
-
-        /**
          * Converts an open trace (polyline) into overlapping stroke polygons.
          * Places a circle at every vertex (handling end-caps and joints) and 
          * a rectangle along every segment.
@@ -171,7 +116,7 @@
 
             // Strip stroke properties
             const cleanProps = { 
-                ...props, fill: true, closed: true, wasStroke: true, 
+                ...props, fill: true, closed: true,
                 stroke: false, strokeWidth: 0, isTrace: false  
             };
 
@@ -188,8 +133,8 @@
                 const pt = points[i];
 
                 let curveId = null;
-                if (window.globalCurveRegistry) {
-                    curveId = window.globalCurveRegistry.register({
+                if (ROOT.globalCurveRegistry) {
+                    curveId = ROOT.globalCurveRegistry.register({
                         type: 'circle', center: { x: pt.x, y: pt.y },
                         radius: offsetDist, clockwise: cleanProps.polarity === 'clear',
                         source: (i === 0 || i === points.length - 1) ? 'end_cap' : 'trace_joint'
@@ -287,95 +232,6 @@
 
             return boundaryStrokes;
         },
-
-        /**
-        * polylineToPolygon has been deprecated in favor of traceToPolygon that generates joint geometry that is easier to process. They will remain commented out until analytic offset path development is restarted.
-        // Convert polyline to polygon with metadata for end-caps
-        polylineToPolygon(points, width, curveIds = []) {
-            if (!points || points.length < 2) return [];
-
-            const halfWidth = width / 2;
-
-            // Single segment - use specialized function
-            if (points.length === 2) {
-                return this.lineToPolygon(
-                    {x: points[0].x, y: points[0].y},
-                    {x: points[1].x, y: points[1].y},
-                    width,
-                    curveIds
-                );
-            }
-
-            // Multi-segment with proper end-cap metadata
-            const leftSide = [];
-            const rightSide = [];
-
-            // Register end-caps with explicit clockwise=false
-            const startCapId = window.globalCurveRegistry?.register({
-                type: 'arc',
-                center: { x: points[0].x, y: points[0].y },
-                radius: halfWidth,
-                startAngle: 0,
-                endAngle: Math.PI * 2,
-                clockwise: false,  // End-caps always CCW
-                source: 'end_cap'
-            });
-            if (startCapId) curveIds.push(startCapId);
-
-            const endCapId = window.globalCurveRegistry?.register({
-                type: 'arc',
-                center: { x: points[points.length - 1].x, y: points[points.length - 1].y },
-                radius: halfWidth,
-                startAngle: 0,
-                endAngle: Math.PI * 2,
-                clockwise: false,  // End-caps always CCW
-                source: 'end_cap'
-            });
-            if (endCapId) curveIds.push(endCapId);
-
-            for (let i = 0; i < points.length - 1; i++) {
-                const p0 = i > 0 ? points[i - 1] : null;
-                const p1 = points[i];
-                const p2 = points[i + 1];
-
-                const dx = p2.x - p1.x;
-                const dy = p2.y - p1.y;
-                const len = Math.sqrt(dx * dx + dy * dy);
-
-                if (len < PRECISION) continue;
-
-                const ux = dx / len;
-                const uy = dy / len;
-                const nx = -uy * halfWidth;
-                const ny = ux * halfWidth;
-
-                if (i === 0) {
-                    // Start cap with complete metadata
-                    const capPoints = this.generateCompleteRoundedCap(
-                        p1, -ux, -uy, halfWidth, true, startCapId
-                    );
-                    leftSide.push(...capPoints);
-                    rightSide.push({ x: p1.x - nx, y: p1.y - ny });
-                } else {
-                    // Join
-                    const joinPoints = this.generateJoin(p0, p1, p2, halfWidth);
-                    leftSide.push(joinPoints.left);
-                    rightSide.push(joinPoints.right);
-                }
-
-                if (i === points.length - 2) {
-                    // End cap with complete metadata
-                    leftSide.push({ x: p2.x + nx, y: p2.y + ny });
-                    const capPoints = this.generateCompleteRoundedCap(
-                        p2, ux, uy, halfWidth, false, endCapId
-                    );
-                    rightSide.push(...capPoints);
-                }
-            }
-
-            return [...leftSide, ...rightSide.reverse()];
-        },
-         */
 
         /**
          * Converts a closed contour into overlapping stroke polygons.
@@ -536,146 +392,6 @@
         },
 
         /**
-        * polylineToPolygon has been deprecated in favor of traceToPolygon that generates joint geometry that is easier to process. They will remain until commented out until analytic offset path development is restarted.
-        * lineToPolygon is only called by polylineToPolygon.
-         * Converts a line to a polygon, returning a flat point array.
-         * It registers end-caps and tags points with curveId.
-        lineToPolygon(from, to, width, curveIds = []) {
-            const dx = to.x - from.x;
-            const dy = to.y - from.y;
-            const len = Math.sqrt(dx * dx + dy * dy);
-            const halfWidth = width / 2;
-
-            // Zero-length line becomes circle with metadata
-            if (len < PRECISION) {
-                const segments = GeometryTessellation.getOptimalSegments(halfWidth, 'circle');
-                const points = [];
-                // Register circle end-cap with clockwise=false
-                const curveId = window.globalCurveRegistry?.register({
-                    type: 'circle',
-                    center: { x: from.x, y: from.y },
-                    radius: halfWidth,
-                    clockwise: false,  // Always CCW
-                    source: 'end_cap'
-                });
-
-                for (let i = 0; i < segments; i++) {
-                    const angle = (i / segments) * 2 * Math.PI;
-                    const point = {
-                        x: from.x + halfWidth * Math.cos(angle),
-                        y: from.y + halfWidth * Math.sin(angle),
-                        curveId: curveId,
-                        segmentIndex: i,
-                        totalSegments: segments,
-                        t: i / segments
-                    };
-                    points.push(point);
-                }
-                return points;
-            }
-
-            const ux = dx / len;
-            const uy = dy / len;
-            const nx = -uy * halfWidth;
-            const ny = ux * halfWidth;
-
-            const points = [];
-
-            // Register end-caps with explicit clockwise=false
-            const startCapId = window.globalCurveRegistry?.register({
-                type: 'arc',
-                center: { x: from.x, y: from.y },
-                radius: halfWidth,
-                startAngle: 0,
-                endAngle: Math.PI * 2,
-                clockwise: false,  // Always CCW
-                source: 'end_cap'
-            });
-            if (startCapId) curveIds.push(startCapId);
-
-            const endCapId = window.globalCurveRegistry?.register({
-                type: 'arc',
-                center: { x: to.x, y: to.y },
-                radius: halfWidth,
-                startAngle: 0,
-                endAngle: Math.PI * 2,
-                clockwise: false,  // Always CCW
-                source: 'end_cap'
-            });
-            if (endCapId) curveIds.push(endCapId);
-
-            // Left side of start
-            points.push({ x: from.x + nx, y: from.y + ny });
-
-            // Start cap - perpendicular direction is the "radial" for line end caps
-            const perpAngle = Math.atan2(ny, nx);
-            const startCapPoints = this.generateCompleteRoundedCap(
-                from,           // cap center
-                perpAngle,      // "radial" direction (perpendicular to line)
-                halfWidth,      // cap radius
-                false,          // no arc direction for straight lines
-                startCapId
-            );
-
-            // Add cap points, handling duplicates at connection
-            startCapPoints.forEach((point, i) => {
-                if (i === 0 && points.length > 0) {
-                    const lastPoint = points[points.length - 1];
-                    if (Math.abs(point.x - lastPoint.x) < PRECISION &&
-                        Math.abs(point.y - lastPoint.y) < PRECISION) {
-                        Object.assign(lastPoint, {
-                            curveId: point.curveId,
-                            segmentIndex: point.segmentIndex,
-                            totalSegments: point.totalSegments,
-                            t: point.t,
-                            isConnectionPoint: true
-                        });
-                        return;
-                    }
-                }
-                points.push(point);
-            });
-
-            // Right side
-            points.push({ x: from.x - nx, y: from.y - ny });
-            points.push({ x: to.x - nx, y: to.y - ny });
-
-            // End cap with complete metadata - ALL points including first and last
-            const endPerpAngle = Math.atan2(-ny, -nx);
-            const endCapPoints = this.generateCompleteRoundedCap(
-                to,             // cap center
-                endPerpAngle,   // "radial" direction (perpendicular to line)
-                halfWidth,      // cap radius
-                false,          // no arc direction for straight lines
-                endCapId
-            );
-
-            // Add cap points, handling duplicates at connection
-            endCapPoints.forEach((point, i) => {
-                if (i === 0 && points.length > 0) {
-                    const lastPoint = points[points.length - 1];
-                    if (Math.abs(point.x - lastPoint.x) < PRECISION &&
-                        Math.abs(point.y - lastPoint.y) < PRECISION) {
-                        Object.assign(lastPoint, {
-                            curveId: point.curveId,
-                            segmentIndex: point.segmentIndex,
-                            totalSegments: point.totalSegments,
-                            t: point.t,
-                            isConnectionPoint: true
-                        });
-                        return;
-                    }
-                }
-                points.push(point);
-            });
-
-            // Left side of end
-            points.push({ x: to.x + nx, y: to.y + ny });
-            return points;
-        },
-         */
-
-        /**
          * Converts an arc to a polygon, returning a structured object containing points, arcSegments, and curveIds.
          */
         arcToPolygon(arc, width) {
@@ -692,12 +408,12 @@
             const endRad = arc.endAngle;
 
             // Register main curves
-            const outerArcId = window.globalCurveRegistry?.register({
+            const outerArcId = ROOT.globalCurveRegistry?.register({
                 type: 'arc', center: center, radius: outerR, startAngle: startRad, endAngle: endRad,
                 clockwise: clockwise, isOffsetDerived: true, source: 'arc_outer'
             });
 
-            const innerArcId = innerR > C.precision.coordinate ? window.globalCurveRegistry?.register({
+            const innerArcId = innerR > C.precision.coordinate ? ROOT.globalCurveRegistry?.register({
                 type: 'arc', center: center, radius: innerR, startAngle: startRad, endAngle: endRad,
                 clockwise: clockwise, isOffsetDerived: true, source: 'arc_inner'
             }) : null;
@@ -806,7 +522,6 @@
 
             return new PathPrimitive([contour], {
                 ...arc.properties,
-                wasStroke: true,
                 fill: true,
                 stroke: false,
                 closed: true
@@ -828,35 +543,7 @@
                 if (primitive.type === 'arc') {
                     return this.arcToPolygon(primitive, props.strokeWidth);
                 } else if (primitive.type === 'path' && primitive.contours?.[0]) {
-
-                    // --- NEW EXPERIMENTAL TRACE-TO-POLYGON METHOD ---
-                    // Returns an array of overlapping shapes (circles & rectangles)
                     return this.traceToPolygon(primitive.contours[0], props.strokeWidth, props);
-
-                    /* --- OLD ANALYTIC METHOD (Commented out for development tracking) ---
-                    const generatedCurveIds = curveIds.slice();
-                    const points = this.polylineToPolygon(
-                        primitive.contours[0].points,
-                        props.strokeWidth,
-                        generatedCurveIds
-                    );
-                    if (points.length < 3) return null;
-
-                    return new PathPrimitive([{
-                        points: points,
-                        isHole: false,
-                        nestingLevel: 0,
-                        parentId: null,
-                        arcSegments: [],
-                        curveIds: generatedCurveIds
-                    }], {
-                        ...props,
-                        wasStroke: true,
-                        fill: true,
-                        stroke: false,
-                        closed: true
-                    });
-                    ----------------------------------------------------------- */
                 }
             }
 
@@ -886,7 +573,7 @@
                 }
 
                 case 'arc': {
-                    const points = this.arcToPoints(primitive);
+                    const points = GeometryTessellation.arcToPoints(primitive);
                     if (points.length === 0) return null;
                     // Preserve arc segment metadata
                     // TODO [ARC-ENCODING] - SPAN arc over the tessellation.
@@ -995,7 +682,7 @@
                 }
 
                 case 'arc': {
-                    const full = this.isPrimitiveClosed(primitive, PRECISION);
+                    const full = GeometryTopology.isPrimitiveClosed(primitive, PRECISION);
                     let sweep = primitive.endAngle - primitive.startAngle;
                     if (full) {
                         sweep = primitive.clockwise ? -2 * Math.PI : 2 * Math.PI;
@@ -1094,17 +781,16 @@
             const applyPt = (p) => TransformMath.applyToPoint(matrix, p);
 
             // Detect transform class
-            const scaleX = Math.sqrt(matrix.a * matrix.a + matrix.b * matrix.b);
-            const scaleY = Math.sqrt(matrix.c * matrix.c + matrix.d * matrix.d);
+            const scale = Math.sqrt(matrix.a * matrix.a + matrix.b * matrix.b);
 
-            const hasRotation = Math.abs(matrix.b) > 1e-9 || Math.abs(matrix.c) > 1e-9;
-            const isTranslationOnly = !hasRotation && Math.abs(scaleX - 1) < 1e-9;
+            const hasRotation = Math.abs(matrix.b) > EPSILON || Math.abs(matrix.c) > EPSILON;
+            const isTranslationOnly = !hasRotation && Math.abs(scale - 1) < EPSILON;
 
             // Circle: preserve under uniform scale (rotation doesn't matter for circles)
             if (primitive.type === 'circle') {
                 return new CirclePrimitive(
                     applyPt(primitive.center),
-                    primitive.radius * scaleX,
+                    primitive.radius * scale,
                     { ...primitive.properties }
                 );
             }
@@ -1167,7 +853,7 @@
                     const newArc = {
                         ...a,
                         center: applyPt(a.center),
-                        radius: a.radius * scaleX, // exact: UI scale is always uniform (sx===sy); elliptical (non-uniform) arcs are intentionally unsupported — see transformPrimitive header
+                        radius: a.radius * scale, // exact: UI scale is always uniform (sx===sy); elliptical (non-uniform) arcs are intentionally unsupported — see transformPrimitive header
                         startPoint: a.startPoint ? applyPt(a.startPoint) : undefined,
                         endPoint: a.endPoint ? applyPt(a.endPoint) : undefined
                     };
@@ -1201,116 +887,11 @@
             });
 
             const result = new PathPrimitive(newContours, {
-                ...pathPrim.properties,
-                wasTransformed: true
+                ...pathPrim.properties
             });
 
             if (pathPrim.curveIds) result.curveIds = [...pathPrim.curveIds];
             return result;
-        },
-
-        /**
-         * Squared perpendicular distance from point p to line segment p1→p2.
-         * Used by Douglas-Peucker simplification.
-         */
-        getSqDistToSegment(p, p1, p2) {
-            let x = p1.x, y = p1.y;
-            let dx = p2.x - x, dy = p2.y - y;
-
-            if (dx !== 0 || dy !== 0) {
-                const t = ((p.x - x) * dx + (p.y - y) * dy) / (dx * dx + dy * dy);
-                if (t > 1) {
-                    x = p2.x; y = p2.y;
-                } else if (t > 0) {
-                    x += dx * t; y += dy * t;
-                }
-            }
-
-            dx = p.x - x;
-            dy = p.y - y;
-            return dx * dx + dy * dy;
-        },
-
-        /**
-         * Non-recursive Douglas-Peucker simplification.
-         * @param {Array} points - Array of {x,y} points.
-         * @param {number} sqTolerance - Squared distance tolerance.
-         * @param {Set} [protectedIndices] - Indices that must survive (e.g. arc endpoints).
-         * @returns {Object} { points, indexMap } where indexMap[oldIndex] = newIndex or -1.
-         */
-        simplifyPolyline2D(points, sqTolerance, protectedIndices = null) {
-            const len = points.length;
-            if (len < 3) return { points: points.slice(), indexMap: points.map((_, i) => i) };
-
-            const markers = new Uint8Array(len);
-            markers[0] = 1;
-            markers[len - 1] = 1;
-
-            // Mark all protected indices
-            if (protectedIndices) {
-                for (const idx of protectedIndices) {
-                    if (idx >= 0 && idx < len) markers[idx] = 1;
-                }
-            }
-
-            const stack = [[0, len - 1]];
-
-            while (stack.length > 0) {
-                const [first, last] = stack.pop();
-
-                let maxSqDist = 0;
-                let index = first;
-
-                for (let i = first + 1; i < last; i++) {
-                    const sqDist = this.getSqDistToSegment(points[i], points[first], points[last]);
-                    if (sqDist > maxSqDist) {
-                        index = i;
-                        maxSqDist = sqDist;
-                    }
-                }
-
-                if (maxSqDist > sqTolerance) {
-                    markers[index] = 1;
-                    if (index - first > 1) stack.push([first, index]);
-                    if (last - index > 1) stack.push([index, last]);
-                }
-            }
-
-            const newPoints = [];
-            const indexMap = new Array(len).fill(-1);
-
-            for (let i = 0; i < len; i++) {
-                if (markers[i]) {
-                    indexMap[i] = newPoints.length;
-                    newPoints.push(points[i]);
-                }
-            }
-
-            return { points: newPoints, indexMap };
-        },
-        
-        /**
-         * Ray-casting point-in-polygon test.
-         * Uses the Jordan curve theorem: a ray from the point crosses the boundary an odd number of times iff the point is inside.
-         */
-        // REVIEW - this sounds very topological? Shouldn't this be in GeometryTopology?
-        pointInPolygon(point, polygon) {
-            if (!polygon || polygon.length < 3) return false;
-
-            let inside = false;
-            const n = polygon.length;
-
-            for (let i = 0, j = n - 1; i < n; j = i++) {
-                const xi = polygon[i].x, yi = polygon[i].y;
-                const xj = polygon[j].x, yj = polygon[j].y;
-
-                if (((yi > point.y) !== (yj > point.y)) &&
-                    (point.x < (xj - xi) * (point.y - yi) / (yj - yi) + xi)) {
-                    inside = !inside;
-                }
-            }
-
-            return inside;
         },
 
         /**
@@ -1344,5 +925,6 @@
         }
     };
 
-    window.GeometryUtils = GeometryUtils;
+    Object.assign(GeometryUtils, ROOT.GeometryPoints);
+    ROOT.GeometryUtils = GeometryUtils;
 })();

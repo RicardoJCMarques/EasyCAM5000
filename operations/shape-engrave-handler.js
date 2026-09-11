@@ -13,6 +13,7 @@
 
 (function() {
     'use strict';
+    const ROOT = globalThis;
 
     class ShapeEngraveHandler extends BaseOperationHandler {
 
@@ -22,7 +23,7 @@
          */
         async orchestrateGeneration(operation, params, core, options = {}) {
             const token = this.beginRun(operation, options, core);
-            const opParams = core.compileOperationParams(operation, params);
+            const opParams = core.pipelineContext.compileOperationParams(operation, params);
 
             await this.generateGeometry(operation, {
                 ...params,
@@ -83,8 +84,6 @@
                     processedPrim = clone;
                 }
 
-                const hasArcs = !!processedPrim.contours?.some(c => c.arcSegments?.length > 0);
-
                 // Spread the CONVERTER's properties, not the source's - the
                 // converter resolved `closed`, and the source's value describes
                 // the analytic shape it replaced.
@@ -95,7 +94,6 @@
                     isOffset: false,
                     offsetDistance: 0,
                     offsetType: 'on_line',
-                    hasAnalyticArcs: hasArcs,
                     preserveDirection: true
                 };
 
@@ -111,7 +109,6 @@
                     primitives: engravePaths,
                     metadata: {
                         strategy: 'engrave',
-                        finalCount: engravePaths.length,
                         generatedAt: Date.now(),
                         toolDiameter: settings.toolDiameter
                     },
@@ -123,5 +120,5 @@
         }
     }
 
-    window.ShapeEngraveHandler = ShapeEngraveHandler;
+    ROOT.ShapeEngraveHandler = ShapeEngraveHandler;
 })();

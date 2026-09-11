@@ -11,10 +11,10 @@
 
 (function() {
     'use strict';
+    const ROOT = globalThis;
 
-    const C = window.CAMConfig.constants;
-    const D = window.CAMConfig.defaults;
-    const PRECISION = C.precision.coordinate;
+    const C = ROOT.CAMConfig.constants;
+
     const EPSILON = C.precision.epsilon;
 
     class GCodeGenerator {
@@ -54,8 +54,14 @@
             this.processors.set(name.toLowerCase(), processor);
         }
 
+        /**
+         * Lookup by id. An unknown id is already a supported answer - every
+         * caller either guards with `?.` or wants the null from
+         * getProcessorInfo - so a missing name returns undefined rather than
+         * throwing on .toLowerCase() before any of those guards can run.
+         */
         getProcessor(name) {
-            return this.processors.get(name.toLowerCase());
+            return name ? this.processors.get(String(name).toLowerCase()) : undefined;
         }
 
         /**
@@ -71,14 +77,31 @@
          * Returns descriptors for all registered processors.
          */
         getAllProcessorDescriptors() {
-            const result = [];
-            for (const [key, processor] of this.processors) {
-                result.push({
-                    value: key,
-                    ...(processor.descriptor || { label: key })
-                });
-            }
-            return result;
+            return [...this.processors.values()].map(p => p.descriptor);
+        }
+        
+        /**
+         * Capability gates for profile <option>s. Indexed 3+1 needs a real A/B
+         * word; axis replacement repurposes Y as arc length and the two cannot
+         * coexist on one machine. Keyed on the PINNED route, not the resolved one -
+         * buildToolpathContext promotes '' to 'a-word' for an indexed op, and
+         * gating on the resolved route would disable indexed on every post that
+         * lists wrapped-linear first.
+         */
+        getOptionGates(settings) {
+            const post = settings.gcode.postProcessor;
+            const rotary = this.getProcessorInfo(post).capabilities.rotary;
+            const pinned = settings.gcode.rotaryRoute || "";
+            const declaresAWord = rotary.routes.includes("a-word") && rotary.axisWords.length > 0;
+            const pinnedElsewhere = pinned !== "" && pinned !== "a-word";
+            return {
+                "rotary.indexed": {
+                    ok: declaresAWord && !pinnedElsewhere,
+                    reason: declaresAWord
+                        ? "Machine rotary route is set to axis replacement, which carries arc length on the Y word."
+                        : `'${post}' declares no A/B rotary word - it can only drive a 4th axis by axis replacement.`
+                }
+            };
         }
 
         /**
@@ -138,6 +161,7 @@
 
             this.currentProcessor.resetState();
             this.lastWarnings = [];
+            this.limitWarnings = new Map();
             this.untransformedPosition = { x: 0, y: 0, z: 0 };
 
             // Shallow clone
@@ -157,14 +181,10 @@
             }
             options.comments = flat;
 
-            // Resolve start/end codes from processor defaults with user overrides.
-            // Backward-compatible: if caller already set options.startCode (legacy controller path), use it. Once controller is updated to pass userStartCode/userEndCode instead, the resolution kicks in.
-            if (options.startCode === undefined || options.startCode === null) {
-                options.startCode = this.resolveStartCode(processorName, options.userStartCode);
-            }
-            if (options.endCode === undefined || options.endCode === null) {
-                options.endCode = this.resolveEndCode(processorName, options.userEndCode);
-            }
+            // Start/end code: the operator's textarea override, else the post's
+            // factory default.
+            options.startCode = this.resolveStartCode(processorName, options.userStartCode);
+            options.endCode = this.resolveEndCode(processorName, options.userEndCode);
 
             const output = [];
 
@@ -176,7 +196,7 @@
                 // REVIEW - Add a Verbose toggle to export more operational parameter details in each gcode file.
                 const c = options.comments;
                 const opIds = [...new Set(toolpathPlans.map(p => p.operationId))];
-                const operations = opIds.map(id => this.core.getOperation(id)).filter(Boolean);
+                const operations = opIds.map(id => this.core.store.getOperation(id)).filter(Boolean);
 
                 // Build comment block
                 const commentBlock = [];
@@ -274,26 +294,13 @@
             }
             let toolChangeCount = 0;
 
-            // An operation with no number cannot swap, so whatever is already in
-            // the spindle keeps cutting - and that is not arbitrary: the header
-            // loads the first NUMBERED plan's tool, which may sit anywhere in the
-            // program. Not fatal - the operator may be running one tool
-            // deliberately - but it must never be silent. Rendered by the export
+            // Router operations carry a T word; laser and knife/vector do not.
+            // A post that declares emitsInitialTool with nothing resolved means
+            // no router operation reached here - the program has no T word and a
+            // control that needs one will refuse to move. Rendered by the export
             // modal's warning panel.
-            if (enableToolChanges) {
-                const unnumbered = new Map();
-                for (const p of toolpathPlans) {
-                    if (p.metadata?.synthetic || !p.metadata?.tool) continue;
-                    if (p.metadata.tool.number > 0) continue;
-                    const label = p.metadata.tool.name || p.metadata.tool.id || p.operationId;
-                    unnumbered.set(label, (unnumbered.get(label) || 0) + 1);
-                }
-                const loaded = firstTool ? `T${firstTool.number} (${firstTool.name || firstTool.id || 'unnamed'})` : null;
-                for (const label of unnumbered.keys()) {
-                    this.lastWarnings.push(loaded
-                        ? `No tool number assigned for "${label}" - no tool change is emitted for it and it is cut with ${loaded}, the first numbered tool in the program.`
-                        : `No tool number assigned for "${label}" - no tool change is emitted for it and it is cut with whatever is already in the spindle.`);
-                }
+            if (this.currentProcessor.config?.emitsInitialTool !== false && !firstTool) {
+                this.lastWarnings.push('No tool number resolved for this job - the program contains no T word.');
             }
 
             // Generate header
@@ -433,8 +440,11 @@
                             throw new Error(`Validation failed: ${validation.errors.join(' | ')}`);
                         }
                         if (validation.warnings && validation.warnings.length > 0) {
-                            // For now, just log warnings to the console without breaking the UI
-                            console.warn(`[GCodeGenerator] Warning: ${validation.warnings.join(' | ')}`);
+                            // Per command. An unaggregated console.warn here is one line per
+                            // move, and a relief pass past the depth limit locks the tab.
+                            for (const w of validation.warnings) {
+                                this.limitWarnings.set(w, (this.limitWarnings.get(w) || 0) + 1);
+                            }
                         }
 
                         const gcode = this.currentProcessor.processCommand(commandToProcess);
@@ -470,12 +480,50 @@
             output.push(this.currentProcessor.generateFooter(options));
 
             const program = output.join('\n');
+
+            for (const [msg, n] of this.limitWarnings) {
+                console.warn(`[GCodeGenerator] ${msg}${n > 1 ? ` (${n} moves)` : ''}`);
+            }
+
+            // Final numeric audit. formatNumberSafe stops a non-finite word at
+            // the source, but two routes bypass it: a post that formats its own
+            // coordinates (Roland), and every {safeZ}/{travelZ}/{toolNumber}
+            // token substituted into user start/end code. Both reach the file as
+            // text. A dropped word is equally unsafe - the control holds its
+            // last value and the move goes somewhere the operator did not ask
+            // for - so a non-zero fault count refuses too.
+            const faults = this.auditProgram(program);
+            if (faults.length > 0) {
+                throw new Error(`Export refused - non-numeric value in the program at ${faults.join('; ')}`);
+            }
+            if (this.currentProcessor.numericFaults > 0) {
+                throw new Error(`Export refused - ${this.currentProcessor.numericFaults} coordinate(s) or feed(s) resolved to a non-finite number and were dropped. Regenerate the affected operations.`);
+            }
+
             // Read by runCNCPipeline for the export preview: the operator
             // decides whether the count justifies grouping by tool. The
             // software does not reorder their list to reduce it on its own.
             this.lastToolChangeCount = toolChangeCount;
-
             return this.currentProcessor.applyLineNumbers(program, options);
+        }
+
+        /**
+         * Refuses a program containing a bare NaN/Infinity/undefined/null word.
+         * Comment stripping is per line, so `(null)` in an operator note is not
+         * a fault - which is why this cannot be one regex over the whole string.
+         * The whole-string exec is a gate, not the test: a clean 30MB program
+         * never allocates the line array.
+         */
+        auditProgram(program) {
+            const BAD = /\b(?:NaN|Infinity|undefined|null)\b/i;
+            if (!BAD.test(program)) return [];
+            const faults = [];
+            const lines = program.split('\n');
+            for (let i = 0; i < lines.length && faults.length < 5; i++) {
+                const code = lines[i].replace(/\([^)]*\)/g, '').split(';')[0];
+                if (BAD.test(code)) faults.push(`line ${i + 1}: "${lines[i].trim()}"`);
+            }
+            return faults;
         }
 
         linearizeArc(cmd, startPos, resolution = 1.0) {
@@ -547,5 +595,5 @@
         }
     }
 
-    window.GCodeGenerator = GCodeGenerator;
+    ROOT.GCodeGenerator = GCodeGenerator;
 })();

@@ -214,6 +214,51 @@ export class Orbit3DTool extends Base {
         return null;
     }
 
+    /**
+     * Keyboard camera. The shared input stack never routes keydown to tools -
+     * attachOrbitTool binds this to #viewport-3d, the element that takes focus.
+     * Step sizes are deliberately coarse: this is for inspecting a result, not
+     * for framing a render.
+     */
+    onKeyDown(e) {
+        const fast = e.shiftKey && !['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key);
+        const step = ORBIT_SPEED * (fast ? 90 : 30);
+        const panStep = fast ? 60 : 20;
+
+        switch (e.key) {
+            case 'ArrowLeft':
+                if (e.shiftKey) this.pan(-panStep, 0); else this.azimuth += step;
+                break;
+            case 'ArrowRight':
+                if (e.shiftKey) this.pan(panStep, 0); else this.azimuth -= step;
+                break;
+            case 'ArrowUp':
+                if (e.shiftKey) this.pan(0, -panStep);
+                else this.polar = Math.max(POLAR_EPS, this.polar - step);
+                break;
+            case 'ArrowDown':
+                if (e.shiftKey) this.pan(0, panStep);
+                else this.polar = Math.min(Math.PI - POLAR_EPS, this.polar + step);
+                break;
+            case '+': case '=': case 'PageUp':
+                this.radius = Math.max(MIN_RADIUS, this.radius * 0.85);
+                break;
+            case '-': case '_': case 'PageDown':
+                this.radius = Math.min(MAX_RADIUS, this.radius / 0.85);
+                break;
+            case 'Home': case 'f': case 'F':
+                this.view.fitToContent();
+                this.syncFromCamera();
+                this.view.requestRender();
+                return true;
+            default:
+                return false;
+        }
+
+        this.updateCamera();
+        return true;
+    }
+
     onWheel(data) {
         this.radius = Math.min(MAX_RADIUS, Math.max(MIN_RADIUS,
             this.radius * Math.exp(data.deltaY * DOLLY_SPEED)));

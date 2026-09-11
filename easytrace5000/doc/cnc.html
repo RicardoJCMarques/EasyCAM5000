@@ -43,7 +43,7 @@
     <link rel="stylesheet" href="../../css/theme.css">
     <link rel="stylesheet" href="../../css/doc.css">
 
-<script type="application/ld+json">
+    <script type="application/ld+json">
     {
         "@context": "https://schema.org",
         "@graph": [
@@ -117,10 +117,8 @@
     </script>
 </head>
 <body>
-    <!-- Skip link for keyboard accessibility -->
     <a href="#doc-content" class="skip-link">Skip to Main Content</a>
 
-    <!-- Header -->
     <header class="doc-header">
         <div class="doc-brand"><a href="/" aria-label="EasyCAM5000 Homepage">EasyCAM5000</a></div>
 
@@ -154,964 +152,447 @@
     </header>
 
     <div class="doc-wrapper has-sidebar">
-        <!-- Sidebar TOC -->
         <nav class="doc-sidebar" id="toc" aria-label="Table of contents">
-            <h2>Contents <span class="doc-badge doc-badge--stable">Stable</span></h2>
+            <p class="doc-sidebar-title">Contents</p>
             <ol>
+                <li><a href="#safety" draggable="false">Safety &amp; Material</a></li>
                 <li><a href="#interface" draggable="false">Interface Overview</a></li>
+                <li><a href="#how-a-job-works" draggable="false">Stages</a></li>
                 <li>
                     <a href="#workflow" draggable="false">The Workflow</a>
                     <ol>
-                        <li><a href="#workflow-loading" draggable="false">Loading Files</a></li>
-                        <li><a href="#workflow-coordinates" draggable="false">Setting Up Coordinates</a></li>
-                        <li><a href="#workflow-machine" draggable="false">Machine Settings</a></li>
-                        <li><a href="#workflow-offsets" draggable="false">Generating Offsets</a></li>
-                        <li><a href="#workflow-preview" draggable="false">Generating Preview</a></li>
-                        <li><a href="#workflow-export" draggable="false">Exporting G-code</a></li>
+                        <li><a href="#workflow-load" draggable="false">1. Loading Files</a></li>
+                        <li><a href="#workflow-coords" draggable="false">2. Placing the Board</a></li>
+                        <li><a href="#workflow-machine" draggable="false">3. Machine Settings</a></li>
+                        <li><a href="#workflow-offsets" draggable="false">4. Offsets</a></li>
+                        <li><a href="#workflow-preview" draggable="false">5. Preview</a></li>
+                        <li><a href="#workflow-toolpaths" draggable="false">6. Toolpaths</a></li>
+                        <li><a href="#workflow-export" draggable="false">7. Export</a></li>
                     </ol>
                 </li>
                 <li>
-                    <a href="#operations" draggable="false">Operation Types</a>
+                    <a href="#operations" draggable="false">Operation Settings</a>
                     <ol>
-                        <li><a href="#op-isolation" draggable="false">Isolation Routing</a></li>
-                        <li><a href="#op-drilling" draggable="false">Drilling</a></li>
+                        <li><a href="#op-isolation" draggable="false">Copper Isolation</a></li>
+                        <li><a href="#op-drill" draggable="false">Drill</a></li>
                         <li><a href="#op-clearing" draggable="false">Copper Clearing</a></li>
                         <li><a href="#op-cutout" draggable="false">Board Cutout</a></li>
+                        <li><a href="#op-stencil" draggable="false">Stencil</a></li>
                     </ol>
                 </li>
-                <li><a href="#machine-settings" draggable="false">Machine Settings Reference</a></li>
+                <li><a href="#machine-reference" draggable="false">Machine Settings Reference</a></li>
+                <li><a href="#posts" draggable="false">Post-Processors</a></li>
                 <li><a href="#visualization" draggable="false">Visualization Options</a></li>
-                <li><a href="#tips" draggable="false">Tips & Troubleshooting</a></li>
+                <li><a href="#tips" draggable="false">Tips &amp; Troubleshooting</a></li>
             </ol>
         </nav>
 
-        <!-- Main Content -->
         <main id="doc-content" class="doc-main">
+
+            <div class="callout callout--warning">
+                <p>Development goes fast, documentation may be outdated. Proceed with some caution.</p>
+            </div>
+
             <section class="hero hero--compact">
                 <h1>EasyTrace5000 CNC Milling Guide</h1>
-                <p class="tagline">G-code generation workflow for PCB fabrication and prototyping</p>
+                <p class="tagline">Gerber and Excellon to G-code, start to finish</p>
             </section>
 
-            <section id="safety-warning">
+            <section id="safety">
+                <h2>Safety &amp; Material</h2>
                 <div class="callout callout--warning">
-                    <h2>Safety & Material Warning</h2>
-                    <p><strong>Please read this before machining your first board.</strong></p>
-                    
-                    <h3>PCB Substrate Selection (FR4 vs FR1)</h3>
-                    <p><strong>Avoid FR4 for home milling:</strong> Standard FR4 PCB stock is made of epoxy reinforced with <strong>fiberglass</strong>. Milling FR4 creates fine glass dust which is hazardous to health (silicosis risk) and highly abrasive to machines and tooling.</p>
-                    <p><strong>FR1 (Phenolic Paper):</strong> is strongly recommended as it contains no fiberglass, making it safer to machine and extends tool life significantly.</p>
-
-                    <h3>Dust Extraction</h3>
-                    <p>Always use a vacuum system or enclosure. Even FR1 dust should not be inhaled. Good feeds and speeds also help make dust less fine and easier to contain.</p>
+                    <h3>Read this before machining your first board</h3>
+                    <p><strong>Avoid FR4 for home milling.</strong> Standard FR4 stock is epoxy reinforced with fibreglass. Milling it produces fine glass dust that is hazardous to breathe and abrasive enough to eat both your tooling and your machine's linear motion.</p>
+                    <p><strong>FR1 (phenolic paper) is strongly recommended.</strong> No fibreglass, safer to machine, and it extends tool life significantly.</p>
+                    <p><strong>Always extract.</strong> A vacuum or an enclosure, every time. Even FR1 dust should not be inhaled. Sensible feeds and speeds also help - they produce chips rather than powder.</p>
                 </div>
             </section>
 
-            <!-- Interface overview -->
             <section id="interface">
                 <h2>Interface Overview</h2>
-                <p>EasyTrace5000's interface is organized around a central canvas with sidebars for navigation and configuration. Understanding this layout will help you work efficiently.</p>
+                <p>A central canvas with a sidebar either side. The left holds your files, the right holds board placement, machine settings and the parameters for whatever you have selected. The footer carries status, the log and the display options.</p>
 
                 <figure>
-                    <svg viewBox="0 0 800 500" style="width:100%;max-width:800px;background:#1a1a1a;border-radius:8px;">
-                        <!-- Toolbar -->
-                        <rect x="0" y="0" width="800" height="40" fill="var(--color-bg-tertiary)"/>
-                        <text x="400" y="25" fill="var(--color-text-secondary)" font-size="12" text-anchor="middle">1. TOOLBAR</text>
-                        <!-- Left Sidebar -->
-                        <rect x="0" y="40" width="200" height="420" fill="var(--color-bg-tertiary)"/>
-                        <text x="100" y="250" fill="var(--color-text-secondary)" font-size="12" text-anchor="middle">2. OPERATIONS</text>
-                        <text x="100" y="270" fill="var(--color-text-secondary)" font-size="12" text-anchor="middle">TREE</text>
-                        <!-- Canvas -->
-                        <rect x="200" y="40" width="400" height="420" fill="var(--color-bg-secondary)"/>
-                        <text x="400" y="250" fill="var(--color-text-secondary)" font-size="12" text-anchor="middle">3. CANVAS</text>
-                        <!-- Grid hint -->
-                        <line x1="250" y1="100" x2="250" y2="400" stroke="var(--color-border-secondary)" stroke-dasharray="4"/>
-                        <line x1="350" y1="100" x2="350" y2="400" stroke="var(--color-border-secondary)" stroke-dasharray="4"/>
-                        <line x1="450" y1="100" x2="450" y2="400" stroke="var(--color-border-secondary)" stroke-dasharray="4"/>
-                        <line x1="550" y1="100" x2="550" y2="400" stroke="var(--color-border-secondary)" stroke-dasharray="4"/>
-                        <!-- Right Sidebar -->
-                        <rect x="600" y="40" width="200" height="420" fill="var(--color-bg-tertiary)"/>
-                        <text x="700" y="250" fill="var(--color-text-secondary)" font-size="12" text-anchor="middle">4. PROPERTIES</text>
-                        <text x="700" y="270" fill="var(--color-text-secondary)" font-size="12" text-anchor="middle">PANEL</text>
-                        <!-- Footer -->
-                        <rect x="0" y="460" width="800" height="40" fill="var(--color-bg-tertiary)"/>
-                        <text x="400" y="485" fill="var(--color-text-secondary)" font-size="12" text-anchor="middle">5. STATUS BAR</text>
-                    </svg>
-                    <figcaption>The main interface: (1) Toolbar, (2) Operations Tree, (3) Canvas, (4) Properties Panel, (5) Status Bar</figcaption>
+                    <div class="doc-figure" data-figure="fig-trace-interface.svg"></div>
+                    <figcaption>(1) Toolbar, (2) Operations Tree, (3) Canvas, (4) Properties Panel, (5) Status Bar</figcaption>
                 </figure>
 
-                <h3 id="interface-toolbar">Top Toolbar</h3>
-                <p>The toolbar spans the top of the window. On the left, the <strong>Actions</strong> menu provides access to file loading, toolpath management, and SVG export. The center displaysthe workspace title. On the right, you'll find zoom controls (fit, in, out) and the theme toggle.</p>
+                <h3>Top Toolbar</h3>
+                <p>On the left, the Actions menu covers file loading, toolpath management and SVG export. On the right, zoom controls, the 2D/3D toggle (<kbd>F2</kbd>) and the theme switch.</p>
 
-                <h3 id="interface-left-sidebar">Left Sidebar: Operations Tree</h3>
-                <p>The left sidebar organizes your loaded files into four operation categories:</p>
+                <h3>Left Sidebar: Operations Tree</h3>
+                <p>Five operation categories, each holding the source files you assign to it:</p>
                 <dl>
-                    <dt>Isolation Routing</dt>
-                    <dd>Copper layer files (Gerber) for trace isolation</dd>
-                    <dt>Drilling</dt>
-                    <dd>Drill files (Excellon) for through-holes and vias</dd>
-                    <dt>Copper Clearing</dt>
-                    <dd>Gerber files for ground plane or keepout removal</dd>
-                    <dt>Board Cutout</dt>
-                    <dd>Outline files for the final board shape</dd>
+                    <dt>Copper Isolation</dt><dd>Copper layer Gerbers, for separating traces and pads.</dd>
+                    <dt>Drill</dt><dd>Excellon files, or SVGs whose circles and obrounds you want treated as holes.</dd>
+                    <dt>Copper Clearing</dt><dd>Gerbers for pour or keep-out removal.</dd>
+                    <dt>Board Cutout</dt><dd>Outline files for the final board shape.</dd>
+                    <dt>Stencil</dt><dd>Soldermask or paste-layer Gerbers, for paste apertures.</dd>
                 </dl>
+                <p>Click a category header to open a file browser filtered to the types that operation accepts. Click a loaded file to select it; its parameters appear on the right. Everything you generate appears underneath the file, each with its own visibility toggle.</p>
 
                 <figure>
-                    <svg viewBox="0 0 400 350" style="width:100%;max-width:400px;background:#1a1a1a;border-radius:8px;">
-                        <rect x="10" y="10" width="380" height="330" fill="var(--color-bg-tertiary)" rx="4"/>
-                        <!-- Category: Isolation -->
-                        <text x="30" y="45" fill="var(--color-operation-isolation)" font-size="14" font-weight="bold">▼ Isolation Routing</text>
-                        <text x="50" y="75" fill="var(--color-text-secondary)" font-size="12">└ board.gtl</text>
-                        <text x="70" y="100" fill="var(--color-text-secondary)" font-size="11">├ Pass 1</text>
-                        <text x="70" y="120" fill="var(--color-text-secondary)" font-size="11">├ Pass 2</text>
-                        <text x="70" y="140" fill="var(--color-success)" font-size="11">└ Preview ✓</text>
-                        <!-- Category: Drilling -->
-                        <text x="30" y="175" fill="var(--color-operation-drill)" font-size="14" font-weight="bold">▶ Drilling</text>
-                        <text x="50" y="200" fill="var(--color-text-hint)" font-size="12">(empty)</text>
-                        <!-- Category: Clearing -->
-                        <text x="30" y="235" fill="var(--color-operation-clearing)" font-size="14" font-weight="bold">▶ Copper Clearing</text>
-                        <text x="50" y="260" fill="var(--color-text-hint)" font-size="12">(empty)</text>
-                        <!-- Category: Cutout -->
-                        <text x="30" y="295" fill="var(--color-operation-cutout)" font-size="14" font-weight="bold">▶ Board Cutout</text>
-                        <text x="50" y="320" fill="var(--color-text-hint)" font-size="12">(empty)</text>
-                    </svg>
-                    <figcaption>The operations tree with an expanded isolation file showing offset passes and preview</figcaption>
+                    <div class="doc-figure" data-figure="fig-trace-tree.svg"></div>
+                    <figcaption>The operations tree with an expanded isolation file showing what it has generated</figcaption>
                 </figure>
 
-                <p>Each category can be expanded or collapsed by clicking its header. Use the <strong>+</strong> button next to each category to add files specifically for that operation type. When you click on a loaded file, it becomes selected (highlighted), and its properties appear in the right sidebar.</p>
+                <h3>Center Canvas</h3>
+                <p>Drag to pan, scroll to zoom, and use the zoom controls in the toolbar to fit the view. The bottom-left readout shows cursor position in millimetres and the current zoom.</p>
 
-                <h3 id="interface-canvas">Center Canvas</h3>
-                <p>The main canvas displays your geometry. This is where you'll see source files, generated offsets, and toolpath previews.</p>
-                <h4>Navigation</h4>
-                <p><strong>Pan:</strong> Click and drag anywhere on the canvas to move the view.<br><strong>Zoom:</strong> Use the mouse scroll wheel, or the toolbar buttons (+, -, fit).<br><strong>Fit to View:</strong> Press <kbd>F</kbd> or click the fit button to automatically zoom and center on all loaded geometry.</p>
-                <h4>Coordinate Display</h4>
-                <p>The bottom-left corner shows real-time cursor coordinates (X, Y) in millimeters, plus the current zoom level. This helps you verify positions and measure distances visually.</p>
+                <h3>2D and 3D</h3>
+                <p>The canvas starts in 2D. When you reach the <strong>Toolpaths</strong> stage it switches to the 3D view by itself, because that is where a toolpath is worth looking at.</p>
+                <p>You are not stuck there. The view button on the right of the toolbar - or <kbd>F2</kbd> - flips between 2D and 3D at any time, before or after generating anything.</p>
 
-                <h3 id="interface-right-sidebar">Right Sidebar: Properties &amp; Settings</h3>
-                <p>The right sidebar contains three collapsible sections:</p>
+                <h3>Right Sidebar</h3>
+                <p>Three collapsible sections. <strong>Origin &amp; Rotation</strong> places the machine origin and rotates or mirrors the board. <strong>Machine Settings</strong> holds everything that affects every output file. <strong>Properties</strong> changes with your selection and shows the parameters for the step you are on.</p>
 
-                <h4>Origin &amp; Rotation</h4>
-                <p>Controls where the machine's coordinate origin sits relative to your geometry, plus board rotation. The "Board Size" display shows the dimensions of all loaded geometry.</p>
-
-                <h4>Machine Settings</h4>
-                <p>Global parameters that affect G-code output: post-processor selection, start/end G-code blocks, units, PCB thickness, safe heights, and rapid feed rate.</p>
-
-                <h4>Properties</h4>
-                <p>Context-sensitive panel that shows parameters for the currently selected operation. Parameters are organized into three stages: Geometry (2D offsets), Strategy (depth/entry), and Machine (feeds/speeds). Action buttons trigger generation for each stage.</p>
-
-                <figure>
-                    <svg viewBox="0 0 380 500" style="width:100%;max-width:380px;background:#1a1a1a;border-radius:8px;">
-                        <rect x="10" y="10" width="360" height="480" fill="var(--color-bg-tertiary)" rx="4"/>
-                        <!-- Header -->
-                        <text x="190" y="40" fill="var(--color-text-primary)" font-size="14" font-weight="bold" text-anchor="middle">board.gtl</text>
-                        <!-- Section: Tool -->
-                        <text x="20" y="75" fill="var(--color-text-secondary)" font-size="11">TOOL SELECTION</text>
-                        <rect x="20" y="85" width="340" height="30" fill="var(--color-border-secondary)" rx="3"/>
-                        <text x="30" y="105" fill="var(--color-text-secondary)" font-size="12">End Mill 0.2mm ▼</text>
-                        <!-- Tool Diameter -->
-                        <text x="20" y="140" fill="var(--color-text-secondary)" font-size="12">Tool Diameter</text>
-                        <rect x="250" y="125" width="80" height="24" fill="var(--color-border-secondary)" rx="3"/>
-                        <text x="290" y="142" fill="var(--color-text-secondary)" font-size="12" text-anchor="middle">0.2 mm</text>
-                        <!-- Section: Offset -->
-                        <text x="20" y="180" fill="var(--color-text-secondary)" font-size="11">OFFSET GENERATION</text>
-                        <text x="20" y="205" fill="var(--color-text-secondary)" font-size="12">Passes</text>
-                        <rect x="250" y="190" width="80" height="24" fill="var(--color-border-secondary)" rx="3"/>
-                        <text x="290" y="207" fill="var(--color-text-secondary)" font-size="12" text-anchor="middle">3</text>
-                        <text x="20" y="240" fill="var(--color-text-secondary)" font-size="12">Step Over</text>
-                        <rect x="250" y="225" width="80" height="24" fill="var(--color-border-secondary)" rx="3"/>
-                        <text x="290" y="242" fill="var(--color-text-secondary)" font-size="12" text-anchor="middle">50 %</text>
-                        <!-- Generate button -->
-                        <rect x="20" y="270" width="340" height="36" fill="var(--color-accent-hover)" rx="4"/>
-                        <text x="190" y="294" fill="var(--color-text-secondary)" font-size="13" font-weight="bold" text-anchor="middle">Generate Offsets</text>
-                        <!-- Divider -->
-                        <line x1="20" y1="325" x2="360" y2="325" stroke="var(--color-border-secondary)"/>
-                        <!-- Section: Strategy -->
-                        <text x="20" y="355" fill="var(--color-text-secondary)" font-size="11">DEPTH SETTINGS (after offsets)</text>
-                        <text x="20" y="380" fill="var(--color-text-secondary)" font-size="12">Cut Depth</text>
-                        <text x="20" y="405" fill="var(--color-text-secondary)" font-size="12">Multi-Depth</text>
-                        <!-- Section: Machine -->
-                        <text x="20" y="445" fill="var(--color-text-secondary)" font-size="11">FEEDS &amp; SPEEDS (after preview)</text>
-                        <text x="20" y="470" fill="var(--color-text-secondary)" font-size="12">Feed Rate, Plunge Rate, Spindle</text>
-                    </svg>
-                    <figcaption>The properties panel showing isolation routing parameters at the Geometry stage</figcaption>
-                </figure>
-
-                <h3 id="interface-footer">Footer: Status &amp; Visualization</h3>
-                <p>The footer bar at the bottom serves two purposes:</p>
-                
-                <h4>Visualization Panel</h4>
-                <p>Click the eye icon to expand the visualization settings. Here you can toggle display elements (grid, rulers, wireframe), control layer visibility (traces, pads, drills, offsets, previews), and enable advanced debug features. See the <a href="#visualization" draggable="false">Visualization Options</a> section for details.</p>
-
-                <h4>Status Bar</h4>
-                <p>Shows status messages and progress for operations like file loading, offset generation, and export. Click the status bar to expand a log history showing recent messages, it can be useful for troubleshooting.</p>
+                <h3>Footer</h3>
+                <p>Click the eye icon for the display options - what is drawn, and which layers are visible. Click the status bar to expand the log, which is the first place to look when something did not do what you expected.</p>
             </section>
 
-            <!-- The workflow -->
+            <section id="how-a-job-works">
+                <h2>Stages</h2>
+                <p>Every operation is generated in <strong>stages</strong>. A stage is what the big generate button acts on: you set that stage's parameters, generate, and get a layer you can show, hide and redo on its own. Re-running a stage replaces its own layer and clears the ones after it, never the ones before - so changing your mind about depth never costs you the offsets you already generated.</p>
+
+                <figure>
+                    <div class="doc-figure" data-figure="fig-trace-steps.svg"></div>
+                    <figcaption>A router operation runs four stages. Laser and knife run two - this guide covers the router.</figcaption>
+                </figure>
+
+                <p>Change something an earlier stage depends on - the tool diameter, the board rotation, a machine setting - and everything generated after it is invalidated and cleared. The message names the stage to go back to.</p>
+
+                <div class="callout callout--info">
+                    <h4>The Toolpaths stage is a preview of the program</h4>
+                    <p>What it draws is what gets exported: the same motion, the same order, the same depths. Only the preamble, the postamble and the moves between operations are added later, when the Export Manager puts the job together.</p>
+                </div>
+            </section>
+
             <section id="workflow">
                 <h2>The Workflow</h2>
-                <p>EasyTrace5000 follows a non-destructive, staged workflow. Each stage builds on the previous one, and you can always go back to adjust parameters and regenerate. The stages are:</p>
+                <p>Seven steps. Steps 4 to 7 are the operation's four stages - the rest is setup you do once.</p>
+
+                <h3 id="workflow-load">1. Loading Files</h3>
+                <p>Four ways in, all equivalent:</p>
+                <ul>
+                    <li><strong>Welcome modal</strong> - load a built-in example, open the file modal, or start empty.</li>
+                    <li><strong>File upload modal</strong> - Actions &rarr; Add Files. Drop zones for isolation, drill, clearing and cutout. Stencils are added from the tree instead.</li>
+                    <li><strong>Drag and drop</strong> anywhere on the window. Files are matched to an operation by extension, so Gerber exported with Protel extensions lands in the right category by itself.</li>
+                    <li><strong>Category headers</strong> in the operations tree, which open a browser filtered to that operation's types.</li>
+                </ul>
+                <p>Each operation holds one file. Loading a second file into the same category creates a second operation of the same type.</p>
+
+                <h3 id="workflow-coords">2. Placing the Board</h3>
+                <p>The origin you set here becomes (0,0) in your G-code. It has to match where you will zero the machine on the physical stock, so pick something you can find again: a board corner, or the board centre.</p>
+                <dl>
+                    <dt>Origin Offset</dt>
+                    <dd>Shifts where (0,0) sits relative to the geometry. By default it is the lower-left corner of everything loaded, and the <em>Center</em> and <em>Bottom-Left</em> buttons jump to those two. (From the canvas, <kbd>C</kbd> and <kbd>B</kbd> preview the same two positions and <kbd>O</kbd> commits one.)</dd>
+                    <dt>Board Rotation</dt>
+                    <dd>Rotates all geometry about its centre, in degrees - useful when your stock is a different orientation to your board.</dd>
+                    <dt>Mirror</dt>
+                    <dd>Flips horizontally or vertically, independently. Used for bottom-copper work. Cut direction is corrected automatically, so a mirrored board still climbs or conventionals the same way.</dd>
+                </dl>
+                <figure>
+                    <div class="doc-figure" data-figure="fig-origin-placement.svg"></div>
+                    <figcaption>The origin is where you will zero the machine. Rotation turns the geometry around it.</figcaption>
+                </figure>
+
+                <div class="callout callout--warning">
+                    <h4>Placement changes invalidate generated work</h4>
+                    <p>Origin, rotation and mirror are baked into toolpaths, so changing any of them afterwards invalidates the operations that used them. Place the board before you generate, and regenerate if you change your mind.</p>
+                </div>
+
+                <h3 id="workflow-machine">3. Machine Settings</h3>
+                <p>Global settings that affect every output file - covered field by field in the <a href="#machine-reference" draggable="false">Machine Settings Reference</a> below. Set the post-processor first, because it decides which of the other options exist.</p>
+
+                <h3 id="workflow-offsets">4. Generating Offsets</h3>
+                <p>Select a source file and set the geometry parameters: tool and passes for isolation and clearing, cut side for cutout, hole handling for drilling, aperture settings for a stencil.</p>
+                <p>Click <em>Generate Offsets</em>. The result appears as an <strong>Offsets</strong> layer - thin centrelines showing where the tool will travel in X and Y. Curved geometry stays curved, so an offset pad exports as a real arc rather than a string of tiny line segments.</p>
+                <p>Nothing about depth exists yet. This stage is purely the shape of the path.</p>
+
+                <h3 id="workflow-preview">5. Generating the Preview</h3>
+                <p>Select the Offsets layer and set the depth parameters: cut depth, multi-depth and depth per pass, entry type, plus tabs on a cutout or drill-cycle settings on a drill.</p>
+                <p>Click <em>Generate Preview</em>. The offset paths are redrawn at the real tool diameter, so you can see the copper that will actually be removed rather than the line the spindle centre follows.</p>
+
+                <figure>
+                    <div class="doc-figure" data-figure="fig-offset-vs-preview.svg"></div>
+                    <figcaption>Offsets (centreline) versus Preview (full tool width)</figcaption>
+                </figure>
+
+                <p>The preview is a visual check - it is the last chance to catch a tool that is too wide for the gaps on your board.</p>
+
+                <figure>
+                    <div class="doc-figure" data-figure="fig-depth-passes.svg"></div>
+                    <figcaption>Cut depth is divided into as many passes as it takes; the last one takes whatever is left</figcaption>
+                </figure>
+
+                <h3 id="workflow-toolpaths">6. Generating Toolpaths</h3>
+                <p>Select the Preview layer and set the machine parameters: feed rate, plunge rate, spindle speed and dwell, the tool number, and whether to optimize.</p>
+                <p>Click <em>Generate Toolpaths</em>. The canvas switches to the 3D view so you can look over the result - depth passes, entry moves, retracts and rapids. The toolbar view button, or <kbd>F2</kbd>, takes you back to 2D.</p>
+
+                <h3 id="workflow-export">7. Exporting G-code</h3>
+                <p>Open the Export Manager from any operation's Output node, or from Actions &rarr; Manage Toolpaths. Only operations that have been through <em>Generate Toolpaths</em> appear.</p>
                 <ol>
-                    <li><strong>Load</strong> your source files (Gerber, Excellon, SVG)</li>
-                    <li><strong>Position</strong> your geometry (origin, rotation)</li>
-                    <li><strong>Configure</strong> machine settings (heights, speeds, post-processor)</li>
-                    <li><strong>Generate Offsets</strong> for each operation (2D geometry only)</li>
-                    <li><strong>Generate Previews</strong> with depth and strategy settings</li>
-                    <li><strong>Export</strong> G-code with feeds and speeds</li>
+                    <li><strong>Select and order.</strong> Check the operations you want and drag them into the order you want to run them - typically isolation, clearing, drilling, and cutout last so the board stays attached. (The list also reorders from the keyboard: <kbd>Space</kbd> to grab, arrows to move, <kbd>Space</kbd> to drop.)</li>
+                    <li><strong>Set the output options</strong> (below).</li>
+                    <li><strong>Review</strong> the G-code preview, with line count, operation count, estimated time and total travel.</li>
+                    <li><strong>Export</strong> to download. The file extension comes from the post-processor.</li>
                 </ol>
-
-                <figure>
-                    <svg viewBox="0 0 800 200" style="width:100%;max-width:800px;background:#1a1a1a;border-radius:8px;">
-                        <!-- Boxes -->
-                        <rect x="20" y="60" width="120" height="80" fill="var(--color-border-secondary)" rx="6"/>
-                        <rect x="170" y="60" width="120" height="80" fill="var(--color-border-secondary)" rx="6"/>
-                        <rect x="320" y="60" width="120" height="80" fill="var(--color-border-secondary)" rx="6"/>
-                        <rect x="470" y="60" width="120" height="80" fill="var(--color-border-secondary)" rx="6"/>
-                        <rect x="620" y="60" width="140" height="80" fill="var(--color-border-secondary)" rx="6"/>
-                        <!-- Arrows -->
-                        <path d="M145 100 L165 100" stroke="var(--color-text-hint)" stroke-width="2" marker-end="url(#arrow)"/>
-                        <path d="M295 100 L315 100" stroke="var(--color-text-hint)" stroke-width="2" marker-end="url(#arrow)"/>
-                        <path d="M445 100 L465 100" stroke="var(--color-text-hint)" stroke-width="2" marker-end="url(#arrow)"/>
-                        <path d="M595 100 L615 100" stroke="var(--color-text-hint)" stroke-width="2" marker-end="url(#arrow)"/>
-                        <defs>
-                            <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
-                                <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--color-text-hint)"/>
-                            </marker>
-                        </defs>
-                        <!-- Labels -->
-                        <text x="80" y="95" fill="var(--color-accent-hover)" font-size="13" font-weight="bold" text-anchor="middle">SOURCE</text>
-                        <text x="80" y="115" fill="var(--color-text-secondary)" font-size="10" text-anchor="middle">Gerber/Excellon</text>
-                        <text x="230" y="95" fill="var(--color-geometry-offset-external)" font-size="13" font-weight="bold" text-anchor="middle">OFFSETS</text>
-                        <text x="230" y="115" fill="var(--color-text-secondary)" font-size="10" text-anchor="middle">2D Geometry</text>
-                        <text x="380" y="95" fill="var(--color-operation-isolation)" font-size="13" font-weight="bold" text-anchor="middle">PREVIEW</text>
-                        <text x="380" y="115" fill="var(--color-text-secondary)" font-size="10" text-anchor="middle">Depth + Strategy</text>
-                        <text x="530" y="95" fill="var(--color-success)" font-size="13" font-weight="bold" text-anchor="middle">MACHINE</text>
-                        <text x="530" y="115" fill="var(--color-text-secondary)" font-size="10" text-anchor="middle">Feeds + Speeds</text>
-                        <text x="690" y="95" fill="var(--color-text-primary)" font-size="13" font-weight="bold" text-anchor="middle">G-CODE</text>
-                        <text x="690" y="115" fill="var(--color-text-secondary)" font-size="10" text-anchor="middle">Export</text>
-                        <!-- Stage indicators -->
-                        <text x="80" y="165" fill="var(--color-text-hint)" font-size="9" text-anchor="middle">Stage 1</text>
-                        <text x="230" y="165" fill="var(--color-text-hint)" font-size="9" text-anchor="middle">Stage 2</text>
-                        <text x="380" y="165" fill="var(--color-text-hint)" font-size="9" text-anchor="middle">Stage 3</text>
-                        <text x="530" y="165" fill="var(--color-text-hint)" font-size="9" text-anchor="middle">Stage 4</text>
-                        <text x="690" y="165" fill="var(--color-text-hint)" font-size="9" text-anchor="middle">Stage 5</text>
-                    </svg>
-                    <figcaption>The five-stage workflow from source files to G-code export</figcaption>
-                </figure>
-
-                <h3 id="workflow-loading">Stage 1: Loading Files</h3>
-                <p>There are several ways to load files into EasyTrace5000:</p>
-
-                <h4>Using the Welcome Modal</h4>
-                <p>When you first open the application (and haven't checked "Don't show this again"), you'll see the Welcome modal. From here you can load a built-in example project, click "Open Files" to access the file upload modal, or click "Start Empty" to begin with a blank workspace.</p>
-
-                <h4>Using the File Upload Modal</h4>
-                <p>Access this via Actions → Add Files, or the "Open Files" button in the Welcome modal. The modal shows four drop zones, one for each operation type. Drop files onto the appropriate zone, or click a zone to browse.</p>
-
-                <figure>
-                    <svg viewBox="0 0 600 400" style="width:100%;max-width:600px;background:#1a1a1a;border-radius:8px;">
-                        <!-- Modal frame -->
-                        <rect x="30" y="30" width="540" height="340" fill="var(--color-bg-tertiary)" rx="8"/>
-                        <text x="300" y="60" fill="var(--color-text-primary)" font-size="16" font-weight="bold" text-anchor="middle">Add PCB Files</text>
-                        <!-- Drop zones -->
-                        <rect x="50" y="80" width="240" height="120" fill="var(--color-border-secondary)" rx="6" stroke="var(--color-operation-isolation)" stroke-width="2" stroke-dasharray="8"/>
-                        <text x="170" y="130" fill="var(--color-operation-isolation)" font-size="12" text-anchor="middle">Isolation Routing</text>
-                        <text x="170" y="150" fill="var(--color-text-hint)" font-size="10" text-anchor="middle">.gbr, .ger, .gtl, .gbl</text>
-                        <text x="170" y="175" fill="var(--color-text-secondary)" font-size="20" text-anchor="middle">↑</text>
-                        
-                        <rect x="310" y="80" width="240" height="120" fill="var(--color-border-secondary)" rx="6" stroke="var(--color-operation-drill)" stroke-width="2" stroke-dasharray="8"/>
-                        <text x="430" y="130" fill="var(--color-operation-drill)" font-size="12" text-anchor="middle">Drilling</text>
-                        <text x="430" y="150" fill="var(--color-text-hint)" font-size="10" text-anchor="middle">.drl, .xln, .txt</text>
-                        <text x="430" y="175" fill="var(--color-text-secondary)" font-size="20" text-anchor="middle">↑</text>
-                        
-                        <rect x="50" y="210" width="240" height="120" fill="var(--color-border-secondary)" rx="6" stroke="var(--color-operation-clearing)" stroke-width="2" stroke-dasharray="8"/>
-                        <text x="170" y="260" fill="var(--color-operation-clearing)" font-size="12" text-anchor="middle">Copper Clearing</text>
-                        <text x="170" y="280" fill="var(--color-text-hint)" font-size="10" text-anchor="middle">.gbr, .gpl, .gnd</text>
-                        <text x="170" y="305" fill="var(--color-text-secondary)" font-size="20" text-anchor="middle">↑</text>
-                        
-                        <rect x="310" y="210" width="240" height="120" fill="var(--color-border-secondary)" rx="6" stroke="var(--color-operation-cutout)" stroke-width="2" stroke-dasharray="8"/>
-                        <text x="430" y="260" fill="var(--color-operation-cutout)" font-size="12" text-anchor="middle">Board Cutout</text>
-                        <text x="430" y="280" fill="var(--color-text-hint)" font-size="10" text-anchor="middle">.gbr, .gko, .gm1</text>
-                        <text x="430" y="305" fill="var(--color-text-secondary)" font-size="20" text-anchor="middle">↑</text>
-                    </svg>
-                    <figcaption>The file upload modal with four operation-specific drop zones</figcaption>
-                </figure>
-
-                <h4>Drag and Drop</h4>
-                <p>You can drag files directly onto the main application window. EasyTrace5000 will auto-detect the file type by extension and assign it to the appropriate operation category.</p>
-
-                <h4>Category Add Buttons</h4>
-                <p>In the left sidebar, each operation category has a small <strong>+</strong> button. Click it to open a file browser filtered for that operation's accepted file types.</p>
-
-                <h3 id="workflow-coordinates">Stage 2: Setting Up Coordinates</h3>
-                <p>Verify that your coordinate origin is positioned correctly for your CNC setup.</p>
-                
-                <h4>Origin Offset</h4>
-                <p>The Origin &amp; Rotation panel in the right sidebar shows "Origin Offset" X and Y fields. These values shift where (0,0) sits relative to your geometry. By default, the origin is at the geometry's lower-left corner.</p>
-                <p>Two shortcut buttons are provided: <strong>Center</strong> places the origin at the geometry's center point, and <strong>Bottom-Left</strong> resets it to the lower-left corner.</p>
-
-                <figure>
-                    <svg viewBox="0 0 600 300" style="width:100%;max-width:600px;background:#1a1a1a;border-radius:8px;">
-                        <!-- Board geometry -->
-                        <rect x="100" y="50" width="250" height="180" fill="none" stroke="var(--color-accent-hover)" stroke-width="2"/>
-                        <!-- Origin marker -->
-                        <circle cx="100" cy="230" r="8" fill="var(--color-success)"/>
-                        <line x1="100" y1="210" x2="100" y2="250" stroke="var(--color-success)" stroke-width="2"/>
-                        <line x1="80" y1="230" x2="120" y2="230" stroke="var(--color-success)" stroke-width="2"/>
-                        <text x="100" y="270" fill="var(--color-success)" font-size="11" text-anchor="middle">Origin (0,0)</text>
-                        <!-- Controls panel -->
-                        <rect x="400" y="50" width="180" height="200" fill="var(--color-bg-tertiary)" rx="6"/>
-                        <text x="490" y="80" fill="var(--color-text-secondary)" font-size="11" text-anchor="middle">ORIGIN OFFSET</text>
-                        <text x="420" y="110" fill="var(--color-text-secondary)" font-size="12">X:</text>
-                        <rect x="440" y="95" width="60" height="22" fill="var(--color-border-secondary)" rx="3"/>
-                        <text x="470" y="111" fill="var(--color-text-primary)" font-size="11" text-anchor="middle">0.00</text>
-                        <text x="510" y="110" fill="var(--color-text-hint)" font-size="10">mm</text>
-                        <text x="420" y="145" fill="var(--color-text-secondary)" font-size="12">Y:</text>
-                        <rect x="440" y="130" width="60" height="22" fill="var(--color-border-secondary)" rx="3"/>
-                        <text x="470" y="146" fill="var(--color-text-primary)" font-size="11" text-anchor="middle">0.00</text>
-                        <text x="510" y="145" fill="var(--color-text-hint)" font-size="10">mm</text>
-                        <!-- Buttons -->
-                        <rect x="410" y="165" width="70" height="26" fill="var(--color-border-secondary)" rx="3"/>
-                        <text x="445" y="183" fill="var(--color-text-secondary)" font-size="10" text-anchor="middle">Center</text>
-                        <rect x="490" y="165" width="80" height="26" fill="var(--color-border-secondary)" rx="3"/>
-                        <text x="530" y="183" fill="var(--color-text-secondary)" font-size="10" text-anchor="middle">Bottom-Left</text>
-                        <rect x="410" y="200" width="160" height="30" fill="var(--color-accent-hover)" rx="4"/>
-                        <text x="490" y="220" fill="var(--color-text-primary)" font-size="11" text-anchor="middle">Apply Origin</text>
-                    </svg>
-                    <figcaption>Origin controls showing the current offset position on the board</figcaption>
-                </figure>
-
-                <h4>Board Rotation</h4>
-                <p>If your PCB needs to be rotated (perhaps to fit your stock material orientation), enter a rotation angle in degrees. Click <strong>Apply Rotation</strong> to rotate all geometry around its center. <strong>Reset Rotation</strong> returns to 0°.</p>
-
-                <h4>Why Origin Matters</h4>
-                <p>The origin you set here becomes (0,0) in your G-code output. Most CNC workflows involve homing the machine, then jogging to a known position on your stock and setting the work coordinate system origin there. Your origin setting in EasyTrace5000 should match that physical position. Either a corner or the center of the board are predictable.</p>
-
-                <h3 id="workflow-machine">Stage 3: Machine Settings</h3>
-                <p>The Machine Settings panel contains global parameters that affect all G-code output.</p>
-
-                <h4>Post-Processor</h4>
-                <p>Select the G-code syntax your machine expects. GRBL is the default and most common for hobbyist CNC routers. Other options (GrblHAL, Marlin, LinuxCNC, Mach3, Roland RML) are experimental so they should be tested with caution.</p>
-
-                <h4>Start/End G-code</h4>
-                <p>These text areas contain commands that run at the very beginning and end of your program. Use these spaces if you for example you have commands to turn on/off dust collection, etc.</p>
-
-                <h4>Heights</h4>
-                <p><strong>Safe Z:</strong> The height the tool moves to at program start/end and typicallyspindle is turned on/off.<br><strong>Travel Z:</strong> The height for rapid moves between cutting operations. This can be lower than Safe Z for faster operation, but must still clear any clamps and high points.</p>
-
-                <h3 id="workflow-offsets">Stage 4: Generating Offsets</h3>
-                <p>With files loaded and coordinates set, you're ready to generate the toolpath geometry. This stage focuses purely on 2D offset paths. No depth or Z-axis settings yet.</p>
-
-                <h4>Selecting an Operation</h4>
-                <p>Click on a source file in the Operations Tree (left sidebar). The Properties panel (right sidebar) will collapse the origin and machine sections and show that operation's parameters.</p>
-
-                <h4>Setting Parameters</h4>
-                <p>The Properties panel shows parameters appropriate for the operation type:</p>
-                <dl>
-                    <dt>Tool</dt>
-                    <dd>Select from the tool library dropdown. The tool diameter auto-fills based on your selection.</dd>
-                    <dt>Tool Diameter</dt>
-                    <dd>The cutting diameter in mm. Determines the offset distance from source geometry.</dd>
-                    <dt>Passes</dt>
-                    <dd>Number of offset passes to generate. More passes = wider isolation zone.</dd>
-                    <dt>Step Over</dt>
-                    <dd>Percentage of tool diameter for spacing between passes. 50% = 50% overlap.</dd>
-                    <dt>Combine Passes</dt>
-                    <dd>When enabled, merges all passes into a single geometry group.</dd>
-                </dl>
-
-                <h4>Operation-Specific Parameters</h4>
-                <dl>
-                    <dt>Mill Holes (Drilling only)</dt>
-                    <dd>When enabled, undersized holes are milled with helical paths. When disabled, simple peck drilling is used.</dd>
-                    <dt>Cut Side (Cutout only)</dt>
-                    <dd>Determines offset direction: Outside (board matches outline), Inside (pocket), or On Line (centered on outline).</dd>
-                </dl>
-
-                <h4>Generate Offsets</h4>
-                <p>Click <strong>Generate Offsets</strong> (or <strong>Generate Drill Strategy</strong> for drill operations). The geometry engine processes your source geometry and creates 2D offset paths</p>
-
-                <figure>
-                    <svg viewBox="0 0 800 350" style="width:100%;max-width:800px;background:#1a1a1a;border-radius:8px;">
-                        <!-- Left: Source -->
-                        <text x="180" y="30" fill="var(--color-text-secondary)" font-size="12" text-anchor="middle">Source Geometry</text>
-                        <!-- Trace with pad -->
-                        <rect x="80" y="120" width="200" height="120" fill="var(--color-operation-isolation)"/>
-                        <!-- Arrow -->
-                        <path d="M320 180 L380 180" stroke="var(--color-text-hint)" stroke-width="3" marker-end="url(#arrow)"/>
-                        <text x="350" y="200" fill="var(--color-text-hint)" font-size="10" text-anchor="middle">Generate</text>
-                        <!-- Right: Offsets -->
-                        <text x="580" y="30" fill="var(--color-text-secondary)" font-size="12" text-anchor="middle">Offset Paths (Tool Centerlines)</text>
-                        <!-- Offset outlines -->
-                        <rect x="470" y="110" width="220" height="140" fill="none" stroke="var(--color-error)" stroke-width="1.5" rx="10" ry="10"/>
-                        <rect x="460" y="100" width="240" height="160" fill="none" stroke="var(--color-error)" stroke-width="1.5" rx="20" ry="20"/>
-                        <rect x="450" y="90" width="260" height="180" fill="none" stroke="var(--color-error)" stroke-width="1.5" rx="30" ry="30"/>
-                        <!-- Inner trace (dimmed) -->
-                        <rect x="480" y="120" width="200" height="120" fill="var(--color-operation-isolation)"/>
-                        <!-- Labels -->
-                        <text x="580" y="320" fill="var(--color-error)" font-size="10" text-anchor="middle">Pass 1, 2, 3 (red outlines)</text>
-                        <text x="180" y="320" fill="var(--color-operation-isolation)" font-size="10" text-anchor="middle">Copper (orange fill)</text>
-                    </svg>
-                    <figcaption>Before and after: Source geometry (copper fill) and generated offset paths (red outlines)</figcaption>
-                </figure>
-
-                <p>When complete, new items appear under the file in the Operations Tree: "Pass 1", "Pass 2", etc. The canvas updates to show the offset geometry as thin colored lines representing tool centerlines.</p>
-
-                <div class="callout callout--info">
-                    <h4>Note</h4>
-                    <p>At this stage, you've only defined <em>where</em> the tool will travel in X/Y. Depth settings (how deep to cut) are configured in the next stage.</p>
-                </div>
-
-                <h3 id="workflow-preview">Stage 5: Generating Preview</h3>
-                <p>After generating offsets, you configure cutting strategy and depth settings, then create a preview that simulates what your tool will actually cut.</p>
-
-                <h4>Depth &amp; Strategy Parameters</h4>
-                <p>When you select an offset pass in the tree, the Properties panel shows depth and strategy settings:</p>
-                <dl>
-                    <dt>Cut Depth</dt>
-                    <dd>Target Z depth below the surface. Enter as negative (e.g., -0.1mm) or positive value.</dd>
-                    <dt>Depth per Pass</dt>
-                    <dd>When Multi-Depth is enabled, how much to cut per Z-level. Multiple passes reach the final depth incrementally.</dd>
-                    <dt>Multi-Depth</dt>
-                    <dd>Enable for materials requiring multiple passes to reach full depth. Disable for single-pass cuts.</dd>
-                    <dt>Entry Type</dt>
-                    <dd>How the tool enters the material: Plunge (straight down), Ramp (angled entry), or Helix (spiral entry).</dd>
-                </dl>
-
-                <h4>Operation-Specific Strategy</h4>
-                <dl>
-                    <dt>Drilling: Canned Cycle</dt>
-                    <dd>For peck drilling: None (G0+G1), G81 (simple), G82 (dwell), G83 (peck), G73 (stepped peck).</dd>
-                    <dt>Drilling: Peck Depth / Dwell Time</dt>
-                    <dd>Depth of each peck before retract, and pause time at hole bottom.</dd>
-                    <dt>Cutout: Tabs</dt>
-                    <dd>Number of holding tabs, plus tab width and height settings.</dd>
-                </dl>
-
-                <h4>Preview vs. Offset</h4>
-                <p><strong>Offsets</strong> show the centerline path the tool will follow, where the spindle moves through.<br><strong>Previews</strong> show the full width of the tool's cutting envelope, the material that will be removed.</p>
-
-                <figure>
-                    <svg viewBox="0 0 700 300" style="width:100%;max-width:700px;background:#1a1a1a;border-radius:8px;">
-                        <!-- Left: Offset -->
-                        <text x="175" y="30" fill="var(--color-text-secondary)" font-size="12" text-anchor="middle">Offset (Centerline)</text>
-                        <line x1="50" y1="150" x2="300" y2="150" stroke="var(--color-error)" stroke-width="2"/>
-                        <circle cx="50" cy="150" r="4" fill="var(--color-error)"/>
-                        <circle cx="300" cy="150" r="4" fill="var(--color-error)"/>
-                        <text x="175" y="180" fill="var(--color-error)" font-size="10" text-anchor="middle">Thin line = tool center path</text>
-                        <!-- Divider -->
-                        <line x1="350" y1="50" x2="350" y2="250" stroke="var(--color-border-secondary)" stroke-dasharray="4"/>
-                        <!-- Right: Preview -->
-                        <text x="525" y="30" fill="var(--color-text-secondary)" font-size="12" text-anchor="middle">Preview (Tool Width)</text>
-                        <rect x="400" y="130" width="250" height="40" fill="var(--color-accent-hover)" stroke="var(--color-accent-hover)" stroke-width="2" rx="20"/>
-                        <line x1="400" y1="150" x2="650" y2="150" stroke="var(--color-accent-hover)" stroke-width="1" stroke-dasharray="4"/>
-                        <text x="525" y="200" fill="var(--color-accent-hover)" font-size="10" text-anchor="middle">Thick stroke = material removed</text>
-                        <!-- Tool diameter indicator -->
-                        <line x1="620" y1="130" x2="620" y2="170" stroke="var(--color-success)" stroke-width="1"/>
-                        <line x1="615" y1="130" x2="625" y2="130" stroke="var(--color-success)" stroke-width="1"/>
-                        <line x1="615" y1="170" x2="625" y2="170" stroke="var(--color-success)" stroke-width="1"/>
-                        <text x="640" y="155" fill="var(--color-success)" font-size="9">Tool Ø</text>
-                    </svg>
-                    <figcaption>Offset (thin centerline) vs Preview (full tool width simulation)</figcaption>
-                </figure>
-
-                <h4>Generating the Preview</h4>
-                <p>After configuring depth settings, click <strong>Generate Toolpath Preview</strong>. A new "Preview" item appears under the file in the tree, and the canvas shows thick strokes representing the tool's cutting area. Offset layers are automatically hidden when preview exists.</p>
-
-                <div class="callout callout--info">
-                    <h4>Note</h4>
-                    <p>The preview is a visual simulation only. Feed rates and spindle speed are configured in the final stage before G-code export.</p>
-                </div>
-
-                <h3 id="workflow-export">Stage 6: Exporting G-code</h3>
-                <p>With previews generated, configure machine parameters and export G-code.</p>
-
-                <h4>Machine Parameters</h4>
-                <p>When viewing a preview, the Properties panel shows feeds and speeds:</p>
-                <dl>
-                    <dt>Feed Rate</dt>
-                    <dd>XY cutting speed in mm/min. Lower = cleaner cuts but slower.</dd>
-                    <dt>Plunge Rate</dt>
-                    <dd>Z-axis speed for downward moves. Usually 25-50% of feed rate.</dd>
-                    <dt>Spindle Speed</dt>
-                    <dd>RPM for the tool. PCB routing typically uses 10,000-24,000 RPM.</dd>
-                </dl>
-                
-                <h4>Opening the Operations Manager</h4>
-                <p>Click <strong>Operations &amp; G-Code</strong> in the Properties panel, or go to Actions menu → <strong>Manage Toolpaths</strong>.</p>
-
-                <figure>
-                    <svg viewBox="0 0 700 450" style="width:100%;max-width:700px;background:#1a1a1a;border-radius:8px;">
-                        <!-- Modal frame -->
-                        <rect x="30" y="20" width="640" height="410" fill="var(--color-bg-tertiary)" rx="8"/>
-                        <text x="350" y="55" fill="var(--color-text-primary)" font-size="16" font-weight="bold" text-anchor="middle">Toolpath Manager &amp; Export</text>
-                        <!-- Operation list -->
-                        <text x="60" y="90" fill="var(--color-text-secondary)" font-size="11">SELECT OPERATIONS</text>
-                        <rect x="50" y="100" width="280" height="30" fill="var(--color-border-secondary)" rx="4"/>
-                        <text x="70" y="120" fill="var(--color-success)" font-size="12">☑ Isolation: board.gtl</text>
-                        <rect x="50" y="135" width="280" height="30" fill="var(--color-border-secondary)" rx="4"/>
-                        <text x="70" y="155" fill="var(--color-success)" font-size="12">☑ Drilling: board.drl</text>
-                        <rect x="50" y="170" width="280" height="30" fill="var(--color-border-secondary)" rx="4"/>
-                        <text x="70" y="190" fill="var(--color-text-secondary)" font-size="12">☐ Cutout: board.gko</text>
-                        <!-- Options -->
-                        <text x="60" y="230" fill="var(--color-text-secondary)" font-size="11">OUTPUT OPTIONS</text>
-                        <text x="70" y="255" fill="var(--color-success)" font-size="12">☑ Export as single file</text>
-                        <text x="70" y="280" fill="var(--color-success)" font-size="12">☑ Include operation comments</text>
-                        <text x="70" y="305" fill="var(--color-success)" font-size="12">☑ Optimize toolpaths</text>
-                        <!-- Preview area -->
-                        <rect x="360" y="100" width="290" height="250" fill="var(--color-bg-secondary)" rx="4"/>
-                        <text x="505" y="90" fill="var(--color-text-secondary)" font-size="11" text-anchor="middle">G-CODE PREVIEW</text>
-                        <text x="375" y="125" fill="var(--color-text-hint)" font-size="10" font-family="monospace">G21 G90 G17</text>
-                        <text x="375" y="140" fill="var(--color-text-hint)" font-size="10" font-family="monospace">G0 Z5.000</text>
-                        <text x="375" y="155" fill="var(--color-text-hint)" font-size="10" font-family="monospace">T1 M3 S10000</text>
-                        <text x="375" y="170" fill="var(--color-text-hint)" font-size="10" font-family="monospace">G0 X0.000 Y0.000</text>
-                        <text x="375" y="185" fill="var(--color-text-hint)" font-size="10" font-family="monospace">G0 Z2.000</text>
-                        <text x="375" y="200" fill="var(--color-text-hint)" font-size="10" font-family="monospace">G1 Z-0.100 F50</text>
-                        <text x="375" y="215" fill="var(--color-text-hint)" font-size="10" font-family="monospace">...</text>
-                        <!-- Stats -->
-                        <text x="380" y="330" fill="var(--color-text-secondary)" font-size="10">Lines: 1,247  |  Ops: 2  |  Time: 12:34  |  Dist: 2,450mm</text>
-                        <!-- Buttons -->
-                        <rect x="360" y="355" width="130" height="35" fill="var(--color-border-secondary)" rx="4"/>
-                        <text x="425" y="378" fill="var(--color-text-secondary)" font-size="12" text-anchor="middle">Calculate</text>
-                        <rect x="510" y="355" width="140" height="35" fill="var(--color-accent-hover)" rx="4"/>
-                        <text x="580" y="378" fill="var(--color-text-primary)" font-size="12" text-anchor="middle">Export G-code</text>
-                    </svg>
-                    <figcaption>The Operations Manager modal with operation selection and G-code preview</figcaption>
-                </figure>
-
-                <h4>Selecting and Ordering Operations</h4>
-                <p>
-                    Each operation with a generated preview appears as a checkbox item. Check the operations 
-                    you want to include. Drag items to reorder them. Typical order: Isolation → Drilling → 
-                    Clearing → Cutout (cutout last so the board stays attached).
-                </p>
 
                 <h4>Output Options</h4>
                 <dl>
                     <dt>Export as single file</dt>
-                    <dd>Combines all selected operations into one G-code file.</dd>
+                    <dd>Combines every selected operation into one program. Required if you want tool changes handled across operations.</dd>
                     <dt>Include operation comments</dt>
-                    <dd>Adds descriptive comments identifying each operation.</dd>
-                    <dt>Optimize toolpaths (Experimental)</dt>
-                    <dd>Applies path optimization to reduce travel moves and group nearby cuts.</dd>
+                    <dd>Adds comments identifying each operation in the output.</dd>
+                    <dt>Optimize toolpaths</dt>
+                    <dd>Reorders and simplifies the paths to cut travel time. On by default.</dd>
                     <dt>Insert tool changes</dt>
-                    <dd>Emits <code>T… M6</code> (plus the tool-length mode your post declares) whenever the tool number changes, with a retract, spindle stop and <code>G49</code> before the swap. Greyed out on posts that declare no tool-change support, and on multi-file exports unless one of the files holds more than one tool.</dd>
+                    <dd>Emits a tool change whenever the tool number changes, with a retract and spindle stop around it. Greyed out on posts that do not support tool changes.</dd>
                     <dt>Group by tool</dt>
-                    <dd>Reorders operations so each tool is used once, minimising physical swaps. This overrides the order you dragged, so it is never implied by the option above.</dd>
+                    <dd>Reorders operations so each tool is used once. This overrides the order you dragged, so it is never applied unless you ask for it.</dd>
                     <dt>Split drill files by hole diameter</dt>
-                    <dd>Multi-file mode only. Writes a separate program per hole size (and per milled size) so each file loads exactly one cutter.</dd>
-                    <dt>Output Filename</dt>
-                    <dd>The filename for the downloaded G-code file.</dd>
+                    <dd>Multi-file mode only. Writes one program per hole size, so each file loads exactly one cutter.</dd>
+                    <dt>Output filename</dt>
+                    <dd>Base name only - the extension follows the post-processor.</dd>
                 </dl>
-
-                <h4>Calculate and Export</h4>
-                <p>Click <strong>Calculate Toolpaths</strong> to process. The preview area shows generated G-code with statistics: line count, operation count, estimated time, and total travel distance. Click <strong>Export G-code</strong> to download.</p>
-            </section>
-
-            <!-- Operation types -->
-            <section id="operations">
-                <h2>Operation Types</h2>
-                <p>Each operation type has specific parameters organized across three stages: Geometry (2D offsets), Strategy (depth/entry), and Machine (feeds/speeds).</p>
-
-                <h3 id="op-isolation">Isolation Routing</h3>
-                <p>Isolation routing cuts trenches around your PCB traces, electrically separating them from the surrounding copper. The tool follows paths offset outward from the trace edges.</p>
-
-                <figure>
-                    <svg viewBox="0 0 600 300" style="width:100%;max-width:600px;background:#1a1a1a;border-radius:8px;">
-                        <!-- Copper trace -->
-                        <rect x="200" y="100" width="200" height="100" fill="var(--color-operation-isolation)" rx="4"/>
-                        <text x="300" y="155" fill="var(--color-bw-black)" font-size="11" text-anchor="middle">Copper Trace</text>
-                        <!-- Offset passes -->
-                        <rect x="190" y="90" width="220" height="120" fill="none" stroke="var(--color-error)" stroke-width="2" rx="10" ry="10"/>
-                        <rect x="180" y="80" width="240" height="140" fill="none" stroke="var(--color-error)" stroke-width="2" stroke-dasharray="4" rx="20" ry="20"/>
-                        <rect x="170" y="70" width="260" height="160" fill="none" stroke="var(--color-error)" stroke-width="2" stroke-dasharray="8" rx="30" ry="30"/>
-                        <!-- Labels -->
-                        <text x="440" y="95" fill="var(--color-error)" font-size="10">← Pass 1</text>
-                        <text x="440" y="115" fill="var(--color-error)" font-size="10">← Pass 2</text>
-                        <text x="440" y="135" fill="var(--color-error)" font-size="10">← Pass 3</text>
-                        <!-- Arrow showing offset direction -->
-                        <line x1="300" y1="200" x2="300" y2="250" stroke="var(--color-text-secondary)" stroke-width="1"/>
-                        <text x="300" y="270" fill="var(--color-text-secondary)" font-size="10" text-anchor="middle">Offset Direction: Outward</text>
-                    </svg>
-                    <figcaption>Isolation passes around a copper trace, showing multiple offset distances</figcaption>
-                </figure>
-
-                <h4>Geometry Stage Parameters</h4>
-                <dl>
-                    <dt>Tool / Tool Diameter</dt>
-                    <dd>Smaller tools (0.1-0.2mm) allow tighter trace spacing but are fragile.</dd>
-                    <dt>Passes</dt>
-                    <dd>Number of concentric offset paths. More passes = wider isolation zone.</dd>
-                    <dt>Step Over (%)</dt>
-                    <dd>Distance between passes as percentage of tool diameter. 50% gives good overlap.</dd>
-                </dl>
-
-                <h4>Strategy Stage Parameters</h4>
-                <dl>
-                    <dt>Cut Depth</dt>
-                    <dd>For standard 35µm (1oz) copper on FR4, 0.1-0.15mm is typical.</dd>
-                    <dt>Multi-Depth / Depth per Pass</dt>
-                    <dd>Enable for deeper cuts requiring multiple Z passes.</dd>
-                    <dt>Entry Type</dt>
-                    <dd>Plunge (default), Ramp, or Helix entry into material.</dd>
-                </dl>
-
-                <h4>Machine Stage Parameters</h4>
-                <dl>
-                    <dt>Feed Rate</dt>
-                    <dd>XY cutting speed. 100-400 mm/min typical for PCB isolation.</dd>
-                    <dt>Plunge Rate</dt>
-                    <dd>Z-axis cutting speed. Usually 25-50% of feed rate.</dd>
-                    <dt>Spindle Speed</dt>
-                    <dd>10,000-24,000 RPM typical for PCB work.</dd>
-                </dl>
-
-                <h3 id="op-drilling">Drilling</h3>
-                <p>Drilling operations process Excellon files containing hole and slot definitions. EasyTrace5000 analyzes each feature against your tool diameter and selects an appropriate strategy.</p>
-
-                <figure>
-                    <svg viewBox="0 0 600 300" style="width:100%;max-width:600px;background:#1a1a1a;border-radius:8px;">
-                        <!-- Grid of holes -->
-                        <!-- Exact fit (green) -->
-                        <circle cx="100" cy="100" r="15" fill="none" stroke="var(--color-success)" stroke-width="3"/>
-                        <circle cx="100" cy="100" r="3" fill="var(--color-success)"/>
-                        <text x="100" y="140" fill="var(--color-success)" font-size="10" text-anchor="middle">Exact</text>
-                        <text x="100" y="155" fill="var(--color-text-hint)" font-size="9" text-anchor="middle">Tool = Hole</text>
-                        <!-- Undersized (yellow) -->
-                        <circle cx="250" cy="100" r="20" fill="none" stroke="var(--color-warning)" stroke-width="3"/>
-                        <circle cx="250" cy="100" r="8" fill="none" stroke="var(--color-warning)" stroke-width="2" stroke-dasharray="4"/>
-                        <text x="250" y="140" fill="var(--color-warning)" font-size="10" text-anchor="middle">Undersized</text>
-                        <text x="250" y="155" fill="var(--color-text-hint)" font-size="9" text-anchor="middle">Tool &lt; Hole (mill)</text>
-                        <!-- Oversized (red) -->
-                        <circle cx="400" cy="100" r="10" fill="none" stroke="var(--color-error)" stroke-width="3"/>
-                        <circle cx="400" cy="100" r="15" stroke="var(--color-error)" fill="color-mix(in srgb, var(--color-error) 60%, transparent)" stroke-width="2" stroke-dasharray="4"/>
-                        <text x="400" y="140" fill="var(--color-error)" font-size="10" text-anchor="middle">Oversized</text>
-                        <text x="400" y="155" fill="var(--color-text-hint)" font-size="9" text-anchor="middle">Tool &gt; Hole (warn)</text>
-                        <!-- Slot -->
-                        <rect x="480" y="80" width="80" height="40" rx="20" fill="none" stroke="var(--color-accent-hover)" stroke-width="3"/>
-                        <line x1="500" y1="100" x2="540" y2="100" stroke="var(--color-accent-hover)" stroke-width="2" stroke-dasharray="4"/>
-                        <text x="520" y="140" fill="var(--color-accent-hover)" font-size="10" text-anchor="middle">Slot</text>
-                        <text x="520" y="155" fill="var(--color-text-hint)" font-size="9" text-anchor="middle">Milled path</text>
-                        <!-- Legend -->
-                        <rect x="80" y="200" width="440" height="70" fill="var(--color-bg-tertiary)" rx="4"/>
-                        <text x="300" y="225" fill="var(--color-text-secondary)" font-size="11" text-anchor="middle">Strategy Selection</text>
-                        <circle cx="130" cy="250" r="6" fill="var(--color-success)"/>
-                        <text x="150" y="254" fill="var(--color-text-secondary)" font-size="10">Peck drill</text>
-                        <circle cx="260" cy="250" r="6" fill="var(--color-warning)"/>
-                        <text x="280" y="254" fill="var(--color-text-secondary)" font-size="10">Helix mill</text>
-                        <circle cx="380" cy="250" r="6" fill="var(--color-error)"/>
-                        <text x="400" y="254" fill="var(--color-text-secondary)" font-size="10">Warning</text>
-                    </svg>
-                    <figcaption>Color-coded drill holes: green (exact fit), yellow (undersized tool), red (oversized tool)</figcaption>
-                </figure>
-
-                <h4>Strategy Selection</h4>
-                <p>The system compares each hole/slot diameter to your tool diameter:</p>
-                <dl>
-                    <dt>Exact Fit (green)</dt>
-                    <dd>Hole diameter equals tool diameter. Uses peck/plunge drilling.</dd>
-                    <dt>Undersized Tool (yellow)</dt>
-                    <dd>Tool is smaller than hole. If "Mill Holes" is enabled, uses helical milling.</dd>
-                    <dt>Oversized Tool (red)</dt>
-                    <dd>Tool is larger than hole. Will peck at center (hole will be oversize).</dd>
-                </dl>
-
-                <h4>Geometry Stage Parameters</h4>
-                <dl>
-                    <dt>Tool / Tool Diameter</dt>
-                    <dd>Select a drill bit or end mill matching your hole sizes.</dd>
-                    <dt>Mill Holes</dt>
-                    <dd>Enable to use helical milling for undersized holes instead of simple drilling.</dd>
-                </dl>
-
-                <h4>Strategy Stage Parameters</h4>
-                <dl>
-                    <dt>Cut Depth</dt>
-                    <dd>Total drilling depth (typically PCB thickness + clearance).</dd>
-                    <dt>Entry Type</dt>
-                    <dd>Plunge (standard drilling) or Helix (spiral entry for milled holes).</dd>
-                    <dt>Canned Cycle</dt>
-                    <dd>For peck drilling: None, G81, G82 (dwell), G83 (peck), G73 (stepped).</dd>
-                    <dt>Peck Depth</dt>
-                    <dd>Depth of each peck before retracting. 0 = single plunge.</dd>
-                    <dt>Dwell Time</dt>
-                    <dd>Pause at hole bottom (seconds). Helps clear chips.</dd>
-                </dl>
-
-                <h3 id="op-clearing">Copper Clearing</h3>
-                <p>Copper clearing removes large areas of unwanted copper. Unlike isolation (outward offsets), clearing offsets inward to pocket out the interior.</p>
-
-                <h4>Geometry Stage Parameters</h4>
-                <dl>
-                    <dt>Tool / Tool Diameter</dt>
-                    <dd>Larger tools clear faster.</dd>
-                    <dd>Number of inward offset passes.</dd>
-                    <dt>Step Over (%)</dt>
-                    <dd>50% provides good material removal and tool engagement.</dd>
-                </dl>
-
-                <h4>Strategy Stage Parameters</h4>
-                <dl>
-                    <dt>Cut Depth / Multi-Depth</dt>
-                    <dd>Same as isolation - configure depth per pass for thick copper.</dd>
-                    <dt>Entry Type</dt>
-                    <dd>Ramp or Helix recommended for pocket entry.</dd>
-                </dl>
-
-                <h3 id="op-cutout">Board Cutout</h3>
-                <p>Cutout operations generate the path to separate your finished PCB from stock material.</p>
-
-                <figure>
-                    <svg viewBox="0 0 600 300" style="width:100%;max-width:600px;background:#1a1a1a;border-radius:8px;">
-                        <!-- Board outline -->
-                        <rect x="100" y="50" width="400" height="200" fill="none" stroke="var(--color-operation-cutout)" stroke-width="3"/>
-                        <!-- Cut path (outside) -->
-                        <rect x="90" y="40" width="420" height="220" fill="none" stroke="var(--color-accent-hover)" stroke-width="2" stroke-dasharray="8"/>
-                        <!-- Tabs -->
-                        <rect x="280" y="35" width="40" height="10" fill="var(--color-warning)"/>
-                        <rect x="280" y="255" width="40" height="10" fill="var(--color-warning)"/>
-                        <rect x="85" y="130" width="10" height="40" fill="var(--color-warning)"/>
-                        <rect x="505" y="130" width="10" height="40" fill="var(--color-warning)"/>
-                        <!-- Labels -->
-                        <text x="300" y="150" fill="var(--color-operation-cutout)" font-size="11" text-anchor="middle">Board Outline</text>
-                        <line x1="520" y1="100" x2="560" y2="80" stroke="var(--color-text-secondary)" stroke-width="1"/>
-                        <text x="560" y="75" fill="var(--color-accent-hover)" font-size="10">Cut Path</text>
-                        <line x1="330" y1="40" x2="370" y2="20" stroke="var(--color-text-secondary)" stroke-width="1"/>
-                        <text x="410" y="25" fill="var(--color-warning)" font-size="10">Holding Tabs</text>
-                    </svg>
-                    <figcaption>Board cutout path showing holding tabs that keep the board attached during cutting</figcaption>
-                </figure>
-
-                <h4>Geometry Stage Parameters</h4>
-                <dl>
-                    <dt>Tool / Tool Diameter</dt>
-                    <dd>Wider, stronger cutting tools can be used for faster cutting and a lower risk of breaking.</dd>
-                    <dd>It's common to try and re-use the same tool as used for drilling.</dd>
-                    <dt>Cut Side</dt>
-                    <dd>
-                        <strong>Outside:</strong> Physical board will match outline file.<br>
-                        <strong>Inside:</strong> If geometry is oversized.<br>
-                        <strong>On:</strong> Tool center follows the polygon perimeter line.
-                    </dd>
-                </dl>
-
-                <h4>Strategy Stage Parameters</h4>
-                <dl>
-                    <dt>Cut Depth / Multi-Depth</dt>
-                    <dd>Full PCB thickness. Multi-depth required for thick material.</dd>
-                    <dt>Number of Tabs</dt>
-                    <dd>Holding tabs around perimeter. 4-6 typical for small boards.</dd>
-                    <dt>Tab Width</dt>
-                    <dd>Width of each tab in mm. 2-3mm usually sufficient.</dd>
-                    <dt>Tab Height</dt>
-                    <dd>Material left in tab. 0.3-0.5mm (enough to hold but easy to remove).</dd>
-                </dl>
-            </section>
-
-            <!-- Machine settings reference -->
-            <section id="machine-settings">
-                <h2>Machine Settings Reference</h2>
-                <p>This section provides detailed information about each machine setting and typical values.</p>
-
-                <h3>Post-Processor</h3>
-                <table>
-                    <thead><tr><th>Post-Processor</th><th>Status</th><th>Tool Changes</th><th>Notes</th></tr></thead>
-                    <tbody>
-                        <tr><td>GRBL</td><td><span class="doc-badge doc-badge--stable">Stable</span></td><td>No</td><td>Standard G-code for GRBL-based controllers. Most compatible option. Multi-tool jobs must be exported one file per tool.</td></tr>
-                        <tr><td>grblHAL</td><td><span class="doc-badge doc-badge--dev">Exp</span></td><td>T/M6</td><td>Extended GRBL dialect. Optional tool-length table mode.</td></tr>
-                        <tr><td>UCCNC</td><td><span class="doc-badge doc-badge--dev">Exp</span></td><td>T/M6</td><td>Tool-length table mode available.</td></tr>
-                        <tr><td>Mach3</td><td><span class="doc-badge doc-badge--dev">Exp</span></td><td>T/M6</td><td>Outputs <code>.tap</code>. Tool-length table mode available.</td></tr>
-                        <tr><td>LinuxCNC</td><td><span class="doc-badge doc-badge--dev">Exp</span></td><td>T/M6</td><td>Outputs <code>.ngc</code>. Tool-length table mode available.</td></tr>
-                        <tr><td>Fanuc</td><td><span class="doc-badge doc-badge--dev">Exp</span></td><td>T/M6</td><td>Supports both explicit <code>G43 H…</code> and implicit <code>G43</code> tool-length modes.</td></tr>
-                        <tr><td>WinPC-NC</td><td><span class="doc-badge doc-badge--dev">Exp</span></td><td>T/M6</td><td>DIN/ISO interpreter. No tool-length compensation.</td></tr>
-                        <tr><td>Makera</td><td><span class="doc-badge doc-badge--dev">Exp</span></td><td>Yes</td><td>Carvera. Outputs <code>.cnc</code>. Tool length is measured by the machine's probe macro.</td></tr>
-                        <tr><td>Marlin</td><td><span class="doc-badge doc-badge--dev">Exp</span></td><td>No</td><td>For Marlin-based CNC/3D printer conversions. Outputs <code>.gcode</code>.</td></tr>
-                        <tr><td>Roland RML</td><td><span class="doc-badge doc-badge--dev">Exp</span></td><td>No</td><td>Roland Modela command language (not standard G-code). Outputs <code>.rml</code>.</td></tr>
-                    </tbody>
-                </table>
 
                 <div class="callout callout--warning">
-                    <h4>Warning</h4>
-                    <p>Experimental post-processors should be tested with caution, on air (tool removed, maybe spindle off) before running actual cuts.</p>
+                    <h4>Tool numbers are yours to manage</h4>
+                    <p>Nothing here can know which slot a cutter is physically in, and it will not pretend to. Assign the numbers, keep them matched to the machine, and check them before you run. An operation with no tool number blocks the export rather than picking one for you.</p>
                 </div>
-
-                <h3>Height Settings</h3>
-                <dl>
-                    <dt>Safe Z (typical: 5-15mm)</dt>
-                    <dd>Maximum clearance height. Used at program start/end. Should clear all clamps, fixtures, and the highest point of your workpiece.</dd>
-                    <dt>Travel Z (typical: 2-5mm)</dt>
-                    <dd>Height for rapid moves between cutting operations. Lower than Safe Z for faster operation, but must still clear the workpiece surface and any chips/debris.</dd>
-                </dl>
-
-                <h3>Speed Settings</h3>
-                <dl>
-                    <dt>Rapid Feed (typical: 1000-3000 mm/min)</dt>
-                    <dd>Speed for G0 positioning moves. Some controllers ignore this (moving at max speed), while others respect it.</dd>
-                    <dt>Feed Rate (per-operation, typical: 100-400 mm/min for PCB work)</dt>
-                    <dd>Cutting speed during milling. Lower = cleaner cuts but slower. Higher = faster but risks tool breakage or poor cut quality.</dd>
-                    <dt>Plunge Rate (per-operation, typical: 30-100 mm/min)</dt>
-                    <dd>Speed for downward (Z-axis) cutting moves. Usually much slower than XY feed rate because plunging loads the tool differently.</dd>
-                    <dt>Spindle Speed (per-operation, typical: 10000-24000 RPM)</dt>
-                    <dd>Rotation speed of the spindle/tool. PCB routing typically uses high speeds with low feed rates.</dd>
-                </dl>
             </section>
 
-            <!-- Visualization options -->
+            <section id="operations">
+                <h2>Operation Settings</h2>
+                <p>What to set for each operation and why. Full ranges and defaults are on the <a href="parameters" draggable="false">Parameter Guide</a>; what each operation is for is on the <a href="operations" draggable="false">Operation Guide</a>.</p>
+
+                <h3 id="op-isolation">Copper Isolation</h3>
+                <p>Cuts a clearance channel around copper so traces and pads end up electrically separated. Passes run outward from the copper edge; each extra pass widens the cleared band.</p>
+
+                <figure>
+                    <div class="doc-figure" data-figure="fig-isolation-passes.svg"></div>
+                    <figcaption>Isolation passes step outward from the copper edge</figcaption>
+                </figure>
+
+                <p><strong>Geometry:</strong> tool and tool diameter - smaller tools (0.1-0.2 mm) allow tighter trace spacing but break easily; number of passes; step-over; combine passes.</p>
+                <p><strong>Depth:</strong> 0.1 to 0.15 mm is typical for 35 µm copper, plus multi-depth and depth per pass for thicker copper.</p>
+                <p><strong>Machine:</strong> feed 100-400 mm/min, plunge 25-50% of feed, spindle 10,000-24,000 RPM.</p>
+                <p>For a V-bit, the width it cuts depends on how deep it goes, so the offsets are calculated from the width it will actually produce at your cut depth rather than the number on the packet.</p>
+
+                <h3 id="op-drill">Drill</h3>
+                <p>Handles holes from Excellon files and from SVG circles and obrounds. Each hole is measured against the tool and given a strategy automatically.</p>
+
+                <figure>
+                    <div class="doc-figure" data-figure="fig-drill-strategy.svg"></div>
+                    <figcaption>Strategy is chosen per hole from its diameter against the tool</figcaption>
+                </figure>
+
+                <h4>Milling holes and slots</h4>
+                <p>Turn on <em>Mill Holes</em> and any hole wider than the tool is cut out rather than drilled: the tool drops inside the hole and walks a circle inset by its own radius, taking as many passes as the step-over needs to clear the middle. It is how you get a 3 mm hole out of a 1 mm bit, and it is slower than drilling - which is why it is a choice rather than the default.</p>
+                <p>Obround slots work the same way, along a line instead of a circle. The tool runs the slot's centreline and stops one radius short of each end, so the finished slot matches the width and length you drew.</p>
+
+                <figure>
+                    <div class="doc-figure" data-figure="fig-mill-holes.svg"></div>
+                    <figcaption>Milling an oversize hole, and milling an obround slot</figcaption>
+                </figure>
+
+                <p><strong>Multi-tool drilling.</strong> Turn on <em>Multi-Tool Drilling</em> to open a table with a row per hole size. Each row gets its own strategy (peck, mill or skip), its own cutter diameter and its own tool number. <em>Auto-match Tool Library</em> fills strategy and cutter for you. <em>Copy Excellon T numbers</em> pulls the numbers out of the file header - those are the file's own indices, not your machine's slots, so check them before you cut. A row left without a tool number falls back to the operation's number.</p>
+                <p>On export, a single-file job puts the tool changes inline. In multi-file mode, <em>Split drill files by hole diameter</em> writes one program per size, which is how you run a multi-tool drill job on a machine without a changer.</p>
+                <p><strong>Key parameters:</strong> mill holes and mill step-over; drill cycle (G81/G82/G83/G73), peck depth, dwell time, retract height; entry type and multi-depth for milled holes.</p>
+
+                <h3 id="op-clearing">Copper Clearing</h3>
+                <p>Removes large copper areas - ground pours, fills - rather than just isolating them. Passes work inward until the area is gone. Islands inside a pour are recognised and left alone.</p>
+                <p>Running out of material to remove is the intended end state here, so a message saying the geometry collapsed at some pass is this operation finishing normally, not failing.</p>
+                <p><strong>Key parameters:</strong> tool diameter and step-over, then the same depth settings as isolation. Larger tools clear much faster and are the right call unless the area has fine detail.</p>
+
+                <h3 id="op-cutout">Board Cutout</h3>
+                <p>Cuts the board free from the stock along its outline, with holding tabs so it does not shift on the last pass.</p>
+
+                <figure>
+                    <div class="doc-figure" data-figure="fig-cutout-tabs.svg"></div>
+                    <figcaption>Tabs interrupt the cut; tab height is measured from the cut floor</figcaption>
+                </figure>
+
+                <p>If your outline has small gaps where segments do not quite meet, you get a prompt offering to close them rather than an open path that would produce a nonsense toolpath. Multiple boards in one file are handled as separate outlines.</p>
+                <p><strong>Key parameters:</strong> cut side - outside gives a board matching the outline, inside makes a window, on-line centres the tool on the line; number of tabs (4-6 for a small board), tab width (the bridge length along the outline) and tab height. 2-3 mm wide and 0.3-0.5 mm tall is a good starting point.</p>
+                <p><strong>Depth:</strong> the full stock thickness, with multi-depth on. Cut the board out last.</p>
+
+                <h3 id="op-stencil">Stencil</h3>
+                <p>Generates solder-paste apertures from your pad geometry, ready to cut. On the CNC route you choose what cuts it.</p>
+                <p><strong>Stencil Output</strong> picks between <em>Router</em>, which mills the apertures out of thin stencil stock and exports G-code, and <em>Knife</em>, which produces a vector file with the cutter offset applied, for a drag knife or vinyl cutter. Choosing one changes the rest of the form, since a milled stencil needs depth and feeds and a cut one does not.</p>
+                <p><strong>Corner radius</strong> exists because a round cutter cannot turn a corner tighter than itself. On a drag knife/vinyl cutter a square aperture corner means the blade can overshoot or distort the opening; rounding it gives the blade something it can track easier.</p>
+
+                <figure>
+                    <div class="doc-figure" data-figure="fig-stencil-corners.svg"></div>
+                    <figcaption>Set a radius smaller than the cutter and the corner stays square - you get a warning rather than a silent surprise</figcaption>
+                </figure>
+                <p><strong>Aperture offset</strong> shrinks or grows every aperture. A small negative value such as -0.05 mm is the usual starting point; it stops paste bridging between close pads.</p>
+                <p><strong>Registration holes</strong> are optional alignment holes outside the board, for pinning the stencil over the PCB. They ignore the aperture offset and the corner radius - they have to match your dowels, not your paste.</p>
+                <p>Lasering a stencil instead? That lives in the <a href="laser#stencil" draggable="false">Laser Guide</a>.</p>
+            </section>
+
+            <section id="machine-reference">
+                <h2>Machine Settings Reference</h2>
+                <p>These apply to every operation in the job.</p>
+                <dl>
+                    <dt>Post-Processor</dt>
+                    <dd>The G-code dialect your controller expects. Set it first: it decides which other settings appear, including tool changes, tool length compensation, rotary routes and any extra fields that post needs.</dd>
+                    <dt>Start / End G-code</dt>
+                    <dd>Free-text blocks emitted at the very start and end of the program. Use them for dust collection, coolant, a homing sequence, anything your machine needs around the job.</dd>
+                    <dt>Units</dt>
+                    <dd>Millimetres or inches. Selecting inches scales the output; it does not change how you enter parameters.</dd>
+                    <dt>PCB Thickness</dt>
+                    <dd>Used for depth checks and for the cutout's full-depth guidance.</dd>
+                    <dt>Safe Z (typical 5-15 mm)</dt>
+                    <dd>Maximum clearance height, used at program start and end. Must clear every clamp, fixture and high point.</dd>
+                    <dt>Travel Z (typical 2-5 mm)</dt>
+                    <dd>Lower retract for moves between nearby cuts. Faster than going to Safe Z every time, but it must still clear the workpiece and any debris.</dd>
+                    <dt>Rapid Feed (typical 1000-3000 mm/min)</dt>
+                    <dd>Speed for positioning moves. Some controllers ignore it and move at maximum; others respect it.</dd>
+                    <dt>Line Numbers</dt>
+                    <dd>Any program can carry <code>N</code> line numbers, with a step you choose. Each post has its own default, but the choice is yours - some controllers and file senders want them, most do not care.</dd>
+                    <dt>Tool Length Compensation</dt>
+                    <dd>Only shown for posts that support it. <em>Table</em> tells the control which offset to use after each swap. <em>Table (implicit)</em> lets the control take the offset from the tool number itself. <em>Probe</em> leaves it alone, because the machine measures the tool during the change. Pick whichever your controller is set up for.</dd>
+                    <dt>Rotary Route</dt>
+                    <dd>Only shown for posts with a rotary axis. Not used by EasyTrace5000 - it is here because the setting is shared with EasyShape5000.</dd>
+                    <dt>Extra post fields</dt>
+                    <dd>Some posts need settings no other post does - the Roland profiles are the largest example. They appear here when that post is selected.</dd>
+                </dl>
+                <div class="callout callout--warning">
+                    <h4>Machine settings invalidate generated work</h4>
+                    <p>Heights, units and thickness go straight into toolpaths, so changing them afterwards invalidates your operations and the export blocks until you regenerate. Changing the post-processor does the same, since a different post may not support what the old one did.</p>
+                </div>
+            </section>
+
+            <section id="posts">
+                <h2>Post-Processors</h2>
+                <p>Ten dialects ship with the suite, shared with EasyShape5000:</p>
+                <p>GRBL &middot; grblHAL &middot; UCCNC &middot; Mach3 &middot; LinuxCNC &middot; Fanuc &middot; WinPC-NC &middot; Makera (Carvera) &middot; Marlin &middot; Roland RML</p>
+                <p>Each sets its own file extension, arc format and tool-change dialect.</p>
+
+                <div class="callout callout--warning">
+                    <h4>Check a new post before you rely on it</h4>
+                    <p>These are in use and working, but "controller X, firmware Y" covers a lot of ground and no one person can test all of it. Read the first program a new post produces, or run it in the air, and then <a href="https://github.com/RicardoJCMarques/EasyCAM5000/discussions" target="_blank" draggable="false">say how it went</a> - what works is as useful to hear as what does not.</p>
+                    <p>The exception is <strong>Fanuc</strong>. It is being developed against one machine and has had no outside feedback at all, so treat it as unfinished rather than untested.</p>
+                </div>
+            </section>
+
             <section id="visualization">
                 <h2>Visualization Options</h2>
-                <p>The Visualization panel (left side, bottom of the page - click the eye icon) controls what appears on the canvas. Most are development leftovers but fun to use.</p>
+                <p>Open with the eye icon in the footer. Some of it exists for debugging, but several toggles are useful day to day.</p>
 
-                <h3>Display Options</h3>
+                <h3>Display</h3>
                 <dl>
-                    <dt>Grid</dt>
-                    <dd>Shows a reference grid on the canvas. Grid spacing adapts to zoom level.</dd>
-                    <dt>Wireframe</dt>
-                    <dd>Renders all geometry as paths only (no fill). Useful for debugging file geometry.</dd>
-                    <dt>Board Bounds</dt>
-                    <dd>Shows a rectangle indicating the overall bounds of all loaded geometry.</dd>
-                    <dt>Rulers</dt>
-                    <dd>Displays measurement rulers along the canvas edges with tick marks in mm.</dd>
+                    <dt>Grid</dt><dd>Reference grid, spacing adapts to zoom.</dd>
+                    <dt>Wireframe</dt><dd>Paths only, no fill. The fastest way to see what a file actually contains.</dd>
+                    <dt>Board Bounds</dt><dd>Rectangle around all loaded geometry.</dd>
+                    <dt>Rulers</dt><dd>Millimetre rulers along the canvas edges.</dd>
                 </dl>
 
                 <h3>Layer Visibility</h3>
-                <dl>
-                    <dt>Regions</dt>
-                    <dd>Filled areas (copper pours, pads) from source geometry.</dd>
-                    <dt>Traces</dt>
-                    <dd>Line/stroke elements (traces, routes) from source geometry.</dd>
-                    <dt>Pads</dt>
-                    <dd>Individual pad flashes from source geometry.</dd>
-                    <dt>Drills</dt>
-                    <dd>Drill holes and slots from source geometry.</dd>
-                    <dt>Cutouts</dt>
-                    <dd>Board outline geometry.</dd>
-                    <dt>Offsets</dt>
-                    <dd>Generated offset geometry (thin lines showing toolpath centerlines).</dd>
-                    <dt>Previews</dt>
-                    <dd>Generated preview geometry (thick strokes showing tool cutting area).</dd>
-                </dl>
+                <p>Source geometry splits into regions, traces, pads, drills and cutouts; what you generate splits into offsets, previews and toolpaths. Each is toggled independently, and the setting sticks per operation rather than resetting when you regenerate.</p>
 
-                <h3>Advanced Options</h3>
-                <dl>
-                    <dt>Fusion Mode</dt>
-                    <dd>Enables boolean fusion of overlapping geometry. When multiple shapes overlap, they're merged into unified polygons.</dd>
-                    <dt>Preprocessed</dt>
-                    <dd>Show source geometry already polygonized, pre-boolean.</dd>
-                    <dt>Arc Reconstruction</dt>
-                    <dd>Attempts to recover true circular arcs from polygonized geometry post boolean operations. Allows arc commands instead of many small line segments.</dd>
-                    <dt>Debug Points / Debug Arcs</dt>
-                    <dd>Shows diagnostic overlays for geometry debugging. (Can highlight previous visualization options.)</dd>
-                    <dt>B&amp;W Mode</dt>
-                    <dd>Renders geometry in black and white only.</dd>
-                </dl>
-
-                <h3>Verbose Debug</h3>
-                <p>At the bottom of the Visualization panel is a "Verbose Debug" toggle. When enabled, detailed logging information appears in the browser's developer console and in the status log history. Useful for troubleshooting issues.</p>
+                <h3>Advanced</h3>
+                <p>The rest are diagnostic overlays - fusion mode, preprocessed geometry, debug points and arcs, black-and-white rendering. They exist for working out why a file looks wrong, and they are safe to leave off. <strong>Verbose Debug</strong> is the one worth knowing: it writes detailed logging to the browser console and the status log, and attaching that output to a bug report makes it far more likely to get fixed.</p>
             </section>
 
-            <!-- Tips & troubleshooting -->
             <section id="tips">
                 <h2>Tips &amp; Troubleshooting</h2>
 
                 <h3>Best Practices</h3>
-                <h4>Start with an Example</h4>
-                <p>Before processing your own files, load the built-in example and walk through the complete workflow. This helps you understand what to expect at each stage.</p>
+                <h4>Start with an example</h4>
+                <p>Load a built-in example and run it all the way through before processing your own board. It is the fastest way to learn what each step should look like.</p>
 
-                <h4>Verify Origin Before Export</h4>
-                <p>Always double-check your origin setting before generating final G-code. The origin in EasyTrace5000 must match where you'll set your work coordinate origin on the machine.</p>
+                <h4>Verify the origin before exporting</h4>
+                <p>Your origin has to match where you will zero the machine on the stock. Check it once more before the final export - it is the single most common cause of a scrapped board.</p>
 
-                <h4>Process Operations in Order</h4>
-                <p>When exporting G-code, consider the logical order of operations:</p>
-                <ol>
-                    <li>Isolation routing (creates the trace boundaries)</li>
-                    <li>Copper clearing (removes unwanted copper)</li>
-                    <li>Drilling (a lot of times can use the cutout tool, or vice versa)</li>
-                    <li>Cutout (last, so the board stays attached during other operations)</li>
-                </ol>
+                <h4>Order operations for the job</h4>
+                <p>Isolation, then clearing, then drilling, then cutout last so the board stays attached while everything else happens. Drilling and cutout often share a tool, which is worth planning for if your post has no tool change.</p>
 
                 <h3>Common Issues</h3>
-                <h4>Always Blank/black canvas</h4>
-                <p><strong>Cause:</strong> Browsers can be weird, especially laptops with multiple GPUs.<br>
-                <strong>Solution:</strong> Closing and restarting the browser should load the canvas viewport correctly.</p>
+                <h4>Canvas is blank or black</h4>
+                <p><strong>Cause:</strong> browser graphics compositing, common on laptops with two GPUs. <strong>Fix:</strong> restart the browser; it renders correctly on reload.</p>
 
-                <h4>Files Won't Load</h4>
-                <p><strong>Cause:</strong> Unlikely silent parsing error<br>
-                <strong>Solution:</strong> Try reviewing file contents or testing in another operation/extension.</p>
+                <h4>Files will not load</h4>
+                <p><strong>Cause:</strong> an extension the operation does not accept, or a file variant that will not parse. <strong>Fix:</strong> check the log in the status bar - errors are reported there with a line number. Re-export from your EDA tool with Protel extensions if drag-and-drop puts files in the wrong category.</p>
 
-                <h4>Geometry Appears Rotated or Mirrored</h4>
-                <p><strong>Cause:</strong> Your EDA software may use different coordinate conventions.<br>
-                <strong>Solution:</strong> Use the Rotation setting to correct orientation. For mirroring, flip the design in your EDA before export.</p>
+                <h4>Geometry appears rotated or mirrored</h4>
+                <p><strong>Cause:</strong> board rotation or mirror left set from earlier. <strong>Fix:</strong> reset both in Origin &amp; Rotation, then regenerate anything you had already generated.</p>
 
-                <h4>Drill Holes Wrong Size</h4>
-                <p><strong>Cause:</strong> Tool doesn't match hole diameter and milling is disabled.<br>
-                <strong>Solution:</strong> Enable "Mill Holes" for undersized tools, or use a drill bit matching your hole sizes.</p>
+                <h4>Drill holes come out the wrong size</h4>
+                <p><strong>Cause:</strong> the tool is larger than the hole, so it pecks at the centre and the hole opens up to the tool. <strong>Fix:</strong> use a smaller bit, or turn on Mill Holes and let it mill the hole to size.</p>
 
-                <h4>Offset Generation Takes Long</h4>
-                <p>Boolean operations on complex geometry are computationally intensive. More passes takes longer to calculate.</p>
+                <h4>Offset generation takes a long time</h4>
+                <p><strong>Cause:</strong> a lot of geometry. Isolation on a dense board is the usual suspect. <strong>Fix:</strong> fewer passes, a larger step-over, or clear the pour with a Clearing operation instead of widening isolation.</p>
+
+                <h4>An operation is invalidated</h4>
+                <p><strong>Cause:</strong> a machine setting, a board transform, or a parameter an earlier stage depends on was changed. <strong>Fix:</strong> regenerate from the stage named in the message. Only the layers after your change are cleared.</p>
             </section>
 
         </main>
         <!-- Footer -->
         <footer class="doc-footer" aria-label="Footer">
             <p>
-                <a href="#doc-content" draggable="false" aria-label="Scroll back to top">Back to Top</a> |
-                <a href="https://github.com/RicardoJCMarques/EasyCAM5000" target="_blank" draggable="false" aria-label="GitHub Repository (opens in a new tab)">GitHub</a> |
-                <a href="/#support" draggable="false" aria-label="Support Development via Sponsorship">Support Development</a> |
-                <a href="../../LICENSE" target="_blank" draggable="false" aria-label="AGPLv3 License (opens in a new tab)">AGPLv3 Licensed</a> |
-                <a href="https://www.eltryus.design/" draggable="false" aria-label="Eltryus, developer of EasyCAM5000">by ELTRYUS</a>
+                <a href="#doc-content" draggable="false">Back to Top</a> |
+                <a href="https://github.com/RicardoJCMarques/EasyCAM5000" target="_blank" draggable="false">GitHub</a> |
+                <a href="/#support" draggable="false">Support Development</a> |
+                <a href="../../LICENSE" target="_blank" draggable="false">AGPLv3 Licensed</a> |
+                <a href="https://www.eltryus.design/" draggable="false">by ELTRYUS</a>
             </p>
         </footer>
-
     </div>
-
-    <!-- Scripts -->
-    <script defer src="../../themes/theme-loader.js"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            // Load the SVG Sprite
-            fetch('../../images/icons/sprite.svg')
-                .then(response => {
-                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                    return response.text();
-                })
-                .then(svgText => {
-                    const div = document.createElement('div');
-                    div.innerHTML = svgText;
-                    const svg = div.querySelector('svg');
-                    if (svg) {
-                        svg.setAttribute('aria-hidden', 'true');
-                        svg.style.cssText = 'position: absolute; width: 0; height: 0; visibility: hidden;';
-                        document.body.insertBefore(svg, document.body.firstChild);
-                    }
-                })
-                .catch(err => console.warn('Failed to load icon sprite:', err));
-
-            // Theme toggle
-            const themeBtn = document.getElementById('theme-toggle');
-            if (themeBtn && window.ThemeLoader) {
-                const useEl = themeBtn.querySelector('use');
-                const initialTheme = document.documentElement.getAttribute('data-theme') || 'dark';
-
-                if (useEl) useEl.setAttribute('href', initialTheme === 'dark' ? '#icon-sun' : '#icon-moon');
-
-                themeBtn.addEventListener('click', async () => {
-                    const theme = await window.ThemeLoader.toggleTheme();
-                    if (useEl) useEl.setAttribute('href', theme === 'dark' ? '#icon-sun' : '#icon-moon');
-                });
-            }
-
-            // Mobile menu toggle
-            const menuBtn = document.querySelector('.doc-menu-toggle');
-            const nav = document.querySelector('.doc-nav');
-            if (menuBtn && nav) {
-                const useEl = menuBtn.querySelector('use');
-                menuBtn.addEventListener('click', () => {
-                    const isExpanded = menuBtn.getAttribute('aria-expanded') === 'true';
-                    menuBtn.setAttribute('aria-expanded', !isExpanded);
-                    nav.classList.toggle('is-open');
-
-                    if (useEl) useEl.setAttribute('href', !isExpanded ? '#icon-close' : '#icon-menu');
-                });
-            }
-        });
-    </script>
 </body>
+
+<!-- Scripts -->
+<script defer src="../../themes/theme-loader.js"></script>
+<script src="../../figures.js" defer></script>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // Load the SVG Sprite
+        fetch('../../images/icons/sprite.svg')
+            .then(response => {
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                return response.text();
+            })
+            .then(svgText => {
+                const div = document.createElement('div');
+                div.innerHTML = svgText;
+                const svg = div.querySelector('svg');
+                if (svg) {
+                    svg.setAttribute('aria-hidden', 'true');
+                    svg.style.cssText = 'position: absolute; width: 0; height: 0; visibility: hidden;';
+                    document.body.insertBefore(svg, document.body.firstChild);
+                }
+            })
+            .catch(err => console.warn('Failed to load icon sprite:', err));
+
+        // Theme toggle
+        const themeBtn = document.getElementById('theme-toggle');
+        if (themeBtn && window.ThemeLoader) {
+            const useEl = themeBtn.querySelector('use');
+            const initialTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+
+            if (useEl) useEl.setAttribute('href', initialTheme === 'dark' ? '#icon-sun' : '#icon-moon');
+
+            themeBtn.addEventListener('click', async () => {
+                const theme = await window.ThemeLoader.toggleTheme();
+                if (useEl) useEl.setAttribute('href', theme === 'dark' ? '#icon-sun' : '#icon-moon');
+            });
+        }
+
+        // Mobile menu toggle
+        const menuBtn = document.querySelector('.doc-menu-toggle');
+        const nav = document.querySelector('.doc-nav');
+        if (menuBtn && nav) {
+            const useEl = menuBtn.querySelector('use');
+            menuBtn.addEventListener('click', () => {
+                const isExpanded = menuBtn.getAttribute('aria-expanded') === 'true';
+                menuBtn.setAttribute('aria-expanded', !isExpanded);
+                nav.classList.toggle('is-open');
+
+                if (useEl) useEl.setAttribute('href', !isExpanded ? '#icon-close' : '#icon-menu');
+            });
+        }
+    });
+</script>
 </html>

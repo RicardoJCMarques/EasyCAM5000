@@ -1,5 +1,5 @@
 name: Bug Report
-description: Report a parsing error, renderer glitch, or crash
+description: Report a parsing error, renderer glitch, crash, or wrong G-code/SVG (laser/stencil)
 title: "[Bug]: "
 labels: ["bug", "triage"]
 body:
@@ -7,13 +7,59 @@ body:
     attributes:
       value: |
         ### Before you submit
-        Please check the [Known Issues list](https://github.com/RicardoJCMarques/Eltryus_CAM#known-issues--limitations) in the README.
+        Please check the [known limitations](https://github.com/RicardoJCMarques/EasyCAM5000#status-and-known-limitations),
+        [known bugs](https://github.com/RicardoJCMarques/EasyCAM5000/blob/main/CHANGELOG.md)
+        and for [open issues](https://github.com/RicardoJCMarques/EasyCAM5000/issues).
+
+  - type: dropdown
+    id: app
+    attributes:
+      label: Which app?
+      options:
+        - EasyTrace5000 (PCB)
+        - EasyShape5000 (CNC routing)
+        - Both / not sure
+    validations:
+      required: true
+
+  - type: dropdown
+    id: stage
+    attributes:
+      label: Where does it go wrong?
+      options:
+        - "Loading / parsing the file"
+        - "Generate Offsets (geometry)"
+        - "Generate Preview (strategy)"
+        - "Calculate Toolpaths"
+        - "Export (G-code / SVG / PNG)"
+        - "Rendering only - the output is fine"
+        - "Something else / not sure"
+    validations:
+      required: true
+
+  - type: input
+    id: operation
+    attributes:
+      label: Operation type
+      description: Isolation, clearing, drill, cutout, stencil, profile, pocket, engrave, v-carve, relief, rotary...
+      placeholder: "Drilling (peck), on a KiCad .drl"
+    validations:
+      required: false
+
+  - type: input
+    id: post
+    attributes:
+      label: Post-processor and machine
+      description: Only needed if the G-code itself is wrong.
+      placeholder: "grblHAL on a custom router, tool change enabled"
+    validations:
+      required: false
   
   - type: textarea
     id: description
     attributes:
       label: Description
-      description: A clear and concise description of what went wrong.
+      description: What went wrong, and what you saw. If the app didn't crash but the output was wrong, describe the output.
     validations:
       required: true
 
@@ -30,6 +76,14 @@ body:
         2. Set Tool Diameter to 0.4mm
         3. Clicked Generate Offsets
         4. App froze / Console showed error
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect instead?
+      description: For wrong-output reports this is the most useful field on the form.
     validations:
       required: true
 
@@ -58,7 +112,8 @@ body:
     attributes:
       label: Console Logs
       description: |
-        Please press **F12**, go to the **Console** tab, and run:
-        `window.enablePCBDebug()`
-        Then reproduce the error and paste the red error text below.
+        Press **F12**, open the **Console** tab, and run the line for your app:
+        `enableTraceDebug()` — EasyTrace5000
+        `enableShapeDebug()` — EasyShape5000
+        Then reproduce the problem and paste the output below (red errors especially).
       render: shell

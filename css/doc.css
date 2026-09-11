@@ -212,7 +212,8 @@ h1, h2, h3, h4, h5, h6 {
     z-index: -1;
 }
 
-.doc-sidebar h2 {
+.doc-sidebar h2,
+.doc-sidebar-title {
     font-size: var(--font-size-xs);
     text-transform: uppercase;
     letter-spacing: 0.05em;
@@ -659,6 +660,71 @@ tr:last-child td {
 .doc-badge--planned {
     background: var(--color-bg-tertiary);
     color: var(--color-text-secondary);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Documentation content helpers
+   ═══════════════════════════════════════════════════════════════ */
+
+.doc-sidebar-title {
+    font-weight: 600;
+}
+
+/* Keyboard shortcut lists inside feature cards. */
+.key-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.key-list li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem;
+    margin-bottom: 0.4rem;
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+}
+
+.sponsor-note {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-hint);
+    text-align: center;
+}
+
+/* Figure placeholder. figures.js injects the SVG at runtime; the build
+   inlines it instead. Sizing lives here so the file stays presentational. */
+.doc-figure {
+    width: 100%;
+    max-width: 800px;
+    background: var(--color-bg-primary);
+    border: 1px solid var(--color-border-primary);
+    border-radius: var(--radius);
+}
+
+.doc-figure svg {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+
+/* Holds the box open while the fetch is in flight, so nothing reflows. */
+.doc-figure[data-figure-pending] {
+    min-height: 8rem;
+}
+
+.doc-figure[data-figure-failed] {
+    display: none;
+}
+
+/* Conditional / machine-class notes under a generated parameter label. */
+.param-condition {
+    display: inline-block;
+    margin-top: 2px;
+    font-size: var(--font-size-xs);
+    font-weight: 400;
+    color: var(--color-text-hint);
 }
 
 /* ============================================================================

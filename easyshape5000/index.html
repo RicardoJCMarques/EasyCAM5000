@@ -105,7 +105,7 @@
                 "applicationSubCategory": "CAM Software",
                 "operatingSystem": "Any (Browser-based)",
                 "browserRequirements": "Requires JavaScript and WebAssembly support",
-                "softwareVersion": "1.1.0",
+                "softwareVersion": "1.3.0",
                 "releaseNotes": "https://github.com/RicardoJCMarques/EasyCAM5000/blob/main/CHANGELOG.md",
                 "installUrl": "https://cam.eltryus.design/easyshape5000/",
                 "sameAs": [
@@ -319,11 +319,8 @@
         <!-- CENTRE - canvas -->
         <main class="workspace-main" aria-label="Canvas">
             <div class="canvas-container">
-
-                <canvas id="preview-canvas" tabindex="0"></canvas>
-
-                <div id="viewport-3d" class="viewport-3d" tabindex="-1" hidden></div>
-
+                <canvas id="preview-canvas" tabindex="0" aria-label="2D rendering canvas"></canvas>
+                <div id="viewport-3d" class="viewport-3d" tabindex="-1" role="region" aria-label="3D viewport. Arrow keys orbit, Shift and arrows pan, plus and minus zoom, Home fits." hidden></div>
                 <div id="canvas-loading-overlay" class="canvas-loading-overlay hidden">
                     <div class="spinner"></div>
                     <div id="canvas-loading-message" class="loading-message"></div>
@@ -341,63 +338,23 @@
                     <span class="collapse-indicator">▼</span>
                 </div>
                 <div class="section-content collapsible" id="stock-controls">
-                    <div class="property-field">
-                        <label for="stock-width">Width</label>
-                        <div class="input-unit"><input type="number" id="stock-width" value="600" min="1" step="1"><span class="unit">mm</span></div>
-                    </div>
-                    <div class="property-field">
-                        <label for="stock-height">Height</label>
-                        <div class="input-unit"><input type="number" id="stock-height" value="400" min="1" step="1"><span class="unit">mm</span></div>
-                    </div>
-                    <div class="property-field">
-                        <label for="stock-thickness">Thickness</label>
-                        <div class="input-unit"><input type="number" id="stock-thickness" value="18" min="0.1" step="0.5"><span class="unit">mm</span></div>
-                    </div>
-                    <div class="property-field">
-                        <label for="stock-material">Material</label>
-                        <select id="stock-material">
-                            <option value="plywood">Plywood</option>
-                            <option value="mdf">MDF</option>
-                            <option value="hardwood">Hardwood</option>
-                            <option value="softwood">Softwood</option>
-                            <option value="acrylic">Acrylic</option>
-                            <option value="aluminum">Aluminum (soft)</option>
-                            <option value="foam">Foam / Modeling Board</option>
-                            <option value="custom">Custom</option>
-                        </select>
-                    </div>
-                    <div class="property-field">
-                        <label for="z-zero">Z Zero Reference</label>
-                        <select id="z-zero">
-                            <option value="material" selected>Material Surface (Top)</option>
-                            <option value="bed">Machine Bed (Spoilboard)</option>
-                        </select>
-                    </div>
+                    <div id="stock-fields"></div>
                     <div class="property-field" role="group" aria-labelledby="stock-origin-label">
-                        <label id="stock-origin-label">Stock Origin Offset</label>
-                        <div class="input-stack">
-                            <div class="input-unit">
-                                <input type="number" id="stock-x-offset" value="0" step="0.5" aria-label="Stock origin X offset in mm">
-                                <span class="unit" aria-hidden="true">X mm</span>
-                            </div>
-                            <div class="input-unit">
-                                <input type="number" id="stock-y-offset" value="0" step="0.5" aria-label="Stock origin Y offset in mm">
-                                <span class="unit" aria-hidden="true">Y mm</span>
-                            </div>
-                        </div>
+                    <label id="stock-origin-label">Stock Origin Offset</label>
+                    <div class="input-stack">
+                        <div class="input-unit"><input type="number" id="stock-x-offset" value="0" step="0.5" aria-label="Stock origin X offset in mm"> <span class="unit" aria-hidden="true">X mm</span></div>
+                        <div class="input-unit"><input type="number" id="stock-y-offset" value="0" step="0.5" aria-label="Stock origin Y offset in mm"> <span class="unit" aria-hidden="true">Y mm</span></div>
+                    </div>
                     </div>
                     <div class="origin-buttons">
                         <button class="btn btn--compact btn--secondary" id="stock-bottom-left-btn">Bottom-Left</button>
                         <button class="btn btn--compact btn--secondary" id="stock-center-btn">Center</button>
                     </div>
-                    <button class="btn btn--compact btn--secondary btn--block" id="fit-stock-btn"
-                            title="Fit Stock to Shape Size. 3D objects also set thickness.">
-                        Fit to Object
-                    </button>
                     <div class="origin-buttons">
                         <button class="btn btn--compact btn--primary" id="apply-stock">Apply</button>
                         <button class="btn btn--compact btn--secondary" id="reset-stock">Reset</button>
                     </div>
+                    <button class="btn btn--compact btn--secondary btn--block" id="fit-stock-btn" title="Fit Stock to Shape Size. 3D objects also set thickness.">Fit to Object</button>
                 </div>
             </div>
 
@@ -407,170 +364,7 @@
                     <h2>Machine Settings</h2>
                     <span class="collapse-indicator">▼</span>
                 </div>
-                <div class="section-content collapsible" id="machine-controls">
-
-                    <div class="property-section">
-                        <div class="property-field">
-                            <label for="post-processor" data-i18n="params.postProcessor">Post-Processor</label>
-                            <select id="post-processor">
-                            </select>
-                        </div>
-                        <div class="property-field">
-                            <label for="start-code-ta" data-i18n="params.startCode">Start Code</label>
-                            <textarea id="start-code-ta" rows="5"></textarea>
-                        </div>
-                        <div class="property-field">
-                            <label for="end-code-ta" data-i18n="params.endCode">End Code</label>
-                            <textarea id="end-code-ta" rows="5"></textarea>
-                        </div>
-                        <div class="property-field" data-processor-group="gcode">
-                            <label for="gcode-units" data-i18n="params.gcodeUnits">Units</label>
-                            <select id="gcode-units">
-                                <option value="mm">Millimeters (G21)</option>
-                                <option value="inch">Inches (G20)</option>
-                            </select>
-                        </div>
-                        <div class="property-field" data-processor-group="gcode">
-                            <label class="checkbox-label" for="gcode-line-numbers" data-i18n="params.lineNumbers">
-                                <input type="checkbox" id="gcode-line-numbers">
-                                <span>Line Numbers (N)</span>
-                            </label>
-                        </div>
-                        <div class="property-field" id="gcode-line-number-step-field" data-processor-group="gcode" style="display:none">
-                            <label for="gcode-line-number-step" data-i18n="params.lineNumberStep">Line Number Step</label>
-                            <div class="input-unit">
-                                <input type="number" id="gcode-line-number-step" value="10" min="1" max="1000" step="1" aria-label="Line number increment step">
-                                <span class="unit" aria-hidden="true">step</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Roland-specific settings -->
-                    <div class="property-section" data-processor-group="roland" style="display: none;">
-                        <div class="property-field">
-                            <label for="roland-machine-model" data-i18n="params.rolandMachineModel">Machine Model</label>
-                            <select id="roland-machine-model">
-                                <optgroup label="Pro Series">
-                                    <option value="mdx540">MDX-540 / MDX-540S</option>
-                                    <option value="mdx50">MDX-50</option>
-                                    <option value="mdx40">MDX-40A</option>
-                                </optgroup>
-                                <optgroup label="monoFab">
-                                    <option value="srm20">SRM-20</option>
-                                </optgroup>
-                                <optgroup label="Engraver">
-                                    <option value="egx350">EGX-350</option>
-                                </optgroup>
-                                <optgroup label="Legacy">
-                                    <option value="mdx20">MDX-20</option>
-                                    <option value="mdx15">MDX-15</option>
-                                    <option value="imodela">iModela (iM-01)</option>
-                                </optgroup>
-                                <optgroup label="Other">
-                                    <option value="custom">Custom</option>
-                                </optgroup>
-                            </select>
-                        </div>
-                        <div class="property-field">
-                            <label for="roland-steps-per-mm" data-i18n="params.rolandStepsPerMM">Steps per mm</label>
-                            <div class="input-unit">
-                                <input type="number" id="roland-steps-per-mm" value="100" step="1" min="1" aria-label="Steps per millimeter resolution">
-                                <span class="unit" aria-hidden="true">steps/mm</span>
-                            </div>
-                        </div>
-                        <div class="property-field">
-                            <label for="roland-z-mode" data-i18n="params.rolandZMode">Z Command Mode</label>
-                            <select id="roland-z-mode">
-                                <option value="3d">3D - Z x,y,z (simultaneous XYZ)</option>
-                                <option value="2.5d">2.5D - PU/PD (pen up/down only)</option>
-                            </select>
-                        </div>
-                        <div class="property-field">
-                            <label for="roland-max-feed" data-i18n="params.rolandMaxFeed">Max Feed Rate</label>
-                            <div class="input-unit">
-                                <input type="number" id="roland-max-feed" value="60" step="0.1" min="0.1" aria-label="Maximum feed rate in millimeters per second">
-                                <span class="unit" aria-hidden="true">mm/sec</span>
-                            </div>
-                        </div>
-                        <div class="property-field">
-                            <label for="roland-spindle-mode" data-i18n="params.rolandSpindleMode">Spindle Control</label>
-                            <select id="roland-spindle-mode">
-                                <option value="direct">Direct RPM (!RC + !MC)</option>
-                                <option value="manual">Manual Only (!MC on/off)</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div class="property-section">
-                        <div class="property-field">
-                            <label for="safe-z" data-i18n="params.safeZ">Safe Z</label>
-                            <div class="input-unit">
-                                <input type="number" id="safe-z" step="0.5" aria-label="Safe Z Height in millimeters">
-                                <span class="unit" aria-hidden="true">mm</span>
-                            </div>
-                        </div>
-
-                        <div class="property-field">
-                            <label for="travel-z" data-i18n="params.travelZ">Travel Z</label>
-                            <div class="input-unit">
-                                <input type="number" id="travel-z" step="0.5" aria-label="Travel Z Height in millimeters">
-                                <span class="unit" aria-hidden="true">mm</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="property-section">
-                        <div class="property-field">
-                            <label for="rapid-feed" data-i18n="params.rapidFeed">Rapid Feed</label>
-                            <div class="input-unit">
-                                <input type="number" id="rapid-feed" step="100" aria-label="Rapid Feed Rate in millimeters per minute">
-                                <span class="unit" aria-hidden="true">mm/min</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="property-field" id="tlc-mode-field" style="display: none;">
-                        <label for="tlc-mode" data-i18n="params.toolLengthCompMode">Tool Length Offset</label>
-                        <select id="tlc-mode"></select>
-                    </div>
-                    <!-- no data-i18n tags on coolant and vacuum? -->
-                    <div class="property-section" data-processor-group="gcode">
-                        <div class="property-field">
-                            <label for="coolant-type">Coolant</label>
-                            <select id="coolant-type">
-                                <option value="none" selected>none</option>
-                                <option value="mist">Mist</option>
-                                <option value="flood">Flood</option>
-                            </select>
-                        </div>
-
-                        <div class="property-field">
-                            <label class="checkbox-label" for="vacuum-toggle">
-                                <input type="checkbox" id="vacuum-toggle">
-                                <span>Vacuum</span>
-                            </label>
-                        </div>
-                    </div>
-
-                    <!-- 4th axis. Visibility is owned entirely by MachineSettingsUI.updateRotaryRouteField - deliberately NOT tagged data-processor-group, or the gcode/roland pass and the rotary pass would fight over display. REVIEW - this should probably be in the export modal as it only becomes relevant on 4th axis operations? -->
-                    <div class="property-section" id="rotary-section" style="display: none;">
-                        <div class="property-field" id="rotary-route-field">
-                            <label for="rotary-route" data-i18n="params.rotaryRoute">4th-Axis Route</label>
-                            <select id="rotary-route"></select>
-                        </div>
-
-                        <div class="property-field" id="index-dwell-field" style="display: none;">
-                            <label for="index-dwell" data-i18n="params.indexDwell">Index Settle Dwell</label>
-                            <div class="input-unit">
-                                <input type="number" id="index-dwell" min="0" max="5" step="0.1" placeholder="Auto" aria-label="Rotary index settling dwell in seconds">
-                                <span class="unit" aria-hidden="true">s</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Post-declared customParameters (Fanuc O-number/WCS/unwind, Makera tool-change mode). -->
-                    <div class="property-section" id="processor-custom-params" style="display: none;"></div>
-                </div>
+                <div class="section-content collapsible" id="machine-controls"></div>
             </div>
 
             <!-- Operation Inspector -->
@@ -604,8 +398,8 @@
                                 <div class="input-unit"><input type="number" id="shape-y" step="0.5"><span class="unit">mm</span></div>
                             </div>
                             <div class="origin-buttons">
-                                <button class="btn btn--compact btn--secondary" id="shape-align-center">Center</button>
                                 <button class="btn btn--compact btn--secondary" id="shape-align-bl">Bot-Left</button>
+                                <button class="btn btn--compact btn--secondary" id="shape-align-center">Center</button>
                             </div>
                             <div class="origin-buttons">
                                 <button class="btn btn--compact btn--primary" id="shape-apply-transform">Apply</button>
@@ -616,7 +410,6 @@
                                 <div class="input-unit"><input type="number" id="shape-rotation" step="5"><span class="unit">°</span></div>
                             </div>
                             <div class="origin-buttons">
-                                <!-- REVIEW - These id's for rotation aren't wired -->
                                 <button class="btn btn--compact btn--primary" id="shape-apply-rotation">Apply</button>
                                 <button class="btn btn--compact btn--secondary" id="shape-reset-rotation">Reset</button>
                             </div>
@@ -764,14 +557,15 @@
         </div>
         <div class="status-bar" id="status-bar" title="Click to expand log">
             <span class="log-toggle-icon" id="log-toggle-icon">▲</span>
-            <span class="status-text" id="status-text" role="status" aria-live="polite">Ready</span>
-            <span class="status-progress progress hidden" id="status-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+            <span class="status-text" id="status-text">Ready</span> <span class="visually-hidden" id="status-announce" role="status" aria-live="polite"></span>
+            <span class="visually-hidden" id="status-alert" role="alert" aria-live="assertive"></span>
+            <span class="status-progress progress hidden" id="status-progress" role="progressbar" aria-label="Operation progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
                 <span class="progress-bar" id="progress-bar"></span>
             </span>
         </div>
         <div class="status-right" id="status-right">
             <div class="status-info license-info">
-                <a href="https://github.com/RicardoJCMarques/EasyCAM5000/blob/main/CHANGELOG.md" title="Version" draggable="false">v1.2.0</a> |
+                <a href="https://github.com/RicardoJCMarques/EasyCAM5000/blob/main/CHANGELOG.md" title="Version" draggable="false">v1.3.0</a> |
                 <a href="/" title="Return to Homepage" draggable="false">Home</a> |
                 <a href="../LICENSE" target="_blank" title="View License" draggable="false" aria-label="View AGPLv3 License (opens in a new tab)">AGPLv3</a> |
                 <a href="doc/" target="_blank" title="Documentation" draggable="false" aria-label="Documentation (opens in a new tab)">Doc</a> |
@@ -878,7 +672,7 @@
             </div>
             <div class="modal-footer welcome-footer">
                 <div class="welcome-footer-links">
-                    <a href="https://github.com/RicardoJCMarques/EasyCAM5000/blob/main/CHANGELOG.md" title="Version" target="_blank" draggable="false" aria-label="Changelog (opens in a new tab)">v1.2.0</a>
+                    <a href="https://github.com/RicardoJCMarques/EasyCAM5000/blob/main/CHANGELOG.md" title="Version" target="_blank" draggable="false" aria-label="Changelog (opens in a new tab)">v1.3.0</a>
                     <span class="separator" aria-hidden="true"></span>
                     <a href="doc/" target="_blank" draggable="false" aria-label="Documentation (opens in a new tab)">Documentation</a>
                     <span class="separator" aria-hidden="true"></span>
@@ -1103,6 +897,7 @@
                         </div>
                         <div class="property-field field-group">
                             <label class="checkbox-label">
+                                <div id="exporter-tool-changes-hint" class="help-text"></div>
                                 <input type="checkbox" id="exporter-tool-changes">
                                 <span>Insert tool change commands</span>
                             </label>
@@ -1134,7 +929,6 @@
                         <span>Est. Time: <strong id="exporter-est-time">--:--</strong></span>
                         <span>Distance: <strong id="exporter-distance">0mm</strong></span>
                     </div>
-                    <div class="preview-warnings" id="exporter-warnings" style="display: none;"></div>
                     <div class="preview-text-container">
                         <textarea id="exporter-preview-text" readonly rows="15" placeholder="G-code preview will appear here..." aria-label="G-code output preview"></textarea>
                         <button id="exporter-copy-btn" class="btn btn--icon btn--compact btn-copy-floating" title="Copy to clipboard" aria-label="Copy to clipboard">
@@ -1142,6 +936,7 @@
                             <svg class="cam-icon icon-check" width="14" height="14"><use href="#icon-check"></use></svg>
                         </button>
                     </div>
+                    <div class="preview-warnings" id="exporter-warnings" style="display: none;"></div>
                 </div>
             </div>
 
@@ -1158,11 +953,11 @@
     </div>
 
     <!-- Drill Tooling Modal -->
-    <div id="drill-tooling-modal" class="modal" role="dialog">
+    <div id="drill-tooling-modal" class="modal" role="dialog" aria-labelledby="drill-tooling-title">
         <div class="modal-content modal--drill-tooling">
             <div class="modal-header">
                 <div class="header-text-group">
-                    <h2>Drill Tooling</h2>
+                    <h2 id="drill-tooling-title">Drill Tooling</h2>
                     <span class="modal-subtitle" id="drill-tooling-subtitle"></span>
                 </div>
                 <button class="modal-close" data-modal-close aria-label="Close">
@@ -1177,10 +972,10 @@
     </div>
 
     <!-- Warning / Confirmation Modal -->
-    <div id="warning-modal" class="modal" role="dialog">
+    <div id="warning-modal" class="modal" role="alertdialog" aria-labelledby="warning-title">
         <div class="modal-content modal-warning">
             <div class="modal-header">
-                <h2 class="warning-title">Warning</h2>
+                <h2 id="warning-title" class="warning-title">Warning</h2>
                 <button class="modal-close" data-modal-close aria-label="Close">
                     <svg class="cam-icon" width="20" height="20"><use href="#icon-close"></use></svg>
                 </button>
@@ -1196,17 +991,20 @@
     </div>
 
     <!-- Hidden file inputs -->
-    <input type="file" id="file-input-hidden" hidden multiple>>
+    <input type="file" id="file-input-hidden" hidden multiple="multiple">
 
     <!-- Scripts -->
     <script defer src="../config.js"></script>
     <script defer src="../themes/theme-loader.js"></script>
     <script defer src="../language/language-manager.js"></script>
     <script defer src="../geometry/clipper2z.js"></script>
+    <script defer src="../utils/transform-math.js"></script>
+    <script defer src="../utils/transform-math-3d.js"></script>
     <script defer src="../geometry/geometry-processor.js"></script>
     <script defer src="../geometry/geometry-curve-registry.js"></script>
     <script defer src="../geometry/geometry-arc-reconstructor.js"></script>
     <script defer src="../geometry/geometry-clipper-wrapper.js"></script>
+    <script defer src="../geometry/geometry-utils-points.js"></script>
     <script defer src="../geometry/geometry-utils-tessellation.js"></script>
     <script defer src="../geometry/geometry-utils.js"></script>
     <script defer src="../geometry/geometry-utils-topology.js"></script>
@@ -1222,6 +1020,7 @@
     <script defer src="../geometry/geometry-utils-relief.js"></script>
     <script defer src="../geometry/geometry-utils-rotary.js"></script>
     <script defer src="../geometry/geometry-offsetter.js"></script>
+    <script defer src="../utils/coordinate-system.js"></script>
     <script defer src="../parsers/primitives.js"></script>
     <script defer src="../parsers/parser-core.js"></script>
     <script defer src="../parsers/parser-svg.js"></script>
@@ -1240,9 +1039,8 @@
     <script defer src="../ui/tool-library.js"></script>
     <script defer src="../ui/ui-tooltip.js"></script>
     <script defer src="../ui/ui-operation-registry.js"></script>
-    <script defer src="../ui/ui-parameter-manager.js"></script>
+    <script defer src="../ui/ui-input-renderer.js"></script>
     <script defer src="../ui/ui-status-manager.js"></script>
-    <script defer src="../ui/ui-machine-settings.js"></script>
     <script defer src="../ui/ui-controls.js"></script>
     <script defer src="../ui/ui-base-app.js"></script>
     <script defer src="../ui/ui-base-operation-panel.js"></script>
@@ -1279,11 +1077,9 @@
     <script defer src="../export/processors/winpcnc-processor.js"></script>
     <script defer src="../export/gcode-generator.js"></script>
     <script defer src="../export/graphics-exporter.js"></script>
-    <script defer src="../utils/transform-math.js"></script>
-    <script defer src="../utils/transform-math-3d.js"></script>
-    <script defer src="../utils/coordinate-system.js"></script>
     <script defer src="../utils/canvas-exporter.js"></script>
     <script defer src="../core/operation-store.js"></script>
+    <script defer src="../core/parameter-store.js"></script>
     <script defer src="../core/pipeline-context.js"></script>
     <script defer src="../core/operation-ingest.js"></script>
     <script defer src="../core/cam-core.js"></script>
@@ -1337,7 +1133,7 @@
             }
 
             // App Initialization
-            console.log('EasyShape5000 v1.2.0');
+            console.log('EasyShape5000 Router Workspace Loading...');
             const loadingText = document.getElementById('loading-text');
             const loadingProgress = document.getElementById('loading-progress');
             if (loadingText) loadingText.textContent = 'Ready';

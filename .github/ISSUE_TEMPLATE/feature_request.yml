@@ -3,6 +3,25 @@ description: Suggest a new feature or improvement
 title: "[Feat]: "
 labels: ["enhancement", "needs-discussion"]
 body:
+  - type: markdown
+    attributes:
+      value: |
+        ### Before you submit
+        Please check the [known limitations](https://github.com/RicardoJCMarques/EasyCAM5000#status-and-known-limitations),
+        [known bugs](https://github.com/RicardoJCMarques/EasyCAM5000/blob/main/CHANGELOG.md)
+        and for [open issues](https://github.com/RicardoJCMarques/EasyCAM5000/issues).
+
+  - type: dropdown
+    id: app
+    attributes:
+      label: Which app?
+      options:
+        - EasyTrace5000 (PCB)
+        - EasyShape5000 (CNC routing)
+        - Both / not sure
+    validations:
+      required: true
+
   - type: textarea
     id: problem
     attributes:

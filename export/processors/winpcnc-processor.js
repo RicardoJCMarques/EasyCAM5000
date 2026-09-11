@@ -11,6 +11,7 @@
 
 (function() {
     'use strict';
+    const ROOT = globalThis;
 
     /**
      * WinPC-NC Post-Processor
@@ -112,16 +113,16 @@
                     startCode: '',
                     endCode: ''
                 },
-                customParameters: [
+                parameters: [
                     {
-                        key: 'winpcProgramName',
+                        name: 'winpcProgramName',
                         label: 'Program Name (% line)',
                         type: 'text',
                         category: 'machine',
                         default: '1'
                     },
                     {
-                        key: 'winpcFeedUnit',
+                        name: 'winpcFeedUnit',
                         label: 'Feed Unit',
                         type: 'select',
                         category: 'machine',
@@ -132,7 +133,7 @@
                         default: 'mmmin'
                     },
                     {
-                        key: 'winpcAuxOutput',
+                        name: 'winpcAuxOutput',
                         label: 'Vacuum / Aux Output',
                         type: 'select',
                         category: 'machine',
@@ -237,7 +238,7 @@
             if (aux) lines.push(this.appendComment(`M${aux}`, c.vacuumOn, options));
 
             let startCode = options.startCode || '';
-            startCode = startCode.replace(/{toolNumber}/g, options.toolNumber ?? 1);
+            startCode = startCode.replace(/{toolNumber}/g, options.toolNumber ?? '');
             if (startCode.trim()) lines.push(startCode);
 
             return lines.join('\n');
@@ -372,5 +373,5 @@
         }
     }
 
-    window.WinPCNCPostProcessor = WinPCNCPostProcessor;
+    ROOT.WinPCNCPostProcessor = WinPCNCPostProcessor;
 })();

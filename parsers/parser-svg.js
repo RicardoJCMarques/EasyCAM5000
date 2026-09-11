@@ -11,9 +11,10 @@
 
 (function() {
     'use strict';
+    const ROOT = globalThis;
 
-    const C = window.CAMConfig.constants;
-    const D = window.CAMConfig.defaults;
+    const C = ROOT.CAMConfig.constants;
+    const D = ROOT.CAMConfig.defaults;
     const PRECISION = C.precision.coordinate;
 
     class SVGParser extends ParserCore {
@@ -235,7 +236,7 @@
             if (styles.display === 'none' || styles.visibility === 'hidden') return;
 
             const nodeTransform = this.parseTransform(node.getAttribute('transform') || '');
-            const currentTransform = this.multiplyMatrix(parentTransform, nodeTransform);
+            const currentTransform = TransformMath.multiply(parentTransform, nodeTransform);
             const tagName = node.tagName.toLowerCase();
 
             // EasyShape5000 group-hierarchy capture. The path is instance state so
@@ -269,10 +270,7 @@
                     case 'path': case 'rect': case 'circle': case 'ellipse': case 'polygon': case 'polyline': case 'line':
                         const geometry = this.parseShape(node);
                         if (!geometry) break;
-
-                        if (styles.fill && styles.fill !== 'none' && styles.fillOpacity > 0) {
-                            this.processFilledShape(geometry, currentTransform);
-                        }
+                        styles.fill && "none" !== styles.fill && styles.fillOpacity > 0 && "line" !== tagName && this.processFilledShape(geometry, currentTransform);
 
                         if (styles.stroke && styles.stroke !== 'none' && styles.strokeWidth > 0 && styles.strokeOpacity > 0) {
                             // Scale stroke width by transform scale factor (viewBox units → mm)
@@ -693,12 +691,12 @@
             const scale = Math.sqrt(Math.abs(determinant));
 
             // Check for uniform scaling (no rotation/skew)
-            const isAxisAligned = Math.abs(m.b) < 1e-10 && Math.abs(m.c) < 1e-10;
+            const isAxisAligned = Math.abs(m.b) < 1e-10 && Math.abs(m.c) < 1e-10; // REVIEW - Change to existing Epsilons? PRECISION maybe?
 
             if (geom.type === 'circle') {
                 return {
                     type: 'circle',
-                    center: this.applyTransformToPoint(geom.center, m),
+                    center: TransformMath.applyToPoint(m, geom.center),
                     radius: geom.radius * scale
                 };
             }
@@ -707,7 +705,7 @@
                 if (isAxisAligned) {
                     return {
                         type: 'ellipse',
-                        center: this.applyTransformToPoint(geom.center, m),
+                        center: TransformMath.applyToPoint(m, geom.center),
                         rx: geom.rx * Math.abs(m.a),
                         ry: geom.ry * Math.abs(m.d)
                     };
@@ -717,8 +715,8 @@
             }
 
             if (geom.type === 'rectangle' && isAxisAligned) {
-                const p1 = this.applyTransformToPoint({ x: geom.x, y: geom.y }, m);
-                const p2 = this.applyTransformToPoint({ x: geom.x + geom.width, y: geom.y + geom.height }, m);
+                const p1 = TransformMath.applyToPoint(m, {x: geom.x, y: geom.y});
+                const p2 = TransformMath.applyToPoint(m, {x: geom.x + geom.width, y: geom.y + geom.height});
                 return {
                     type: 'rectangle',
                     x: Math.min(p1.x, p2.x),
@@ -729,8 +727,8 @@
             }
 
             if (geom.type === 'obround' && isAxisAligned) {
-                const p1 = this.applyTransformToPoint({ x: geom.x, y: geom.y }, m);
-                const p2 = this.applyTransformToPoint({ x: geom.x + geom.width, y: geom.y + geom.height }, m);
+                const p1 = TransformMath.applyToPoint(m, {x: geom.x, y: geom.y});
+                const p2 = TransformMath.applyToPoint(m, {x: geom.x + geom.width, y: geom.y + geom.height});
                 return {
                     type: 'obround',
                     x: Math.min(p1.x, p2.x),
@@ -753,7 +751,7 @@
             if (geom.points && geom.points.length > 0) {
                 return {
                     type: 'path',
-                    points: this.applyTransformToPoints(geom.points, m),
+                    points: TransformMath.applyToPoints(m, geom.points),
                     subpaths: []
                 };
             }
@@ -768,18 +766,18 @@
             const transformedSubpaths = geom.subpaths.map(segments => {
                 // Point arrays (polygon/polyline)
                 if (segments.length > 0 && segments[0].x !== undefined) {
-                    return this.applyTransformToPoints(segments, m);
+                    return TransformMath.applyToPoints(m, segments);
                 }
 
                 return segments.map(seg => {
                     if (seg.type === 'move') {
-                        return { ...seg, p: this.applyTransformToPoint(seg.p, m) };
+                        return {...seg, p: TransformMath.applyToPoint(m, seg.p)};
                     }
                     if (seg.type === 'line') {
                         return { 
                             ...seg,
-                            p0: this.applyTransformToPoint(seg.p0, m), 
-                            p1: this.applyTransformToPoint(seg.p1, m) 
+                            p0: TransformMath.applyToPoint(m, seg.p0), 
+                            p1: TransformMath.applyToPoint(m, seg.p1) 
                         };
                     }
                     if (seg.type === 'arc') {
@@ -789,18 +787,18 @@
                     if (seg.type === 'cubic') {
                         return {
                             ...seg,
-                            p0: this.applyTransformToPoint(seg.p0, m),
-                            p1: this.applyTransformToPoint(seg.p1, m),
-                            p2: this.applyTransformToPoint(seg.p2, m),
-                            p3: this.applyTransformToPoint(seg.p3, m)
+                            p0: TransformMath.applyToPoint(m, seg.p0),
+                            p1: TransformMath.applyToPoint(m, seg.p1),
+                            p2: TransformMath.applyToPoint(m, seg.p2),
+                            p3: TransformMath.applyToPoint(m, seg.p3)
                         };
                     }
                     if (seg.type === 'quad') {
                         return {
                             ...seg,
-                            p0: this.applyTransformToPoint(seg.p0, m),
-                            p1: this.applyTransformToPoint(seg.p1, m),
-                            p2: this.applyTransformToPoint(seg.p2, m)
+                            p0: TransformMath.applyToPoint(m, seg.p0),
+                            p1: TransformMath.applyToPoint(m, seg.p1),
+                            p2: TransformMath.applyToPoint(m, seg.p2)
                         };
                     }
                     return seg;
@@ -831,9 +829,9 @@
          * Transform an arc segment, preserving analytic data
          */
         transformArc(seg, m, isReflection) {
-            const p0 = this.applyTransformToPoint(seg.p0, m);
-            const p1 = this.applyTransformToPoint(seg.p1, m);
-            const center = seg.center ? this.applyTransformToPoint(seg.center, m) : null;
+            const p0 = TransformMath.applyToPoint(m, seg.p0);
+            const p1 = TransformMath.applyToPoint(m, seg.p1);
+            const center = seg.center ? TransformMath.applyToPoint(m, seg.center) : null;
 
             // Calculate scale factors
             const scaleX = Math.sqrt(m.a * m.a + m.b * m.b);
@@ -1025,19 +1023,6 @@
 
             return styles;
         }
-
-        // REVIEW - This seems redundant, why not point directly to TransformMath.applyToPoint instead of all the this.applyTransformToPoint? Any good reason to keep all these TransformMath aliases?
-        applyTransformToPoint(p, m) {
-            return TransformMath.applyToPoint(m, p);
-        }
-
-        applyTransformToPoints(points, m) {
-            return points.map(p => this.applyTransformToPoint(p, m));
-        }
-
-        identityMatrix() { return TransformMath.identity(); }
-
-        multiplyMatrix(m1, m2) { return TransformMath.multiply(m1, m2); }
 
         parseTransform(transformString) {
             let matrix = TransformMath.identity();
@@ -1326,5 +1311,5 @@
         }
     }
 
-    window.SVGParser = SVGParser;
+    ROOT.SVGParser = SVGParser;
 })();

@@ -23,11 +23,12 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-import * as THREE from 'three/webgpu';
-import { ToolpathLayer3D } from './renderer3d-toolpath.js';
-import { StockLayer3D } from './renderer3d-stock.js';
-import { Simulator3D } from './renderer3d-simulator.js';
-import { GeometryLayer3D } from './renderer3d-geometry.js';
+import * as THREE from "three/webgpu";
+import { ToolpathLayer3D } from "./renderer3d-toolpath.js";
+import { StockLayer3D } from "./renderer3d-stock.js";
+import { Simulator3D } from "./renderer3d-simulator.js";
+import { GeometryLayer3D } from "./renderer3d-geometry.js";
+import { Orbit3DTool } from "./renderer3d-orbit-tool.js";
 
 // Machine coordinates are Z-up. Must be set before cameras/controls exist.
 THREE.Object3D.DEFAULT_UP.set(0, 0, 1);
@@ -317,7 +318,6 @@ export class Renderer3D {
             console.warn('[Renderer3D] Input stack not loaded - 3D view will be static');
             return false;
         }
-        const { Orbit3DTool } = await import('./renderer3d-orbit-tool.js');
 
         // Re-attaching without tearing down the previous stack leaves a
         // second InputManager listening on the same canvas.
@@ -332,10 +332,24 @@ export class Renderer3D {
         this.input.attach(this.toolController);
         this.toolController.setDefaultTool(orbit);
 
+        this.orbitTool = orbit;
+
+        // ShortcutManager listens on document; without stopPropagation the
+        // same arrow press also pans the hidden 2D renderer in EasyTrace.
+        this._orbitKeyHandler = (e) => {
+            if (orbit.onKeyDown(e)) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+        };
+        this.container?.addEventListener('keydown', this._orbitKeyHandler);
+
         this.controls = {
             target: orbit.target,
             update: () => orbit.syncFromCamera(),
-            dispose: () => {}
+            dispose: () => {
+                this.container?.removeEventListener('keydown', this._orbitKeyHandler);
+            }
         };
         return true;
     }

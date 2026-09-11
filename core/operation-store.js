@@ -53,6 +53,9 @@
 
             this._settingsRevision = hooks.settingsRevision || (() => 0);
             this._machineClassOf = hooks.machineClassOf || (() => 'router');
+            // createOperation stamps a class before any operation object exists,
+            // so it needs the type-only rule rather than a fake operation.
+            this._machineClassForType = hooks.machineClassForType || (() => 'router');
         }
 
         /* Wiring */
@@ -61,9 +64,8 @@
             this.registry = registry;
         }
 
-        machineClassOf(operation) {
-            return this._machineClassOf(operation);
-        }
+        machineClassOf(operation) { return this._machineClassOf(operation); }
+        machineClassForType(type) { return this._machineClassForType(type); }
 
         /* Operation CRUD */
 
@@ -90,7 +92,7 @@
                 error: null,
                 warnings: null,
                 expanded: false,
-                machineClass: this.machineClassOf({ type: operationType }),
+                machineClass: this.machineClassForType(operationType),
 
                 // Bumped by the panel when a parameter in that stage changes.
                 // Artifacts record the values they were built from.
@@ -107,6 +109,33 @@
             this.operations.push(operation);
             this.indexOperation(operation);
             return operation;
+        }
+
+        /**
+         * Splice an operation out but hand the caller everything needed to put it
+         * back. The operation Object is returned by reference, so re-attaching
+         * restores its parameters, offsets and preview without a rebuild.
+         */
+        detachOperation(operationId) {
+            const index = this.operations.findIndex(op => op.id === operationId);
+            if (index === -1) return null;
+            const operation = this.operations[index];
+            const toolpaths = this.toolpaths.get(operationId) || null;
+            this.unindexOperation(operationId);
+            this.operations.splice(index, 1);
+            this.toolpaths.delete(operationId);
+            this.updateStatistics();
+            return { operation, index, toolpaths };
+        }
+
+        attachOperation(token) {
+            if (!token?.operation) return false;
+            const { operation, index, toolpaths } = token;
+            this.operations.splice(Math.min(index, this.operations.length), 0, operation);
+            this.indexOperation(operation);
+            if (toolpaths) this.toolpaths.set(operation.id, toolpaths);
+            this.updateStatistics();
+            return true;
         }
 
         removeOperation(operationId) {

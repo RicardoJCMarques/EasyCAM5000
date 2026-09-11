@@ -1,7 +1,10 @@
 /*!
  * @file        utils/coordinate-system.js
  * @description Shared Coordinate System
- * // REVIEW - rework both coordinate-system and transform-math headers
+ *              Boundaries: this file is 2D affine MATRICES.
+ *              transform-math-3d.js is 3D point/mesh transforms.
+ *              coordinate-system.js is the scene graph and its spaces.
+ *              geometry-utils-points.js is stateless geometry queries.
  *
  *              All transforms are 2D affine in object form:
  *                  m = { a, b, c, d, e, f }
@@ -22,6 +25,7 @@
 
 (function() {
     'use strict';
+    const ROOT = globalThis;
 
     // ID generation - sequential, scoped per scene.
     // Using sequential rather than UUIDs keeps DOM data-attributes short and
@@ -951,7 +955,7 @@
             return TransformMath.windingFlipped(this.getWorkspaceMatrix());
         }
 
-        // Coordinate space conversions (absorbed from SceneInteraction)
+        // Coordinate space conversions
         //
         // Three spaces:
         //   canvas    - physical canvas pixels (devicePixelRatio applied)
@@ -1010,9 +1014,6 @@
             return Array.from(this.shapesInViewport(viewBounds));
         }
 
-        /** Back-compat alias for the old SceneInteraction surface. */
-        pickShape(worldPt, options) { return this.pick(worldPt, options); }
-
         // Transform listeners
 
         addTransformListener(fn) { this.transformListeners.add(fn); }
@@ -1070,141 +1071,33 @@
 
     }
 
-    // Primitive containment - internal, used by ShapeNode.containsWorldPoint.
-    // Lives at module scope (private) - not exported on window because the
-    // public hit-test API is shape.containsWorldPoint / scene.pick.
     /**
+     * Hit-test POLICY - what counts as clicking this primitive. The geometry
+     * questions ("inside?", "near the outline?") belong to GeometryPoints; what
+     * the answer means for a pointer belongs here.
      * @param {RenderPrimitive} prim
-     * @param {{x, y}} pt   Point in the primitive's local frame.
-     * @param {number} tolerance  World-space slop budget (e.g. 4 CSS
-     *                            pixels unprojected to world units).
+     * @param {{x, y}} pt Point in the primitive's local frame.
+     * @param {number} tolerance World-space slop budget (e.g. 4 CSS pixels
+     *     unprojected to world units).
      */
     function primitiveContainsLocalPoint(prim, pt, tolerance = 0) {
         const props = prim.properties || {};
-        const hasFill   = props.fill !== false && !props.stroke;
+        const hasFill = props.fill !== false && !props.stroke;
         const hasStroke = props.stroke === true || props.isTrace === true;
 
         // STROKED ONLY - must click on the stroke itself, within
         // (strokeWidth/2 + tolerance) world units.
         if (hasStroke && !hasFill) {
-            const halfStroke = (props.strokeWidth || 0) / 2;
-            const hitDist = halfStroke + tolerance;
-            return pointWithinDistanceOfPrimitive(prim, pt, hitDist);
+            return GeometryPoints.pointNearPrimitive(prim, pt, (props.strokeWidth || 0) / 2 + tolerance);
         }
 
-        // FILLED - inside-test with optional edge tolerance so users
-        // can still click right on the edge even when zoomed out.
-        if (hasFill) {
-            if (pointInsidePrimitive(prim, pt)) return true;
-            if (tolerance > 0 && pointWithinDistanceOfPrimitive(prim, pt, tolerance)) {
-                return true;
-            }
-            return false;
-        }
-
-        // Neither filled nor stroked - treat as filled to keep clickability.
-        return pointInsidePrimitive(prim, pt);
+        // FILLED - inside-test with optional edge tolerance so users can still
+        // click right on the edge when zoomed out. Neither filled nor stroked
+        // falls here too, so an untagged primitive stays clickable.
+        return GeometryPoints.pointInPrimitive(prim, pt)
+            || (tolerance > 0 && GeometryPoints.pointNearPrimitive(prim, pt, tolerance));
     }
 
-    function pointWithinDistanceOfPrimitive(prim, pt, maxDist) {
-        const maxSq = maxDist * maxDist;
-        if (prim.type === 'circle') {
-            const dx = pt.x - prim.center.x;
-            const dy = pt.y - prim.center.y;
-            const d = Math.abs(Math.sqrt(dx*dx + dy*dy) - prim.radius);
-            return d <= maxDist;
-        }
-        if (!prim.contours) return false;
-        for (const c of prim.contours) {
-            if (!c.points || c.points.length < 2) continue;
-            for (let i = 0; i < c.points.length - 1; i++) {
-                const a = c.points[i], b = c.points[i + 1];
-                if (pointSegmentDistSq(pt, a, b) <= maxSq) return true;
-            }
-        }
-        return false;
-    }
-
-    function pointSegmentDistSq(p, a, b) {
-        const dx = b.x - a.x, dy = b.y - a.y;
-        const len2 = dx*dx + dy*dy;
-        if (len2 === 0) {
-            const ex = p.x - a.x, ey = p.y - a.y;
-            return ex*ex + ey*ey;
-        }
-        let t = ((p.x - a.x) * dx + (p.y - a.y) * dy) / len2;
-        t = Math.max(0, Math.min(1, t));
-        const cx = a.x + t * dx, cy = a.y + t * dy;
-        const ex = p.x - cx, ey = p.y - cy;
-        return ex*ex + ey*ey;
-    }
-
-    /**
-     * Point-inside test that handles circle, rectangle, and multi-contour
-     * paths. For paths, applies even-odd fill rule so holes work.
-     */
-    function pointInsidePrimitive(prim, pt) {
-        if (prim.type === 'circle') {
-            const dx = pt.x - prim.center.x;
-            const dy = pt.y - prim.center.y;
-            return (dx*dx + dy*dy) <= prim.radius * prim.radius;
-        }
-        if (prim.type === 'rectangle') {
-            return pt.x >= prim.position.x && pt.x <= prim.position.x + prim.width
-                && pt.y >= prim.position.y && pt.y <= prim.position.y + prim.height;
-        }
-        if (prim.type === 'obround') {
-            const x = prim.position.x, y = prim.position.y;
-            const w = prim.width, h = prim.height;
-            const r = Math.min(w, h) / 2;
-            // Fast reject on outer bbox first.
-            if (pt.x < x || pt.x > x + w || pt.y < y || pt.y > y + h) return false;
-            // Inner rect (between cap centres) is always inside.
-            if (w > h) {
-                if (pt.x >= x + r && pt.x <= x + w - r) return true;
-                const cap = pt.x < x + r ? { x: x + r, y: y + r } : { x: x + w - r, y: y + r };
-                const dx = pt.x - cap.x, dy = pt.y - cap.y;
-                return dx*dx + dy*dy <= r*r;
-            } else {
-                if (pt.y >= y + r && pt.y <= y + h - r) return true;
-                const cap = pt.y < y + r ? { x: x + r, y: y + r } : { x: x + r, y: y + h - r };
-                const dx = pt.x - cap.x, dy = pt.y - cap.y;
-                return dx*dx + dy*dy <= r*r;
-            }
-        }
-        if (prim.contours) {
-            // Even-odd across all contours so holes punch through.
-            let inside = false;
-            for (const c of prim.contours) {
-                if (pointInPolygon(pt, c.points)) inside = !inside;
-            }
-            return inside;
-        }
-        return false;
-    }
-
-    function pointInPolygon(p, points) {
-        // Prefer the canonical implementation when available - it handles
-        // edge cases (vertex hits, horizontal edges) that the inline version
-        // gets wrong in pathological inputs.
-        if (typeof GeometryUtils !== 'undefined' && GeometryUtils.pointInPolygon) {
-            return GeometryUtils.pointInPolygon(p, points);
-        }
-        if (!points || points.length < 3) return false;
-        let inside = false;
-        for (let i = 0, j = points.length - 1; i < points.length; j = i++) {
-            const pi = points[i], pj = points[j];
-            if (((pi.y > p.y) !== (pj.y > p.y)) &&
-                (p.x < (pj.x - pi.x) * (p.y - pi.y) / ((pj.y - pi.y) || 1e-12) + pi.x)) {
-                inside = !inside;
-            }
-        }
-        return inside;
-    }
-
-    window.SceneNode = SceneNode;
-    window.GroupNode = GroupNode;
-    window.ShapeNode = ShapeNode;
-    window.SelectionSet = SelectionSet;
-    window.Scene = Scene;
+    ROOT.GroupNode = GroupNode;
+    ROOT.Scene = Scene;
 })();

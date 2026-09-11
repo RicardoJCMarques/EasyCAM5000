@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 320" role="img" aria-labelledby="title desc" xmlns:c2pa="http://c2pa.org/manifest">
+  <title id="title">Milling an oversize hole and an obround slot</title>
+  <desc id="desc">An oversize hole is milled with the tool running a circular path inside it. An obround slot as wide as the tool is milled in a single pass down its centreline, stopping one radius short of each end.</desc>
+  <style>
+    /* Inlined by figures.js, so these resolve against the page theme.
+       Fallbacks match the dark theme in css/theme.css. */
+    svg{
+      --bg:var(--color-bg-primary,#0f0f0f);
+      --panel:var(--color-bg-secondary,#1a1a1a);
+      --panel2:var(--color-bg-tertiary,#242424);
+      --line:var(--color-border-secondary,#3a3a3a);
+      --text:var(--color-text-primary,#e5e5e5);
+      --muted:var(--color-text-secondary,#a0a0a0);
+      --accent:var(--color-accent-primary,#2563eb);
+      --ext:var(--color-geometry-offset-external,#a60000);
+      --int:var(--color-geometry-offset-internal,#00a600);
+      --on:var(--color-geometry-offset-on,#bcbc02);
+      --preview:var(--color-geometry-preview,#0060dd);
+      --toolpath:var(--color-geometry-toolpath,#00ffff);
+      --copper:var(--color-geometry-source-isolation,#ff8844);
+      --drillc:var(--color-operation-drill,#4488ff);
+      --clearc:var(--color-operation-clearing,#44ff88);
+      --cutc:var(--color-operation-cutout,#ff00ff);
+      --stenc:var(--color-operation-stencil,#90177d);
+      --ok:var(--color-primitive-peck-mark-good,#16d329);
+      --warn:var(--color-primitive-peck-mark-warn,#d2cb00);
+      --bad:var(--color-primitive-peck-mark-error,#ff0000);
+      --stock:var(--color-render3d-stock,#8a7a5c);
+    }
+    .bg{fill:var(--bg)}
+    .panel{fill:var(--panel)}
+    .panel2{fill:var(--panel2)}
+    .edge{fill:none;stroke:var(--line);stroke-width:1.5}
+    .t{fill:var(--text);font:13px system-ui,sans-serif}
+    .tb{fill:var(--text);font:bold 14px system-ui,sans-serif}
+    .tm{fill:var(--muted);font:12px system-ui,sans-serif}
+  </style>
+  <rect class="bg" width="800" height="320"/>
+  <text class="tb" x="24" y="34">Oversize hole</text>
+  <circle cx="170" cy="150" r="70" fill="var(--panel2)" stroke="var(--muted)" stroke-width="2"/>
+  <circle cx="170" cy="150" r="46" fill="none" stroke="var(--int)" stroke-width="3"/>
+  <circle cx="216" cy="150" r="24" fill="none" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="4 4"/>
+  <text class="tm" x="170" y="256" text-anchor="middle">the tool walks a circle inset by its own</text>
+  <text class="tm" x="170" y="276" text-anchor="middle">radius; step-over decides how many</text>
+  <text class="tm" x="170" y="296" text-anchor="middle">passes it needs to clear the middle</text>
+
+  <text class="tb" x="440" y="34">Obround slot</text>
+  <path d="M520 126h140a24 24 0 0 1 0 48H520a24 24 0 0 1 0-48z" fill="var(--panel2)" stroke="var(--muted)" stroke-width="2"/>
+  <circle cx="520" cy="150" r="24" fill="none" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="4 4"/>
+  <circle cx="660" cy="150" r="24" fill="none" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="4 4"/>
+  <path d="M520 150h140" stroke="var(--int)" stroke-width="3" stroke-linecap="butt"/>
+  <text class="tm" x="590" y="256" text-anchor="middle">a slot as wide as the tool is one pass down the</text>
+  <text class="tm" x="590" y="276" text-anchor="middle">centreline, stopping one radius short of each end</text>
+  <text class="tm" x="590" y="296" text-anchor="middle">so the slot comes out the size you drew</text>
+</svg>

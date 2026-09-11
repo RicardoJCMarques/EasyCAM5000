@@ -115,7 +115,7 @@
          * Main offset renderer - uses immediate mode for speed.
          */
         renderOffsetPrimitive(primitive, color, context) {
-            if (primitive.properties?.isToolPeckMark || primitive.properties?.role === 'peck_mark') {
+            if (primitive.properties?.role === 'peck_mark') {
                 this.renderPeckMark(primitive, context);
                 return;
             }
@@ -466,11 +466,10 @@
         getPath2D(primitive) {
             if (primitive._path2DCache) return primitive._path2DCache;
             const path = new Path2D();
-            const P = primitive;
 
-            if (P.type === 'path') {
-                if (P.contours) {
-                    for (const contour of P.contours) {
+            if (primitive.type === 'path') {
+                if (primitive.contours) {
+                    for (const contour of primitive.contours) {
                         if (!contour.points || contour.points.length === 0) continue;
                         const arcs = (contour.arcSegments || []).slice().sort((a, b) => a.startIndex - b.startIndex);
                         if (arcs.length > 0) {
@@ -491,34 +490,18 @@
                         } else {
                             contour.points.forEach((p, i) => i === 0 ? path.moveTo(p.x, p.y) : path.lineTo(p.x, p.y));
                         }
-                        if (P.closed !== false) path.closePath();
+                        if (primitive.closed !== false) path.closePath();
                     }
                 }
-            } else if (P.type === 'circle') {
-                path.arc(P.center.x, P.center.y, P.radius, 0, Math.PI * 2);
+            } else if (primitive.type === 'circle') {
+                path.arc(primitive.center.x, primitive.center.y, primitive.radius, 0, Math.PI * 2);
                 path.closePath();
-            } else if (P.type === 'rectangle') {
-                path.rect(P.position.x, P.position.y, P.width, P.height);
-            } else if (P.type === 'arc') {
-                path.arc(P.center.x, P.center.y, P.radius, P.startAngle, P.endAngle, P.clockwise);
-            } else if (P.type === 'obround') {
-                // Highlight ignores obround rotation (rare for shapes); the main
-                // renderer still honors it. Good enough for a selection glow.
-                const x = P.position.x, y = P.position.y, w = P.width, h = P.height, r = Math.min(w, h) / 2;
-                if (w > h) {
-                    path.moveTo(x + r, y);
-                    path.lineTo(x + w - r, y);
-                    path.arc(x + w - r, y + r, r, -Math.PI / 2, Math.PI / 2);
-                    path.lineTo(x + r, y + h);
-                    path.arc(x + r, y + r, r, Math.PI / 2, -Math.PI / 2);
-                } else {
-                    path.moveTo(x + w, y + r);
-                    path.lineTo(x + w, y + h - r);
-                    path.arc(x + r, y + h - r, r, 0, Math.PI);
-                    path.lineTo(x, y + r);
-                    path.arc(x + r, y + r, r, Math.PI, 0);
-                }
-                path.closePath();
+            } else if (primitive.type === 'rectangle') {
+                path.rect(primitive.position.x, primitive.position.y, primitive.width, primitive.height);
+            } else if (primitive.type === 'arc') {
+                path.arc(primitive.center.x, primitive.center.y, primitive.radius, primitive.startAngle, primitive.endAngle, primitive.clockwise);
+            } else if (primitive.type === 'obround') {
+                this.obroundSubpath(path, primitive);
             }
 
             primitive._path2DCache = path;
@@ -529,7 +512,7 @@
             this.ctx.beginPath();
 
             // Packed 3D chains: build the XY projection path.
-            if (primitive.type === 'path3d') {
+            if (primitive.type === "path3d") {
                 const pos = primitive.positions || [];
                 if (pos.length >= 6) {
                     this.ctx.moveTo(pos[0], pos[1]);
@@ -540,10 +523,10 @@
                 return;
             }
 
-            if (primitive.type === 'path') {
+            if (primitive.type === "path") {
                 if (primitive.contours && primitive.contours.length > 0) {
                     for (const contour of primitive.contours) {
-                        if (!contour.points || contour.points.length === 0) continue;
+                        if (!contour.points || 0 === contour.points.length) continue;
 
                         if (contour.arcSegments && contour.arcSegments.length > 0) {
                             const sortedArcs = contour.arcSegments.slice().sort((a, b) => a.startIndex - b.startIndex);
@@ -554,75 +537,39 @@
                                 for (let i = currentIndex + 1; i <= arc.startIndex; i++) {
                                     this.ctx.lineTo(contour.points[i].x, contour.points[i].y);
                                 }
-                                if (arc.sweepAngle !== undefined) {
-                                    this.ctx.arc(arc.center.x, arc.center.y, arc.radius,
-                                        arc.startAngle, arc.startAngle + arc.sweepAngle,
-                                        arc.sweepAngle < 0);
+                                if (void 0 !== arc.sweepAngle) {
+                                    this.ctx.arc(arc.center.x, arc.center.y, arc.radius, arc.startAngle, arc.startAngle + arc.sweepAngle, arc.sweepAngle < 0);
                                 } else {
-                                    this.ctx.arc(arc.center.x, arc.center.y, arc.radius,
-                                        arc.startAngle, arc.endAngle, arc.clockwise);
+                                    this.ctx.arc(arc.center.x, arc.center.y, arc.radius, arc.startAngle, arc.endAngle, arc.clockwise);
                                 }
                                 currentIndex = arc.endIndex;
                             }
 
-                            if (currentIndex !== 0 || sortedArcs.length === 0) {
+                            if (0 !== currentIndex || 0 === sortedArcs.length) {
                                 for (let i = currentIndex + 1; i < contour.points.length; i++) {
                                     this.ctx.lineTo(contour.points[i].x, contour.points[i].y);
                                 }
                             }
                         } else {
                             contour.points.forEach((p, i) => {
-                                if (i === 0) this.ctx.moveTo(p.x, p.y);
-                                else this.ctx.lineTo(p.x, p.y);
+                                0 === i ? this.ctx.moveTo(p.x, p.y) : this.ctx.lineTo(p.x, p.y);
                             });
                         }
 
-                        if (primitive.closed !== false) this.ctx.closePath();
+                        if (false !== primitive.closed) {
+                            this.ctx.closePath();
+                        }
                     }
                 }
-            } else if (primitive.type === 'circle') {
-                this.ctx.arc(primitive.center.x, primitive.center.y, primitive.radius, 0, Math.PI * 2);
+            } else if (primitive.type === "circle") {
+                this.ctx.arc(primitive.center.x, primitive.center.y, primitive.radius, 0, 2 * Math.PI);
                 this.ctx.closePath();
-            } else if (primitive.type === 'rectangle') {
+            } else if (primitive.type === "rectangle") {
                 this.ctx.rect(primitive.position.x, primitive.position.y, primitive.width, primitive.height);
-            } else if (primitive.type === 'arc') {
-                this.ctx.arc(primitive.center.x, primitive.center.y, primitive.radius,
-                    primitive.startAngle, primitive.endAngle, primitive.clockwise);
-            } else if (primitive.type === 'obround') {
-                let x = primitive.position.x;
-                let y = primitive.position.y;
-                const w = primitive.width;
-                const h = primitive.height;
-                const r = Math.min(w, h) / 2;
-
-                if (primitive.properties?.rotation) {
-                    const cx = x + w / 2;
-                    const cy = y + h / 2;
-                    this.ctx.save();
-                    this.ctx.translate(cx, cy);
-                    this.ctx.rotate(primitive.properties.rotation * Math.PI / 180);
-                    x = -w / 2;
-                    y = -h / 2;
-                }
-
-                if (w > h) {
-                    this.ctx.moveTo(x + r, y);
-                    this.ctx.lineTo(x + w - r, y);
-                    this.ctx.arc(x + w - r, y + r, r, -Math.PI / 2, Math.PI / 2);
-                    this.ctx.lineTo(x + r, y + h);
-                    this.ctx.arc(x + r, y + r, r, Math.PI / 2, -Math.PI / 2);
-                } else {
-                    this.ctx.moveTo(x + w, y + r);
-                    this.ctx.lineTo(x + w, y + h - r);
-                    this.ctx.arc(x + r, y + h - r, r, 0, Math.PI);
-                    this.ctx.lineTo(x, y + r);
-                    this.ctx.arc(x + r, y + r, r, Math.PI, 0);
-                }
-
-                if (primitive.properties?.rotation) {
-                    this.ctx.restore();
-                }
-                this.ctx.closePath();
+            } else if (primitive.type === "arc") {
+                this.ctx.arc(primitive.center.x, primitive.center.y, primitive.radius, primitive.startAngle, primitive.endAngle, primitive.clockwise);
+            } else if (primitive.type === "obround") {
+                this.obroundSubpath(this.ctx, primitive);
             }
         }
 
@@ -723,24 +670,35 @@
             this.ctx.stroke();
         }
 
-        renderObround(primitive, fillColor, strokeColor) {
+        /**
+         * Obround (stadium) outline into any path sink. ctx and Path2D expose
+         * the same moveTo/lineTo/arc/closePath surface, so the three call sites
+         * that used to spell this out separately share one. Two arcs, not five
+         * calls: canvas joins a new arc to the current subpath with an implicit
+         * line, which IS the straight side.
+         * TODO(obround-rotation) - ObroundPrimitive is {position,width,height}
+         * with no angle, so a rotated pad cannot be represented at all.
+         */
+        obroundSubpath(sink, primitive) {
             const x = primitive.position.x;
             const y = primitive.position.y;
             const w = primitive.width;
             const h = primitive.height;
             const r = Math.min(w, h) / 2;
 
-            this.ctx.beginPath();
-
             if (w > h) {
-                this.ctx.arc(x + r, y + r, r, Math.PI / 2, -Math.PI / 2, false);
-                this.ctx.arc(x + w - r, y + r, r, -Math.PI / 2, Math.PI / 2, false);
+                sink.arc(x + r, y + r, r, Math.PI / 2, -Math.PI / 2, false);
+                sink.arc(x + w - r, y + r, r, -Math.PI / 2, Math.PI / 2, false);
             } else {
-                this.ctx.arc(x + r, y + r, r, Math.PI, 0, false);
-                this.ctx.arc(x + r, y + h - r, r, 0, Math.PI, false);
+                sink.arc(x + r, y + r, r, Math.PI, 0, false);
+                sink.arc(x + r, y + h - r, r, 0, Math.PI, false);
             }
+            sink.closePath();
+        }
 
-            this.ctx.closePath();
+        renderObround(primitive, fillColor, strokeColor) {
+            this.ctx.beginPath();
+            this.obroundSubpath(this.ctx, primitive);
 
             if (primitive.properties?.fill !== false) {
                 this.ctx.fillStyle = fillColor;

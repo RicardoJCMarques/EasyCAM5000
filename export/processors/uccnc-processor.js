@@ -11,6 +11,7 @@
 
 (function() {
     'use strict';
+    const ROOT = globalThis;
 
     /**
      * UCCNC Post-Processor
@@ -96,5 +97,5 @@
         }
     }
 
-    window.UCCNCPostProcessor = UCCNCPostProcessor;
+    ROOT.UCCNCPostProcessor = UCCNCPostProcessor;
 })();

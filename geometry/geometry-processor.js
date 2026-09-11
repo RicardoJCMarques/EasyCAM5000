@@ -11,9 +11,10 @@
 
 (function() {
     'use strict';
+    const ROOT = globalThis;
 
-    const C = window.CAMConfig.constants;
-    const D = window.CAMConfig.defaults;
+    const C = ROOT.CAMConfig.constants;
+    const D = ROOT.CAMConfig.defaults;
     const debugState = D.debug;
 
     class GeometryProcessor {
@@ -28,11 +29,7 @@
             this.arcReconstructor = new ArcReconstructor();
 
             // State caching
-            this.cachedStates = {
-                originalPrimitives: null,
-                preprocessedGeometry: null,
-                fusedGeometry: null
-            };
+            this.cachedStates = { preprocessedGeometry: null };
 
             // Statistics
             this.stats = {
@@ -83,11 +80,11 @@
             primitives.forEach((p, idx) => {
                 p._originalIndex = idx;
             });
-            this.cachedStates.originalPrimitives = primitives;
+            const originalPrimitives = primitives;
 
             // Count registered curves from global registry
-            if (fusionOptions.enableArcReconstruction && window.globalCurveRegistry) {
-                const registryStats = window.globalCurveRegistry.getStats();
+            if (fusionOptions.enableArcReconstruction && ROOT.globalCurveRegistry) {
+                const registryStats = ROOT.globalCurveRegistry.getStats();
                 this.stats.curvesRegistered = registryStats.registrySize;
 
                 this.debug(`Global registry has ${registryStats.registrySize} curves`);
@@ -97,18 +94,11 @@
             }
 
             // Preprocess primitives (convert to polygons with metadata)
-            const preprocessed = this.preprocessPrimitives(
-                this.cachedStates.originalPrimitives
-            );
-
-            // REVIEW? Replace - previous preprocessed state is stale once new
-            // primitives are fused. Prevents unbounded accumulation.
+            const preprocessed = this.preprocessPrimitives(originalPrimitives);
             this.cachedStates.preprocessedGeometry = preprocessed;
 
             // Verify metadata propagation
-            if (fusionOptions.enableArcReconstruction && debugState.enabled) {
-                this.verifyMetadataPropagation(preprocessed, 'After preprocessing');
-            }
+            fusionOptions.enableArcReconstruction && debugState.enabled && this.verifyMetadataPropagation(preprocessed, "After preprocessing");
 
             // Perform boolean fusion
             let fused = await this.performFusion(preprocessed);
@@ -150,8 +140,6 @@
                 this.debug('Arc reconstruction is Disabled, skipping block.');
                 finalGeometry = fused;
             }
-
-            this.cachedStates.fusedGeometry = finalGeometry;
 
             // Update statistics
             this.stats.fusionOperations++;
@@ -514,11 +502,7 @@
 
         // State management
         clearCachedStates() {
-            this.cachedStates = {
-                originalPrimitives: null,
-                preprocessedGeometry: null,
-                fusedGeometry: null
-            };
+            this.cachedStates = { preprocessedGeometry: null };
         }
 
         getCachedState(stateName) {
@@ -550,5 +534,5 @@
 
     }
 
-    window.GeometryProcessor = GeometryProcessor;
+    ROOT.GeometryProcessor = GeometryProcessor;
 })();

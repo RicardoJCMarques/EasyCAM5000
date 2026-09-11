@@ -40,16 +40,22 @@
     };
 
     class RendererCore {
-        constructor(canvas, scene = null) {
-            this.canvas = canvas;
-            this.ctx = canvas.getContext('2d', { 
+        /**
+         * The public renderer object. Owns the canvas, the viewport transform,
+         * layer storage and culling, and the pass runner that paints them.
+         * LayerRenderer is internal: callers say `renderer.addLayer(...)`, and the
+         * core is not reachable through a `.core` property - there isn't one.
+         */
+        constructor(canvasId, appCore = null) {
+            this.canvas = typeof canvasId === 'string' ? document.getElementById(canvasId) : canvasId;
+            if (!this.canvas) throw new Error(`Canvas element '${canvasId}' not found`);
+            this.ctx = this.canvas.getContext('2d', {
                 alpha: C.renderer.context.alpha,
                 desynchronized: C.renderer.context?.desynchronized
             });
+            if (!this.ctx) throw new Error('Could not get 2D context from canvas');
 
-            if (!this.ctx) {
-                throw new Error('Could not get 2D context from canvas');
-            }
+            this.appCore = appCore;
 
             // View state
             this.viewOffset = { x: 0, y: 0 };
@@ -58,23 +64,19 @@
             this.lastMousePos = null;
             this.originIncludedInFit = false;
 
-            // Scene reference for transform data
-            // All origin/rotation/mirror state lives on scene.transform.
-            // The getters below delegate to it. Renderer never caches.
+            // All origin/rotation/mirror state lives on scene.transform. The
+            // getters below delegate to it. Renderer never caches.
             // REVIEW - Would it make sense for rendering to cache it some way or are there other caches at play now?
-            this.scene = scene;
+            this.scene = appCore ? appCore.scene : null;
 
-            // Bounds
             this.bounds = null;
             this.overallBounds = null;
-
-            // Layers storage
             this.layers = new Map();
-
-            // Device pixel ratio
             this.devicePixelRatio = 1;
 
-            // Render options
+            // Overlay hook, set by the app. Read by the pass runner.
+            this.onRenderOverlay = null;
+
             this.options = {
                 showWireframe: renderingOptions.showWireframe,
                 showGrid: renderingOptions.showGrid,
@@ -102,40 +104,35 @@
             // LOD threshold (screen pixels)
             this.lodThreshold = C.renderer.lodThreshold ?? 0.5;
 
-            // Color schemes
-            // Geometry colors are managed by the UI via options.resolveLayerColor, 
+            // Geometry colors are managed by the UI via options.resolveLayerColor,
             // but structural colors (canvas, grid, rulers) are handled here.
             this.colors = {};
             this.updateThemeColors();
-
             this._onThemeChange = () => {
                 this.updateThemeColors();
                 this.renderStats.lastSignificantChange = 'theme-changed';
             };
             window.addEventListener('themechange', this._onThemeChange);
 
-            // Statistics
             this.renderStats = {
-                lastRenderTime: 0,
-                renderTime: 0,
-                primitives: 0,
-                renderedPrimitives: 0,
-                skippedPrimitives: 0,
-                culledViewport: 0,
-                culledLOD: 0,
-                drawCalls: 0,
+                lastRenderTime: 0, renderTime: 0, primitives: 0, renderedPrimitives: 0,
+                skippedPrimitives: 0, culledViewport: 0, culledLOD: 0, drawCalls: 0,
                 lastSignificantChange: null
             };
 
             // Frame cache for per-frame calculations
-            this.frameCache = {
-                invScale: 1,
-                minWorldWidth: 1,
-                viewBounds: null
-            };
-
+            this.frameCache = { invScale: 1, minWorldWidth: 1, viewBounds: null };
             this.rendererType = 'canvas2d';
             this.lastMouseCanvasPos = { x: 0, y: 0 };
+
+            this.passes = new LayerRenderer(this);
+            this.primitiveRenderer = this.passes.primitiveRenderer;
+            this.resizeCanvas();
+            this.zoomFit(); // Enforce default origin placement in canvas
+        }
+
+        render() {
+            this.passes.render();
         }
 
         updateThemeColors() {
@@ -282,7 +279,6 @@
                 // Peck Marks & Centerline Slots (Critical Operational Data)
                 // These contain crosshairs or drill hits that must remain visible even if the geometry itself is a tiny dot.
                 if (props.role === 'peck_mark' || 
-                    props.isToolPeckMark || 
                     props.isCenterlinePath || 
                     props.role === 'drill_milling_path') {
 
@@ -323,6 +319,33 @@
             };
         }
 
+        /**
+         * Updates a layer's world matrix and bounds without rebuilding any
+         * primitives or render cache entries. Called from drag-move handlers
+         * to avoid the cost of clearLayers() + addLayer() per mousemove tick.
+         *
+         * The per-primitive renderCache.entries[*].bounds stay in LOCAL space
+         * (they describe the primitive's local-frame bbox). The renderer's
+         * per-layer inverse-transform of viewBounds (see renderVisibleLayers
+         * below) compensates so viewport culling stays correct.
+         *
+         * @param {string} layerName   Layer key (e.g. `shape_${shape.id}`)
+         * @param {object} newMatrix   Affine matrix {a,b,c,d,e,f}
+         * @param {object} [newBounds] Optional world-space AABB. If omitted,
+         *                             the cached bounds stay as-is.
+         */
+        updateLayerTransform(layerName, newMatrix, newBounds) {
+            const layer = this.layers.get(layerName);
+            if (!layer) return false;
+            layer.transform = newMatrix;
+            if (newBounds) {
+                layer.bounds = newBounds;
+                if (layer.renderCache) layer.renderCache.bounds = newBounds;
+            }
+            this.calculateOverallBounds();
+            return true;
+        }
+
         invalidateLayerCache(layerName) {
             const layer = this.layers.get(layerName);
             if (layer && layer.renderCache) {
@@ -335,12 +358,6 @@
             if (layer) {
                 this.buildLayerBoundsCache(layer);
             }
-        }
-
-        removeLayer(name) {
-            this.layers.delete(name);
-            this.calculateOverallBounds();
-            this.renderStats.lastSignificantChange = 'layer-removed';
         }
 
         clearLayers() {
@@ -410,10 +427,6 @@
             this.ctx.scale(this.viewScale, -this.viewScale);
             this.ctx.lineCap = 'round';
             this.ctx.lineJoin = 'round';
-        }
-
-        resetTransform() {
-            this.ctx.restore();
         }
 
         worldToCanvasX(worldX) {
@@ -514,6 +527,10 @@
             // Force layout update synchronously before calculating zoom math
             this.resizeCanvas();
 
+            // ignoreStock = hasStock, and that is deliberate: with content on
+            // the canvas, fit to the CONTENT and let the bed fall outside the
+            // frame. The !overallBounds branch below re-runs with the stock
+            // included, so an empty scene still frames the bed.
             const hasStock = Array.from(this.layers.values()).some(l => l.isStock && l.visible);
             
             // Always recalculate to ensure bounds aren't stale
@@ -689,44 +706,16 @@
             if (changed) {
                 this.renderStats.lastSignificantChange = options.theme ? 'theme-changed' : 'options-changed';
             }
+            this.render();
         }
 
         setScene(scene) { this.scene = scene; }
 
         // ========================================================================
-        // Origin, Rotation and Mirroring
+        // Origin Position
         // ========================================================================
-        // No more setX methods. Mutation happens on scene; the renderer
-        // pulls the current values each frame via these getters. UI code
-        // calls scene.setOrigin / setRotation / setMirrorX/Y and adds a
-        // transform listener that calls renderer.render().
-
         get originPosition() {
             return this.scene ? this.scene.transform.origin : { x: 0, y: 0 };
-        }
-        get currentRotation() {
-            return this.scene ? this.scene.transform.rotation : 0;
-        }
-        get rotationCenter() {
-            return this.scene ? this.scene.transform.rotationCenter : { x: 0, y: 0 };
-        }
-        get mirrorX() {
-            return this.scene ? this.scene.transform.mirrorX : false;
-        }
-        get mirrorY() {
-            return this.scene ? this.scene.transform.mirrorY : false;
-        }
-        get mirrorCenter() {
-            return this.scene ? this.scene.transform.mirrorCenter : { x: 0, y: 0 };
-        }
-
-        getOriginPosition() { return { ...this.originPosition }; }
-        getMirrorState() {
-            return {
-                mirrorX: this.mirrorX,
-                mirrorY: this.mirrorY,
-                mirrorCenter: { ...this.mirrorCenter }
-            };
         }
 
         // ========================================================================
@@ -797,6 +786,12 @@
                     `${this.renderStats.drawCalls} draws, ${this.renderStats.renderTime.toFixed(1)}ms ` +
                     `(${this.renderStats.lastSignificantChange})`);
                 this.renderStats.lastSignificantChange = null;
+            }
+        }
+
+        debug(message, data = null) {
+            if (debugState.enabled) {
+                data ? console.log(`[RendererCore] ${message}`, data) : console.log(`[RendererCore] ${message}`);
             }
         }
     }

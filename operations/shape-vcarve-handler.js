@@ -11,8 +11,9 @@
 
 (function() {
     'use strict';
+    const ROOT = globalThis;
 
-    const C = window.CAMConfig.constants;
+    const C = ROOT.CAMConfig.constants;
     const PRECISION = C.precision.coordinate;
 
     class ShapeVCarveHandler extends BaseOperationHandler {
@@ -112,11 +113,7 @@
                     return tested > 0 && onMat * 2 >= tested;
                 };
 
-                // Loops now carry isHole. A hole ring of an inset polygon
-                // encircles a VOID: it must be cut as a plain perimeter, but
-                // it must never claim a medial spine (nothing on the medial
-                // axis lives inside it). The generator used to see a flat
-                // array of point-arrays and let hole rings compete for spines.
+                // Loops are grouped, not flat: a flat array lets hole rings compete for spines.
                 const loops = [];
                 let dropped = 0;
                 for (const p of floorPolys) {
@@ -295,7 +292,7 @@
             // during param compilation is not dropped.
             const token = this.beginRun(operation, options, core);
 
-            const opParams = core.compileOperationParams(operation, params);
+            const opParams = core.pipelineContext.compileOperationParams(operation, params);
 
             // V-Carve is strictly closed-region work
             const openCount = this.countOpenPaths(operation);
@@ -437,7 +434,7 @@
             // serial by construction (main-thread WASM), so this
             // producer/consumer shape is the ceiling - which is exactly why
             // dispatch itself must be cheap (see buildVCarveJob).
-            const WC = window.FieldWorkerClient;
+            const WC = ROOT.FieldWorkerClient;
             const token = runToken ?? operation._genToken;
             const onProgress = operation._onProgress || null;
 
@@ -563,7 +560,7 @@
                 }
                 const generator = typeof VCarveGenerator !== 'undefined'
                     ? VCarveGenerator
-                    : (typeof window !== 'undefined' ? window.VCarveGenerator : null);
+                    : (typeof window !== 'undefined' ? ROOT.VCarveGenerator : null);
                 if (generator) {
                     vcarvePrimitives.push(...generator.generateVCarvePaths(
                         jobs[i].prim, jobs[i].opts));
@@ -594,7 +591,6 @@
                 metadata: {
                     generatedAt: Date.now(),
                     sourceCount: merged.length,
-                    finalCount: vcarvePrimitives.length,
                     toolDiameter: settings.toolDiameter,
                     tipRadius,
                     vbitAngle,
@@ -611,5 +607,5 @@
         }
     }
 
-    window.ShapeVCarveHandler = ShapeVCarveHandler;
+    ROOT.ShapeVCarveHandler = ShapeVCarveHandler;
 })();

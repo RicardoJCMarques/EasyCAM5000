@@ -26,6 +26,8 @@ node_modules/
 
 # Extras
 /extras/
+/geometry/geometry-utils-math.js
+/geometry/geometry-offsetter-analytic.js
 /parsers/parser-gcode.js
 /parsers/gcode-integration.md
 /parsers/gcode-parser.md

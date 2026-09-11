@@ -17,8 +17,9 @@
 
 (function() {
     'use strict';
+    const ROOT = globalThis;
 
-    const D = window.CAMConfig.defaults;
+    const D = ROOT.CAMConfig.defaults;
     const T3D = D.toolpath.generation.threeD;
 
     // Machining phase → sort rank. The optimizer orders plan groups by
@@ -55,19 +56,14 @@
             // x = axial along the rotary axis, y = 0 ON the axis line,
             // z = 0 at the blank face top (the handler's offset +
             // surfaceRefZ contract).
-            const indexed =! 0 === props.indexed;
+            const indexed = !0 === props.indexed;
             const machineFrame = developed || indexed;
             const transforms = ctx.transforms;
-            if (machineFrame && transforms && !this.parent.isIdentityTransforms(transforms) && this._warnedOpId !== operationId){
+            if (machineFrame && transforms && !this.parent.isIdentityTransforms(transforms) && this._warnedOpId !== operationId) {
                 this._warnedOpId = operationId;
-                console.warn(`[Toolpath3DTranslator] Workspace transforms/origin are `+ 
-                    `ignored for ${developed?"rotary developed":"indexed 3+1"} ` +
-                    `chains (the machine pass owns their frame).`);
+                console.warn(`[Toolpath3DTranslator] Workspace transforms/origin are ignored for ${developed ? "rotary developed" : "indexed 3+1"} chains (the machine pass owns their frame).`);
             }
-
-            const mapPt = machineFrame
-                ? (p) => ({ x: p.x, y: p.y })
-                : (p) => this.parent.applyTransforms(p, transforms);
+            const mapPt = machineFrame ? p => p : p => this.parent.applyTransforms(p, transforms);
 
             const plans = [];
 
@@ -96,7 +92,6 @@
                 const read = chain.read; // (i, out) → {x,y,z}
 
                 const plan = new ToolpathPlan(operationId);
-                plan.metadata.context = ctx;
                 plan.metadata.transforms = ctx.transforms;
                 plan.metadata.operationId = operationId;
                 plan.metadata.operationType = ctx.operationType;
@@ -259,5 +254,5 @@
         }
     }
 
-    window.Toolpath3DTranslator = Toolpath3DTranslator;
+    ROOT.Toolpath3DTranslator = Toolpath3DTranslator;
 })();

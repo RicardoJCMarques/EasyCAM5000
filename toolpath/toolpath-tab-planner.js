@@ -11,9 +11,10 @@
 
 (function() {
     'use strict';
+    const ROOT = globalThis;
 
-    const C = window.CAMConfig.constants;
-    const D = window.CAMConfig.defaults;
+    const C = ROOT.CAMConfig.constants;
+    const D = ROOT.CAMConfig.defaults;
     const PRECISION = C.precision.coordinate;
 
     /**
@@ -34,20 +35,20 @@
             const tabWidth = context.strategy.cutout.tabWidth;
             const tabCount = context.strategy.cutout.tabs;
 
-            // Pull the tool diameter from the context
-            const toolDiameter = context.tool.diameter;
+            if (tabCount <= 0 || !geometrySource.points) return [];
 
-            if (tabCount <= 0 || !geometrySource.points) return []; // REVIEW - Change this to the begining of the method?
+            const toolDiameter = context.tool.diameter;
 
             // Add the tool diameter to the requested width to create the physical gap
             const compensatedTabWidth = tabWidth + toolDiameter;
-            const totalLength = this.calculateTotalLength(geometrySource);
+            const segments = this.mapSegmentsToDistance(geometrySource);
+            const totalLength = segments.length === 0 ? 0 : segments[segments.length - 1].endDistance;
             if (totalLength <= PRECISION || totalLength < compensatedTabWidth * tabCount) {
                 return [];
             }
 
             // Pass the compensated width down into the range calculator
-            const tabRanges = this.calculateTabRanges(geometrySource, tabCount, compensatedTabWidth, totalLength);
+            const tabRanges = this.calculateTabRanges(segments, tabCount, compensatedTabWidth, totalLength);
 
             // Split Geometry using Tab Ranges (with transforms for correct G-code output)
             const motionCommands = this.splitGeometryByRanges(geometrySource, tabRanges, context.cutting.feedRate, context.transforms);
@@ -67,12 +68,10 @@
         // longest straight segments (sorted by length, not spatial position). Two adjacent
         // long segments get tabs back-to-back. Consider a minimum angular/distance
         // separation constraint between Priority 1 tabs.
-        calculateTabRanges(geometrySource, tabCount, tabWidth, totalLength) {
+        calculateTabRanges(segments, tabCount, tabWidth, totalLength) {
             const tabHalfWidth = tabWidth / 2;
             let remainingTabs = tabCount;
             const placedTabs = [];
-
-            const segments = this.mapSegmentsToDistance(geometrySource);
 
             // Find qualifying straight segments (linear and long enough)
             const straightSegments = segments
@@ -377,14 +376,7 @@
 
             return segments;
         }
-
-        // REVIEW - Why keep this with mapSegmentsToDistance? Merge?
-        calculateTotalLength(geometry) {
-            const segments = this.mapSegmentsToDistance(geometry);
-            if (segments.length === 0) return 0;
-            return segments[segments.length - 1].endDistance;
-        }
     }
 
-    window.ToolpathTabPlanner = ToolpathTabPlanner;
+    ROOT.ToolpathTabPlanner = ToolpathTabPlanner;
 })();

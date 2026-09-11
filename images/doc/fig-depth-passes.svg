@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 300" role="img" aria-labelledby="title desc" xmlns:c2pa="http://c2pa.org/manifest">
+  <title id="title">How cut depth is split into passes</title>
+  <desc id="desc">The total cut depth is divided into as many passes as it takes, each no deeper than the depth per pass. The last pass takes whatever is left.</desc>
+  <style>
+    /* Inlined by figures.js, so these resolve against the page theme.
+       Fallbacks match the dark theme in css/theme.css. */
+    svg{
+      --bg:var(--color-bg-primary,#0f0f0f);
+      --panel:var(--color-bg-secondary,#1a1a1a);
+      --panel2:var(--color-bg-tertiary,#242424);
+      --line:var(--color-border-secondary,#3a3a3a);
+      --text:var(--color-text-primary,#e5e5e5);
+      --muted:var(--color-text-secondary,#a0a0a0);
+      --accent:var(--color-accent-primary,#2563eb);
+      --ext:var(--color-geometry-offset-external,#a60000);
+      --int:var(--color-geometry-offset-internal,#00a600);
+      --on:var(--color-geometry-offset-on,#bcbc02);
+      --preview:var(--color-geometry-preview,#0060dd);
+      --toolpath:var(--color-geometry-toolpath,#00ffff);
+      --copper:var(--color-geometry-source-isolation,#ff8844);
+      --drillc:var(--color-operation-drill,#4488ff);
+      --clearc:var(--color-operation-clearing,#44ff88);
+      --cutc:var(--color-operation-cutout,#ff00ff);
+      --stenc:var(--color-operation-stencil,#90177d);
+      --ok:var(--color-primitive-peck-mark-good,#16d329);
+      --warn:var(--color-primitive-peck-mark-warn,#d2cb00);
+      --bad:var(--color-primitive-peck-mark-error,#ff0000);
+      --stock:var(--color-render3d-stock,#8a7a5c);
+    }
+    .bg{fill:var(--bg)}
+    .panel{fill:var(--panel)}
+    .panel2{fill:var(--panel2)}
+    .edge{fill:none;stroke:var(--line);stroke-width:1.5}
+    .t{fill:var(--text);font:13px system-ui,sans-serif}
+    .tb{fill:var(--text);font:bold 14px system-ui,sans-serif}
+    .tm{fill:var(--muted);font:12px system-ui,sans-serif}
+  </style>
+  <rect class="bg" width="800" height="300"/>
+  <text class="tb" x="24" y="34">Cut depth 6 mm, depth per pass 2 mm - three passes</text>
+  <rect x="120" y="70" width="440" height="150" fill="var(--stock)" stroke="var(--muted)" stroke-width="2"/>
+  <path d="M120 120h440M120 170h440" stroke="var(--bg)" stroke-width="2" stroke-dasharray="6 5"/>
+  <path d="M120 220h440" stroke="var(--ext)" stroke-width="3"/>
+  <path d="M100 70v150" stroke="var(--line)" stroke-width="1"/>
+  <text class="tm" x="580" y="98">surface</text>
+  <text class="tm" x="580" y="126">pass 1 - 2 mm</text>
+  <text class="tm" x="580" y="176">pass 2 - 4 mm</text>
+  <text class="tm" x="580" y="226">pass 3 - 6 mm, final depth</text>
+  <text class="tm" x="24" y="264">Turn multi-depth off and the whole depth is taken in one pass, which most cutters will not survive.</text>
+  <text class="tm" x="24" y="286">Depth is measured from your Z zero, so set the Z-zero reference before you generate.</text>
+</svg>

@@ -31,23 +31,6 @@ const CONFIG = {
         }
     ],
 
-    // Documentation pages to process (CSS inlining only)
-    docPages: [
-        'index.html',
-        // EasyTrace5000 Docs
-        'easytrace5000/doc/index.html',
-        'easytrace5000/doc/cnc.html', 
-        'easytrace5000/doc/laser.html',
-        'easytrace5000/doc/operations.html',
-        'easytrace5000/doc/parameters.html',
-        'easytrace5000/doc/accessibility.html',
-        // EasyShape5000 Docs
-        'easyshape5000/doc/index.html',
-        'easyshape5000/doc/guide.html',
-        'easyshape5000/doc/operations.html',
-        'easyshape5000/doc/parameters.html'
-    ],
-
     // Files/folders to exclude from dist
     excludePatterns: [
         '.git',
@@ -74,7 +57,8 @@ const CONFIG = {
         // Analytic offsetting files
         'geometry-offsetter-analytic.js',
         'geometry-utils-math.js',
-        'unit-converter.js'
+        // Inactive stubs
+        'shape-pattern-handler.js'
     ],
 
     // ESM 3D preview stack. esbuild bundles the entry point plus every
@@ -101,10 +85,12 @@ const CONFIG = {
     embedTools: 'tools.json',
 
     // Profiles to inject directly into the JS controllers
-    embedProfiles: [
+    appProfiles: [
         { path: 'ui/profile-trace.json', target: 'easytrace5000/cam-easytrace5000.js', varName: 'EMBEDDED_PROFILE_TRACE' },
         { path: 'ui/profile-shape.json', target: 'easyshape5000/cam-easyshape5000.js', varName: 'EMBEDDED_PROFILE_SHAPE' }
-    ]
+    ],
+
+    embedLaserProfiles: 'export/laser-profiles.json'
 };
 
 // ============================================================================
@@ -176,6 +162,21 @@ function writeFile(filepath, content) {
     fs.writeFileSync(filepath, content);
 }
 
+/**
+ * Every embed step rewrites a module with a regex and then DELETES the file
+ * it embedded. A regex that stops matching is invisible: the rewrite no-ops,
+ * the input is removed anyway, and dist ships a module that fetches a 404 -
+ * or, for a profile, an app that cannot start. Nothing may delete an input it
+ * has not proved it consumed.
+ */
+function mustReplace(content, pattern, replacement, what) {
+    const out = content.replace(pattern, replacement);
+    if (out === content) {
+        throw new Error(`${what}: pattern did not match - refusing to delete the source it embeds`);
+    }
+    return out;
+}
+
 function deleteFile(filepath) {
     if (fs.existsSync(filepath)) fs.unlinkSync(filepath);
 }
@@ -186,13 +187,27 @@ function deleteDir(dirpath) {
     }
 }
 
+// Deterministic build id. A wall-clock timestamp in every banner changes the
+// content hash of every bundled artifact on every run, so the FTP deploy
+// re-uploads both app bundles, the worker and every HTML file even when
+// nothing changed. The commit is the only thing that should move the bytes.
+const BUILD_ID = (() => {
+    if (process.env.GITHUB_SHA) return process.env.GITHUB_SHA.slice(0, 7);
+    try {
+        return require('child_process')
+            .execFileSync('git', ['rev-parse', '--short', 'HEAD'],
+                { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] })
+            .trim();
+    } catch { return 'local'; }
+})();
+
 function buildHeader(title, subtitle, format = 'js') {
     const YEARS  = '2025-2026';
     const HOLDER = 'Eltryus - Ricardo Marques';
     const REPO   = 'https://github.com/RicardoJCMarques/EasyCAM5000';
 
     const heading = subtitle ? `${title} - ${subtitle}` : title;
-    const timestamp = new Date().toISOString();
+    const timestamp = BUILD_ID;
 
     if (format === 'html') {
         return `<!--!
@@ -200,7 +215,7 @@ function buildHeader(title, subtitle, format = 'js') {
   Copyright (C) ${YEARS} ${HOLDER}
   SPDX-License-Identifier: AGPL-3.0-or-later
   Source: ${REPO}
-  Built: ${timestamp}
+  Build: ${timestamp}
 -->`;
     }
 
@@ -209,7 +224,7 @@ function buildHeader(title, subtitle, format = 'js') {
  * Copyright (C) ${YEARS} ${HOLDER}
  * SPDX-License-Identifier: AGPL-3.0-or-later
  * Source: ${REPO}
- * Built: ${timestamp}
+ * Build: ${timestamp}
  */\n\n`;
 }
 
@@ -223,8 +238,33 @@ class Builder {
         this.distDir = path.resolve(distDir);
         this.keepComments = options.keepComments === true;
         this.minifyMode = options.minifyMode || 'full';
+        // The regex comment stripper cannot tell a comment from a '/*' inside
+        // a string or regex literal. Under --minify terser removes comments
+        // with a real tokenizer immediately afterwards, so running the regex
+        // first takes that risk for no benefit. Only a plain dist needs it.
+        this.keepJsComments = this.keepComments || options.willMinify === true;
         this.stats = { css: 0, js: 0, html: 0 };
         this.processedFiles = new Set();
+    }
+
+    /**
+     * Every HTML in dist that is not an app entry. Hardcoding this list means
+     * a new page keeps <link>s to stylesheets cleanup has already deleted:
+     * an unstyled page in production and no build step that notices.
+     */
+    docPages() {
+        const appHtml = new Set(CONFIG.apps.map(a => path.join(this.distDir, a.html)));
+        const out = [];
+        const walk = (dir) => {
+            if (!fs.existsSync(dir)) return;
+            for (const item of fs.readdirSync(dir)) {
+                const p = path.join(dir, item);
+                if (fs.statSync(p).isDirectory()) walk(p);
+                else if (p.toLowerCase().endsWith('.html') && !appHtml.has(p)) out.push(p);
+            }
+        };
+        walk(this.distDir);
+        return out;
     }
 
     /** Bundle markers name files by repo path, not by the <script src> path. */
@@ -242,6 +282,7 @@ class Builder {
         // Assests to Embed
         this.embedLanguageJSON();
         this.embedToolsJSON();
+        this.embedLaserProfilesJSON();
         this.embedAppProfiles();
         this.embedIconSprite();
         this.processApps();
@@ -250,6 +291,7 @@ class Builder {
         this.processDocPages();
 
         this.cleanup();
+        this.verify();
         this.printStats();
     }
 
@@ -270,28 +312,38 @@ class Builder {
         const langPath = path.join(this.distDir, CONFIG.embedLanguage);
         const managerPath = path.join(this.distDir, 'language/language-manager.js');
 
-        if (!fs.existsSync(langPath) || !fs.existsSync(managerPath)) {
-            log('  Warning: Language files not found, skipping');
-            return;
+                if (!fs.existsSync(langPath) || !fs.existsSync(managerPath)) {
+            throw new Error(`embedLanguage: ${CONFIG.embedLanguage} or language/language-manager.js missing in dist`);
         }
 
+        // v2 language packs have NO `strings` wrapper - namespaces are top
+        // level. LanguageManager.load reads `data.strings || data`, and this
+        // must agree with it: reading only `.strings` embeds {}, the rewritten
+        // load() early-returns for 'en', en.json is deleted, and every
+        // user-facing string in production silently falls through to its
+        // inline English fallback.
         const langData = JSON.parse(readFile(langPath));
-        const langJSON = JSON.stringify(langData.strings || {});
+        const payload = langData.strings || langData;
+        if (!Object.keys(payload).some(k => !k.startsWith('_'))) {
+            throw new Error(`embedLanguage: ${CONFIG.embedLanguage} yielded no translatable keys - schema changed?`);
+        }
+        const langJSON = JSON.stringify(payload);
         let manager = readFile(managerPath);
 
         // Insert embedded strings after 'use strict'
         const embedCode = `\n    // BUILD: Embedded English strings\n    const EMBEDDED_STRINGS = ${langJSON};\n`;
-        manager = manager.replace(/\(function\(\)\s*\{\s*'use strict';/, `(function() {\n    'use strict';${embedCode}`);
-        // Modify constructor to pre-populate strings
-        manager = manager.replace(/this\.strings\s*=\s*\{\};/, `this.strings = EMBEDDED_STRINGS;`);
+        manager = mustReplace(manager, /\(function\(\)\s*\{\s*'use strict';/,
+            `(function() {\n    'use strict';${embedCode}`, 'embedLanguage/iife');
+        manager = mustReplace(manager, /this\.strings\s*=\s*\{\};/,
+            `this.strings = EMBEDDED_STRINGS;`, 'embedLanguage/constructor');
 
         // Modify load() to skip fetch for English
-        const oldLoad = /async load\(lang\s*=\s*'en'\)\s*\{[\s\S]*?try\s*\{[\s\S]*?const response = await fetch/;
+        const oldLoad = /async load\(lang\s*=\s*['"]en['"]\)\s*\{[\s\S]*?try\s*\{[\s\S]*?const response = await fetch/;
         const newLoad = `async load(lang = 'en') {
             // Fast path: English is embedded
             if (lang === 'en') {
                 this.isLoaded = true;
-                console.log('[Lang] Using embedded English strings.');
+                this.debug('[Lang] Using embedded English strings.');
                 return;
             }
 
@@ -299,11 +351,11 @@ class Builder {
             try {
                 const response = await fetch`;
 
-        manager = manager.replace(oldLoad, newLoad);
+        manager = mustReplace(manager, oldLoad, newLoad, 'embedLanguage/load');
 
         writeFile(managerPath, manager);
         deleteFile(langPath);
-        log('  Embedded and removed en.json');
+        log(`  Embedded and removed en.json (${Object.keys(payload).length} namespaces)`);
     }
 
     embedToolsJSON() {
@@ -313,62 +365,79 @@ class Builder {
         const libraryPath = path.join(this.distDir, 'ui/tool-library.js');
 
         if (!fs.existsSync(toolsPath) || !fs.existsSync(libraryPath)) {
-            log('  Warning: Tools file or library not found, skipping');
-            return;
+            throw new Error(`embedTools: ${CONFIG.embedTools} or ui/tool-library.js missing in dist`);
         }
 
         const toolsData = JSON.parse(readFile(toolsPath));
         const toolsJSON = JSON.stringify(toolsData);
         let library = readFile(libraryPath);
 
-        // Insert embedded constant
+        // Insert embedded constant (tool-library.js already checks for EMBEDDED_TOOLS natively)
         const embedCode = `\n    // BUILD: Embedded default tools\n    const EMBEDDED_TOOLS = ${toolsJSON};\n`;
-        library = library.replace(/\(function\(\)\s*\{\s*'use strict';/, `(function() {\n    'use strict';${embedCode}`);
-
-        // Modify init() to prefer embedded tools
-        const oldInit = /async init\(\) \{[\s\S]*?try \{[\s\S]*?const loaded = await this\.loadFromFile\('[^']*tools\.json'\);/;
-        const newInit = `async init() {
-            if (this.isLoaded) return true;
-
-            try {
-                // BUILD: Load embedded tools
-                if (typeof EMBEDDED_TOOLS !== 'undefined') {
-                    this.importTools(EMBEDDED_TOOLS);
-                    this.isLoaded = true;
-                    this.debug('Loaded ' + this.tools.length + ' embedded tools');
-                    return true;
-                }
-
-                // Fallback (dev mode behavior)
-                const loaded = await this.loadFromFile('tools.json');`;
-
-        library = library.replace(oldInit, newInit);
+        library = mustReplace(library, /\(function\(\)\s*\{\s*'use strict';/,
+            `(function() {\n    'use strict';${embedCode}`, 'embedTools/iife');
 
         writeFile(libraryPath, library);
         deleteFile(toolsPath);
         log('  Embedded and removed tools.json');
     }
 
+    embedLaserProfilesJSON() {
+        log('Embedding laser-profiles.json into cam-controller.js...');
+
+        const profilesPath = path.join(this.distDir, CONFIG.embedLaserProfiles);
+        const controllerPath = path.join(this.distDir, 'core/cam-controller.js');
+
+        if (!fs.existsSync(profilesPath) || !fs.existsSync(controllerPath)) {
+            throw new Error(`embedLaserProfiles: ${CONFIG.embedLaserProfiles} or core/cam-controller.js missing in dist`);
+        }
+
+        const profilesData = JSON.parse(readFile(profilesPath));
+        const profilesJSON = JSON.stringify(profilesData);
+        let controller = readFile(controllerPath);
+
+        const embedCode = `\n    // BUILD: Embedded laser profiles\n    const EMBEDDED_LASER_PROFILES = ${profilesJSON};\n`;
+        controller = mustReplace(controller, /\(function\(\)\s*\{\s*'use strict';/,
+            `(function() {\n    'use strict';${embedCode}`, 'embedLaserProfiles/iife');
+
+        writeFile(controllerPath, controller);
+        deleteFile(profilesPath);
+        log('  Embedded and removed laser-profiles.json');
+    }
+
     embedAppProfiles() {
         log('Embedding app profiles into controllers...');
-        for (const profile of CONFIG.embedProfiles) {
+        for (const profile of CONFIG.appProfiles) {
             const profilePath = path.join(this.distDir, profile.path);
             const targetPath = path.join(this.distDir, profile.target);
 
             if (!fs.existsSync(profilePath) || !fs.existsSync(targetPath)) {
-                log(`  Warning: Profile or target not found for ${profile.varName}, skipping`);
-                continue;
+                throw new Error(`appProfiles: ${profile.path} or ${profile.target} missing in dist`);
             }
 
             const profileData = JSON.parse(readFile(profilePath));
-            const profileJSON = JSON.stringify(profileData);
+            // Strip metadata comments starting with _ or _comment
+            const cleanObj = (obj) => {
+                if (Array.isArray(obj)) return obj.map(cleanObj);
+                if (obj !== null && typeof obj === 'object') {
+                    return Object.fromEntries(
+                        Object.entries(obj)
+                            .filter(([k]) => !k.startsWith('_'))
+                            .map(([k, v]) => [k, cleanObj(v)])
+                    );
+                }
+                return obj;
+            };
+            const profileJSON = JSON.stringify(cleanObj(profileData));
             let targetContent = readFile(targetPath);
 
             const embedCode = `\n    // BUILD: Embedded App Profile\n    window.${profile.varName} = ${profileJSON};\n`;
 
-            targetContent = targetContent.replace(
+            targetContent = mustReplace(
+                targetContent,
                 /\(function\(\)\s*\{\s*'use strict';/,
-                `(function() {\n    'use strict';${embedCode}`
+                `(function() {\n    'use strict';${embedCode}`,
+                `appProfiles/${profile.varName}`
             );
 
             writeFile(targetPath, targetContent);
@@ -459,8 +528,8 @@ class Builder {
 
         const spriteBlock = `<svg id="cam-icon-sprite" aria-hidden="true" style="position: absolute; width: 0; height: 0; visibility: hidden;">\n${symbols.join('\n')}\n</svg>`;
 
-        // Regex to safely locate and remove the redundant fetch logic
-        const fetchScriptRegex = /\s*\/\/\s*Load the SVG Sprite[\s\S]*?\.catch\([^;]+;/g;
+        // Remove sprite fetch call cleanly, accounting for nested parentheses inside .catch(...)
+        const fetchScriptRegex = /[ \t]*(?:\/\/[^\r\n]*\r?\n[ \t]*)?fetch\(["'][^"']*images\/icons\/sprite\.svg["']\)[\s\S]*?\.catch\((?:[^()]|\([^()]*\))*\)\s*;?\r?\n?/g;
 
         // Inject into each app HTML
         for (const app of CONFIG.apps) {
@@ -469,8 +538,8 @@ class Builder {
 
             let html = readFile(htmlPath);
 
-            // Inject sprite directly after <body> tag
-            html = html.replace(/<body>/, `<body>\n${spriteBlock}`);
+            // Inject sprite directly after <body> tag (supports attributes)
+            html = html.replace(/<body\b[^>]*>/i, match => `${match}\n${spriteBlock}`);
 
             // Strip the inline fetch script
             html = html.replace(fetchScriptRegex, '');
@@ -479,13 +548,10 @@ class Builder {
         }
 
         // Also inject into doc pages if they use icons
-        for (const page of CONFIG.docPages) {
-            const pagePath = path.join(this.distDir, page);
-            if (!fs.existsSync(pagePath)) continue;
-            
+        for (const pagePath of this.docPages()) {
             let html = readFile(pagePath);
             if (html.includes('cam-icon')) {
-                html = html.replace(/<body>/, `<body>\n${spriteBlock}`);
+                html = html.replace(/<body\b[^>]*>/i, match => `${match}\n${spriteBlock}`);
                 
                 // Strip the inline fetch script
                 html = html.replace(fetchScriptRegex, '');
@@ -509,26 +575,28 @@ class Builder {
         const m = worker.match(/importScripts\(([\s\S]*?)\);/);
         if (!m) return;
 
-        const deps = [...m[1].matchAll(/['"]([^'"]+)['"]/g)].map(x => x[1]);
+        // Strip line and block comments before extracting dependency file paths
+        const cleanScriptArgs = m[1].replace(/\/\/[^\r\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '');
+        const deps = [...cleanScriptArgs.matchAll(/['"]([^'"]+)['"]/g)].map(x => x[1]);
+
         let inlinedBundle = '/* importScripts inlined by build */\n';
         for (const dep of deps) {
             const p = path.join(this.distDir, 'geometry', dep);
             if (!fs.existsSync(p)) {
                 throw new Error(`field-worker importScripts dep not found in dist: ${dep}`);
             }
-            inlinedBundle += `\n/*! --- ${this.repoPath(p)} --- */\n${stripComments(readFile(p), 'js', this.keepComments)}\n`;
+            inlinedBundle += `\n/*! --- ${this.repoPath(p)} --- */\n${stripComments(readFile(p), 'js', this.keepJsComments)}\n`;
         }
 
         // Inline dependencies inside ensureModules() where importScripts was,
         // ensuring self.CAMConfig is set before module IIFEs execute.
         worker = worker.replace(m[0], inlinedBundle);
-        const finalContent = buildHeader('Field Worker', 'Bundled', 'js') + stripComments(worker, 'js', this.keepComments);
+        const finalContent = buildHeader('Field Worker', 'Bundled', 'js') + stripComments(worker, 'js', this.keepJsComments);
         writeFile(workerPath, finalContent);
 
-        // Inlining succeeded - the standalone dep copies are now dead weight
+        // Inlining succeeded - the standalone dep copies are now dead weight.
         for (const dep of deps) {
-            const p = path.join(this.distDir, 'geometry', path.basename(dep));
-            if (fs.existsSync(p)) fs.unlinkSync(p);
+            deleteFile(path.join(this.distDir, 'geometry', dep));
         }
         log(`  Bundled field worker (${deps.length} deps inlined)`);
     }
@@ -561,12 +629,11 @@ class Builder {
 
             let cssContents = buildHeader(app.name, 'Bundled Styles', 'css');
             for (const item of deps.css) {
-                if (!fs.existsSync(item.absPath)) {
-                    throw new Error(`${app.html}: <link> ${item.relPath} not found in dist`);
+                if (fs.existsSync(item.absPath)) {
+                    cssContents += `/* ${this.repoPath(item.absPath)} */\n${stripComments(readFile(item.absPath), 'css', this.keepComments)}\n\n`;
+                    this.processedFiles.add(item.absPath);
+                    htmlContent = htmlContent.split(item.tag).join('');
                 }
-                cssContents += `/* ${this.repoPath(item.absPath)} */\n${stripComments(readFile(item.absPath), 'css', this.keepComments)}\n\n`;
-                this.processedFiles.add(item.absPath);
-                htmlContent = htmlContent.split(item.tag).join('');
             }
             this.stats.css += cssContents.length;
             const styleTag = `\n    <style>\n${cssContents}    </style>\n`;
@@ -578,7 +645,7 @@ class Builder {
                 if (!fs.existsSync(item.absPath)) {
                     throw new Error(`${app.html}: <script> ${item.relPath} not found in dist`);
                 }
-                let content = stripComments(readFile(item.absPath), 'js', this.keepComments);
+                let content = stripComments(readFile(item.absPath), 'js', this.keepJsComments);
                 if (item.relPath.includes('clipper2z')) {
                     content = content.replace(/["'](\.?\/)?(geometry\/)?clipper2z\.wasm["']/g, '"../geometry/clipper2z.wasm"');
                 }
@@ -606,11 +673,40 @@ class Builder {
 
     processDocPages() {
         log('Processing documentation pages...');
-        for (const page of CONFIG.docPages) {
-            const pagePath = path.join(this.distDir, page);
-            if (!fs.existsSync(pagePath)) continue;
+        for (const pagePath of this.docPages()) {
+            let htmlContent = readFile(pagePath).replace(/\0/g, '');
 
-            let htmlContent = readFile(pagePath).replace(/\0/g, ''); 
+            // Inline doc figures so the built page needs no fetch.
+            // Match any tag with data-figure regardless of attribute order or inner whitespace.
+            const figureRegex = /<([a-z0-9]+)\b([^>]*?\bdata-figure=["']([^"']+)["'][^>]*)>([\s\S]*?)<\/\1>/gi;
+            htmlContent = htmlContent.replace(
+                figureRegex,
+                (match, tag, attrs, file, inner) => {
+                    if (inner.includes('<svg')) return match;
+
+                    let figurePath = path.join(this.srcDir, 'images', 'doc', file);
+                    if (!fs.existsSync(figurePath)) {
+                        const altPath = path.resolve(path.dirname(pagePath), file);
+                        if (fs.existsSync(altPath)) {
+                            figurePath = altPath;
+                        } else {
+                            console.warn(`  - Missing figure: ${file}`);
+                            return match;
+                        }
+                    }
+
+                    const svg = fs.readFileSync(figurePath, 'utf8')
+                        .replace(/<\?xml[^>]*\?>\s*/i, '')
+                        .replace(/<!DOCTYPE[^>]*>\s*/i, '')
+                        .replace(/<metadata>[\s\S]*?<\/metadata>/gi, '')
+                        .replace(/<script\b[\s\S]*?<\/script>/gi, '')
+                        .replace(/\s(width|height)=["'][^"']*["']/gi, '');
+
+                    // Strip data-figure-pending so inlined SVGs are immediately displayed
+                    const cleanAttrs = attrs.replace(/\s*data-figure-pending(=["'][^"']*["'])?/gi, '');
+                    return `<${tag}${cleanAttrs}>${svg}</${tag}>`;
+                }
+            );
 
             // Strip the original headers
             htmlContent = htmlContent.replace(/\s*<!--![\s\S]*?-->/g, '');
@@ -639,7 +735,7 @@ class Builder {
                 htmlContent = htmlContent.replace('</head>', styleTag + '</head>');
                 htmlContent = htmlContent.replace(/^\s*[\r\n]/gm, '');
                 writeFile(pagePath, htmlContent);
-                log(`  Inlined CSS for ${page}`);
+                log(` Inlined CSS for ${this.repoPath(pagePath)}`);
             }
         }
     }
@@ -780,6 +876,10 @@ class Builder {
             'geometry/field-worker.js'
         ];
 
+        if (fs.existsSync(path.join(this.distDir, 'figures.js'))) {
+            jsTargets.push('figures.js');
+        }
+
         // renderer3d is one ESM bundle by now; it still needs module:true.
         if (fs.existsSync(path.join(this.distDir, CONFIG.renderer3d.entry))) {
             jsTargets.push(CONFIG.renderer3d.entry);
@@ -819,6 +919,75 @@ class Builder {
         const htmlFiles = all.filter(f => f.endsWith('.html'));
         for (const p of htmlFiles) writeFile(p, await htmlMin.minify(readFile(p), htmlOpts));
         log(`  Minified ${htmlFiles.length} HTML file(s)`);
+    }
+
+    /**
+     * dist must be self-contained. Every embed step deletes the file it
+     * embedded, every bundling step deletes what it inlined, and all of it is
+     * regex-driven - so the only check that means anything is whether the
+     * output still points at something that is no longer there. This is what
+     * catches a silently-failed embed, a deleted stylesheet an unlisted doc
+     * page still links, and a wasm path the clipper rewrite missed.
+     */
+    verify() {
+        log('Verifying dist references...');
+
+        const walkAll = (dir, out = []) => {
+            for (const item of fs.readdirSync(dir)) {
+                const p = path.join(dir, item);
+                if (fs.statSync(p).isDirectory()) walkAll(p, out);
+                else out.push(p);
+            }
+            return out;
+        };
+
+        /*A commented-out <script> is not a reference. extractDependencies
+        already knows this - it maps comment spans and skips matches inside
+        them - and scanning the raw text here reported every disabled tag and
+        every usage example in a file header as a missing file.*/
+        const uncomment = (content, ext) => {
+            if (ext === '.html') return content.replace(/<!--[\s\S]*?-->/g, '');
+            return stripComments(content, ext === '.js' ? 'js' : 'css', false);
+        };
+
+        /*Doc pages link to clean URLs - href="guide", not "guide.html" - and
+        the server resolves them. existsSync does not, so all 61 doc nav links
+        read as broken. Resolve the way the host does before deciding.*/
+        const resolves = (target) => fs.existsSync(target)
+            || fs.existsSync(`${target}.html`)
+            || fs.existsSync(path.join(target, 'index.html'));
+
+        const problems = [];
+        const seen = new Set();
+
+        for (const file of walkAll(this.distDir)) {
+            const ext = path.extname(file).toLowerCase();
+            if (!['.html', '.js', '.css'].includes(ext)) continue;
+            const content = uncomment(readFile(file), ext);
+            const dir = path.dirname(file);
+
+            const refs = [
+                ...content.matchAll(/(?:src|href)\s*=\s*["']([^"'>]+)["']/gi),
+                ...content.matchAll(/fetch\(\s*["']([^"']+\.(?:json|svg|wasm|txt))["']/gi),
+                ...content.matchAll(/url\(\s*["']?([^"')]+\.(?:woff2?|ttf|otf|png|jpe?g|gif|webp|svg))["']?\s*\)/gi)
+            ].map(m => m[1].split(/[?#]/)[0]).filter(Boolean);
+
+            for (const ref of refs) {
+                if (/^(?:https?:|data:|blob:|mailto:|javascript:|\/\/|#)/i.test(ref)) continue;
+                const target = ref.startsWith('/')
+                    ? path.join(this.distDir, ref)
+                    : path.resolve(dir, ref);
+                const key = `${file}>${target}`;
+                if (seen.has(key)) continue;
+                seen.add(key);
+                if (!resolves(target)) problems.push(`${this.repoPath(file)} -> ${ref}`);
+            }
+        }
+
+        if (problems.length) {
+            throw new Error(`dist references ${problems.length} missing file(s):\n  ` + problems.join('\n  '));
+        }
+        log(`  ${seen.size} references resolve`);
     }
 
     printStats() {
@@ -897,7 +1066,7 @@ Examples:
     }
 
     // Run build
-    const builder = new Builder(srcDir, distDir, { keepComments, minifyMode });
+    const builder = new Builder(srcDir, distDir, { keepComments, minifyMode, willMinify: doMinify });
     builder.run();
     if (doMinify) await builder.minify();
 }

@@ -170,7 +170,7 @@
                 operation.bounds = this.recalculateBounds(finalPrimitives);
 
                 handler.postParsePrimitives(operation);
-                this.core.updateStatistics();
+                this.core.store.updateStatistics();
                 operation.processed = true;
 
                 this.debug(`Parsed ${operation.file.name}: ${operation.primitives.length} primitives`);

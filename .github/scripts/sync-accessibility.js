@@ -13,12 +13,45 @@ const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 
-// Configuration
-const CONFIG = {
-    input: 'easytrace5000/doc/ACCESSIBILITY.md',
-    output: 'easytrace5000/doc/accessibility.html',
+const TEMP_FILE = 'temp_acc_body.md';
+
+// One entry per app.
+const APPS = [
+    {
+        app: 'easytrace5000',
+        name: 'EasyTrace5000',
+        input: 'easytrace5000/doc/ACCESSIBILITY.md',
+        output: 'easytrace5000/doc/accessibility.html',
+        social: 'social-trace.jpg',
+        datePublished: '2026-09-04',
+        nav: [
+            ['cnc', 'CNC Guide'],
+            ['laser', 'Laser Guide'],
+            ['operations', 'Operations'],
+            ['parameters', 'Parameters'],
+            ['accessibility', 'Accessibility']
+        ]
+    },
+    {
+        app: 'easyshape5000',
+        name: 'EasyShape5000',
+        input: 'easyshape5000/doc/ACCESSIBILITY.md',
+        output: 'easyshape5000/doc/accessibility.html',
+        social: 'social-shape.jpg',
+        datePublished: '2026-09-04',
+        nav: [
+            ['guide', 'Workflow Guide'],
+            ['operations', 'Operations'],
+            ['parameters', 'Parameters'],
+            ['accessibility', 'Accessibility']
+        ]
+    }
+];
+
+const SHARED = {
     cssPath: '../../css',
     themeScriptPath: '../../themes/theme-loader.js',
+    figuresScriptPath: '../../figures.js',
     githubUrl: 'https://github.com/RicardoJCMarques/EasyCAM5000',
     siteUrl: 'https://cam.eltryus.design'
 };
@@ -144,20 +177,24 @@ function parseSidebar(mdContent) {
 // HTML Post-Processor (Injects IDs into Headings)
 function injectHeadingIds(htmlContent) {
     return htmlContent.replace(/<h([2-6])>(.*?)<\/h\1>/g, (match, level, content) => {
-        const textOnly = content.replace(/<[^>]*>/g, '');
+        // marked escapes entities before this runs, so "Modals & Dialogs"
+        // arrived as "Modals &amp; Dialogs" and slugged to modals-amp-dialogs
+        // while parseSidebar - which reads the raw Markdown - emitted
+        // modals-dialogs. Every TOC link with an ampersand pointed at nothing.
+        const textOnly = content.replace(/<[^>]*>/g, '').replace(/&[a-z]+;|&#\d+;/gi, ' ');
         const slug = slugify(textOnly);
         return `<h${level} id="${slug}">${content}</h${level}>`;
     });
 }
 
 // HTML Template
-const getTemplate = (sidebarHtml, mainBodyHtml, heroTitle, tagline) => `<!DOCTYPE html>
+const getTemplate = (cfg, sidebarHtml, mainBodyHtml, heroTitle, tagline) => `<!DOCTYPE html>
 <html lang="en" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <!--!
         @file        index.html
-        @description EasyTrace5000 Accessibility Guide
+        @description ${cfg.name} Accessibility Guide
         @author      Eltryus - Ricardo Marques
         @copyright   2025-2026 Eltryus - Ricardo Marques
         @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
@@ -166,20 +203,20 @@ const getTemplate = (sidebarHtml, mainBodyHtml, heroTitle, tagline) => `<!DOCTYP
         SPDX-License-Identifier: AGPL-3.0-or-later
     -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>EasyTrace5000 Doc - Accessibility Guide</title>
+    <title>${cfg.name} Doc - Accessibility Guide</title>
 
-    <meta name="description" content="Accessibility information for EasyTrace5000. Details on keyboard navigation, focus management, screen reader support, and WCAG 2.1 compliance.">
+    <meta name="description" content="Accessibility information for ${cfg.name}. Details on keyboard navigation, focus management, screen reader support, and WCAG 2.1 compliance.">
     <meta name="author" content="Eltryus">
     <meta name="robots" content="index, follow">
     <meta name="theme-color" content="#1a1a1a">
 
-    <link rel="canonical" href="${CONFIG.siteUrl}/easytrace5000/doc/accessibility">
+    <link rel="canonical" href="${SHARED.siteUrl}/${cfg.app}/doc/accessibility">
 
     <meta property="og:type" content="article">
-    <meta property="og:url" content="${CONFIG.siteUrl}/easytrace5000/doc/accessibility">
-    <meta property="og:title" content="EasyTrace5000 Doc - Accessibility Guide">
-    <meta property="og:description" content="Keyboard controls and accessibility compliance for EasyTrace5000.">
-    <meta property="og:image" content="${CONFIG.siteUrl}/images/social-trace.jpg">
+    <meta property="og:url" content="${SHARED.siteUrl}/${cfg.app}/doc/accessibility">
+    <meta property="og:title" content="${cfg.name} Doc - Accessibility Guide">
+    <meta property="og:description" content="Keyboard controls and accessibility compliance for ${cfg.name}.">
+    <meta property="og:image" content="${SHARED.siteUrl}/images/${cfg.social}">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
     <meta property="og:site_name" content="EasyCAM5000">
@@ -191,10 +228,10 @@ const getTemplate = (sidebarHtml, mainBodyHtml, heroTitle, tagline) => `<!DOCTYP
     <link rel="apple-touch-icon" sizes="180x180" href="../../images/favicon/apple-touch-icon.png">
     <link rel="manifest" href="../../images/favicon/site.webmanifest">
 
-    <link rel="stylesheet" href="${CONFIG.cssPath}/base.css">
-    <link rel="stylesheet" href="${CONFIG.cssPath}/components.css">
-    <link rel="stylesheet" href="${CONFIG.cssPath}/theme.css">
-    <link rel="stylesheet" href="${CONFIG.cssPath}/doc.css">
+    <link rel="stylesheet" href="${SHARED.cssPath}/base.css">
+    <link rel="stylesheet" href="${SHARED.cssPath}/components.css">
+    <link rel="stylesheet" href="${SHARED.cssPath}/theme.css">
+    <link rel="stylesheet" href="${SHARED.cssPath}/doc.css">
 
     <script type="application/ld+json">
     {
@@ -208,61 +245,61 @@ const getTemplate = (sidebarHtml, mainBodyHtml, heroTitle, tagline) => `<!DOCTYP
             },
             {
                 "@type": "WebSite",
-                "@id": "${CONFIG.siteUrl}/#website",
+                "@id": "${SHARED.siteUrl}/#website",
                 "name": "EasyCAM5000",
                 "alternateName": "Eltryus EasyCAM5000 Suite",
-                "url": "${CONFIG.siteUrl}/",
+                "url": "${SHARED.siteUrl}/",
                 "inLanguage": "en",
                 "publisher": { "@id": "https://www.eltryus.design/#organization" }
             },
             {
                 "@type": "WebApplication",
-                "@id": "${CONFIG.siteUrl}/easytrace5000/#app",
-                "name": "EasyTrace5000",
-                "url": "${CONFIG.siteUrl}/easytrace5000/"
+                "@id": "${SHARED.siteUrl}/${cfg.app}/#app",
+                "name": "${cfg.name}",
+                "url": "${SHARED.siteUrl}/${cfg.app}/"
             },
             {
                 "@type": "CollectionPage",
-                "@id": "${CONFIG.siteUrl}/easytrace5000/doc/#docs",
-                "name": "EasyTrace5000 Documentation",
-                "url": "${CONFIG.siteUrl}/easytrace5000/doc/"
+                "@id": "${SHARED.siteUrl}/${cfg.app}/doc/#docs",
+                "name": "${cfg.name} Documentation",
+                "url": "${SHARED.siteUrl}/${cfg.app}/doc/"
             },
             {
                 "@type": "WebPage",
-                "@id": "${CONFIG.siteUrl}/easytrace5000/doc/accessibility#webpage",
-                "url": "${CONFIG.siteUrl}/easytrace5000/doc/accessibility",
-                "name": "EasyTrace5000 Doc - Accessibility Guide",
+                "@id": "${SHARED.siteUrl}/${cfg.app}/doc/accessibility#webpage",
+                "url": "${SHARED.siteUrl}/${cfg.app}/doc/accessibility",
+                "name": "${cfg.name} Doc - Accessibility Guide",
                 "inLanguage": "en",
-                "isPartOf": { "@id": "${CONFIG.siteUrl}/#website" },
-                "about": { "@id": "${CONFIG.siteUrl}/easytrace5000/#app" },
-                "mainEntity": { "@id": "${CONFIG.siteUrl}/easytrace5000/doc/accessibility#article" },
-                "breadcrumb": { "@id": "${CONFIG.siteUrl}/easytrace5000/doc/accessibility#breadcrumb" },
-                "primaryImageOfPage": "${CONFIG.siteUrl}/images/social-trace.jpg"
+                "isPartOf": { "@id": "${SHARED.siteUrl}/#website" },
+                "about": { "@id": "${SHARED.siteUrl}/${cfg.app}/#app" },
+                "mainEntity": { "@id": "${SHARED.siteUrl}/${cfg.app}/doc/accessibility#article" },
+                "breadcrumb": { "@id": "${SHARED.siteUrl}/${cfg.app}/doc/accessibility#breadcrumb" },
+                "primaryImageOfPage": "${SHARED.siteUrl}/images/social-trace.jpg"
             },
             {
                 "@type": "TechArticle",
-                "@id": "${CONFIG.siteUrl}/easytrace5000/doc/accessibility#article",
+                "@id": "${SHARED.siteUrl}/${cfg.app}/doc/accessibility#article",
                 "headline": "${heroTitle}",
-                "description": "Accessibility information for EasyTrace5000. Details on keyboard navigation, focus management, screen reader support, and WCAG 2.1 compliance.",
-                "image": "${CONFIG.siteUrl}/images/social-trace.jpg",
-                "url": "${CONFIG.siteUrl}/easytrace5000/doc/accessibility",
+                "description": "Accessibility information for ${cfg.name}. Details on keyboard navigation, focus management, screen reader support, and WCAG 2.1 compliance.",
+                "image": "${SHARED.siteUrl}/images/social-trace.jpg",
+                "url": "${SHARED.siteUrl}/${cfg.app}/doc/accessibility",
                 "inLanguage": "en",
-                "mainEntityOfPage": { "@id": "${CONFIG.siteUrl}/easytrace5000/doc/accessibility#webpage" },
-                "isPartOf": { "@id": "${CONFIG.siteUrl}/easytrace5000/doc/#docs" },
-                "about": { "@id": "${CONFIG.siteUrl}/easytrace5000/#app" },
+                "mainEntityOfPage": { "@id": "${SHARED.siteUrl}/${cfg.app}/doc/accessibility#webpage" },
+                "isPartOf": { "@id": "${SHARED.siteUrl}/${cfg.app}/doc/#docs" },
+                "about": { "@id": "${SHARED.siteUrl}/${cfg.app}/#app" },
                 "author": { "@id": "https://www.eltryus.design/#organization" },
                 "publisher": { "@id": "https://www.eltryus.design/#organization" },
-                "datePublished": "2025-01-16",
+                "datePublished": "${cfg.datePublished}",
                 "dateModified": "${new Date().toISOString().split('T')[0]}"
             },
             {
                 "@type": "BreadcrumbList",
-                "@id": "${CONFIG.siteUrl}/easytrace5000/doc/accessibility#breadcrumb",
+                "@id": "${SHARED.siteUrl}/${cfg.app}/doc/accessibility#breadcrumb",
                 "itemListElement": [
-                    { "@type": "ListItem", "position": 1, "name": "EasyCAM5000", "item": "${CONFIG.siteUrl}/" },
-                    { "@type": "ListItem", "position": 2, "name": "EasyTrace5000", "item": "${CONFIG.siteUrl}/easytrace5000/" },
-                    { "@type": "ListItem", "position": 3, "name": "Docs", "item": "${CONFIG.siteUrl}/easytrace5000/doc/" },
-                    { "@type": "ListItem", "position": 4, "name": "Accessibility", "item": "${CONFIG.siteUrl}/easytrace5000/doc/accessibility" }
+                    { "@type": "ListItem", "position": 1, "name": "EasyCAM5000", "item": "${SHARED.siteUrl}/" },
+                    { "@type": "ListItem", "position": 2, "name": "${cfg.name}", "item": "${SHARED.siteUrl}/${cfg.app}/" },
+                    { "@type": "ListItem", "position": 3, "name": "Docs", "item": "${SHARED.siteUrl}/${cfg.app}/doc/" },
+                    { "@type": "ListItem", "position": 4, "name": "Accessibility", "item": "${SHARED.siteUrl}/${cfg.app}/doc/accessibility" }
                 ]
             }
         ]
@@ -279,7 +316,7 @@ const getTemplate = (sidebarHtml, mainBodyHtml, heroTitle, tagline) => `<!DOCTYP
 
         <nav class="doc-breadcrumb" aria-label="Breadcrumb">
             <ol>
-                <li><a href="/easytrace5000/" draggable="false">EasyTrace5000</a></li>
+                <li><a href="/${cfg.app}/" draggable="false">${cfg.name}</a></li>
                 <li><a href="./" draggable="false">Docs</a></li>
                 <li><span aria-current="page">Accessibility</span></li>
             </ol>
@@ -291,13 +328,11 @@ const getTemplate = (sidebarHtml, mainBodyHtml, heroTitle, tagline) => `<!DOCTYP
         </button>
 
         <nav class="doc-nav" aria-label="Main Navigation">
-            <a href="cnc" draggable="false">CNC Guide</a>
-            <a href="laser" draggable="false">Laser Guide</a>
-            <a href="operations" draggable="false">Operations</a>
-            <a href="parameters" draggable="false">Parameters</a>
-            <a href="accessibility" class="active" aria-current="page" draggable="false">Accessibility</a>
+            ${cfg.nav.map(([href, label]) => href === 'accessibility'
+                ? `<a href="accessibility" class="active" aria-current="page" draggable="false">${label}</a>`
+                : `<a href="${href}" draggable="false">${label}</a>`).join('\n            ')}
             <span class="separator" aria-hidden="true"></span>
-            <a href="/easytrace5000/" draggable="false">Launch App</a>
+            <a href="/${cfg.app}/" draggable="false">Launch App</a>
             <a href="https://github.com/RicardoJCMarques/EasyCAM5000" target="_blank" draggable="false" aria-label="GitHub Repository (opens in a new tab)">GitHub</a>
 
             <button id="theme-toggle" class="btn btn--icon" title="Toggle Theme" aria-label="Toggle Theme">
@@ -309,7 +344,8 @@ const getTemplate = (sidebarHtml, mainBodyHtml, heroTitle, tagline) => `<!DOCTYP
     <div class="doc-wrapper has-sidebar">
         <!-- Sidebar TOC -->
         <nav class="doc-sidebar" id="toc" aria-label="Table of contents">
-            <h2>${heroTitle}</h2> ${sidebarHtml}
+            <p class="doc-sidebar-title">Contents</p>
+            ${sidebarHtml}
         </nav>
 
         <!-- Main Content -->
@@ -326,7 +362,7 @@ ${mainBodyHtml}
         <footer class="doc-footer" aria-label="Footer">
             <p>
                 <a href="#doc-content" draggable="false" aria-label="Scroll back to top">Back to Top</a> |
-                <a href="${CONFIG.githubUrl}" target="_blank" draggable="false" aria-label="GitHub Repository (opens in a new tab)">GitHub</a> |
+                <a href="${SHARED.githubUrl}" target="_blank" draggable="false" aria-label="GitHub Repository (opens in a new tab)">GitHub</a> |
                 <a href="/#support" draggable="false" aria-label="Support Development via Sponsorship">Support Development</a> |
                 <a href="../../LICENSE" target="_blank" draggable="false" aria-label="AGPLv3 License (opens in a new tab)">AGPLv3 Licensed</a> |
                 <a href="https://www.eltryus.design/" draggable="false" aria-label="Eltryus, developer of EasyCAM5000">by ELTRYUS</a>
@@ -336,7 +372,8 @@ ${mainBodyHtml}
     </div>
 
     <!-- Scripts -->
-    <script defer src="${CONFIG.themeScriptPath}"></script>
+    <script defer src="${SHARED.themeScriptPath}"></script>
+    <script defer src="${SHARED.figuresScriptPath}"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             // Load the SVG Sprite
@@ -387,11 +424,11 @@ ${mainBodyHtml}
             }
         });
     </script>
-</body>`;
-
-function main() {
+</body>
+</html>`;
+function build(cfg) {
     try {
-        const mdContent = fs.readFileSync(path.resolve(CONFIG.input), 'utf8');
+        const mdContent = fs.readFileSync(path.resolve(cfg.input), 'utf8');
 
         // Split by double-newlines to get separate blocks
         const blocks = mdContent.split(/\r?\n\s*\r?\n/).filter(b => b.trim().length > 0);
@@ -415,10 +452,8 @@ function main() {
         const bodyMd = bodyBlocks.join('\n\n');
 
         // Convert remaining Markdown to HTML
-        const tempFile = 'temp_acc_body.md';
-        fs.writeFileSync(tempFile, bodyMd);
-        const rawHtmlBody = execSync(`npx marked -i ${tempFile} --gfm --breaks`, { encoding: 'utf8' });
-        fs.unlinkSync(tempFile);
+        fs.writeFileSync(TEMP_FILE, bodyMd);
+        const rawHtmlBody = execSync(`npx marked -i ${TEMP_FILE} --gfm --breaks`, { encoding: 'utf8' });
 
         // Generate Sidebar and Post-Process Body
         const sidebarHtml = parseSidebar(mdContent);
@@ -429,16 +464,32 @@ function main() {
         const indentedBody = formatAndIndent(finalHtmlBody, 12);
 
         // Write final file using the updated template
-        const fullHtml = getTemplate(indentedSidebar, indentedBody, heroTitle, tagline);
+        const fullHtml = getTemplate(cfg, indentedSidebar, indentedBody, heroTitle, tagline);
 
-        const outputDir = path.dirname(CONFIG.output);
+        const outputDir = path.dirname(cfg.output);
         if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
 
-        fs.writeFileSync(path.resolve(CONFIG.output), fullHtml);
-        console.log(`✅ Success! Generated ${CONFIG.output}.`);
+        fs.writeFileSync(path.resolve(cfg.output), fullHtml);
+        console.log(`Success! Generated ${cfg.output}.`);
 
     } catch (error) {
+        console.error('Build failed:', error.message);
+        process.exitCode = 1;
+    } finally {
+        // The temp file survives a marked failure otherwise, and the next
+        // run reads a stale one.
+        if (fs.existsSync(TEMP_FILE)) fs.unlinkSync(TEMP_FILE);
+    }
+}
+
+function main() {
+    try {
+        for (const cfg of APPS) build(cfg);
+    } catch (error) {
         console.error('❌ Build failed:', error.message);
+        process.exitCode = 1;
+    } finally {
+        if (fs.existsSync(TEMP_FILE)) fs.unlinkSync(TEMP_FILE);
     }
 }
 

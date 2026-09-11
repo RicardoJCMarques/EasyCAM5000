@@ -40,6 +40,11 @@
             this._rafId = null;
             this.overlayEl = document.getElementById('canvas-loading-overlay');
             this.overlayMsgEl = document.getElementById('canvas-loading-message');
+            // A relief job runs for minutes with the overlay as its only
+            // feedback; without a live region that feedback is visual-only.
+            // REVIEW - all operations take seconds. The slowest operation, currently, is concentric offsets for laser copper isolation and maybe v-carving of very complex geometry with thousands of primitives.
+            this.overlayMsgEl?.setAttribute('role', 'status');
+            this.overlayMsgEl?.setAttribute('aria-live', 'polite');
             this.progressContainerEl = document.getElementById('status-progress');
             this.progressBarEl = document.getElementById('progress-bar');
         }
@@ -59,7 +64,11 @@
             if (typeof p === 'string') p = { label: p };     // tolerate legacy
             if (p.label != null) this._task.label = p.label;
             if (p.frac != null) this._task.frac = p.frac;
-            this._schedule();
+            if (this._rafId !== null) return;
+            this._rafId = requestAnimationFrame(() => {
+                this._rafId = null;
+                this.render();
+            });
         }
 
         endTask(id) {
@@ -84,14 +93,6 @@
         formatLabel(t) {
             const pct = (t.frac != null) ? ` ${Math.round(t.frac * 100)}%` : '';
             return `${t.label}…${pct}`;
-        }
-
-        _schedule() {
-            if (this._rafId !== null) return;
-            this._rafId = requestAnimationFrame(() => {
-                this._rafId = null;
-                this.render();
-            });
         }
 
         render() {
@@ -143,29 +144,49 @@
                 return;
             }
 
-            // Add click listener to toggle the log
             this.statusBar.addEventListener('click', () => {
                 this.toggleLog();
             });
 
-            // Add initial hint message to the log
+            // The bar is a div wrapping a live region, so it cannot itself be a
+            // button. The chevron is the keyboard route to the log, which is
+            // where every warning lands.
+            this.logToggleEl = document.getElementById('log-toggle-icon');
+            if (this.logToggleEl) {
+                this.logToggleEl.setAttribute('role', 'button');
+                this.logToggleEl.setAttribute('tabindex', '0');
+                this.logToggleEl.setAttribute('aria-controls', 'status-log-panel');
+                this.logToggleEl.setAttribute('aria-expanded', 'false');
+                this.logToggleEl.setAttribute('aria-label', 'Toggle status log');
+                // Keydown only: a role="button" span synthesises no click, and
+                // the click that a real button would fire bubbles to the bar
+                // handler above, toggling twice.
+                this.logToggleEl.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); this.toggleLog(); }
+                });
+            }
+
             this.addLogEntry(this.lang.get('ui.status.logHintViz', this.text.logHintViz || ''), 'info');
 
             this.statusTextEl = document.getElementById('status-text');
+            this.statusAlertEl = document.getElementById('status-alert');
+            this.statusAnnounceEl = document.getElementById('status-announce');
         }
 
         toggleLog() {
             this.isExpanded = !this.isExpanded;
-            // Toggle classes on the new elements
             if (this.footerBar) {
                 this.footerBar.classList.toggle('is-expanded', this.isExpanded);
             }
             if (this.logPanel) {
                 this.logPanel.classList.toggle('is-expanded', this.isExpanded);
             }
-            
+            if (this.logToggleEl) {
+                this.logToggleEl.setAttribute('aria-expanded', String(this.isExpanded));
+            }
+
             if (this.isExpanded) {
-                this.renderLog(); // Render the log content when it's opened
+                this.renderLog();
             }
         }
 
@@ -229,11 +250,12 @@
         updateStatus(message = null, type = 'normal', skipLog = false) {
             if (!this.statusTextEl) return;
 
-            // Set appropriate aria-live based on message type
-            if (type === 'error') {
-                this.statusTextEl.setAttribute('aria-live', 'assertive');
-            } else {
-                this.statusTextEl.setAttribute('aria-live', 'polite');
+            // #status-text is visual only.
+            if (this.statusAnnounceEl) {
+                this.statusAnnounceEl.textContent = (message && type !== 'error') ? message : '';
+            }
+            if (this.statusAlertEl) {
+                this.statusAlertEl.textContent = (type === 'error' && message) ? message : '';
             }
 
             if (this.statusTimeout) {
@@ -259,10 +281,10 @@
                 }
             } else {
                 // Reset to default status
-                const hasOps = this.ui.core.hasValidOperations();
+                const hasOps = this.ui.core.store.hasValidOperations()
                 let defaultMessage;
                 if (hasOps) {
-                    const stats = this.ui.core.getStats();
+                    const stats = this.ui.core.store.getStats()
                     defaultMessage = this.lang
                         .get('ui.status.readyDynamic', 'Ready: {ops} operations, {prims} primitives')
                         .replace('{ops}', stats.operations)
@@ -293,6 +315,5 @@
         }
     }
 
-    window.ProgressManager = ProgressManager;
     window.StatusManager = StatusManager;
 })();

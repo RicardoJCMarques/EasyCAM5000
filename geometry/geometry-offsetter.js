@@ -11,9 +11,10 @@
 
 (function() {
     'use strict';
+    const ROOT = globalThis;
 
-    const C = window.CAMConfig.constants;
-    const D = window.CAMConfig.defaults;
+    const C = ROOT.CAMConfig.constants;
+    const D = ROOT.CAMConfig.defaults;
     const PRECISION = C.precision.coordinate;
     const debugState = D.debug;
 
@@ -24,29 +25,6 @@
             };
             this.initialized = true;
             this.geometryProcessor = null;
-
-            // --- INFLATE/DEFLATE OFFSET TOGGLE ---
-            // true  → every path offset routes through Clipper2 booleans
-            //         (offsetPathViaBoolean). This is the SHIPPING path, the
-            //         only one wired end to end, and the one that keeps arcs
-            //         almost lossless via the curve registry.
-            // false → arc-free contours would try GeometryAnalyticOffsetter
-            //         first. That module EXISTS and is a parked work in
-            //         progress: no open defect drives it, because the boolean
-            //         pipeline already gives near-exact results. Its call site
-            //         in offsetPath is deliberately unwritten - see the throw
-            //         there. These references are an unfinished branch, not
-            //         dead code to be "cleaned up".
-            this.USE_INFLATE_OFFSETTING = true;
-
-            // Analytic strategy (loads gracefully if module is present)
-            this.analyticOffsetter = null;
-            if (typeof GeometryAnalyticOffsetter !== 'undefined') {
-                this.analyticOffsetter = new GeometryAnalyticOffsetter({
-                    miterLimit: options.miterLimit
-                });
-                this.debug('Analytic offsetter module linked');
-            }
         }
 
         setGeometryProcessor(processor) {
@@ -150,18 +128,6 @@
         }
 
         /**
-         * Checks if a path primitive contains any analytic arc segments.
-         */
-        hasAnalyticArcs(pathPrimitive) {
-            if (!pathPrimitive.contours || pathPrimitive.contours.length === 0) {
-                return false;
-            }
-            return pathPrimitive.contours.some(contour => 
-                contour.arcSegments && contour.arcSegments.length > 0
-            );
-        }
-
-        /**
          * Offsets a PathPrimitive. Routes to boolean pipeline or legacy fallback.
          */
         async offsetPath(path, distance) {
@@ -191,17 +157,7 @@
                 });
             }
 
-            // The Safeguard: Check for complex arc geometry
-            const containsArcs = this.hasAnalyticArcs(path);
-
-            // Route to Boolean Inflating if: It has arcs, globally force boolean, or the analytic offset module is missing
-            if (containsArcs || this.USE_INFLATE_OFFSETTING || !this.analyticOffsetter) {
-                this.debug(`Routing path ${path.id} to Boolean Inflated Offsetter (containsArcs: ${containsArcs})`);
-                return await this.offsetPathViaBoolean(path, distance);
-            }
-
-            // Loud warning, geometry shouldn't be reaching this stage until Analytic offsetting is finalized.
-            throw new Error('[Offsetter] Analytic path offsetting is not implemented; set USE_INFLATE_OFFSETTING = true.');
+            return await this.offsetPathViaBoolean(path, distance);
         }
 
         /**
@@ -348,19 +304,6 @@
                 offsetType: isInternal ? 'internal' : 'external',
                 sourcePrimitiveId: circle.id,
             };
-
-            // Provenance rides the side map, never the hashed record: generateHash
-            // appends '_offset' for isOffsetDerived, so writing it back after
-            // register() leaves the record and the hash indexing it disagreeing.
-            const contour = offsetPath.contours[0];
-            if (window.globalCurveRegistry && contour.curveIds) {
-                const sourceCurveId = circle.properties?.originalCurveId
-                    || (circle.curveIds ? circle.curveIds[0] : null);
-                contour.curveIds.forEach(id => {
-                    window.globalCurveRegistry.noteOffsetDerived(id, sourceCurveId, distance);
-                });
-            }
-
             return offsetPath;
         }
 
@@ -399,36 +342,6 @@
             if (!pathPrimitive) return null;
 
             return this.offsetPath(pathPrimitive, distance);
-        }
-
-        /**
-         * Adapter over GeometryUtils.analyzeCircleRing: wraps a verified circular
-         * contour into the minimal shape offsetCircle() consumes. The closure and
-         * sweep clauses matter here - an all-one-curveId contour that the boolean
-         * already clipped would otherwise be re-offset as a full circle.
-         */
-        detectCircleContour(contour) {
-            if (!contour.points) return null;
-
-            const ring = GeometryUtils.analyzeCircleRing(contour.points);
-            if (!ring.isFullCircle) return null;
-
-            return {
-                type: 'circle',
-                id: `circle_from_contour_${ring.curveId}`,
-                center: { x: ring.center.x, y: ring.center.y },
-                radius: ring.radius,
-                properties: { polarity: contour.isHole ? 'clear' : 'dark' },
-                curveIds: [ring.curveId],
-                getBounds() {
-                    return {
-                        minX: this.center.x - this.radius,
-                        minY: this.center.y - this.radius,
-                        maxX: this.center.x + this.radius,
-                        maxY: this.center.y + this.radius
-                    };
-                }
-            };
         }
 
         offsetObround(obround, distance) {
@@ -471,22 +384,37 @@
                 sourcePrimitiveId: obround.id,
             };
 
-            // Post-process the newly registered curve IDs to mark them as offset-derived.
-            const contour = offsetPath.contours[0];
-            if (window.globalCurveRegistry && contour.curveIds) {
-                const sourceCurveId = obround.curveIds ? obround.curveIds[0] : null;
-                contour.curveIds.forEach(id => {
-                    window.globalCurveRegistry.noteOffsetDerived(id, sourceCurveId, distance);
-                });
-            }
-
-            if (debugState.enabled) {
-                const pointCount = contour.points.length;
-                const curveCount = contour.curveIds?.length || 0;
-                console.log(`Successfully created offset obround path with ${pointCount} points and ${curveCount} registered curves.`);
-            }
-
             return offsetPath;
+        }
+
+        /**
+         * Adapter over GeometryUtils.analyzeCircleRing: wraps a verified circular
+         * contour into the minimal shape offsetCircle() consumes. The closure and
+         * sweep clauses matter here - an all-one-curveId contour that the boolean
+         * already clipped would otherwise be re-offset as a full circle.
+         */
+        detectCircleContour(contour) {
+            if (!contour.points) return null;
+
+            const ring = GeometryUtils.analyzeCircleRing(contour.points);
+            if (!ring.isFullCircle) return null;
+
+            return {
+                type: 'circle',
+                id: `circle_from_contour_${ring.curveId}`,
+                center: { x: ring.center.x, y: ring.center.y },
+                radius: ring.radius,
+                properties: { polarity: contour.isHole ? 'clear' : 'dark' },
+                curveIds: [ring.curveId],
+                getBounds() {
+                    return {
+                        minX: this.center.x - this.radius,
+                        minY: this.center.y - this.radius,
+                        maxX: this.center.x + this.radius,
+                        maxY: this.center.y + this.radius
+                    };
+                }
+            };
         }
 
         
@@ -498,5 +426,5 @@
 
     }
 
-    window.GeometryOffsetter = GeometryOffsetter;
+    ROOT.GeometryOffsetter = GeometryOffsetter;
 })();

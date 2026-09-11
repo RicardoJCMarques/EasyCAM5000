@@ -11,8 +11,9 @@
 
 (function() {
     'use strict';
+    const ROOT = globalThis;
 
-    const PRECISION = window.CAMConfig.constants.precision.coordinate;
+    const PRECISION = ROOT.CAMConfig.constants.precision.coordinate;
 
     /**
      * Lightweight motion command structure
@@ -26,6 +27,10 @@
     // MotionCommand surviving as the boxed view for the in-place writers
     // (tab planner, reversePlan). Belongs in plan storage, not the
     // consumers, and touches five modules at once - do it in a quiet window.
+    // Sharing one command object across depth-level plans is NOT the cheap
+    // version of this: insertIndexMoves elevates cmd.z in place, so a shared
+    // object takes the apothem once per plan. The packed stream needs a boxed
+    // writable view, or index elevation has to move to emission.
     class MotionCommand {
         constructor(type, coords, params = {}) {
             this.type = type; // 'RAPID', 'LINEAR', 'ARC_CW', 'ARC_CCW', 'PLUNGE', 'RETRACT', 'DWELL'
@@ -185,9 +190,9 @@
         /**
          * Signed arc sweep in radians - THE one implementation.
          * Replaces the three near-copies in GeometryTranslator
-         * (translateArc / translatePath), ToolpathTabPlanner (getArcData /
-         * calculateTotalLength) and GCodeGenerator (linearizeArc), each of
-         * which handled full circles differently. [ARC-NORMALIZATION]
+         * (translateArc / translatePath), ToolpathTabPlanner (getArcData and
+         * GCodeGenerator (linearizeArc), each of which handled full circles
+         * differently. [ARC-NORMALIZATION]
          *
          * Precedence:
          *  1. An explicit sweepAngle is ground truth and is returned
@@ -252,7 +257,7 @@
     const ToolpathFeeds = {
         /** tan(descentFeedAngle). Descents steeper than this use plungeRate. */
         slopeGate() {
-            const T3D = window.CAMConfig.defaults.toolpath.generation.threeD;
+            const T3D = ROOT.CAMConfig.defaults.toolpath.generation.threeD;
             return Math.tan((T3D.descentFeedAngleDeg * Math.PI) / 180);
         },
 
@@ -262,7 +267,7 @@
         }
     };
 
-    window.ToolpathFeeds = ToolpathFeeds;
-    window.MotionCommand = MotionCommand;
-    window.ToolpathPlan = ToolpathPlan;
+    ROOT.ToolpathFeeds = ToolpathFeeds;
+    ROOT.MotionCommand = MotionCommand;
+    ROOT.ToolpathPlan = ToolpathPlan;
 })();

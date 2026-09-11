@@ -12,9 +12,7 @@
 (function() {
     'use strict';
 
-    const C = window.CAMConfig.constants;
     const D = window.CAMConfig.defaults;
-    const debugState = D.debug;
 
     class ToolLibrary {
         constructor() {
@@ -309,20 +307,6 @@
                 return { success: true, ...result };
             } catch (e) {
                 return { success: false, imported: [], failed: [], total: 0, error: e.message };
-            }
-        }
-
-        // REVIEW - Dead code? Worth keeping?
-        logToolStats() {
-            if (debugState.enabled) {
-                console.log('[ToolLibrary] Statistics:');
-                console.log(`   Total tools: ${this.tools.length}`);
-                console.log(`   Tool types: ${Array.from(this.toolsByType.keys()).join(', ')}`);
-                console.log(`   Operations covered: ${Array.from(this.toolsByOperation.keys()).join(', ')}`);
-
-                this.toolsByType.forEach((tools, type) => {
-                    console.log(`   ${type}: ${tools.length} tools`);
-                });
             }
         }
 

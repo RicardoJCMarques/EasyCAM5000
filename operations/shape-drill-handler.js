@@ -20,6 +20,7 @@
 
 (function() {
     'use strict';
+    const ROOT = globalThis;
 
     class ShapeDrillHandler extends DrillHandler {
 
@@ -50,5 +51,5 @@
         }
     }
 
-    window.ShapeDrillHandler = ShapeDrillHandler;
+    ROOT.ShapeDrillHandler = ShapeDrillHandler;
 })();

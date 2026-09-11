@@ -22,6 +22,7 @@
 
 (function() {
     'use strict';
+    const ROOT = globalThis;
 
     class ShapeReliefHandler extends FieldOperationHandler {
 
@@ -113,5 +114,5 @@
         }
     }
 
-    window.ShapeReliefHandler = ShapeReliefHandler;
+    ROOT.ShapeReliefHandler = ShapeReliefHandler;
 })();

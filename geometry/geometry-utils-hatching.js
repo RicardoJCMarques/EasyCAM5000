@@ -11,9 +11,10 @@
 
 (function() {
     'use strict';
+    const ROOT = globalThis;
 
-    const C = window.CAMConfig.constants;
-    const D = window.CAMConfig.defaults;
+    const C = ROOT.CAMConfig.constants;
+    const D = ROOT.CAMConfig.defaults;
     const PRECISION = C.precision.coordinate;
     const debugState = D.debug;
 
@@ -49,18 +50,14 @@
                 return [];
             }
 
-            const baseAngle = settings.hatchAngle;
             const spacing = settings.stepDistance;
             const toolDiameter = settings.toolDiameter || 0;
-
             if (!spacing || spacing <= 0) {
-                console.error('[HatchGenerator] Invalid step distance:', spacing);
-                return [];
+                console.error("[HatchGenerator] Invalid step distance:", spacing);
+                return;
             }
-
-            let numPasses = settings.hatchPasses;
-
-            this.debug(`Generating hatch: ${numPasses} pass(es), base ${baseAngle}°, spacing ${spacing.toFixed(4)}mm`);
+            const numPasses = Math.max(1, parseInt(settings.hatchPasses, 10) || 1);
+            this.debug(`Generating hatch: ${numPasses} pass(es), spacing ${spacing.toFixed(4)}mm`);
 
             const opType = settings.operationType || primitives[0]?.properties?.operationType || 'isolation';
 
@@ -94,7 +91,7 @@
             const passes = [];
 
             for (let i = 0; i < numPasses; i++) {
-                const passAngle = baseAngle + (angleStep * i);
+                const passAngle = angleStep * i;
 
                 const lines = this.generatePass(normalizedPrimitives, passAngle, spacing, opType);
                 if (lines.length === 0) continue;
@@ -109,7 +106,6 @@
                         strategy: 'hatch',
                         hatchPasses: numPasses,
                         angle: passAngle,
-                        baseAngle: baseAngle,
                         passIndex: i,
                         lineCount: lines.length,
                         spacing: spacing,
@@ -338,54 +334,58 @@
          */
         scanAndPair(edges, minY, maxY, spacing) {
             const scanlines = [];
-            const edgeCount = edges.length;
+            const mergeThreshold = 2 * PRECISION;
 
-            // Merge threshold for near-coincident intersections.
-            const mergeThreshold = PRECISION * 2;
+            // Active edge table. Every scanline used to reject the full pool one
+            // edge at a time: 10k edges x 500 lines is 5M tests to find a few
+            // hundred crossings. Sorted by yMin, a cursor admits edges as the
+            // sweep reaches them and the emit pass compacts expired ones out.
+            // Active means yMin <= y < yMax, the same window the reject tested.
+            const pool = edges.slice().sort((a, b) => a.yMin - b.yMin);
+            const poolCount = pool.length;
+            let cursor = 0;
+            let active = [];
 
-            // Phase-lock scanlines to a global grid anchored at Y=0 in rotated space. Since all operations rotate around the same origin, their grids align exactly - enabling line fusion across operations during export.
+            // Phase-lock scanlines to a global grid anchored at Y=0 in rotated
+            // space. Since all operations rotate around the same origin, their
+            // grids align exactly - enabling line fusion across operations.
             const startY = Math.ceil(minY / spacing) * spacing;
 
             for (let y = startY; y < maxY; y += spacing) {
+                while (cursor < poolCount && pool[cursor].yMin <= y) active.push(pool[cursor++]);
+                if (active.length === 0) continue;
+
                 const intersections = [];
-
-                for (let e = 0; e < edgeCount; e++) {
-                    const edge = edges[e];
-
-                    if (y < edge.yMin || y >= edge.yMax) continue;
-
-                    const x = edge.rx1 + (y - edge.ry1) *
-                            (edge.rx2 - edge.rx1) / (edge.ry2 - edge.ry1);
-                    intersections.push(x);
+                let w = 0;
+                for (let a = 0; a < active.length; a++) {
+                    const edge = active[a];
+                    if (edge.yMax <= y) continue;
+                    active[w++] = edge;
+                    if (y < edge.yMin) continue;
+                    intersections.push(edge.rx1 + (y - edge.ry1) * (edge.rx2 - edge.rx1) / (edge.ry2 - edge.ry1));
                 }
+                active.length = w;
 
                 if (intersections.length < 2) continue;
-
                 intersections.sort((a, b) => a - b);
 
                 // Deduplicate near-coincident intersections using XOR-style toggle.
                 const deduped = [];
                 for (let i = 0; i < intersections.length; i++) {
-                    if (deduped.length > 0 &&
-                        Math.abs(intersections[i] - deduped[deduped.length - 1]) < mergeThreshold) {
+                    if (deduped.length > 0 && Math.abs(intersections[i] - deduped[deduped.length - 1]) < mergeThreshold) {
                         deduped.pop();
                     } else {
                         deduped.push(intersections[i]);
                     }
                 }
-
                 if (deduped.length < 2) continue;
 
                 const pairs = [];
                 for (let i = 0; i + 1 < deduped.length; i += 2) {
                     pairs.push({ x1: deduped[i], x2: deduped[i + 1], y });
                 }
-
-                if (pairs.length > 0) {
-                    scanlines.push(pairs);
-                }
+                if (pairs.length > 0) scanlines.push(pairs);
             }
-
             return scanlines;
         },
 
@@ -469,7 +469,7 @@
                 }], {
                     isHatch: true,
                     hatchAngle: angleDeg,
-                    hatchIndex: idx,
+
                     closed: false,
                     fill: false,
                     stroke: false,
@@ -486,5 +486,5 @@
         }
     };
 
-    window.HatchGenerator = HatchGenerator;
+    ROOT.HatchGenerator = HatchGenerator;
 })();

@@ -117,10 +117,8 @@
     </script>
 </head>
 <body>
-    <!-- Skip link for keyboard accessibility -->
     <a href="#doc-content" class="skip-link">Skip to Main Content</a>
 
-    <!-- Header -->
     <header class="doc-header">
         <div class="doc-brand"><a href="/" aria-label="EasyCAM5000 Homepage">EasyCAM5000</a></div>
 
@@ -154,208 +152,272 @@
     </header>
 
     <div class="doc-wrapper has-sidebar">
-        <!-- Sidebar TOC -->
         <nav class="doc-sidebar" id="toc" aria-label="Table of contents">
-            <h2>Contents <span class="doc-badge doc-badge--dev">Beta</span></h2>
+            <p class="doc-sidebar-title">Contents</p>
             <ol>
-                <li><a href="#overview" draggable="false">Overview</a></li>
+                <li><a href="#safety" draggable="false">Fume Hazard</a></li>
+                <li><a href="#overview" draggable="false">How the Laser Route Works</a></li>
                 <li>
                     <a href="#workflow" draggable="false">The Workflow</a>
                     <ol>
-                        <li><a href="#workflow-loading" draggable="false">Loading Files</a></li>
-                        <li><a href="#workflow-offsets" draggable="false">Generating Geometry</a></li>
-                        <li><a href="#workflow-export" draggable="false">Exporting</a></li>
+                        <li><a href="#workflow-machine" draggable="false">1. Setting the Machine</a></li>
+                        <li><a href="#workflow-load" draggable="false">2. Loading &amp; Placement</a></li>
+                        <li><a href="#workflow-settings" draggable="false">3. Laser Settings</a></li>
+                        <li><a href="#workflow-generate" draggable="false">4. Generating</a></li>
+                        <li><a href="#workflow-export" draggable="false">5. Export</a></li>
                     </ol>
                 </li>
                 <li>
-                    <a href="#operations" draggable="false">Operation Types</a>
+                    <a href="#strategies" draggable="false">Clearing Strategies</a>
                     <ol>
-                        <li><a href="#op-isolation" draggable="false">Isolation</a></li>
-                        <li><a href="#op-drilling" draggable="false">Drilling</a></li>
-                        <li><a href="#op-cutout" draggable="false">Board Cutout</a></li>
-                        <li><a href="#op-stencil" draggable="false">Stencil Generation</a></li>
-                        <li><a href="#op-soldermask" draggable="false">Soldermask Clearing</a></li>
+                        <li><a href="#strategy-offset" draggable="false">Offset Paths</a></li>
+                        <li><a href="#strategy-filled" draggable="false">Filled Polygon</a></li>
+                        <li><a href="#strategy-hatch" draggable="false">Hatch Fill</a></li>
+                        <li><a href="#spacing" draggable="false">Line Spacing</a></li>
                     </ol>
                 </li>
-                <li><a href="#export" draggable="false">Export Formats</a></li>
-                <li><a href="#use-cases" draggable="false">Use Cases</a></li>
-                <li><a href="#experimental" draggable="false">Experimental</a></li>
+                <li><a href="#cut-ops" draggable="false">Drill &amp; Cutout</a></li>
+                <li><a href="#stencil" draggable="false">Stencils</a></li>
+                <li><a href="#export-formats" draggable="false">Export Formats</a></li>
+                <li><a href="#controllers" draggable="false">Controller Notes</a></li>
             </ol>
         </nav>
 
-        <!-- Main Content -->
         <main id="doc-content" class="doc-main">
+
+            <div class="callout callout--warning">
+                <p>Development goes fast, documentation may be outdated. Proceed with some caution.</p>
+            </div>
+
             <section class="hero hero--compact">
                 <h1>EasyTrace5000 Laser Processing Guide</h1>
-                <p class="tagline">Advanced vector and raster export workflows for laser-based PCB fabrication</p>
+                <p class="tagline">Kerf-compensated vectors and high-DPI rasters for copper ablation and stencils</p>
+            </section>
+
+            <section id="safety">
+                <h2>Fume Hazard</h2>
+                <div class="callout callout--warning">
+                    <h3>Active ventilation is mandatory</h3>
+                    <p>Laser processing vaporises the epoxy, phenolic resin and fibreglass in a PCB, releasing highly toxic fumes including carbon monoxide, formaldehyde and a range of carcinogens.</p>
+                    <ul>
+                        <li><strong>Fibre and diode lasers</strong> must be vented outdoors or run through industrial-grade HEPA and carbon filtration.</li>
+                        <li><strong>UV lasers</strong> deserve the same caution. Ablation still produces microscopic particulates and chemical fume, quieter and less visible than a diode's plume.</li>
+                    </ul>
+                </div>
             </section>
 
             <section id="overview">
-                <h2>Overview & Architecture</h2>
+                <h2>How the Laser Route Works</h2>
+                <p>Laser is not a mode you switch the application into. Every operation has its own machine setting, and setting one to laser changes what it asks you for and what it produces.</p>
 
-                <div class="callout callout--warning">
-                    <h3>TOXIC FUME HAZARD</h3>
-                    <p><strong>Active Ventilation Mandatory:</strong> Laser processing vaporizes the epoxy, phenolic resins, and fiberglass in PCBs, releasing <strong>highly toxic fumes</strong> (including carbon monoxide, formaldehyde, and various carcinogens).</p>
-                    <ul>
-                        <li><strong>Fiber/Diode Lasers:</strong> Must be actively vented to the outdoors or passed through high-grade industrial HEPA/Carbon filtration.</li>
-                        <li><strong>UV Lasers:</strong> Treat UV laser ablation with the same extreme caution regarding microscopic particulates and chemical fumes.</li>
-                    </ul>
-                </div>
+                <figure>
+                    <div class="doc-figure" data-figure="fig-trace-steps.svg"></div>
+                    <figcaption>A laser operation runs two stages. Because the machine is set per operation, one job can mix laser and router.</figcaption>
+                </figure>
 
-                <p>The EasyTrace5000 Laser pipeline is engineered to generate highly optimized 2D vector and high-resolution raster files from standard PCB design files (Gerber, Excellon, SVG). Unlike the CNC pipeline, which must consider Z-axis depths and plunge rates. The laser pipeline operates strictly in 2D coordinate space. </p>
-
-                <p>Because laser processing does not require toolpath depth simulation, the application intelligently bypasses the 3D preview stage, processing source geometry directly into export-ready analytic boundaries and fill patterns. The application does not control your laser hardware directly; it performs the computationally heavy geometric boolean operations, true-bounds calculations, and path optimizations, delivering precision files tailored for external control software like LightBurn, EZCAD, or RDWorks.</p>
-                
-                            </section>
+                <p>A laser operation runs two <strong>stages</strong> instead of four: there is no depth to set and no toolpath to plan, so what you generate is what you export. That is why this page is shorter than the CNC one.</p>
+                <p>The per-operation choice is the useful part. A board can have its copper isolation ablated by a fibre laser while its holes and outline are milled on the router - same project, same source files, same origin, two output formats from one export.</p>
+                <p>All five operations run on a laser: <strong>Copper Isolation</strong>, <strong>Copper Clearing</strong>, <strong>Drill</strong>, <strong>Board Cutout</strong> and <strong>Stencil</strong>.</p>
+                <p>The application does not drive your laser. It does the geometry - kerf compensation, true bounds, fill generation and path ordering - and hands you a file for LightBurn, EZCAD, RDWorks or xTool Studio to run.</p>
+            </section>
 
             <section id="workflow">
-                <h2>The Laser Workflow</h2>
-                <p>The user journey in the laser pipeline is distinctly streamlined compared to mechanical milling. Here is the technical breakdown of the workflow.</p>
+                <h2>The Workflow</h2>
 
-                <h3 id="workflow-loading">Stage 1 & 2: Loading & Coordinate Transformations</h3>
-                <p>Source files are loaded and parsed via the same robust analytic engine used for CNC operations. <strong>Isolation</strong> and <strong>Clearing</strong> operations parse Gerber (RS-274X) files, <strong>Drilling</strong> parses Excellon files, and <strong>Cutouts</strong> accept Gerbers or SVGs.</p>
-                <p>During coordinate setup, any applied Origin Offsets, Board Rotations, or Mirroring transformations are tracked globally. Crucially, the <code>LaserImageExporter</code> applies these transformation matrices to the analytic geometry <em>before</em> calculating the final SVG/PNG bounding box (the viewBox), ensuring that rotated or mirrored geometry is never clipped or exported with a blank canvas.</p>
+                <h3 id="workflow-machine">1. Setting the Machine</h3>
+                <p>Set the operation to laser before you generate. It decides which parameters you see and how many stages the operation has, so changing it afterwards rebuilds the form and invalidates anything already generated.</p>
+                <p>A laser operation shows isolation width, clearing strategy, spot size and cut side. It does not show passes, depth or feeds, because none of those mean anything to a beam.</p>
 
-                <h3 id="workflow-machine">Stage 3: Global Machine Settings</h3>
-                <p>When the Laser pipeline is active, the Machine Settings panel exposes two critical baseline parameters:</p>
+                <h3 id="workflow-load">2. Loading &amp; Placement</h3>
+                <p>Identical to the CNC route. Isolation and clearing take Gerber, drilling takes Excellon, cutout takes Gerber or SVG, stencils take a paste or soldermask layer. Set the origin, rotation and mirror exactly as you would for milling - see <a href="cnc#workflow-coords" draggable="false">Placing the Board</a>.</p>
+                <p>A rotated or mirrored board exports at its true size and position, so nothing is clipped and nothing lands on a blank canvas.</p>
+
+                <h3 id="workflow-settings">3. Laser Settings</h3>
                 <dl>
-                    <dt>Laser Spot Size (Kerf)</dt>
-                    <dd>The effective focal diameter of your laser beam in millimeters. The offsetting engine uses this value identically to a CNC "Tool Diameter" to calculate accurate offsets.</dd>
+                    <dt>Laser Spot Size</dt>
+                    <dd>The effective focal diameter of your beam, in millimetres. It plays the same role a tool diameter plays on the router, so every offset is kerf-compensated against it. Set it in Machine Settings; the operation shows it read-only.</dd>
                     <dt>Export Format</dt>
-                    <dd>Determines the target renderer: <strong>SVG</strong> for true mathematical vectors or <strong>PNG</strong> for high-DPI rasterized images. Note: Switching to PNG dynamically hides hatch and offset strategy options, as filling is implicitly handled by pixel rasterization.</dd>
+                    <dd>SVG for vectors, PNG for a high-DPI raster. Choosing PNG hides the fill strategy options, because your laser software will be doing the filling.</dd>
                 </dl>
+                <p>Measure your spot size rather than trusting the spec sheet. It is the one value everything else is derived from, and getting it wrong shows up as traces that are systematically too thin or too fat.</p>
 
-                <h3 id="workflow-paths">Stage 4: Generating Laser Paths</h3>
-                <p>Upon clicking <strong>Generate Laser Paths</strong>, the core triggers the Geometry Engine. Depending on the operation and selected strategy, it translates your parameters (Spot Size, Isolation Width, Step Over) into precise 2D geometry. Because laser operations lack a Z-axis simulation requirement, the operation is immediately marked as <code>exportReady = true</code>, bypassing the preview stage and transitioning the properties panel directly to an "Export Summary".</p>
+                <h3 id="workflow-generate">4. Generating</h3>
+                <p>Set the operation's parameters and click <em>Generate</em>. When it finishes, the operation is ready to export - there is no preview or toolpath stage to pass through.</p>
 
-                <h3 id="workflow-export">Stage 5: Operations & Export Manager</h3>
-                <p>The Export Manager acts as the final packager for your laser files. Here, you configure export-specific metadata:</p>
+                <h3 id="workflow-export">5. Export</h3>
+                <p>Open the Export Manager. Laser operations are packaged rather than compiled, so the options are about how your control software will read the file:</p>
                 <dl>
-                    <dt>Layer Colors</dt>
-                    <dd>Assign rgb colors (e.g., <code>(255.0.0)</code> for Isolation, <code>(0.0.255)</code> for Drill). The SVG exporter applies these as <code>stroke</code> or <code>fill</code> attributes. Laser control software uses these colors to map independent power, speed, and frequency settings.</dd>
-                    <dt>Raster Resolution (DPI)</dt>
-                    <dd>If PNG is selected, this dictates the pixel density (up to 4000 DPI). The exporter calculates the exact pixel dimensions based on the transformed physical bounds and the DPI.</dd>
-                    <dt>Export Margin Padding</dt>
-                    <dd>Injects a physical buffer (in mm) around the true bounding box to ensure the laser head has sufficient overscan area without clipping the geometry.</dd>
+                    <dt>Layer Colours</dt>
+                    <dd>Assign a colour per operation - red for isolation, blue for drill, whatever your workflow uses. Laser software maps power, speed and frequency onto those colours.</dd>
+                    <dt>Unique colours per pass</dt>
+                    <dd>Gives every pass its own colour instead of one colour per layer, for software that assigns settings per colour rather than per group.</dd>
+                    <dt>Raster resolution (DPI)</dt>
+                    <dd>PNG only, up to 4000 DPI. The image is dimensionally exact, so it imports at the right physical size.</dd>
+                    <dt>Export margin</dt>
+                    <dd>A buffer in millimetres around the artwork, so the head has overscan room and nothing sits hard against the edge.</dd>
+                    <dt>Reverse cut order</dt>
+                    <dd>Flips the order geometry is written in, for software that processes a file from the wrong end.</dd>
                 </dl>
             </section>
 
-            <section id="operations">
-                <h2>Operation Types & Clearing Strategies</h2>
-                
-                <p>The geometry generation logic dynamically adapts to the operation type. The core concept relies on "Clearance Polygons" - the specific area requiring ablation.</p>
-                
-                
-                <h3 id="op-isolation">Isolation Routing & Copper Clearing</h3>
-                <p>For <strong>Clearing</strong> operations, the clearance zone is simply the source geometry itself. For <strong>Isolation</strong> operations, the engine dynamically calculates a "halo" by expanding the original copper traces by the user-defined <code>laserIsolationWidth</code> and performing a boolean difference against the original footprint.</p>
+            <section id="strategies">
+                <h2>Clearing Strategies</h2>
+                <p>Everything starts from the area that needs to be ablated. For a clearing operation that is the copper itself. For an isolation operation it is a band around every trace and pad, as wide as the isolation width you set.</p>
 
-                <p>Once the clearance zone is established, you can select one of three <strong>Clearing Strategies</strong>:</p>
+                <figure>
+                    <div class="doc-figure" data-figure="fig-laser-halo.svg"></div>
+                    <figcaption>Isolation width defines a band around the copper, and that band is what gets ablated</figcaption>
+                </figure>
 
+                <p>Once the area exists, the strategy decides how the beam covers it.</p>
+
+                <figure>
+                    <div class="doc-figure" data-figure="fig-laser-strategies.svg"></div>
+                    <figcaption>The three ways an area can be covered</figcaption>
+                </figure>
+
+                <h3 id="strategy-offset">Offset Paths (concentric)</h3>
+                <p>Concentric lines shrinking inward from the boundary. The number of passes comes from the isolation width, the spot size and your spacing setting - you do not set it directly.</p>
+                <p><strong>Recommended.</strong> Concentric paths follow the shape of the area, so they do not leave the corner streaking you get where a straight hatch line ends against a curve.</p>
+
+                <h3 id="strategy-filled">Filled Polygon</h3>
+                <p>Exports the area as a single solid shape and lets your laser software generate its own fill. Use it when you trust LightBurn's or EZCAD's native hatching more than a file full of individual lines, or when the file would otherwise be too large to handle.</p>
+
+                <h3 id="strategy-hatch">Hatch Fill</h3>
+                <p>Dense directional lines across the area at an angle you choose. 45° crosses both horizontal and vertical traces evenly, which is why it is the default. Extra <strong>hatch passes</strong> are rotated from that base angle so coverage evens out instead of streaking in one direction.</p>
+                <p>Colinear strokes are fused across the whole job, even where they came from different operations. On a dense board that removes a large share of the line count and a matching share of the head's travel time.</p>
+
+                <h3 id="spacing">Line Spacing</h3>
+                <p>Offset and hatch share one spacing control with three ways to express the same thing. Pick whichever unit your laser software uses so you are not converting in your head:</p>
                 <dl>
-                    <dt>Offset Paths (Concentric)</dt>
-                    <dd>Generates concentric lines shrinking inward from the clearance boundary. The required number of passes is mathematically derived from the total isolation width and the <code>laserStepOver</code> percentage. This strategy is highly recommended as it prevents the corner "streaking" artifacts common in directional hatching.</dd>
-                    <dt>Filled Polygon</dt>
-                    <dd>Exports the clearance zone as a solid SVG <code>&lt;path&gt;</code> with a <code>fill</code> attribute. Use this if you prefer your external laser software (like LightBurn) to calculate its own native hatch patterns internally.</dd>
-                    <dt>Hatch Fill</dt>
-                    <dd>Generates dense, directional line coverage across the clearance zone. You control the <code>laserHatchAngle</code> (e.g., 45°) and the number of angular passes (<code>laserHatchPasses</code>). To optimize laser travel, the exporter applies an advanced <strong>Colinear Hatch Fusion</strong> algorithm (detailed below).</dd>
+                    <dt>Step-over (%)</dt>
+                    <dd>Overlap between adjacent lines as a percentage of spot size. 50% is a sensible default; drop to around 30% if you see streaks of unablated copper between lines.</dd>
+                    <dt>Lines per centimetre</dt>
+                    <dd>Absolute line density in metric. What most European fibre software expects.</dd>
+                    <dt>Lines per inch</dt>
+                    <dd>The same in imperial. What most galvo software expects.</dd>
                 </dl>
+                <p>Clearing operations also have a <strong>clearing padding</strong> value - extra margin ablated beyond the copper's own outline, to give the beam room at the edges of a pour.</p>
+            </section>
 
-                <h3 id="op-cutout">Drill & Board Cutout</h3>
-                <p>Because holes and board outlines are fundamentally single-line vector cuts rather than broad ablation zones, they do not utilize clearing strategies. Instead, you define the <strong>Cut Side</strong>:</p>
+            <section id="cut-ops">
+                <h2>Drill &amp; Board Cutout</h2>
+                <p>Holes and outlines are single-line cuts rather than areas to ablate, so they have no fill strategy. What they have is <strong>cut side</strong>, which decides where the kerf falls:</p>
+
+                <figure>
+                    <div class="doc-figure" data-figure="fig-cut-side.svg"></div>
+                    <figcaption>Cut side decides which edge of the beam lands on your line</figcaption>
+                </figure>
+
                 <ul>
-                    <li><strong>Outside:</strong> Generates a path offset outward by half the laser spot size, ensuring the physical board remains dimensionally accurate.</li>
-                    <li><strong>Inside:</strong> Offsets inward, typically used for internal pocketing.</li>
-                    <li><strong>On Line:</strong> Fires the laser directly down the mathematical perimeter coordinate (zero offset).</li>
+                    <li><strong>Outside</strong> - the path sits half a spot outside the line, so the board comes out at its designed size.</li>
+                    <li><strong>Inside</strong> - half a spot inside, for openings that need to hold their size.</li>
+                    <li><strong>On the line</strong> - straight down the line with no compensation, taking half a kerf from each side.</li>
                 </ul>
+                <p>Same three options as the router, with the spot size standing in for a tool diameter.</p>
             </section>
 
-            <section id="export">
-                <h2>Export Mechanics & Optimizations</h2>
-                <p>The <code>LaserImageExporter</code> handles the final translation of analytic primitives into downloadable files.</p>
+            <section id="stencil">
+                <h2>Stencils</h2>
+                <p>A solder-paste stencil is a normal laser job. The apertures are cut straight out of your stencil stock, and the geometry is the same one a vinly cutter/drag knife would follow.</p>
+                <p>There is no output selector here. On the CNC route you have to say whether the stencil is milled or knife-cut; on a laser there is nothing to choose - you already have the machine that cuts it, so the operation just produces the file.</p>
+                <dl>
+                    <dt>Aperture offset</dt>
+                    <dd>Shrinks or grows every aperture. A small negative value such as -0.05 mm is the usual starting point; it stops paste bridging between close pads. On a laser, remember the beam has its own width - the spot size is already accounted for, so this is your paste margin, not your kerf.</dd>
+                    <dt>Corner radius</dt>
+                    <dd>Rounds the aperture corners. A beam has no blade to drag, so a laser does not need this the way a knife plotter does - leave it at 0 unless you want rounded apertures for their own sake, which does release paste slightly more cleanly on fine-pitch parts.</dd>
+                    <dt>Exclude pads over drill holes</dt>
+                    <dd>Drops apertures that sit over a hole, so you are not pasting into a via.</dd>
+                    <dt>Registration holes</dt>
+                    <dd>Optional alignment holes outside the board, for pinning the stencil over the PCB. They ignore the aperture offset and the corner radius - they have to match your dowels, not your paste.</dd>
+                </dl>
+                <p>Polyimide film and thin steel shim are the usual stock. Both cut cleanly, and both need the same ventilation as a board - see the <a href="#safety" draggable="false">fume warning</a> above.</p>
+            </section>
 
+            <section id="export-formats">
+                <h2>Export Formats</h2>
+
+                <h3>SVG (vector)</h3>
+                <p>The exported strokes are hairlines: they show up as visible lines in a browser, and import into CAM software as zero-width cutting vectors. You get something you can actually look at and something your machine can actually follow, from the same file.</p>
+                <p>Curves are exported as true arc commands rather than as many short segments, which keeps the file small and gives the head a smooth curve to follow.</p>
+
+                <h3>PNG (raster)</h3>
+                <p>Rasterising is the right choice for direct image-engraving modes and for photoresist exposure. But holes and outlines are single-line cuts that lose their meaning as pixels, so a PNG export gives you <strong>two files</strong>: the high-DPI PNG for copper, and a matching <code>-vectors.svg</code> holding the drill and cutout paths. Load both into your control software and they line up exactly.</p>
+            </section>
+
+            <section id="controllers">
+                <h2>Controller Notes</h2>
                 <div class="callout callout--warning">
-                    <h4>Important: Laser Controller Limitations</h4>
-                    <p>EasyTrace5000 exports SVG files with paths intentionally ordered to optimize heat management so jobs can run faster. However, many laser control programs (like <strong>LightBurn</strong>, <strong>RDWorks</strong>, <strong>EZCAD</strong> or <strong>xTool Studio</strong>) aggressively apply their own "Optimization" or "Nearest Neighbor" path-sorting algorithms upon import.</p>
-                    <p>To utilize EasyTrace5000's native optimized concentric offset paths, you may need to <strong>disable optimization settings</strong> in your laser software, forcing it to respect the original file order.</p>
-                    <p>(Currently xTool Studio doesn't allow disabling it, only splits by up to 10x layers/colors/passes, I'm trying to convince them to allow EasyTrace5000 files through raw, ask them for changes too.)</p>
+                    <h4>Your laser software may undo the path order</h4>
+                    <p>Exported files are deliberately ordered to manage heat build-up: each pass finishes before the next starts, and the head moves away from what it just cut rather than lingering in one area. Most control software - LightBurn, RDWorks, EZCAD, xTool Studio - re-sorts paths on import and throws that ordering away.</p>
+                    <p>To keep it, turn off path optimisation or sorting in your laser software so it respects the file order. At the time of writing xTool Studio offers no way to disable it and only splits by layer, colour or pass count - if you use xTool, asking them for a pass-through option would help.</p>
                 </div>
-
-                <h3 id="export-svg">SVG (Vector Export)</h3>
-                <p>When exporting vectors, standard browsers display 0.01mm strokes as invisible. To fix this while maintaining dimensional accuracy for CAM software, the exporter injects explicit CSS attributes (<code>stroke-width="1px"</code> and <code>-inkscape-stroke:hairline</code>), while preserving the physical XML attribute <code>stroke-width="0.01"</code>. This ensures browsers render a visible line, but laser software imports the path as a zero-width, highly precise cutting vector. Additionally, the exporter natively reconstructs poly-lines into true SVG Arc (<code>A</code>) commands, drastically reducing file size and allowing for perfectly smooth curves.</p>
-
-                <div class="callout callout--info">
-                    <h4>Colinear Hatch Fusion Optimization</h4>
-                    <p>When dealing with Hatch strategy operations, the exporter will check for overlapping colinear strokes even if they were created from different operations or geometry. This will cut down file size and possibly processing complexity of already very large files with maybe even hundreds of thousands of line objects.</p>
-                </div>
-
-                <h3 id="export-png">The PNG Split Rule (Raster Export)</h3>
-                <p>Rasterizing a PCB design into a PNG is excellent for direct image engraving modes or photoresist exposure. However, <strong>Drill</strong> and <strong>Cutout</strong> operations are single-line paths that lose their dimensional meaning when converted to pixels. To solve this, the Export Manager enforces the <strong>PNG Split Rule</strong>: If PNG export is selected, Isolation and Clearing layers are compiled into a high-DPI <code>.png</code> file, while Drill and Cutout operations are automatically filtered out and exported as a perfectly aligned secondary <code>-vectors.svg</code> file.</p>
             </section>
 
         </main>
         <!-- Footer -->
         <footer class="doc-footer" aria-label="Footer">
             <p>
-                <a href="#doc-content" draggable="false" aria-label="Scroll back to top">Back to Top</a> |
-                <a href="https://github.com/RicardoJCMarques/EasyCAM5000" target="_blank" draggable="false" aria-label="GitHub Repository (opens in a new tab)">GitHub</a> |
-                <a href="/#support" draggable="false" aria-label="Support Development via Sponsorship">Support Development</a> |
-                <a href="../../LICENSE" target="_blank" draggable="false" aria-label="AGPLv3 License (opens in a new tab)">AGPLv3 Licensed</a> |
-                <a href="https://www.eltryus.design/" draggable="false" aria-label="Eltryus, developer of EasyCAM5000">by Eltryus</a>
+                <a href="#doc-content" draggable="false">Back to Top</a> |
+                <a href="https://github.com/RicardoJCMarques/EasyCAM5000" target="_blank" draggable="false">GitHub</a> |
+                <a href="/#support" draggable="false">Support Development</a> |
+                <a href="../../LICENSE" target="_blank" draggable="false">AGPLv3 Licensed</a> |
+                <a href="https://www.eltryus.design/" draggable="false">by ELTRYUS</a>
             </p>
         </footer>
-
     </div>
-
-    <!-- Scripts -->
-    <script defer src="../../themes/theme-loader.js"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            // Load the SVG Sprite
-            fetch('../../images/icons/sprite.svg')
-                .then(response => {
-                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                    return response.text();
-                })
-                .then(svgText => {
-                    const div = document.createElement('div');
-                    div.innerHTML = svgText;
-                    const svg = div.querySelector('svg');
-                    if (svg) {
-                        svg.setAttribute('aria-hidden', 'true');
-                        svg.style.cssText = 'position: absolute; width: 0; height: 0; visibility: hidden;';
-                        document.body.insertBefore(svg, document.body.firstChild);
-                    }
-                })
-                .catch(err => console.warn('Failed to load icon sprite:', err));
-
-            // Theme toggle
-            const themeBtn = document.getElementById('theme-toggle');
-            if (themeBtn && window.ThemeLoader) {
-                const useEl = themeBtn.querySelector('use');
-                const initialTheme = document.documentElement.getAttribute('data-theme') || 'dark';
-
-                if (useEl) useEl.setAttribute('href', initialTheme === 'dark' ? '#icon-sun' : '#icon-moon');
-
-                themeBtn.addEventListener('click', async () => {
-                    const theme = await window.ThemeLoader.toggleTheme();
-                    if (useEl) useEl.setAttribute('href', theme === 'dark' ? '#icon-sun' : '#icon-moon');
-                });
-            }
-
-            // Mobile menu toggle
-            const menuBtn = document.querySelector('.doc-menu-toggle');
-            const nav = document.querySelector('.doc-nav');
-            if (menuBtn && nav) {
-                const useEl = menuBtn.querySelector('use');
-                menuBtn.addEventListener('click', () => {
-                    const isExpanded = menuBtn.getAttribute('aria-expanded') === 'true';
-                    menuBtn.setAttribute('aria-expanded', !isExpanded);
-                    nav.classList.toggle('is-open');
-
-                    if (useEl) useEl.setAttribute('href', !isExpanded ? '#icon-close' : '#icon-menu');
-                });
-            }
-        });
-    </script>
 </body>
+
+<!-- Scripts -->
+<script defer src="../../themes/theme-loader.js"></script>
+<script src="../../figures.js" defer></script>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // Load the SVG Sprite
+        fetch('../../images/icons/sprite.svg')
+            .then(response => {
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                return response.text();
+            })
+            .then(svgText => {
+                const div = document.createElement('div');
+                div.innerHTML = svgText;
+                const svg = div.querySelector('svg');
+                if (svg) {
+                    svg.setAttribute('aria-hidden', 'true');
+                    svg.style.cssText = 'position: absolute; width: 0; height: 0; visibility: hidden;';
+                    document.body.insertBefore(svg, document.body.firstChild);
+                }
+            })
+            .catch(err => console.warn('Failed to load icon sprite:', err));
+
+        // Theme toggle
+        const themeBtn = document.getElementById('theme-toggle');
+        if (themeBtn && window.ThemeLoader) {
+            const useEl = themeBtn.querySelector('use');
+            const initialTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+
+            if (useEl) useEl.setAttribute('href', initialTheme === 'dark' ? '#icon-sun' : '#icon-moon');
+
+            themeBtn.addEventListener('click', async () => {
+                const theme = await window.ThemeLoader.toggleTheme();
+                if (useEl) useEl.setAttribute('href', theme === 'dark' ? '#icon-sun' : '#icon-moon');
+            });
+        }
+
+        // Mobile menu toggle
+        const menuBtn = document.querySelector('.doc-menu-toggle');
+        const nav = document.querySelector('.doc-nav');
+        if (menuBtn && nav) {
+            const useEl = menuBtn.querySelector('use');
+            menuBtn.addEventListener('click', () => {
+                const isExpanded = menuBtn.getAttribute('aria-expanded') === 'true';
+                menuBtn.setAttribute('aria-expanded', !isExpanded);
+                nav.classList.toggle('is-open');
+
+                if (useEl) useEl.setAttribute('href', !isExpanded ? '#icon-close' : '#icon-menu');
+            });
+        }
+    });
+</script>
 </html>

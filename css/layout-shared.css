@@ -307,12 +307,11 @@
     margin-top: var(--spacing-sm);
 }
 
-/* The `*` reset zeroes button margins, so a bare <button> sitting between
-   two grids in the stock panel touches both. Scoped: EasyTrace keeps its
-   origin buttons inside .origin-section and needs none of this. */
-#stock-controls > * + .btn,
-#stock-controls > .btn + .origin-buttons {
-    margin-top: var(--spacing-sm);
+#stock-controls > * + * {
+margin-top: var(--spacing-sm);
+}
+#stock-controls > .property-field {
+margin-bottom: 0;
 }
 
 /* ============================================================================

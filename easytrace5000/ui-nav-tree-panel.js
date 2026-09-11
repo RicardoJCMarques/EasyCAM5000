@@ -104,8 +104,14 @@
             const geometriesContainer = nodeElement.querySelector('.file-geometries');
             if (geometriesContainer) geometriesContainer.setAttribute('role', 'group');
 
-            if (deleteBtn) deleteBtn.setAttribute('aria-label', `Delete ${operation.file.name}`);
-            if (visBtn) visBtn.setAttribute('aria-label', `Toggle visibility of ${operation.file.name}`);
+            if (deleteBtn) {
+                deleteBtn.setAttribute('aria-label', `Delete ${operation.file.name}`);
+                deleteBtn.setAttribute('tabindex', '-1');
+            }
+            if (visBtn) {
+                visBtn.setAttribute('aria-label', `Toggle visibility of ${operation.file.name}`);
+                visBtn.setAttribute('tabindex', '-1');
+            }
 
             // Visibility button
             if (visBtn) {
@@ -132,9 +138,9 @@
 
             // Content click → select
             content.addEventListener('click', (e) => {
-                if (!e.target.closest('.btn-icon')) {
-                    this.selectFile(fileId, operation);
-                }
+                if (e.target.closest('.btn-icon')) return;
+                this.setFocusOnItem(document.querySelector('#operations-tree [tabindex="0"]'), content);
+                this.activateFileNode(content);
             });
 
             // Delete button
@@ -172,7 +178,7 @@
             geometriesContainer.innerHTML = '';
             fileData.geometries.clear();
 
-            const isLaser = this.ui.ctrl.machineClassOf?.(operation) === 'laser';
+            const isLaser = this.ui.ctrl.core.machineClassOf(operation) === 'laser';
 
             // Offset nodes
             if (operation.offsets && operation.offsets.length > 0) {
@@ -223,7 +229,7 @@
             // Toolpath node - ONE per operation. executePipeline returns
             // machine-ready plans, not primitive groups and a relief job
             // produces hundreds of them.
-            const toolpaths = this.core.getToolpaths?.(operation.id);
+            const toolpaths = this.core.store.getToolpaths(operation.id);
             if (toolpaths?.plans?.length) {
                 const mins = Math.floor(toolpaths.metrics.estimatedTime / 60);
                 const secs = Math.floor(toolpaths.metrics.estimatedTime % 60);
@@ -284,6 +290,7 @@
             content.setAttribute('tabindex', '-1');
             content.setAttribute('aria-selected', 'false');
             content.setAttribute('aria-level', '3');
+            nodeElement.querySelectorAll('.btn-icon').forEach(b => b.setAttribute('tabindex', '-1'));
 
             const baseType = geometryType.startsWith('offset') ? 'offset' :
                             geometryType === 'offsets_combined' ? 'offsets_combined' :
@@ -315,9 +322,9 @@
             }
 
             content.addEventListener('click', (e) => {
-                if (!e.target.closest('.btn-icon')) {
-                    this.selectGeometry(geometryId, fileData.operation, geometryType);
-                }
+                if (e.target.closest('.btn-icon')) return;
+                this.setFocusOnItem(document.querySelector('#operations-tree [tabindex="0"]'), content);
+                this.activateGeometryNode(content);
             });
 
             if (deleteBtn) {
@@ -410,7 +417,7 @@
             }
 
             this.selectedNode = { type: 'file', id: fileId, operation };
-            this.ui.ctrl.setViewportForNode?.(null, operation);
+            this.ui.ctrl.setViewportForNode(null, operation);
             this.emit('select', { id: fileId, kind: 'file', operation, stage: 'geometry' });
         }
 
@@ -434,9 +441,8 @@
 
             // Artifact node - the form that produces the NEXT artifact.
             // Same invariant the bucket tree uses: node i shows stages[i+1].
-            const cls = this.ui.ctrl.machineClassOf?.(operation)
-                || this.ui.ctrl.pipelineState?.machineClass || 'router';
-            const pm = this.ui.ctrl.parameterManager;
+            const cls = this.ui.ctrl.core.machineClassOf(operation) || 'router';
+            const pm = this.ui.ctrl.parameterStore;
             const stages = pm.getStages(operation.type, cls);
             const artifacts = pm.getArtifacts(operation.type, cls);
 
@@ -449,7 +455,7 @@
             const stage = idx === -1 ? 'geometry' : (stages[idx + 1] || stages[stages.length - 1]);
 
             // Viewport follows the artifact, not a global mode.
-            this.ui.ctrl.setViewportForNode?.(artifact, operation);
+            this.ui.ctrl.setViewportForNode(artifact, operation);
 
             this.emit('select', { id: geometryId, kind: 'geometry', operation, geometryType, stage });
         }
@@ -480,10 +486,6 @@
 
         /**
          * The Record is the truth; the renderer layer is a consequence of it.
-         * This used to open `const layer = layers.get(layerName); if (layer) {…}`
-         * with the repaint and the persist both inside, so a click on a node
-         * whose layer had not been built yet was swallowed whole - no toggle, no
-         * icon change, and an open eye over geometry that was hidden.
          * @param {string} artifactKey - source/offsets/offset_N/preview/toolpath,
          *                               the same keyspace refresh3D and 
          *                               _push3DPlans read.
@@ -543,14 +545,9 @@
 
                 // Update category aria-expanded if now empty
                 if (operationType) {
-                    const category = document.querySelector(`.operation-category[data-op-type="${operationType}"]`);
-                    if (category) {
-                        const filesContainer = category.querySelector('.category-files');
-                        const categoryHeader = category.querySelector('.category-header');
-                        if (categoryHeader && filesContainer && filesContainer.children.length === 0) {
-                            categoryHeader.removeAttribute('aria-expanded');
-                        }
-                    }
+                    this.syncCategoryExpanded(
+                        document.querySelector(`.operation-category[data-op-type="${operationType}"]`)
+                    );
                 }
             }
         }
@@ -574,6 +571,7 @@
                         fileContent.removeAttribute('aria-expanded');
                     }
                 }
+                this.syncCategoryExpanded(fileData.element.closest('.operation-category'));
             }
         }
 
@@ -606,19 +604,39 @@
         // Keyboard navigation
         // ═══════════════════════════════════════════════════════════════
 
+        setFocusOnItem(prev, target) {
+            if (prev && prev !== target) prev.setAttribute("tabindex", "-1");
+            if (target) {
+                target.setAttribute("tabindex", "0");
+                target.focus();
+            }
+        }
+
         setupKeyboardNavigation() {
             if (!this.treeContainer) return;
-
-            // Set ARIA role on container
-            this.treeContainer.setAttribute('role', 'tree');
-            this.treeContainer.setAttribute('aria-label', 'Operations');
-
-            // Setup categories with ARIA
+            this.treeContainer.setAttribute("role", "tree");
+            this.treeContainer.setAttribute("aria-label", "Operations");
             this.setupCategoryARIA();
 
-            // Single keydown listener on tree container
-            this.treeContainer.addEventListener('keydown', (e) => this.handleTreeKeydown(e));
+            UIControls.setupTreeKeyboard(this.treeContainer, [
+                { selector: ".category-header", onActivate: el => this.emit("categoryClick", el.closest(".operation-category")?.dataset.opType) },
+                { selector: ".file-node-content", onActivate: el => this.activateFileNode(el) },
+                { selector: ".geometry-node-content", onActivate: el => this.activateGeometryNode(el) }
+            ], {
+                onDelete: (id, focused) => {
+                    const isFile = focused.classList.contains("file-node-content");
+                    const isGeo = focused.classList.contains("geometry-node-content");
+                    this.handleDeleteOnFocused(focused, isFile, isGeo);
+                },
+                onKey: (key, id, focused) => {
+                    if ("v" === key || "V" === key) {
+                        const visBtn = focused.querySelector(".visibility-btn");
+                        visBtn && !visBtn.disabled && visBtn.click();
+                    }
+                }
+            });
         }
+
 
         setupCategoryARIA() {
             const categories = document.querySelectorAll('.operation-category');
@@ -626,104 +644,38 @@
                 const header = category.querySelector('.category-header');
                 const filesContainer = category.querySelector('.category-files');
                 const opType = category.dataset.opType;
+                if (!header) return;
+
+                // A tree may only own treeitems. role="button" here is what
+                // makes the whole container fail aria-required-children.
+                header.setAttribute('role', 'treeitem');
+                header.setAttribute('aria-label', `Add file to ${opType}`);
+                header.setAttribute('tabindex', index === 0 ? '0' : '-1');
+                header.setAttribute('aria-level', '1');
+                header.setAttribute('aria-selected', 'false');
 
                 if (filesContainer) {
                     const filesId = `category-files-${opType}`;
                     filesContainer.id = filesId;
                     filesContainer.setAttribute('role', 'group');
-                    if (header) {
-                        header.setAttribute('role', 'button');
-                        header.setAttribute('aria-label', `Add file to ${opType}`);
-                        header.setAttribute('tabindex', index === 0 ? '0' : '-1');
-                        header.setAttribute('aria-level', '1');
-                        header.setAttribute('aria-controls', filesId);
-                        header.removeAttribute('aria-expanded'); // Operations are no longer expandable. REVIEW IF THIS IS WORTH KEEPING?
-                    }
-                } else if (header) {
-                    header.setAttribute('role', 'button');
-                    header.setAttribute('aria-label', `Add file to ${opType}`);
-                    header.setAttribute('tabindex', index === 0 ? '0' : '-1');
-                    header.setAttribute('aria-level', '1');
-                    header.removeAttribute('aria-expanded');
+                    header.setAttribute('aria-controls', filesId);
+                    this.syncCategoryExpanded(category);
+                } else {
+                    header.removeAttribute('aria-expanded'); // REVIEW - Operations are no longer expandable. REVIEW IF THIS IS WORTH KEEPING?
                 }
             });
         }
 
-        handleTreeKeydown(e) {
-            const focused = document.activeElement;
-            if (!focused) return;
-
-            const isCategory = focused.classList.contains('category-header');
-            const isFileContent = focused.classList.contains('file-node-content');
-            const isGeometryContent = focused.classList.contains('geometry-node-content');
-
-            switch (e.key) {
-                case 'ArrowDown':
-                    e.preventDefault();
-                    this.moveFocusDown(focused);
-                    break;
-
-                case 'ArrowUp':
-                    e.preventDefault();
-                    this.moveFocusUp(focused);
-                    break;
-
-                case 'ArrowRight':
-                    e.preventDefault();
-                    if (isFileContent) {
-                        const firstGeo = focused.closest('.file-node')?.querySelector('.geometry-node-content');
-                        if (firstGeo) this.setFocusOnItem(focused, firstGeo);
-                    }
-                    break;
-
-                case 'ArrowLeft':
-                    e.preventDefault();
-                    if (isGeometryContent) {
-                        const parentFile = focused.closest('.file-node')?.querySelector('.file-node-content');
-                        if (parentFile) this.setFocusOnItem(focused, parentFile);
-                    } else if (isFileContent) {
-                        const header = focused.closest('.operation-category')?.querySelector('.category-header');
-                        if (header) this.setFocusOnItem(focused, header);
-                    }
-                    break;
-
-                case 'Enter':
-                case ' ':
-                    e.preventDefault();
-                    if (isCategory) {
-                        this.emit('categoryClick', focused.closest('.operation-category').dataset.opType);
-                    } else if (isFileContent) {
-                        this.activateFileNode(focused);
-                    } else if (isGeometryContent) {
-                        this.activateGeometryNode(focused);
-                    }
-                    break;
-
-                case 'Home':
-                    e.preventDefault();
-                    this.focusFirstItem();
-                    break;
-
-                case 'End':
-                    e.preventDefault();
-                    this.focusLastItem();
-                    break;
-
-                case 'Delete':
-                    e.preventDefault();
-                    this.handleDeleteOnFocused(focused, isFileContent, isGeometryContent);
-                    break;
-
-                case 'v':
-                case 'V':
-                    // Toggle visibility of focused item
-                    if (isFileContent || isGeometryContent) {
-                        e.preventDefault();
-                        const visBtn = focused.querySelector('.visibility-btn');
-                        if (visBtn) visBtn.click();
-                    }
-                    break;
-            }
+        /**
+         * A category with no files is a leaf; announcing it as collapsed
+         * promises children that are not there.
+         */
+        syncCategoryExpanded(category) {
+            const header = category?.querySelector('.category-header');
+            const files = category?.querySelector('.category-files');
+            if (!header) return;
+            if (files && files.querySelector('.file-node')) header.setAttribute('aria-expanded', 'true');
+            else header.removeAttribute('aria-expanded');
         }
 
         activateFileNode(fileContent) {
@@ -750,55 +702,24 @@
             document.querySelectorAll('.operation-category').forEach(cat => {
                 const header = cat.querySelector('.category-header');
                 if (header) items.push(header);
-                if (cat.classList.contains('expanded')) {
-                    cat.querySelectorAll('.file-node').forEach(fileNode => {
-                        // Add file content
-                        const fc = fileNode.querySelector('.file-node-content');
-                        if (fc) {
-                            items.push(fc);
-                            // Add buttons within file node
-                            fc.querySelectorAll('.btn-icon').forEach(btn => items.push(btn));
-                        }
 
-                        // Add geometry nodes and their buttons
-                        fileNode.querySelectorAll('.geometry-node').forEach(gn => {
-                            const gc = gn.querySelector('.geometry-node-content');
-                            if (gc) {
-                                items.push(gc);
-                                gc.querySelectorAll('.btn-icon').forEach(btn => items.push(btn));
-                            }
-                        });
+                // Categories render their files unconditionally. The only thing
+                // that takes a node out of the sequence is CSS hiding it, so
+                // that is what gets tested.
+                cat.querySelectorAll('.file-node').forEach(fileNode => {
+                    if (fileNode.offsetParent === null) return;
+
+                    const fc = fileNode.querySelector('.file-node-content');
+                    if (fc) items.push(fc);
+
+                    fileNode.querySelectorAll('.geometry-node').forEach(gn => {
+                        if (gn.offsetParent === null) return;
+                        const gc = gn.querySelector('.geometry-node-content');
+                        if (gc) items.push(gc);
                     });
-                }
+                });
             });
             return items;
-        }
-
-        moveFocusDown(current) {
-            const items = this.getVisibleTreeItems();
-            const i = items.indexOf(current);
-            if (items[i + 1]) this.setFocusOnItem(current, items[i + 1]);
-        }
-
-        moveFocusUp(current) {
-            const items = this.getVisibleTreeItems();
-            const i = items.indexOf(current);
-            if (items[i - 1]) this.setFocusOnItem(current, items[i - 1]);
-        }
-
-        setFocusOnItem(oldItem, newItem) {
-            if (oldItem) oldItem.setAttribute('tabindex', '-1');
-            if (newItem) { newItem.setAttribute('tabindex', '0'); newItem.focus(); }
-        }
-
-        focusFirstItem() {
-            const items = this.getVisibleTreeItems();
-            if (items[0]) this.setFocusOnItem(document.activeElement, items[0]);
-        }
-
-        focusLastItem() {
-            const items = this.getVisibleTreeItems();
-            if (items.length) this.setFocusOnItem(document.activeElement, items[items.length - 1]);
         }
 
         handleDeleteOnFocused(focused, isFileContent, isGeometryContent) {
@@ -848,6 +769,12 @@
          */
         startSuggestionCycle() {
             if (this.suggestionDismissed || this.suggestionInterval) return;
+            // Auto-updating motion with no stop control (WCAG 2.2.2). Users who
+            // asked for less motion get none.
+            if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+                this.dismissSuggestion();
+                return;
+            }
 
             // User already found the workflow on their own
             if (this.ui.TraceOperationPanel?.currentOperation) {
@@ -937,13 +864,6 @@
         debug(message, data = null) {
             if (this.ui.debug) this.ui.debug(`[NavTreePanel] ${message}`, data);
         }
-
-        // REVIEW - which version is more efficient for debug?
-        // debug(message, data = null) {
-        //     if (!debugState.enabled) return;
-        //     data ? console.log(`[ArcReconstructor] ${message}`, data)
-        //          : console.log(`[ArcReconstructor] ${message}`);
-        // }
     }
 
     window.NavTreePanel = NavTreePanel;

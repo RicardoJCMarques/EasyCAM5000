@@ -153,135 +153,254 @@
 
     <div class="doc-wrapper has-sidebar">
         <nav class="doc-sidebar" id="toc" aria-label="Table of contents">
-            <h2>Contents <span class="doc-badge doc-badge--stable">Stable</span></h2>
+            <p class="doc-sidebar-title">Contents</p>
             <ol>
                 <li><a href="#overview" draggable="false">Overview</a></li>
-                <li><a href="#op-isolation" draggable="false">Isolation Routing</a></li>
-                <li><a href="#op-drilling" draggable="false">Drilling</a></li>
+                <li><a href="#op-isolation" draggable="false">Copper Isolation</a></li>
+                <li><a href="#op-drill" draggable="false">Drill</a></li>
                 <li><a href="#op-clearing" draggable="false">Copper Clearing</a></li>
                 <li><a href="#op-cutout" draggable="false">Board Cutout</a></li>
-                <li><a href="#op-stencil" draggable="false">Solder Stencil</a></li>
+                <li><a href="#op-stencil" draggable="false">Stencil</a></li>
+                <li><a href="#ordering" draggable="false">Running Order</a></li>
             </ol>
         </nav>
 
         <main id="doc-content" class="doc-main">
+
+            <div class="callout callout--warning">
+                <p>Development goes fast, documentation may be outdated. Proceed with some caution.</p>
+            </div>
+
             <section class="hero hero--compact">
                 <h1>EasyTrace5000 Operation Guide</h1>
-                <p class="tagline">What each EasyTrace5000 operation does, and when to reach for it</p>
+                <p class="tagline">What each operation does, and when to reach for it</p>
             </section>
 
             <section id="overview">
                 <h2>Overview</h2>
-                <p>Each operation is its own bucket in the operations tree. You add source files directly to an operation, set its parameters, and generate geometry. Operations are independent and non-destructive - generating one never alters another. Every parameter named below is documented in full on the <a href="parameters" draggable="false">Parameter Guide</a>.</p>
-                <div class="callout callout--info">
-                    <p>Operations run in two stages: <strong>Geometry</strong> (offsets, drill strategy, apertures) via <em>Generate Offsets</em>, then <strong>Strategy</strong> (depth, feeds, entries) via <em>Generate Preview</em>. The Laser pipeline produces fills in a single geometry stage and skips Preview.</p>
-                </div>
+                <p>Each operation is its own entry in the tree. You give it a source file, set its parameters, and generate. Operations are independent - generating one never touches another. Every parameter named below is documented in full on the <a href="parameters" draggable="false">Parameter Guide</a>.</p>
+
+                <p>Five operations cover a board. Each one supports a set of machines, and the machine you choose changes how much you have to fill in: a router job needs depth, feeds and toolpaths, while a laser or knife job needs neither.</p>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th scope="col">Operation</th>
+                            <th scope="col">Source files</th>
+                            <th scope="col">Machines</th>
+                            <th scope="col">Suggested tool</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Copper Isolation</td>
+                            <td><code>.gbr</code> <code>.gbl</code> <code>.gtl</code> <code>.gbx</code> <code>.svg</code></td>
+                            <td>Router, Laser</td>
+                            <td>45° V-bit, 0.2 mm tip</td>
+                        </tr>
+                        <tr>
+                            <td>Drill</td>
+                            <td><code>.drl</code> <code>.xln</code> <code>.txt</code> <code>.tap</code> <code>.svg</code></td>
+                            <td>Router, Laser</td>
+                            <td>1.0 mm end mill</td>
+                        </tr>
+                        <tr>
+                            <td>Copper Clearing</td>
+                            <td><code>.gbr</code> <code>.gbl</code> <code>.gtl</code> <code>.gbx</code> <code>.svg</code></td>
+                            <td>Router, Laser</td>
+                            <td>0.8 mm end mill</td>
+                        </tr>
+                        <tr>
+                            <td>Board Cutout</td>
+                            <td><code>.gbr</code> <code>.gko</code> <code>.gml</code> <code>.gm1</code> <code>.svg</code></td>
+                            <td>Router, Laser</td>
+                            <td>1.0 mm end mill</td>
+                        </tr>
+                        <tr>
+                            <td>Stencil</td>
+                            <td><code>.gbr</code> <code>.gtp</code> <code>.gbp</code> <code>.svg</code></td>
+                            <td>Router, Laser, Vinyl Cutter/Drag knife</td>
+                            <td>0.5 mm end mill</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <p>Curved geometry stays curved all the way to the file, so an offset pad exports as a real arc rather than a string of tiny line segments - smaller programs, and no stuttering where your machine would otherwise chew through a polygon approximation.</p>
             </section>
 
             <section id="op-isolation">
-                <h2><svg class="cam-icon" width="22" height="22" aria-hidden="true"><use href="#icon-op-isolation"></use></svg> Isolation Routing <span class="doc-badge doc-badge--stable">Stable</span></h2>
-                <p>Cuts a clearance channel around copper so traces and pads become electrically isolated. It generates <strong>external offsets</strong> around copper geometry; multiple passes widen the cleared band outward from the trace edge.</p>
-                <p><strong>Use it for:</strong> the primary copper-separation pass on any single-layer board.</p>
-                <p><strong>Key parameters:</strong> tool diameter, number of passes, step-over, combine passes. More passes clear more copper between traces but take longer. Isolation can contain thousands of primitives, so only compound contours are resolved (not full inter-primitive merging) to keep generation fast.</p>
+                <h2><svg class="cam-icon" width="24" height="24" aria-hidden="true"><use href="#icon-op-isolation"></use></svg> Copper Isolation</h2>
+                <p>Cuts a clearance channel around copper so traces and pads end up electrically separated. Passes run outward from the copper edge; each extra pass widens the cleared band.</p>
+
+                <figure>
+                    <div class="doc-figure" data-figure="fig-isolation-passes.svg"></div>
+                    <figcaption>Passes step outward; the first sits one tool radius from the copper edge</figcaption>
+                </figure>
+
+                <p><strong>Use it for:</strong> the primary copper-separation pass on any single-sided board.</p>
+                <p><strong>Key parameters:</strong> tool diameter, number of passes, step-over, combine passes. More passes clear more copper between traces but take longer to cut.</p>
+                <p>V-bits are the usual choice here, and the width one cuts depends on how deep it goes - so the offsets are calculated from the width it will actually produce at your cut depth, not the number printed on the packet. Change your depth and the isolation width changes with it.</p>
+                <p><strong>On a laser</strong>, the same isolation width defines a band around the copper to ablate, filled by whichever strategy you choose. See the <a href="laser#strategies" draggable="false">Laser Guide</a>.</p>
             </section>
 
-            <section id="op-drilling">
-                <h2><svg class="cam-icon" width="22" height="22" aria-hidden="true"><use href="#icon-op-drilling"></use></svg> Drilling <span class="doc-badge doc-badge--stable">Stable</span></h2>
-                <p>Handles holes from Excellon files or SVG circles/obrounds. The handler measures each hole against the tool diameter and chooses a strategy automatically: a <strong>peck/plunge</strong> drill when the tool matches the hole, or a <strong>circular milling</strong> path when the hole is larger than the tool (enable <em>Mill Holes</em>).</p>
+            <section id="op-drill">
+                <h2><svg class="cam-icon" width="24" height="24" aria-hidden="true"><use href="#icon-op-drilling"></use></svg> Drill</h2>
+                <p>Handles holes from Excellon files and from SVG circles and obrounds. Each hole is measured against your tool and given a strategy automatically: drilled straight down when the tool matches, milled in a circle when the hole is bigger.</p>
+
+                <figure>
+                    <div class="doc-figure" data-figure="fig-drill-strategy.svg"></div>
+                    <figcaption>Green, yellow and red in the app follow the same three cases</figcaption>
+                </figure>
+
+                <p>A hole too small for the tool still gets marked, so nothing is silently dropped - it comes out oversize and you know exactly where it is. Obround slots become milled slots along their centreline. Anything else in the file is skipped with a warning rather than guessed at.</p>
+                <p><strong>SVG sources</strong> get an extra option: circles and obround-shaped paths can be treated as holes on import, so a hand-drawn board can be drilled without an Excellon file.</p>
+
+                <h3>Multi-tool drilling</h3>
+                <p>Turn on <em>Multi-Tool Drilling</em> for a table with a row per hole size. Each row gets its own strategy (peck, mill or skip), its own cutter diameter and its own tool number. The single-tool fields disappear while it is on, because the table is making those decisions instead.</p>
+                <ul>
+                    <li><strong>Auto-match Tool Library</strong> fills strategy and cutter from your tool library.</li>
+                    <li><strong>Copy Excellon T numbers</strong> pulls the numbers out of the file header. Those are the file's own indices, not your machine's slots - check them before you cut.</li>
+                    <li>A row with no tool number falls back to the operation's number rather than blocking the export.</li>
+                </ul>
+                <p>On export, a single-file job puts the tool changes inline. In multi-file mode, <em>Split drill files by hole diameter</em> writes one program per size - which is how you run a multi-tool drill job on a machine without a changer.</p>
                 <p><strong>Use it for:</strong> through-holes, vias, and slotted mounting holes.</p>
-                <p><strong>Multi-tool drilling.</strong> Turn on <em>Multi-Tool Drilling</em> to open a per-diameter table: every hole size gets its own strategy (peck, mill or skip), its own cutter diameter and its own T number. <em>Auto-match Tool Library</em> fills strategy and cutter from the tool library; <em>Copy Excellon T numbers</em> pulls the file's header indices, which are file indices and not magazine slots - check them against the machine. A size left without a T number inherits the operation's number rather than blocking.</p>
-                <p>On export, a single-file job emits the swaps inline. In multi-file mode, <em>Split drill files by hole diameter</em> writes one program per size so each file loads exactly one tool.</p>
-                <p><strong>Key parameters:</strong> mill holes + mill step-over (for oversize holes); canned cycle (G81/G82/G83/G73), peck depth, dwell time, retract height, and entry type for the drilling pass.</p>
+                <p><strong>Key parameters:</strong> mill holes and mill step-over; drill cycle (G81/G82/G83/G73), peck depth, dwell time, retract height; entry type and multi-depth for milled holes.</p>
             </section>
 
             <section id="op-clearing">
-                <h2><svg class="cam-icon" width="22" height="22" aria-hidden="true"><use href="#icon-op-clearing"></use></svg> Copper Clearing <span class="doc-badge doc-badge--stable">Stable</span></h2>
-                <p>Removes large copper areas (ground pours, fills) rather than just isolating them. It generates <strong>always-internal offsets</strong> that collapse inward until the region is cleared. Nested topology is resolved first - shapes inside shapes become holes - so inner islands aren't mistaken for "tool too large" errors.</p>
-                <p><strong>Use it for:</strong> clearing copper where isolation alone would leave too much conductive material (e.g. RF grounds, exposed pours).</p>
-                <p><strong>Key parameters:</strong> tool diameter and step-over. Clearing intentionally collapses geometry to nothing, so the small-circle guard is disabled for this operation.</p>
+                <h2><svg class="cam-icon" width="24" height="24" aria-hidden="true"><use href="#icon-op-clearing"></use></svg> Copper Clearing</h2>
+                <p>Removes large copper areas - ground pours, fills - rather than just isolating them. Passes work inward until the area is gone, and islands inside a pour are recognised and left standing.</p>
+                <p>Running out of material is the intended end state, so a message saying the geometry collapsed at some pass is this operation finishing normally.</p>
+                <p><strong>Use it for:</strong> boards where isolation alone would leave too much conductive copper - RF grounds, exposed pours, anything you plan to solder near.</p>
+                <p><strong>Key parameters:</strong> tool diameter and step-over. A larger tool clears far faster and is the right call unless the area has fine detail.</p>
+                <p><strong>On a laser</strong>, the copper itself is the area to ablate and your chosen strategy fills it.</p>
             </section>
 
             <section id="op-cutout">
-                <h2><svg class="cam-icon" width="22" height="22" aria-hidden="true"><use href="#icon-op-cutout"></use></svg> Board Cutout <span class="doc-badge doc-badge--stable">Stable</span></h2>
-                <p>Cuts the board free from the stock along its outline. Supports <strong>cut side</strong> (outside / inside / on-line) and <strong>holding tabs</strong> that leave small uncut bridges so the board doesn't shift on the final pass. Closure detection extracts closed loops from multi-segment outlines and prompts you to close any orphan gaps.</p>
-                <p><strong>Use it for:</strong> the final perimeter cut and any internal cut-outs (windows, large slots).</p>
-                <p><strong>Key parameters:</strong> cut side; number of tabs, tab width, tab height. Tab height is measured from the cut floor - a -0.5 mm tab on a -1.8 mm cut leaves a 0.5 mm bridge.</p>
+                <h2><svg class="cam-icon" width="24" height="24" aria-hidden="true"><use href="#icon-op-cutout"></use></svg> Board Cutout</h2>
+                <p>Cuts the board free from the stock along its outline, and cuts any internal openings.</p>
+
+                <figure>
+                    <div class="doc-figure" data-figure="fig-cut-side.svg"></div>
+                    <figcaption>Cut side decides which edge of the tool lands on your outline</figcaption>
+                </figure>
+
+                <p><strong>Holding tabs</strong> leave small uncut bridges so the board does not shift on the final pass. Tab height is measured up from the cut floor: a 0.5 mm tab on a 1.8 mm cut leaves 0.5 mm of material holding the board.</p>
+
+                <figure>
+                    <div class="doc-figure" data-figure="fig-cutout-tabs.svg"></div>
+                    <figcaption>Tabs interrupt the cut at evenly spaced positions</figcaption>
+                </figure>
+
+                <p>If your outline has small gaps where segments do not quite meet, you get a prompt offering to close them rather than an open path that would produce a nonsense toolpath. Multiple boards in one file, including nested openings, are handled as separate outlines.</p>
+                <p><strong>Use it for:</strong> the final perimeter cut and any internal cut-outs - windows, large slots, panel separations.</p>
+                <p><strong>Key parameters:</strong> cut side; number of tabs, tab width, tab height.</p>
             </section>
 
             <section id="op-stencil">
-                <h2><svg class="cam-icon" width="22" height="22" aria-hidden="true"><use href="#icon-op-stencil"></use></svg> Solder Stencil <span class="doc-badge doc-badge--stable">New</span></h2>
-                <p>Generates solder-paste stencil apertures from pad geometry. Unlike the other operations it doesn't use the offset milling pipeline - it filters source geometry down to pads, optionally shrinks or expands each aperture, and outputs a clean layer ready to laser- or vinyl-cut.</p>
-                <p><strong>Use it for:</strong> producing a paste stencil for SMD assembly.</p>
-                <p><strong>Key parameters:</strong> aperture offset (a small negative value such as -0.05 mm prevents bridging); ignore solid regions (pads only); exclude pads over drill holes; and optional registration holes (diameter + margin) for alignment.</p>
-                <div class="callout callout--info">
-                    <p>Stencil output is a 2D layer - open the Export Manager and export SVG (or PNG) for your laser/vinyl software. It does not produce milling G-code.</p>
-                </div>
+                <h2><svg class="cam-icon" width="24" height="24" aria-hidden="true"><use href="#icon-op-stencil"></use></svg> Stencil</h2>
+                <p>Generates solder-paste apertures from your pad geometry. It filters the source down to pads, shrinks or grows each aperture to suit your paste, and produces a layer ready to cut out of stencil stock.</p>
+                <p>Every machine can make one, and the same geometry serves all three:</p>
+                <dl>
+                    <dt>Laser</dt>
+                    <dd>Cuts the apertures directly. Nothing extra to configure - see the <a href="laser#stencil" draggable="false">Laser Guide</a>.</dd>
+                    <dt>Vinyl/Drag knife</dt>
+                    <dd>Produces a vector file with the blade offset applied, for a knife plotter or vinyl cutter.</dd>
+                    <dt>Router</dt>
+                    <dd>Mills the apertures out of thin stock, with depth and feeds like any other milling operation.</dd>
+                </dl>
+                <p>On the CNC route you choose between router and knife with the <strong>Stencil Output</strong> setting, which changes the rest of the form to match. On a laser there is nothing to choose.</p>
+
+                <h3>Aperture offset</h3>
+                <p>Shrinks or grows every aperture at once. A small negative value such as -0.05 mm is the usual starting point - slightly smaller apertures deposit slightly less paste, which is what stops bridging between close pads on fine-pitch parts.</p>
+
+                <h3>Corner radius</h3>
+                <p>Rounds the corners of each aperture. A vinyl cutter or drag knife need this, because their blade physically cannot turn a sharp corner - without a radius they can drag through and distorts the material. Set a radius smaller than the blade can produce and the corners come out square anyway.</p>
+                <p>On a laser or a router the radius is optional. Rounded apertures release paste marginally more cleanly, so it is worth trying on fine-pitch work, but square is fine.</p>
+
+                <h3>Registration holes</h3>
+                <p>Optional alignment holes outside the board, for pinning the stencil over the PCB. They ignore the aperture offset and the corner radius - they have to match your dowels, not your paste.</p>
+
+                <p><strong>Use it for:</strong> paste stencils for SMD assembly, cut on a laser, a knife plotter, or milled on the router.</p>
+                <p><strong>Key parameters:</strong> stencil output (CNC route only); aperture offset; ignore solid regions; exclude pads over drill holes; corner radius; registration holes with diameter and margin.</p>
+            </section>
+
+            <section id="ordering">
+                <h2>Running Order</h2>
+                <p>Operations are independent, but the order you export them in is not. A sensible default:</p>
+                <ol>
+                    <li><strong>Copper isolation</strong> - defines the trace boundaries while the board is still fully supported.</li>
+                    <li><strong>Copper clearing</strong> - removes the bulk, after the boundaries exist.</li>
+                    <li><strong>Drilling</strong> - often shares a tool with the cutout, which is worth planning for on a machine without a tool changer.</li>
+                    <li><strong>Board cutout</strong> - last, so the board stays attached for everything before it.</li>
+                </ol>
+                <p>The stencil is a separate piece of stock and can be cut whenever. Set the order in the Export Manager; the order in the tree does not affect the output.</p>
             </section>
 
         </main>
         <!-- Footer -->
         <footer class="doc-footer" aria-label="Footer">
             <p>
-                <a href="#doc-content" draggable="false" aria-label="Scroll back to top">Back to Top</a> |
-                <a href="https://github.com/RicardoJCMarques/EasyCAM5000" target="_blank" draggable="false" aria-label="GitHub Repository (opens in a new tab)">GitHub</a> |
-                <a href="/#support" draggable="false" aria-label="Support Development via Sponsorship">Support Development</a> |
-                <a href="../../LICENSE" target="_blank" draggable="false" aria-label="AGPLv3 License (opens in a new tab)">AGPLv3 Licensed</a> |
-                <a href="https://www.eltryus.design/" draggable="false" aria-label="Eltryus, developer of EasyCAM5000">by Eltryus</a>
+                <a href="#doc-content" draggable="false">Back to Top</a> |
+                <a href="https://github.com/RicardoJCMarques/EasyCAM5000" target="_blank" draggable="false">GitHub</a> |
+                <a href="/#support" draggable="false">Support Development</a> |
+                <a href="../../LICENSE" target="_blank" draggable="false">AGPLv3 Licensed</a> |
+                <a href="https://www.eltryus.design/" draggable="false">by ELTRYUS</a>
             </p>
         </footer>
-
     </div>
-
-    <!-- Scripts -->
-    <script defer src="../../themes/theme-loader.js"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            // Load the SVG Sprite
-            fetch('../../images/icons/sprite.svg')
-                .then(response => {
-                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                    return response.text();
-                })
-                .then(svgText => {
-                    const div = document.createElement('div');
-                    div.innerHTML = svgText;
-                    const svg = div.querySelector('svg');
-                    if (svg) {
-                        svg.setAttribute('aria-hidden', 'true');
-                        svg.style.cssText = 'position: absolute; width: 0; height: 0; visibility: hidden;';
-                        document.body.insertBefore(svg, document.body.firstChild);
-                    }
-                })
-                .catch(err => console.warn('Failed to load icon sprite:', err));
-
-            // Theme toggle
-            const themeBtn = document.getElementById('theme-toggle');
-            if (themeBtn && window.ThemeLoader) {
-                const useEl = themeBtn.querySelector('use');
-                const initialTheme = document.documentElement.getAttribute('data-theme') || 'dark';
-
-                if (useEl) useEl.setAttribute('href', initialTheme === 'dark' ? '#icon-sun' : '#icon-moon');
-
-                themeBtn.addEventListener('click', async () => {
-                    const theme = await window.ThemeLoader.toggleTheme();
-                    if (useEl) useEl.setAttribute('href', theme === 'dark' ? '#icon-sun' : '#icon-moon');
-                });
-            }
-
-            // Mobile menu toggle
-            const menuBtn = document.querySelector('.doc-menu-toggle');
-            const nav = document.querySelector('.doc-nav');
-            if (menuBtn && nav) {
-                const useEl = menuBtn.querySelector('use');
-                menuBtn.addEventListener('click', () => {
-                    const isExpanded = menuBtn.getAttribute('aria-expanded') === 'true';
-                    menuBtn.setAttribute('aria-expanded', !isExpanded);
-                    nav.classList.toggle('is-open');
-
-                    if (useEl) useEl.setAttribute('href', !isExpanded ? '#icon-close' : '#icon-menu');
-                });
-            }
-        });
-    </script>
 </body>
+
+<!-- Scripts -->
+<script defer src="../../themes/theme-loader.js"></script>
+<script src="../../figures.js" defer></script>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // Load the SVG Sprite
+        fetch('../../images/icons/sprite.svg')
+            .then(response => {
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                return response.text();
+            })
+            .then(svgText => {
+                const div = document.createElement('div');
+                div.innerHTML = svgText;
+                const svg = div.querySelector('svg');
+                if (svg) {
+                    svg.setAttribute('aria-hidden', 'true');
+                    svg.style.cssText = 'position: absolute; width: 0; height: 0; visibility: hidden;';
+                    document.body.insertBefore(svg, document.body.firstChild);
+                }
+            })
+            .catch(err => console.warn('Failed to load icon sprite:', err));
+
+        // Theme toggle
+        const themeBtn = document.getElementById('theme-toggle');
+        if (themeBtn && window.ThemeLoader) {
+            const useEl = themeBtn.querySelector('use');
+            const initialTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+
+            if (useEl) useEl.setAttribute('href', initialTheme === 'dark' ? '#icon-sun' : '#icon-moon');
+
+            themeBtn.addEventListener('click', async () => {
+                const theme = await window.ThemeLoader.toggleTheme();
+                if (useEl) useEl.setAttribute('href', theme === 'dark' ? '#icon-sun' : '#icon-moon');
+            });
+        }
+
+        // Mobile menu toggle
+        const menuBtn = document.querySelector('.doc-menu-toggle');
+        const nav = document.querySelector('.doc-nav');
+        if (menuBtn && nav) {
+            const useEl = menuBtn.querySelector('use');
+            menuBtn.addEventListener('click', () => {
+                const isExpanded = menuBtn.getAttribute('aria-expanded') === 'true';
+                menuBtn.setAttribute('aria-expanded', !isExpanded);
+                nav.classList.toggle('is-open');
+
+                if (useEl) useEl.setAttribute('href', !isExpanded ? '#icon-close' : '#icon-menu');
+            });
+        }
+    });
+</script>
 </html>

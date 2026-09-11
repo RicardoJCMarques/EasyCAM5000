@@ -28,6 +28,7 @@
 
 (function() {
     'use strict';
+    const ROOT = globalThis;
 
     // ─── Field worker pool ────────────────────────────────────────────
     // N workers (defaults to cores-1, capped). Jobs go to the least-busy
@@ -41,19 +42,15 @@
         _seq: 0,
 
         /**
-         * Auto by default. navigator.hardwareConcurrency is universally
-         * supported and browsers already clamp it (Safari caps at 8, some
-         * report a privacy-reduced value), so it needs no ladder - but the
-         * ceiling here is MEMORY, not threads: every field worker holds a
-         * transferred mesh copy plus several full grids, so 16 of them on a
-         * dense STL is gigabytes. V-carve jobs are small and saturate well
-         * below the cap anyway.
-         * CAMConfig.defaults.fieldWorkerPool > 0 forces an explicit size.
+         * Auto by default. One core is left for the main thread and the pool caps
+         * at 8 - the field jobs are memory-bound past that, not CPU-bound.
+         * navigator is absent in Node, so the 4 is the headless default rather
+         * than a fallback for an old browser.
          */
         _poolSize() {
-            const cfg = window.CAMConfig.defaults.fieldWorkerPool;
+            const cfg = ROOT.CAMConfig.defaults.fieldWorkerPool;
             if (cfg > 0) return cfg;
-            const hw = navigator.hardwareConcurrency || 4;
+            const hw = (typeof navigator !== 'undefined' && navigator.hardwareConcurrency) || 4;
             return Math.max(2, Math.min(hw - 1, 8));
         },
 
@@ -81,11 +78,12 @@
                 }
                 return out;
             };
-            this._constantsCache = strip(window.CAMConfig.constants);
+            this._constantsCache = strip(ROOT.CAMConfig.constants);
             return this._constantsCache;
         },
 
         _spawn(url) {
+            if (typeof Worker === 'undefined') throw new Error('Worker unavailable'); // Drop out when workers are blocked or not available. _get() already treats a throw as "no pool" and falls back to the sync path
             const entry = { worker: null, jobs: new Map() };
             const w = new Worker(url);
             w.onmessage = (e) => {
@@ -130,14 +128,16 @@
             return entry;
         },
 
-        /** Call once at app init (idle) so the first generation doesn't
-         *  pay importScripts cold-start. Safe to skip - lazy init works. */
+        /**
+         * Call once at app init (idle) so the first generation doesn't
+         * pay importScripts cold-start. Safe to skip - lazy init works.
+         */
         warmUp() { this._get(); },
 
         _get() {
             if (this._pool !== null) return this._pool;
             try {
-                const url = window.CAMConfig.paths.fieldWorker;
+                const url = ROOT.CAMConfig.paths.fieldWorker;
                 const n = this._poolSize();
                 this._pool = [];
                 for (let i = 0; i < n; i++) this._pool.push(this._spawn(url));
@@ -169,7 +169,7 @@
             // top-level debugState snapshots bind to a LIVE object; later
             // jobs mutate that same object, so a mid-session debug toggle
             // reaches every warm worker on its next job.
-            const dbg = window.CAMConfig.defaults.debug;
+            const dbg = ROOT.CAMConfig.defaults.debug;
             const msg = {
                 id, kind: job.kind, genOptions: job.genOptions,
                 debug: { enabled: dbg.enabled === true }
@@ -212,7 +212,7 @@
             });
         }
     };
-    window.FieldWorkerClient = FieldWorkerClient; // vcarve handler uses it too
+    ROOT.FieldWorkerClient = FieldWorkerClient; // vcarve handler uses it too
 
     // ════════════════════════════════════════════════════════════════
     // FieldParams - the shared parameter interpretation point.
@@ -232,7 +232,7 @@
          * config (rotaryAxis 'x', model lying down) hands mul() two nulls.
          */
         composeOrient(a, b) {
-            const T = window.Transform3D;
+            const T = ROOT.Transform3D;
             if (a && b) return T.assertRotation(T.mul(a, b), 'field orient');
             return a || b || null;
         },
@@ -298,7 +298,7 @@
             // Tool-derived: a lip of 0 makes 'lip' indistinguishable
             // from an outward extension of the model's edge.
             const autoLip = toolD *
-                (window.CAMConfig?.constants?.rotary?.autoLipFraction ?? 0.1);
+                (ROOT.CAMConfig?.constants?.rotary?.autoLipFraction ?? 0.1);
 
             const end = (mode, mm) => {
                 // profile-shape.json labels this end mode 'rollover'; the
@@ -431,7 +431,7 @@
             return (machineAxis === 'y') ? -1 : 1;
         }
     };
-    window.FieldParams = FieldParams;
+    ROOT.FieldParams = FieldParams;
 
     const DEG = Math.PI / 180;
 
@@ -471,7 +471,7 @@
             // Face normals in the visual frame: n_k = R(-θk)·ẑ. Routed
             // through Transform3D, never hand-derived: this is one of the
             // four coupled sign sites.
-            const T = window.Transform3D;
+            const T = ROOT.Transform3D;
             const nu = new Float64Array(n);
             const nv = new Float64Array(n);
             for (let k = 0; k < n; k++) {
@@ -657,7 +657,7 @@
                 `window=${p.depthWindow.toFixed(2)}mm (gap ${p.gapMax.toFixed(1)}°)`;
         }
     };
-    window.IndexedBlank = IndexedBlank;
+    ROOT.IndexedBlank = IndexedBlank;
 
     // ════════════════════════════════════════════════════════════════
     // FieldOperationHandler
@@ -682,7 +682,7 @@
             // earlier run still in flight sees the mismatch and discards its
             // result instead of clobbering the newer field.
             const token = this.beginRun(operation, options, core);
-            const opParams = core.compileOperationParams(operation, params);
+            const opParams = core.pipelineContext.compileOperationParams(operation, params);
             const merged = { ...params, ...opParams };
 
             await this.generateGeometry(operation, merged);
@@ -904,25 +904,10 @@
             return out;
         }
 
-        /** Container → pipeline primitive wrapper. */
-        wrapField(container) {
-            return (container instanceof CylMap)
-                ? new CylMapPrimitive(container)
-                : new HeightmapPrimitive(container);
-        }
-
-        /**
-         * Publishes the representative field for this operation.
-         *
-         * NOT mirrored into operation.primitives: that array is source
-         * geometry, rebuilt from the scene by OperationBucket.syncPrimitives
-         * on every regeneration, and nothing renders a heightmap or cylmap
-         * from it. operation.bounds is syncPrimitives' - a padded grid extent
-         * is not the shape's footprint.
-         */
+        /** Publishes the representative field for this operation. */
         cacheFields(operation, ctx) {
             const container = ctx.containers[0];
-            operation.fieldPrimitive = container ? this.wrapField(container) : null;
+            operation.fieldPrimitive = container ? (container instanceof CylMap ? new CylMapPrimitive(container) : new HeightmapPrimitive(container)) : null;
         }
 
         /**
@@ -945,7 +930,7 @@
                     pass: 1,
                     type: `${prefix}-roughing`,
                     primitives: roughing,
-                    metadata: { ...sharedMeta, finalCount: roughing.length },
+                    metadata: { ...sharedMeta },
                     settings: { ...settings }
                 });
             }
@@ -956,7 +941,7 @@
                     pass: offsets.length + 1,
                     type: `${prefix}-finishing`,
                     primitives: finishing,
-                    metadata: { ...sharedMeta, finalCount: finishing.length },
+                    metadata: { ...sharedMeta },
                     settings: { ...settings }
                 });
             }
@@ -991,5 +976,5 @@
         pipelineLabel() { return this.passTypePrefix().toUpperCase(); }
     }
 
-    window.FieldOperationHandler = FieldOperationHandler;
+    ROOT.FieldOperationHandler = FieldOperationHandler;
 })();

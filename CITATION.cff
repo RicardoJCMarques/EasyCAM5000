@@ -10,14 +10,19 @@ authors:
 repository-code: 'https://github.com/RicardoJCMarques/EasyCAM5000'
 url: 'https://cam.eltryus.design'
 abstract: >-
-  An open-source, browser-based and client-side CAM tools for makers. From PCB isolation routing to 2.5-3D milling operations.
+  A suite of open-source, browser-based CAM tools for makers, running entirely client-side. EasyTrace5000 converts PCB fabrication Gerber files into isolation milling G-code or laser output; EasyShape5000 covers 2.5D and 3D CNC routing from SVG vector and STL mesh sources, including 4th-axis work.
 keywords:
   - CAM
+  - CNC-router
+  - Laser
   - PCB
   - G-code
   - Gerber
-  - WebAssembly
-  - CNC
-license: AGPL-3.0
-version: 1.4.9
-date-released: '2026-01-12'
+  - Excellon
+  - Isolation-routing
+  - V-carve
+  - 3D Relief
+  - 4th Axis
+license: AGPL-3.0-or-later
+version: 1.6.1
+date-released: '2026-09-11'

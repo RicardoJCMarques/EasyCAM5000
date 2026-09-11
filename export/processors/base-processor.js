@@ -11,8 +11,9 @@
 
 (function() {
     'use strict';
+    const ROOT = globalThis;
 
-    const PRECISION = window.CAMConfig.constants.precision.coordinate;
+    const PRECISION = ROOT.CAMConfig.constants.precision.coordinate;
 
     /**
      * The contract every post-processor descriptor satisfies, whether it
@@ -114,19 +115,18 @@
                     supportsCannedCycles: this.config.supportsCannedCycles || false,
                     supportsComments: this.config.supportsComments !== false,
                     supportsLineNumbers: this.config.supportsLineNumbers !== false,
+                    supportsUnits: this.config.supportsUnits !== false,
+                    supportsCoolant: this.config.supportsCoolant !== false,
                     arcFormat: this.config.arcFormat || null,
                     // 4th-axis capability. Normalized object.
                     rotary: BasePostProcessor.normalizeRotary(this.config.rotary),
                 },
-                defaults: this.config.defaults || {
-                    startCode: '',
-                    endCode: '',
-                },
+                defaults: this.config.defaults || {startCode: '', endCode: ''},
                 limits: {
-                    maxSpindleSpeed: this.config.maxSpindleSpeed || 30000,
-                    maxRapidRate: this.config.maxRapidRate || 1000,
+                    maxSpindleSpeed: this.config.maxSpindleSpeed,
+                    maxRapidRate: this.config.maxRapidRate,
                 },
-                customParameters: this.config.customParameters || [],
+                parameters: this.config.parameters
 
             };
             this.outputScale = 1.0;
@@ -190,7 +190,7 @@
                 axisWords: Array.isArray(decl.axisWords) ? decl.axisWords.slice() : ['A'],
                 inverseTime: decl.inverseTime === true,
                 maxInverseTime: decl.maxInverseTime ||
-                    window.CAMConfig.constants.rotary.maxInverseTime,
+                    ROOT.CAMConfig.constants.rotary.maxInverseTime,
                 indexDwell: decl.indexDwell || 0,
                 // TODO(rotary-indexer) - declared and carried through
                 // context.export, but nothing refuses accumulated-A on a
@@ -278,7 +278,7 @@
             let startCode = options.startCode;
 
             // Replace placeholders
-            startCode = startCode.replace(/{toolNumber}/g, options.toolNumber ?? 1); // Every control refuses motion until a T word arrives, changer or not. T1 is a safe default for a single-tool job.
+            startCode = startCode.replace(/{toolNumber}/g, options.toolNumber ?? '');
 
             // Conditionally add coolant/vacuum commands
             if (options.coolant && options.coolant !== 'none' && !startCode.includes('M7') && !startCode.includes('M8')) {
@@ -362,34 +362,26 @@
 
         /**
          * Declares the tool in the spindle before any motion. NOT a change.
-         *
          * Emitted on every job, tool changes on or off: a control with a
-         * changer must be TOLD to load the first tool (latching a tracker
-         * and emitting nothing ran the first operation with whatever was
-         * already in the spindle and whatever length offset was live), and a
-         * control without one still refuses motion until a T word arrives.
-         *
-         * When the post uses M6 this routes through toolChangeSwap so the
-         * first load takes the same audited T/M6 + G43 path as every later
-         * change - minus the retract and spindle stop, which have no previous
-         * tool to protect at program start.
+         * changer must be TOLD to load the first tool (latching a tracker and
+         * emitting nothing ran the first operation with whatever was already in
+         * the spindle and whatever length offset was live), and a control
+         * without one still refuses motion until a T word arrives.
+         * When the post uses M6 this routes through toolChangeSwap so the first
+         * load takes the same audited T/M6 + G43 path as every later change -
+         * minus the retract and spindle stop, which have no previous tool to
+         * protect at program start.
+         * A null number means a route that emits no T word - laser and
+         * knife/vector never carry one. Router operations always arrive with
+         * a number: the profile's `toolNumber` field defaults to 1 and
+         * generation is blocked when the operator clears it.
          */
         generateInitialTool(tool, options = {}) {
             if (this.config.emitsInitialTool === false) return '';
-
-            const assigned = tool?.number ?? options.toolNumber ?? null;
-            const n = assigned ?? 1; // Every control refuses motion until a T word arrives, changer or not. T1 is a safe default for a single-tool job.
+            const n = tool?.number ?? options.toolNumber ?? null;
+            if (n === null) return '';
             this.currentToolNumber = n;
-
             const lines = [];
-            if (assigned == null) {
-                this.pushCommentLine(
-                    lines,
-                    (options.comments?.toolFallback || 'No tool number assigned - defaulting to T{n}').replace('{n}', n),
-                    options
-                );
-            }
-
             if (this.config.useM6 && this.config.supportsToolChange) {
                 lines.push(...this.toolChangeSwap(n, options));
             } else {
@@ -474,8 +466,10 @@
             if (!this.config.supportsToolChange) return '';
             const c = options.comments || {};
             const n = tool?.number ?? options.toolNumber ?? null;
-            if (n == null) return ''; // caller gates on number > 0; nothing to emit
-
+            // Null is a route that emits no T word. GCodeGenerator gates the
+            // swap on number > 0, so this is only reached with a real one.
+            // Symmetric with generateInitialTool.
+            if (n == null) return '';
             const lines = [''];
 
             this.pushCommentLine(lines,
@@ -517,15 +511,25 @@
             return lines.join('\n');
         }
 
-        // Base formatter that safely strips trailing zeros and handles -0
-        formatNumberSafe(value, precision, scale = 1.0) {
-            if (value == null) return ''; // Catches null and undefined
-
+        /**
+         * Every emitted number passes through here.
+         * null/undefined mean the word is absent, which is what an omitted
+         * coordinate means everywhere else: the control holds its last value.
+         * Non-finite is not that. NaN and Infinity survive every downstream
+         * test - `NaN > maxFeed` and `NaN < maxSafeDepth` are both false - and
+         * toFixed renders them verbatim, so the word reaches the control as the
+         * literal text `NaN`. Drop it and count it; GCodeGenerator refuses the
+         * program on a non-zero count, so the drop is never silent.
+         */
+        formatNumberSafe(value, precision, scale = 1) {
+            if (value == null) return '';
+            if (!Number.isFinite(value)) {
+                this.numericFaults++;
+                return '';
+            }
             const scaled = value * scale;
-            if (precision === 0) return Math.round(scaled).toString();
-
             // toFixed clamps precision, parseFloat strips trailing zeros & fixes '-0'
-            return parseFloat(scaled.toFixed(precision)).toString();
+            return precision === 0 ? Math.round(scaled).toString() : parseFloat(scaled.toFixed(precision)).toString();
         }
 
         formatCoordinate(value) { 
@@ -776,17 +780,8 @@
             return code;
         }
 
-        generatePlunge(cmd) {
-            return this.generateLinear(cmd);
-        }
-
-        generateRetract(cmd) {
-            return this.generateRapid(cmd);
-        }
-
         generateDwell(cmd) {
-            const duration = cmd.dwell || cmd.duration || 0;
-            return `G4 P${this.formatDwell(duration)}`;
+            return `G4 P${this.formatDwell(cmd.dwell || cmd.duration || 0)}`;
         }
 
         processCommand(cmd) {
@@ -795,8 +790,8 @@
                 case 'LINEAR': return this.generateLinear(cmd);
                 case 'ARC_CW':
                 case 'ARC_CCW': return this.generateArc(cmd);
-                case 'PLUNGE': return this.generatePlunge(cmd);
-                case 'RETRACT': return this.generateRetract(cmd);
+                case 'PLUNGE': return this.generateLinear(cmd);
+                case 'RETRACT': return this.generateRapid(cmd);
                 case 'DWELL': return this.generateDwell(cmd);
                 case 'CANNED_SIMPLE': 
                     if (this.generateSimpleDrill) return this.generateSimpleDrill({x: cmd.x, y: cmd.y}, cmd.z, cmd.retract, cmd.f, cmd.dwell);
@@ -1008,8 +1003,6 @@
             // (2) is authoritative for user feedback; (3) is authoritative for
             // correctness. (1) can mask (2) if its max is tighter than the
             // machine's - check the profile before suspecting this method.
-            // REVIEW - maxSafeDepth needs to be managed per app since valid depths
-            // aren't the same. Single source of truth, or 1 warning + 1 validation.
             const maxSafeDepth = options.maxSafeDepth;
 
             // Non-finite words. `cmd.f > limit` below is NaN-blind - NaN > x is
@@ -1054,10 +1047,19 @@
             // thickness has no meaning there, and a legitimate 'surface'-datum
             // rotary job cuts far past any flat-stock limit. rotaryAxisWord is set
             // per plan by the generator exactly when a plan is 4th-axis.
-            if (!ctx.rotaryAxisWord
-                && cmd.z !== undefined && cmd.z !== null
-                && typeof maxSafeDepth === 'number' && cmd.z < maxSafeDepth) {
-                warnings.push(`Commanded Z depth (${cmd.z.toFixed(3)}mm) exceeds the machine's configured max safe depth (${maxSafeDepth}mm). Verify your stock thickness and Z-zero.`);
+            const z = cmd.z;
+            if (z !== undefined && z !== null && Number.isFinite(z)) {
+                if (!ctx.rotaryAxisWord && typeof maxSafeDepth === 'number' && z < maxSafeDepth) {
+                    warnings.push(`Commanded Z depth (${z.toFixed(3)}mm) exceeds the machine's configured max safe depth (${maxSafeDepth}mm). Verify your stock thickness and Z-zero.`);
+                }
+                // Absolute machine floor. Unlike maxSafeDepth this is not a
+                // stock rule and the rotary exemption does not apply: a control
+                // whose Z0 is the bed cannot reach a negative Z at all, and the
+                // operator cannot fix it by re-zeroing. Posts that can reach
+                // negative Z declare no zFloor.
+                if (typeof ctx.zFloor === 'number' && z < ctx.zFloor) {
+                    errors.push(`Commanded Z ${z.toFixed(3)}mm is below this machine's absolute Z floor (${ctx.zFloor}mm). Set a work offset so the program runs in positive Z.`);
+                }
             }
 
             return { warnings: warnings, errors: errors };
@@ -1065,6 +1067,7 @@
 
         validateCommand(cmd, options = {}) {
             return BasePostProcessor.validateCommandLimits(cmd, options, {
+                zFloor: this.descriptor.limits?.zFloor ?? null,
                 maxRapidRate: this.descriptor.limits.maxRapidRate,
                 inverseTime: this.modalState.feedRateMode === 'G93',
                 maxInverseTime: this.rotaryCaps?.maxInverseTime,
@@ -1082,6 +1085,8 @@
             this.rotaryAxisWord = null;
             this.rotaryWordUsed = null;
             this.tlcMode = 'none';
+            // Non-finite values formatNumberSafe refused to emit this run.
+            this.numericFaults = 0;
             // Canned cycle modal state - tracks last-emitted parameters
             this.cannedState = {
                 cycleType: null,
@@ -1101,5 +1106,5 @@
         }
     }
 
-    window.BasePostProcessor = BasePostProcessor;
+    ROOT.BasePostProcessor = BasePostProcessor;
 })();

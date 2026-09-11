@@ -11,6 +11,7 @@
 
 (function() {
     'use strict';
+    const ROOT = globalThis;
 
     class Mach3PostProcessor extends BasePostProcessor {
         constructor() {
@@ -51,5 +52,5 @@
         }
     }
 
-    window.Mach3PostProcessor = Mach3PostProcessor;
+    ROOT.Mach3PostProcessor = Mach3PostProcessor;
 })();

@@ -11,6 +11,7 @@
 
 (function() {
     'use strict';
+    const ROOT = globalThis;
 
     class GrblHALPostProcessor extends BasePostProcessor {
         constructor() {
@@ -55,5 +56,5 @@
         }
     }
 
-    window.GrblHALPostProcessor = GrblHALPostProcessor;
+    ROOT.GrblHALPostProcessor = GrblHALPostProcessor;
 })();

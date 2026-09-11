@@ -13,7 +13,6 @@
 
 (function() {
     'use strict';
-
     const ROOT = (typeof self !== 'undefined') ? self : window;
     const C = ROOT.CAMConfig.constants;
     const D = ROOT.CAMConfig.defaults;
@@ -92,7 +91,6 @@
                     // If circle radius exceeds floor clamp, generate circular floor loop; otherwise single plunge
                     if (null !== tClamp && circleInfo.radius > tClamp && floorLoops.length > 0) {
                         const floorProps = {
-                            isVCarve: true,
                             is3DContour: true,
                             role: "vcarve_path",
                             vcarvePass: "floor-perimeter",
@@ -186,7 +184,6 @@
                     : { points: l.points || [], isHole: true === l.isHole });
 
                 const floorProps = (pass, extra) => ({
-                    isVCarve: true,
                     is3DContour: true,
                     role: 'vcarve_path',
                     vcarvePass: pass,
@@ -1377,29 +1374,14 @@
         runInsideLoop(run, ring) {
             if (!run || run.length < 2 || !ring || ring.length < 3) return false;
             const last = run.length - 1;
-            const mid = {
-                x: run[last >> 1].x,
-                y: run[last >> 1].y
-            };
-            if (!this.pointInRing(mid, ring)) return false;
+            const mid = { x: run[last >> 1].x, y: run[last >> 1].y };
+            if (!ROOT.GeometryPoints.pointInPolygon(mid, ring)) return false;
             let inside = 0;
             for (const f of [0.16, 0.33, 0.5, 0.66, 0.83]) {
                 const idx = Math.min(last - 1, Math.floor(f * last));
-                if (this.pointInRing(run[idx], ring)) inside++;
+                ROOT.GeometryPoints.pointInPolygon(run[idx], ring) && inside++;
             }
             return inside >= 3;
-        },
-
-        pointInRing(pt, ring) {
-            let inside = false;
-            for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
-                const yi = ring[i].y, yj = ring[j].y;
-                if ((yi > pt.y) !== (yj > pt.y)) {
-                    const xInt = ring[i].x + (pt.y - yi) / (yj - yi) * (ring[j].x - ring[i].x);
-                    if (pt.x < xInt) inside = !inside;
-                }
-            }
-            return inside;
         },
 
         closedPerimeter(loop, zFloor) {
@@ -1571,7 +1553,6 @@
                 if (points.length < 2) return;
 
                 const properties = {
-                    isVCarve: true,
                     is3DContour: true,
                     role: 'vcarve_path',
                     vcarvePass: chain.split ? 'groove-split' : 'groove',

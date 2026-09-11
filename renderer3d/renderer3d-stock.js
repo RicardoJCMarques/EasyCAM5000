@@ -34,15 +34,15 @@ export class StockLayer3D {
      */
     setStock(box) {
         this.removeStock();
-        const w = box.width ?? (box.maxX - box.minX);
-        const d = box.depth ?? (box.maxY - box.minY);
+        const w = box.width ?? box.maxX - box.minX;
+        const d = box.depth ?? box.maxY - box.minY;
         const t = box.thickness || 10;
         const topZ = box.topZ ?? 0;
-        if (!(w > 0) || !(d > 0)) return;
+        if (!(w > 0 && d > 0)) return;
 
         const geo = new THREE.BoxGeometry(w, d, t);
-        const cx = box.centerX ?? ((box.minX ?? 0) + w / 2);
-        const cy = box.centerY ?? ((box.minY ?? 0) + d / 2);
+        const cx = box.centerX ?? (box.minX ?? 0) + w / 2;
+        const cy = box.centerY ?? (box.minY ?? 0) + d / 2;
         geo.translate(cx, cy, topZ - t / 2);
 
         const mat = new THREE.MeshStandardMaterial({
@@ -77,8 +77,8 @@ export class StockLayer3D {
                 0,   0,   1, 0,
                 0,   0,   0, 1
             );
+            this.stockMesh.updateMatrixWorld(true);
         }
-
         this.group.add(this.stockMesh);
     }
 

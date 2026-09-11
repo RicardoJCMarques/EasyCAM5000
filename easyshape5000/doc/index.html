@@ -143,6 +143,7 @@
             <a href="guide" draggable="false">Workflow Guide</a>
             <a href="operations" draggable="false">Operations</a>
             <a href="parameters" draggable="false">Parameters</a>
+            <a href="accessibility" draggable="false">Accessibility</a>
             <span class="separator" aria-hidden="true"></span>
             <a href="/easyshape5000/" draggable="false">Launch App</a>
             <a href="https://github.com/RicardoJCMarques/EasyCAM5000" target="_blank" draggable="false" aria-label="GitHub Repository (opens in a new tab)">GitHub</a>
@@ -156,9 +157,13 @@
     <div class="doc-wrapper">
         <main id="doc-content" class="doc-main doc-main--wide">
 
+            <div class="callout callout--warning">
+                <p>Development goes fast, documentation may be outdated. Proceed with some caution.</p>
+            </div>
+
             <section class="hero">
                 <h1>EasyShape5000 Documentation</h1>
-                <p class="tagline">2.5D cutting, V-carving, flat 3d relief and 4th-axis rotary, from SVG and STL</p>
+                <p class="tagline">Flat cutting, V-carving, 3D relief and 4th-axis rotary, from SVG and STL</p>
 
                 <figure>
                     <img src="../../images/EasyShape5000_workspace.webp" width="1152" height="648" alt="EasyShape5000 workspace with loaded SVG geometry">
@@ -173,51 +178,67 @@
 
             <section id="introduction">
                 <h2>What is EasyShape5000?</h2>
-                <p>EasyShape5000 is an open-source, browser-based CAM tool for CNC routers. It takes SVG designs and generates G-code for common 2.5D operations - profile cuts, pocket clearing, drilling, and engraving. A simpler, browser-native alternative to tools like Easel or Carbide Create.</p>
-                <p>Like its sister app <a href="/easytrace5000/doc/" draggable="false">EasyTrace5000</a> (built for PCB fabrication), everything runs client-side. No installation, no cloud, no accounts. Your files stay on your machine.</p>
+                <p>EasyShape5000 is an open-source, browser-based CAM tool for CNC routers. It reads SVG artwork and STL meshes and writes G-code: profile cuts, pocket clearing, drilling and engraving from vectors, and V-carving, 3D relief and 4th-axis rotary from meshes. A browser-native alternative to Easel or Carbide Create that does not stop at flat work.</p>
+                <p>Like its sister app <a href="/easytrace5000/doc/" draggable="false">EasyTrace5000</a>, built for PCB fabrication, everything runs on your own machine. No installation, no cloud, no accounts.</p>
                 <div class="callout callout--info">
                     <h3>Current Status</h3>
-                    <p>Profile, pocket, drilling and engraving are stable. The 3D set - V-carve, relief, and rotary in both continuous radial and indexed 3+1 kinematics - is newer and under active testing, as is automatic tool changing. Report issues on <a href="https://github.com/RicardoJCMarques/EasyCAM5000/issues" target="_blank" draggable="false">GitHub</a>.</p>
+                    <p>Profile, pocket, drilling and engraving are stable. The 3D set - V-carve, relief, and rotary in both continuous and indexed 3+1 - is newer and under active testing, as is automatic tool changing. Report anything odd on <a href="https://github.com/RicardoJCMarques/EasyCAM5000/issues" target="_blank" draggable="false">GitHub</a>.</p>
                 </div>
             </section>
 
             <section id="operations">
                 <h2>Operations</h2>
-                <p>EasyShape5000 assigns operations per shape. Select shapes in the scene tree, pick an operation type, configure parameters, and generate toolpaths. Rotary is one operation type with two engines - the cards below split it because the setup differs enough to matter.</p>
-                <div class="pipeline-grid">
-                    <div class="pipeline-card pipeline-card--active">
-                        <h3><svg class="cam-icon" width="24" height="24" aria-hidden="true"><use href="#icon-op-profile"></use></svg> Profile Cut <span class="doc-badge doc-badge--stable">Stable</span></h3>
-                        <p>Cuts along the outside, inside, or directly on a closed shape boundary. Supports nesting detection and holding tabs.</p>
-                    </div>
-                    <div class="pipeline-card pipeline-card--active">
-                        <h3><svg class="cam-icon" width="24" height="24" aria-hidden="true"><use href="#icon-op-pocket"></use></svg> Pocket Clearing <span class="doc-badge doc-badge--stable">Stable</span></h3>
-                        <p>Clears material from the interior of closed shapes using concentric inward offsets with configurable stepover.</p>
-                    </div>
-                    <div class="pipeline-card pipeline-card--active">
-                        <h3><svg class="cam-icon" width="24" height="24" aria-hidden="true"><use href="#icon-op-drilling"></use></svg> Drilling <span class="doc-badge doc-badge--stable">Stable</span></h3>
-                        <p>Converts SVG circles and obrounds into drill holes or milled slots. Auto-selects peck or mill strategy.</p>
-                    </div>
-                    <div class="pipeline-card pipeline-card--active">
-                        <h3><svg class="cam-icon" width="24" height="24" aria-hidden="true"><use href="#icon-op-engrave"></use></svg> Engraving <span class="doc-badge doc-badge--stable">Stable</span></h3>
-                        <p>Zero-offset centreline cutting. The tool follows the path exactly, on open and closed geometry alike.</p>
-                    </div>
-                    <div class="pipeline-card pipeline-card--dev">
-                        <h3><svg class="cam-icon" width="24" height="24" aria-hidden="true"><use href="#icon-op-vcarve"></use></svg> V-Carve <span class="doc-badge doc-badge--dev">Beta</span></h3>
-                        <p>Variable-depth V-bit carving driven by the medial axis of each region, with flat floors where the bit bottoms out.</p>
-                    </div>
-                    <div class="pipeline-card pipeline-card--dev">
-                        <h3><svg class="cam-icon" width="24" height="24" aria-hidden="true"><use href="#icon-op-relief"></use></svg> 3D Relief <span class="doc-badge doc-badge--dev">Beta</span></h3>
-                        <p>Surfaces an STL as a height field with roughing layers and a finishing raster, compensated for the real tool shape.</p>
-                    </div>
-                    <div class="pipeline-card pipeline-card--dev">
-                        <h3><svg class="cam-icon" width="24" height="24" aria-hidden="true"><use href="#icon-op-rotary"></use></svg> Rotary - Radial <span class="doc-badge doc-badge--dev">Beta</span></h3>
-                        <p>Continuous 4th-axis surfacing. The mesh becomes a cylindrical radius map machined as a developed strip.</p>
-                    </div>
-                    <div class="pipeline-card pipeline-card--dev">
-                        <h3><svg class="cam-icon" width="24" height="24" aria-hidden="true"><use href="#icon-op-rotary"></use></svg> Rotary - Indexed 3+1 <span class="doc-badge doc-badge--dev">Beta</span></h3>
-                        <p>N flat reliefs at fixed A angles joined by positioning moves. Reaches undercuts a continuous wrap cannot.</p>
-                    </div>
-                </div>
+                <p>Operations are assigned <strong>per shape</strong>. Select shapes, drop them into an operation bucket, set the parameters, generate. Seven produce toolpaths today.</p>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th scope="col">Operation</th>
+                            <th scope="col">What it does</th>
+                            <th scope="col">Source</th>
+                            <th scope="col">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Profile Cut</strong></td>
+                            <td>Cuts along an outline - outside, inside or on the line - with optional holding tabs</td>
+                            <td>SVG</td><td>Stable</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Pocket Clear</strong></td>
+                            <td>Clears the interior of a closed shape, leaving nested shapes standing as islands</td>
+                            <td>SVG</td><td>Stable</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Drill Holes</strong></td>
+                            <td>Turns circles and obrounds into holes or slots, with a strategy chosen per size</td>
+                            <td>SVG</td><td>Stable</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Engrave</strong></td>
+                            <td>Follows a path exactly with no offset, on open or closed geometry</td>
+                            <td>SVG</td><td>Stable</td>
+                        </tr>
+                        <tr>
+                            <td><strong>V-Carve</strong></td>
+                            <td>Variable-depth carving that follows the shape's width, with flat floors where the bit bottoms out</td>
+                            <td>SVG</td><td>Beta</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Relief / 2.5D Carve</strong></td>
+                            <td>Carves a mesh as a surface, with roughing passes and a finishing pass</td>
+                            <td>STL</td><td>Beta</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Rotary / 4th Axis</strong></td>
+                            <td>Continuous machining while the blank spins, or flat faces at fixed angles (indexed 3+1)</td>
+                            <td>STL</td><td>Beta</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <p>What each one is for, the tools it wants and the parameters it exposes are on the <a href="operations" draggable="false">Operation Guide</a>.</p>
             </section>
 
             <section id="supported-formats">
@@ -225,11 +246,11 @@
                 <div class="feature-grid">
                     <div class="feature-card">
                         <h3>SVG (Scalable Vector Graphics)</h3>
-                        <p>Full SVG path support including lines, arcs, quadratic and cubic Bézier curves. Group hierarchies from Inkscape, Illustrator, or Figma are preserved in the scene tree. Clones and clip paths are not yet supported.</p>
+                        <p>Full path support including lines, arcs, and quadratic and cubic Bézier curves. Group structures from Inkscape, Illustrator or Figma are preserved in the scene tree. Clones and clip paths are not supported.</p>
                     </div>
                     <div class="feature-card">
                         <h3>STL (Mesh)</h3>
-                        <p>Binary and ASCII STL for relief and rotary operations. The mesh is sliced at generation time, so resolution, orientation and Z datum are operation parameters you can change without re-importing.</p>
+                        <p>Binary and ASCII, for relief and rotary work. The mesh is re-read every time you generate, so resolution, orientation and Z datum stay editable parameters rather than import settings.</p>
                     </div>
                 </div>
             </section>
@@ -237,72 +258,80 @@
             <section id="quick-start">
                 <h2>Quick Start</h2>
                 <ol>
-                    <li><strong>Import:</strong> Drag and drop an SVG onto the canvas, or use Actions → Import SVG.</li>
-                    <li><strong>Select:</strong> Click shapes on the canvas or scene tree. Shift-click or marquee for multiples.</li>
-                    <li><strong>Assign:</strong> Choose an operation type from the right sidebar tabs.</li>
-                    <li><strong>Configure:</strong> Set tool, cut side, depth, stepover, and other parameters.</li>
-                    <li><strong>Generate:</strong> Click the Generate button. Offsets appear on canvas and in the operations list.</li>
-                    <li><strong>Preview:</strong> Click Generate Preview for a tool-reach simulation.</li>
-                    <li><strong>Export:</strong> Open the Export Manager, select your post-processor, and download.</li>
+                    <li><strong>Import:</strong> drag and drop an SVG - or an STL, for relief and rotary - onto the canvas, or use Actions &rarr; Import.</li>
+                    <li><strong>Select:</strong> click shapes on the canvas or in the scene tree. Shift-click or drag a marquee for several.</li>
+                    <li><strong>Assign:</strong> pick an operation from the tabs on the right. The shapes drop into a new bucket.</li>
+                    <li><strong>Geometry:</strong> set tool, cut side, step-over and the rest, then <em>Generate</em>.</li>
+                    <li><strong>Depth:</strong> flat operations only - set cut depth, passes and entry, then <em>Generate Preview</em>.</li>
+                    <li><strong>Toolpaths:</strong> set feeds, speeds and tool number, then <em>Generate Toolpaths</em>. The canvas switches to 3D; the toolbar view button or <kbd>F2</kbd> takes you back.</li>
+                    <li><strong>Export:</strong> open the Export Manager, order your operations, pick a post-processor and download.</li>
                 </ol>
-                <p>For a detailed walkthrough, read the <a href="guide" draggable="false">Workflow Guide</a>.</p>
+                <p>The <a href="guide" draggable="false">Workflow Guide</a> walks through all of it in detail.</p>
             </section>
 
-            <section id="vs-easytrace">
-                <h2>EasyShape vs EasyTrace</h2>
-                <div class="feature-grid">
-                    <div class="feature-card">
-                        <h3>EasyTrace5000</h3>
-                        <p>Purpose-built for <strong>PCB fabrication</strong>. File-per-operation model. Board-level transforms (rotation, mirror, origin). CNC and laser pipelines.</p>
-                    </div>
-                    <div class="feature-card">
-                        <h3>EasyShape5000</h3>
-                        <p>General-purpose <strong>CNC router</strong> CAM. Scene-graph model with per-shape operations. Group/ungroup, per-shape transforms, full undo/redo.</p>
-                    </div>
-                </div>
+            <section id="comparison">
+                <h2>EasyShape or EasyTrace?</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th scope="col"></th>
+                            <th scope="col">EasyShape5000</th>
+                            <th scope="col">EasyTrace5000</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><th scope="row">Built for</th><td>general CNC routing</td><td>PCB fabrication</td></tr>
+                        <tr><th scope="row">Input</th><td>SVG, STL</td><td>Gerber, Excellon, SVG</td></tr>
+                        <tr><th scope="row">Working model</th><td>scene graph, an operation per shape</td><td>one file per operation</td></tr>
+                        <tr><th scope="row">Transforms</th><td>per-shape move, rotate, scale, mirror, nested groups</td><td>board origin, rotation, mirror</td></tr>
+                        <tr><th scope="row">Undo / redo</th><td>full history</td><td>no</td></tr>
+                        <tr><th scope="row">Machines</th><td>CNC router</td><td>CNC router, laser, vinyl/drag knife</td></tr>
+                    </tbody>
+                </table>
             </section>
 
             <section id="shortcuts">
                 <h2>Keyboard Shortcuts</h2>
+                <p>Everything here has a button or a menu entry too - these are the shortcuts once you know your way around.</p>
                 <div class="feature-grid">
                     <div class="feature-card">
                         <h3>View</h3>
                         <ul class="key-list">
                             <li><kbd>F</kbd> / <kbd>=</kbd> / <kbd>Home</kbd> Fit to view</li>
-                            <li><kbd>+</kbd> / <kbd>-</kbd> Zoom in/out</li>
+                            <li><kbd>+</kbd> / <kbd>-</kbd> Zoom in / out</li>
                             <li><kbd>G</kbd> Toggle grid</li>
                         </ul>
                     </div>
                     <div class="feature-card">
-                        <h3>3D Preview</h3>
+                        <h3>3D View</h3>
                         <ul class="key-list">
-                            <li><kbd>F2</kbd> Toggle 2D / 3D view</li>
-                            <li><kbd>W</kbd> Toggle wireframe (Not fully implemented)</li>
-                            <li>Drag to orbit, wheel to dolly</li>
+                            <li><kbd>F2</kbd> Toggle 2D / 3D</li>
+                            <li><kbd>W</kbd> Wireframe</li>
+                            <li>Drag to orbit, wheel to zoom</li>
                         </ul>
                     </div>
                     <div class="feature-card">
                         <h3>Selection</h3>
                         <ul class="key-list">
                             <li><kbd>Click</kbd> Select shape</li>
-                            <li><kbd>Shift+Click</kbd> Toggle selection</li>
-                            <li><kbd>Ctrl+A</kbd> Select all</li>
-                            <li><kbd>Alt+Click</kbd> Select leaf (bypass group)</li>
+                            <li><kbd>Shift</kbd>+<kbd>Click</kbd> Toggle</li>
+                            <li><kbd>Ctrl</kbd>+<kbd>A</kbd> Select all</li>
+                            <li><kbd>Alt</kbd>+<kbd>Click</kbd> Select inside a group</li>
                         </ul>
                     </div>
                     <div class="feature-card">
                         <h3>Scene</h3>
                         <ul class="key-list">
-                            <li><kbd>Ctrl+G</kbd> Group</li>
-                            <li><kbd>Ctrl+Shift+G</kbd> Ungroup</li>
+                            <li><kbd>Ctrl</kbd>+<kbd>G</kbd> Group</li>
+                            <li><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>G</kbd> Ungroup</li>
                             <li><kbd>Delete</kbd> Delete selected</li>
                         </ul>
                     </div>
                     <div class="feature-card">
                         <h3>Editing</h3>
                         <ul class="key-list">
-                            <li><kbd>Ctrl+Z</kbd> Undo</li>
-                            <li><kbd>Ctrl+Shift+Z</kbd> / <kbd>Ctrl+Y</kbd> Redo</li>
+                            <li><kbd>Ctrl</kbd>+<kbd>Z</kbd> Undo</li>
+                            <li><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd> Redo</li>
                             <li><kbd>I</kbd> Import SVG</li>
                         </ul>
                     </div>
@@ -311,7 +340,7 @@
                         <ul class="key-list">
                             <li><kbd>F6</kbd> Cycle focus zones</li>
                             <li><kbd>F1</kbd> Help screen</li>
-                            <li><kbd>Esc</kbd> Close modal / deselect</li>
+                            <li><kbd>Esc</kbd> Close / deselect</li>
                         </ul>
                     </div>
                 </div>
@@ -319,20 +348,14 @@
 
             <section id="post-processors">
                 <h2>Post-Processors</h2>
-                <p>EasyShape5000 shares its export pipeline with EasyTrace5000. Tool changes are only emitted by posts that declare support for them:</p>
-                <div class="feature-grid">
-                    <div class="feature-card">
-                        <h3>Tested</h3>
-                        <p><strong>GRBL</strong> - thoroughly tested. Note it declares <em>no</em> tool-change support: a job using more than one tool must be exported one file per tool.</p>
-                    </div>
-                    <div class="feature-card">
-                        <h3>Experimental, with tool changes</h3>
-                        <p><strong>grblHAL, UCCNC, Mach3, LinuxCNC, Fanuc, WinPC-NC, Makera.</strong> These emit T/M6 and, where declared, a tool-length mode (<code>G43 H…</code>, implicit <code>G43</code>, or a probe macro).</p>
-                    </div>
-                    <div class="feature-card">
-                        <h3>Experimental, single tool</h3>
-                        <p><strong>Marlin, Roland RML.</strong> No tool-change support declared. Roland RML is not standard G-code. Always dry-run first.</p>
-                    </div>
+                <p>Ten dialects ship with the suite, shared with EasyTrace5000:</p>
+                <p>GRBL &middot; grblHAL &middot; UCCNC &middot; Mach3 &middot; LinuxCNC &middot; Fanuc &middot; WinPC-NC &middot; Makera (Carvera) &middot; Marlin &middot; Roland RML</p>
+                <p>Each sets its own file extension, arc format and tool-change dialect.</p>
+
+                <div class="callout callout--warning">
+                    <h4>Check a new post before you rely on it</h4>
+                    <p>These are in use and working, but "controller X, firmware Y" covers a lot of ground and no one person can test all of it. Read the first program a new post produces, or run it in the air, and then <a href="https://github.com/RicardoJCMarques/EasyCAM5000/discussions" target="_blank" draggable="false">say how it went</a> - what works is as useful to hear as what does not.</p>
+                    <p>The exception is <strong>Fanuc</strong>. It is being developed against one machine and has had no outside feedback at all, so treat it as unfinished rather than untested.</p>
                 </div>
             </section>
 
@@ -363,7 +386,7 @@
                     </a>
                 </div>
 
-                <p><a href="/#support" draggable="false" aria-label="Learn more about becoming a sponsor">Become a sponsor →</a></p>
+                <p><a href="/#support" draggable="false" aria-label="Learn more about becoming a sponsor">Become a sponsor &rarr;</a></p>
                 <p class="sponsor-note">Your logo displayed here and in documentation</p>
             </section>
 
@@ -375,62 +398,62 @@
                 <a href="https://github.com/RicardoJCMarques/EasyCAM5000" target="_blank" draggable="false">GitHub</a> |
                 <a href="/#support" draggable="false">Support Development</a> |
                 <a href="../../LICENSE" target="_blank" draggable="false">AGPLv3 Licensed</a> |
-                <a href="https://www.eltryus.design/" draggable="false" aria-label="Eltryus, developer of EasyCAM5000">by ELTRYUS</a>
+                <a href="https://www.eltryus.design/" draggable="false">by ELTRYUS</a>
             </p>
         </footer>
-
     </div>
-
-    <!-- Scripts -->
-    <script defer src="../../themes/theme-loader.js"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            // Load the SVG Sprite
-            fetch('../../images/icons/sprite.svg')
-                .then(response => {
-                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                    return response.text();
-                })
-                .then(svgText => {
-                    const div = document.createElement('div');
-                    div.innerHTML = svgText;
-                    const svg = div.querySelector('svg');
-                    if (svg) {
-                        svg.setAttribute('aria-hidden', 'true');
-                        svg.style.cssText = 'position: absolute; width: 0; height: 0; visibility: hidden;';
-                        document.body.insertBefore(svg, document.body.firstChild);
-                    }
-                })
-                .catch(err => console.warn('Failed to load icon sprite:', err));
-
-            // Theme toggle
-            const themeBtn = document.getElementById('theme-toggle');
-            if (themeBtn && window.ThemeLoader) {
-                const useEl = themeBtn.querySelector('use');
-                const initialTheme = document.documentElement.getAttribute('data-theme') || 'dark';
-
-                if (useEl) useEl.setAttribute('href', initialTheme === 'dark' ? '#icon-sun' : '#icon-moon');
-
-                themeBtn.addEventListener('click', async () => {
-                    const theme = await window.ThemeLoader.toggleTheme();
-                    if (useEl) useEl.setAttribute('href', theme === 'dark' ? '#icon-sun' : '#icon-moon');
-                });
-            }
-
-            // Mobile menu toggle
-            const menuBtn = document.querySelector('.doc-menu-toggle');
-            const nav = document.querySelector('.doc-nav');
-            if (menuBtn && nav) {
-                const useEl = menuBtn.querySelector('use');
-                menuBtn.addEventListener('click', () => {
-                    const isExpanded = menuBtn.getAttribute('aria-expanded') === 'true';
-                    menuBtn.setAttribute('aria-expanded', !isExpanded);
-                    nav.classList.toggle('is-open');
-
-                    if (useEl) useEl.setAttribute('href', !isExpanded ? '#icon-close' : '#icon-menu');
-                });
-            }
-        });
-    </script>
 </body>
+
+<!-- Scripts -->
+<script defer src="../../themes/theme-loader.js"></script>
+<script src="../../figures.js" defer></script>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // Load the SVG Sprite
+        fetch('../../images/icons/sprite.svg')
+            .then(response => {
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                return response.text();
+            })
+            .then(svgText => {
+                const div = document.createElement('div');
+                div.innerHTML = svgText;
+                const svg = div.querySelector('svg');
+                if (svg) {
+                    svg.setAttribute('aria-hidden', 'true');
+                    svg.style.cssText = 'position: absolute; width: 0; height: 0; visibility: hidden;';
+                    document.body.insertBefore(svg, document.body.firstChild);
+                }
+            })
+            .catch(err => console.warn('Failed to load icon sprite:', err));
+
+        // Theme toggle
+        const themeBtn = document.getElementById('theme-toggle');
+        if (themeBtn && window.ThemeLoader) {
+            const useEl = themeBtn.querySelector('use');
+            const initialTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+
+            if (useEl) useEl.setAttribute('href', initialTheme === 'dark' ? '#icon-sun' : '#icon-moon');
+
+            themeBtn.addEventListener('click', async () => {
+                const theme = await window.ThemeLoader.toggleTheme();
+                if (useEl) useEl.setAttribute('href', theme === 'dark' ? '#icon-sun' : '#icon-moon');
+            });
+        }
+
+        // Mobile menu toggle
+        const menuBtn = document.querySelector('.doc-menu-toggle');
+        const nav = document.querySelector('.doc-nav');
+        if (menuBtn && nav) {
+            const useEl = menuBtn.querySelector('use');
+            menuBtn.addEventListener('click', () => {
+                const isExpanded = menuBtn.getAttribute('aria-expanded') === 'true';
+                menuBtn.setAttribute('aria-expanded', !isExpanded);
+                nav.classList.toggle('is-open');
+
+                if (useEl) useEl.setAttribute('href', !isExpanded ? '#icon-close' : '#icon-menu');
+            });
+        }
+    });
+</script>
 </html>

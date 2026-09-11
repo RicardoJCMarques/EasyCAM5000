@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 300" role="img" aria-labelledby="title desc" xmlns:c2pa="http://c2pa.org/manifest">
+  <title id="title">The three laser clearing strategies</title>
+  <desc id="desc">Offset paths shrink concentrically inward from the boundary. Filled polygon exports one solid shape for the laser software to fill. Hatch draws directional lines at a chosen angle across the area.</desc>
+  <style>
+    /* Inlined by figures.js, so these resolve against the page theme.
+       Fallbacks match the dark theme in css/theme.css. */
+    svg{
+      --bg:var(--color-bg-primary,#0f0f0f);
+      --panel:var(--color-bg-secondary,#1a1a1a);
+      --panel2:var(--color-bg-tertiary,#242424);
+      --line:var(--color-border-secondary,#3a3a3a);
+      --text:var(--color-text-primary,#e5e5e5);
+      --muted:var(--color-text-secondary,#a0a0a0);
+      --accent:var(--color-accent-primary,#2563eb);
+      --ext:var(--color-geometry-offset-external,#a60000);
+      --int:var(--color-geometry-offset-internal,#00a600);
+      --on:var(--color-geometry-offset-on,#bcbc02);
+      --preview:var(--color-geometry-preview,#0060dd);
+      --toolpath:var(--color-geometry-toolpath,#00ffff);
+      --copper:var(--color-geometry-source-isolation,#ff8844);
+      --drillc:var(--color-operation-drill,#4488ff);
+      --clearc:var(--color-operation-clearing,#44ff88);
+      --cutc:var(--color-operation-cutout,#ff00ff);
+      --stenc:var(--color-operation-stencil,#90177d);
+      --ok:var(--color-primitive-peck-mark-good,#16d329);
+      --warn:var(--color-primitive-peck-mark-warn,#d2cb00);
+      --bad:var(--color-primitive-peck-mark-error,#ff0000);
+      --stock:var(--color-render3d-stock,#8a7a5c);
+    }
+    .bg{fill:var(--bg)}
+    .panel{fill:var(--panel)}
+    .panel2{fill:var(--panel2)}
+    .edge{fill:none;stroke:var(--line);stroke-width:1.5}
+    .t{fill:var(--text);font:13px system-ui,sans-serif}
+    .tb{fill:var(--text);font:bold 14px system-ui,sans-serif}
+    .tm{fill:var(--muted);font:12px system-ui,sans-serif}
+  </style>
+  <rect class="bg" width="800" height="300"/>
+  <defs><clipPath id="hatchClip"><rect x="560" y="70" width="180" height="130"/></clipPath></defs>
+  <text class="tb" x="24" y="34">The clearing strategy decides how the area is covered</text>
+  <rect x="60" y="70" width="180" height="130" fill="none" stroke="var(--muted)" stroke-width="2"/>
+  <rect x="72" y="82" width="156" height="106" fill="none" stroke="var(--ext)" stroke-width="2"/>
+  <rect x="86" y="96" width="128" height="78" fill="none" stroke="var(--ext)" stroke-width="2"/>
+  <rect x="100" y="110" width="100" height="50" fill="none" stroke="var(--ext)" stroke-width="2"/>
+  <rect x="114" y="124" width="72" height="22" fill="none" stroke="var(--ext)" stroke-width="2"/>
+  <text class="t" x="150" y="230" text-anchor="middle">Offset paths</text>
+  <text class="tm" x="150" y="254" text-anchor="middle">concentric, follows the shape</text>
+  <text class="tm" x="150" y="276" text-anchor="middle">recommended</text>
+  <rect x="310" y="70" width="180" height="130" fill="var(--preview)" stroke="var(--muted)" stroke-width="2"/>
+  <text class="t" x="400" y="230" text-anchor="middle">Filled polygon</text>
+  <text class="tm" x="400" y="254" text-anchor="middle">one solid shape - your laser</text>
+  <text class="tm" x="400" y="276" text-anchor="middle">software generates the fill</text>
+  <rect x="560" y="70" width="180" height="130" fill="none" stroke="var(--muted)" stroke-width="2"/>
+  <g clip-path="url(#hatchClip)" stroke="var(--preview)" stroke-width="2">
+    <path d="M480 200L610 70M500 220L640 70M530 230L670 70M560 250L700 70M600 260L740 90M640 260L760 130M680 260L770 180"/>
+  </g>
+  <text class="t" x="650" y="230" text-anchor="middle">Hatch fill</text>
+  <text class="tm" x="650" y="254" text-anchor="middle">directional lines at your angle;</text>
+  <text class="tm" x="650" y="276" text-anchor="middle">extra passes rotate for coverage</text>
+</svg>

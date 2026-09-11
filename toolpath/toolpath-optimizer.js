@@ -11,9 +11,10 @@
 
 (function() {
     'use strict';
+    const ROOT = globalThis;
 
-    const C = window.CAMConfig.constants;
-    const D = window.CAMConfig.defaults;
+    const C = ROOT.CAMConfig.constants;
+    const D = ROOT.CAMConfig.defaults;
     const EPSILON = C.precision.epsilon;
     const PRECISION = C.precision.coordinate;
     const debugState = D.debug;
@@ -376,10 +377,10 @@
             // Sample points on one side, test against the OTHER side's segments, both
             // directions. Catches mid-segment close approaches between near-parallel
             // offset lines that vertex-to-vertex sampling missed (false "too far").
-            const ptsA = this.samplePlanPoints(planA, 24);
-            const ptsB = this.samplePlanPoints(planB, 24);
-            const segA = this.samplePlanPoints(planA, 64);
-            const segB = this.samplePlanPoints(planB, 64);
+            const ptsA = planA._pts24 || (planA._pts24 = this.samplePlanPoints(planA, 24));
+            const ptsB = planB._pts24 || (planB._pts24 = this.samplePlanPoints(planB, 24));
+            const segA = planA._seg64 || (planA._seg64 = this.samplePlanPoints(planA, 64));
+            const segB = planB._seg64 || (planB._seg64 = this.samplePlanPoints(planB, 64));
 
             let minSq = Infinity;
             const scan = (pts, seg) => {
@@ -731,9 +732,7 @@
             let totalOriginalTravel = 0;
             let totalOptimizedTravel = 0;
 
-            // exitPoint is what currentPos advances to after every pick, so a
-            // plan missing one inherits its entry HERE - not inside the O(N^2)
-            // cost call, which used to re-stamp it once per candidate per step.
+            // Stamped here, not inside the O(N²) cost call - that runs once per candidate per step.
             for (const item of plans) {
                 const md = item.metadata;
                 if (md && !md.exitPoint) md.exitPoint = md.entryPoint;
@@ -896,9 +895,6 @@
             // MachineProcessor's allow3DHop feed-height hop between adjacent
             // same-group plans - not a lateral feed move at depth, which
             // would need a machined-surface proof between arbitrary chains.
-            // (A previous contiguous3D check read this.last3DExit, which was
-            // never assigned anywhere - the branch was dead code and every
-            // 3D link already resolved to 'rapid'. This makes it explicit.)
             const canStaydown = allowStaydown &&
                                !this.isFirstLink &&
                                sameShape &&
@@ -990,19 +986,13 @@
          */
         findClosestPointOnPlan(fromPos, plan) {
             const meta = plan.metadata || {};
-
-            // Skip entry points for protected geometry
+            // Skip entry points for protected geometry (-1 signals do NOT rotate/reverse)
             if (meta.isPeckMark || meta.isDrillMilling || meta.isCenterlinePath || meta.isTabbedPass) {
                 const entry = meta.entryPoint;
                 const dx = entry.x - fromPos.x;
                 const dy = entry.y - fromPos.y;
                 const distSq = dx * dx + dy * dy;
-                return {
-                    point: entry,
-                    distanceSq: distSq,
-                    distance: Math.sqrt(distSq),
-                    commandIndex: 0
-                };
+                return { point: entry, distanceSq: distSq, distance: Math.sqrt(distSq), commandIndex: -1 };
             }
 
             // Simple Circles: one command, so the vertex scan cannot propose a
@@ -1110,15 +1100,9 @@
                 const dy = entry.y - fromPos.y;
                 bestDistSq = dx * dx + dy * dy;
                 bestPoint = entry;
-                bestIndex = 0;
+                bestIndex = -1;
             }
-
-            return {
-                point: bestPoint,
-                distanceSq: bestDistSq,
-                distance: Math.sqrt(bestDistSq),
-                commandIndex: bestIndex
-            };
+            return { point: bestPoint, distanceSq: bestDistSq, distance: Math.sqrt(bestDistSq), commandIndex: bestIndex };
         }
 
         /**
@@ -1183,7 +1167,7 @@
             if (plan.metadata.is3DContour) {
                 const feedRate = plan.metadata.feedRate;
                 const plungeRate = plan.metadata.plungeRate ?? feedRate;
-                const gate = this.slopeGate();
+                const gate = ToolpathFeeds.slopeGate();
                 let px = plan.metadata.exitPoint?.x, py = plan.metadata.exitPoint?.y,
                     pz = plan.metadata.exitPoint?.z;
                 for (const cmd of newCommands) {
@@ -1304,15 +1288,6 @@
             }
         }
 
-        /**
-         * tan(descentFeedAngle). One implementation so the feed classification
-         * used at generation, at reversal and at simplification is provably the
-         * same number.
-         */
-        slopeGate() {
-            return ToolpathFeeds.slopeGate();
-        }
-
         /** Squared 3D distance from p to the CLAMPED segment a→b. */
         deviationSq3D(p, a, b) {
             const abx = b.x - a.x, aby = b.y - a.y, abz = b.z - a.z;
@@ -1357,10 +1332,10 @@
             const tolSq     = tol * tol;
             const preTolSq  = Math.pow(tol * (s.preTolFactor ?? 0.25), 2);
             const minSegSq  = Math.pow(s.minSegmentLength3D ?? 0.02, 2);
-            const cosGate   = Math.cos((s.collinearAngle3D ?? 1.0) * Math.PI / 180);
-            const gate      = this.slopeGate();
+            const cosGate = Math.cos((s.collinearAngle3D ?? 1) * Math.PI / 180);
+            const gate = ToolpathFeeds.slopeGate();
 
-            // ── Resolve the absolute point list [entry, ...commands] ──
+            // Resolve the absolute point list [entry, ...commands]
             const P   = new Array(cmds.length + 1);
             const T   = new Array(cmds.length + 1);
             const CMD = new Array(cmds.length + 1);
@@ -1390,7 +1365,7 @@
                 if (T[i] !== 'LINEAR') forced[i] = 1;
             }
 
-            // ── Stage 1: micro-segment + collinearity pre-pass ──
+            // Stage 1: micro-segment + collinearity pre-pass
             const anchors = [0];
             let prevIdx = 0;
             for (let i = 1; i < n - 1; i++) {
@@ -1414,7 +1389,7 @@
             }
             anchors.push(n - 1);
 
-            // ── Stage 2: 3D RDP over the survivors ──
+            // Stage 2: 3D RDP over the survivors
             const m = anchors.length;
             const keepA = new Uint8Array(m);
             keepA[0] = 1;
@@ -1447,7 +1422,7 @@
                 }
             }
 
-            // ── Reconstruction ──
+            // Reconstruction
             const feedRate   = plan.metadata.feedRate;
             const plungeRate = plan.metadata.plungeRate ?? feedRate;
 
@@ -1458,7 +1433,7 @@
                 const i = anchors[a];
 
                 if (T[i] !== 'LINEAR') {
-                    newCmds.push(CMD[i]);   // preserve arcs/dwells exactly
+                    newCmds.push(CMD[i]); // preserve arcs/dwells exactly
                     prev = P[i];
                     continue;
                 }
@@ -1472,7 +1447,7 @@
                 prev = b;
             }
 
-            if (newCmds.length === 0) return;   // never hand the processor an empty plan
+            if (newCmds.length === 0) return; // never hand the processor an empty plan
 
             plan.commands = newCmds;
             plan.metadata.entryPoint = { x: P[0].x, y: P[0].y, z: P[0].z };
@@ -1508,17 +1483,16 @@
                 currentPos = { x: plan.metadata.entryPoint.x, y: plan.metadata.entryPoint.y };
             }
 
+            const precisionSq = PRECISION * PRECISION;
+
             const isIgnorableArcCmd = (c, start, end) => {
-                if (c.type !== 'ARC_CW' && c.type !== 'ARC_CCW') return false;
+                if ("ARC_CW" !== c.type && "ARC_CCW" !== c.type) return false;
                 const dx = end.x - start.x;
                 const dy = end.y - start.y;
                 const iVal = c.i || 0;
                 const jVal = c.j || 0;
-
-                return (dx * dx + dy * dy) < PRECISION && (iVal * iVal + jVal * jVal) < PRECISION;
+                return (dx * dx + dy * dy < precisionSq) && (iVal * iVal + jVal * jVal < precisionSq);
             };
-
-            const precisionSq = PRECISION * PRECISION;
 
             while (i < commands.length) {
                 const cmd = commands[i];
@@ -1797,5 +1771,5 @@
         }
     }
 
-    window.ToolpathOptimizer = ToolpathOptimizer;
+    ROOT.ToolpathOptimizer = ToolpathOptimizer;
 })();

@@ -8,7 +8,7 @@
  * SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
  * SPDX-License-Identifier: AGPL-3.0-or-later
  *
- * Everything between "an operation plus its ParameterManager values" and
+ * Everything between "an operation plus its parameterStore values" and
  * "a frozen context the toolpath pipeline can run": workspace transforms,
  * parameter compilation, depth ladders, tool descriptors and tool-number
  * validation.
@@ -22,7 +22,7 @@
  *  core.toolLibrary       getTool()
  *  core.gcodeGenerator    getProcessorInfo(), getProcessor()
  *  core.operations        list, for the "all export-ready" default
- *  core.getOperation(id)
+ *  core.store.getOperation(id)
  *  core.isExportReady(op)
  *  core.isLaserOperation(op)
  *  core.handlers / core.getHandler(type)   toolpath policy only
@@ -48,26 +48,34 @@
         // ═══════════════════════════════════════════════════════════
 
         /**
-         * Resolves the tool descriptor for one operation. Nothing here
-         * invents a number: a slot a cutter physically occupies is not
-         * derivable from geometry, and a plausible default is one the
-         * operator was never prompted to verify. validateToolAssignment() // REVIEW - Does validateToolAssignment still exist? Outdated comment?
-         * reports the gaps; the export modal blocks on them.
+         * Resolves the tool descriptor for one operation.
+         * The T word is the operator's decision. Both profiles declare
+         * `toolNumber` with default 1, min 1, max 99, and BaseOperationPanel
+         * .runGeneration refuses to generate when the field is cleared - so a
+         * router operation always arrives with a number the operator either
+         * accepted or typed. On a machine with no changer, 1 on every
+         * operation is the correct answer and the default gives it for free.
+         * A null number is a ROUTE FACT rather than a gap: `toolNumber`
+         * carries no `machineClasses`, so getStageParameters filters it to
+         * router, and laser and knife/vector never render the field or emit a
+         * T word. A post that receives null emits nothing, because there is
+         * nothing to emit - not because a value is being withheld.
+         * Gaps are reported, not blocked: DrillHandler flags unassigned rows,
+         * describeToolSharing reports one number carrying two diameters, and
+         * the export modal renders both.
          * @param {Object} operation
-         * @param {Object} params merged ParameterManager values
-         * @param {Object} [override] export-modal toolIndexMap entry
+         * @param {Object} params merged parameterStore values
          */
-        resolveToolDescriptor(operation, params, override = null) {
+        resolveToolDescriptor(operation, params) {
             const record = this.core.toolLibrary?.getTool?.(params.tool) || null;
             const pick = value => {
                 const n = Number(value);
                 return Number.isInteger(n) && n > 0 ? n : null;
             };
-
             const descriptor = {
-                number: pick(override?.number) ?? pick(params.toolNumber),
+                number: pick(params.toolNumber),
                 id: params.tool || null,
-                name: override?.name || record?.name || params.tool || null,
+                name: record?.name || params.tool || null,
                 type: record?.type || null,
                 diameter: params.toolDiameter,
                 spindleSpeed: params.spindleSpeed,
@@ -166,27 +174,22 @@
 
         /**
          * Resolves tool descriptors for a set of operations without building
-         * contexts or running a pipeline. Lets the export modal validate the
-         * moment a checkbox flips, instead of only at Calculate.
+         * contexts or running a pipeline.
          */
-        // REVIEW - commitToOperation is a WRITE inside what every call site
-        // treats as a query (checkToolAssignment runs on each export-modal
-        // checkbox flip). Split the commit out to a caller-side step.
-        stageToolDescriptors(operationIds, parameterManager, toolIndexMap = {}) {
+        stageToolDescriptors(operationIds, parameterStore) {
             const core = this.core;
-            const ids = operationIds || core.operations.filter(op => core.isExportReady(op)).map(op => op.id);
+            const ids = operationIds || core.operations.filter(op => core.store.isExportReady(op)).map(op => op.id);
             const staged = [];
 
             for (const opId of ids) {
                 try {
-                    const operation = core.getOperation(opId);
+                    const operation = core.store.getOperation(opId);
                     if (!operation) continue;
-                    if (parameterManager.hasUnsavedChanges(opId)) parameterManager.commitToOperation(operation);
-                    const params = parameterManager.getAllParameters(opId);
+                    const params = parameterStore.getAllParameters(opId);
                     staged.push({
                         opId: opId,
                         operation: operation,
-                        tool: this.resolveToolDescriptor(operation, params, toolIndexMap[opId])
+                        tool: this.resolveToolDescriptor(operation, params)
                     });
                 } catch (err) {
                     console.warn(`[PipelineContext] tool staging skipped ${opId}: ${err.message}`);
@@ -196,12 +199,69 @@
         }
 
         /**
-         * One-call check for the UI. Same staging the pipeline uses, so the
-         * modal's note and the emitted G-code can never disagree.
+         * Everything the export modal needs to know about tooling.
          */
-        checkToolAssignment(operationIds, parameterManager, opts = {}) {
-            const staged = this.stageToolDescriptors(operationIds, parameterManager, opts.toolIndexMap);
-            return this.describeToolSharing(staged.map(s => s.tool));
+        describeExportTooling(operationIds, parameterStore) {
+            const staged = this.stageToolDescriptors(operationIds, parameterStore);
+            let hasMultiToolFile = false;
+            for (const { tool } of staged) {
+                const numbers = new Set();
+                if (tool.cutsWithOwnTool !== false && tool.number > 0) numbers.add(tool.number);
+                for (const entry of Object.values(tool.drillMap || {})) {
+                    if (entry.number > 0) numbers.add(entry.number);
+                }
+                if (numbers.size > 1) { hasMultiToolFile = true; break; }
+            }
+            return {
+                shared: this.describeToolSharing(staged.map(s => s.tool)),
+                hasMultiToolFile,
+                staged
+            };
+        }
+
+        /**
+         * Whether this job can use tool changes, and what to tell the operator if
+         * not.
+         * Returns a decision, not markup: the caller writes the DOM.
+         * @param {Object} intent {operationIds, toolChanges, singleFile}
+         * @param {ParameterStore} parameterStore
+         * @returns {{supported:boolean, tlcMode:string, hint:?string,
+         *             warnings:Array<string>, shared:Array}}
+         */
+        describeToolChangeSupport(intent, parameterStore, tooling = null) {
+            const post = this.core.gcodeGenerator.getProcessorInfo(this.core.settings.gcode.postProcessor);
+            const caps = post?.capabilities || {};
+            if (!tooling) {
+                const routerIds = (intent.operationIds || []).filter(
+                    id => this.core.machineClassOf(this.core.store.getOperation(id)) === 'router');
+                tooling = routerIds.length
+                    ? this.describeExportTooling(routerIds, parameterStore)
+                    : { shared: [], hasMultiToolFile: false, staged: [] };
+            }
+
+            const warnings = [];
+            for (const group of tooling.shared) {
+                warnings.push(
+                    `T${group.number} is used by ${group.entries.map(e => `${e.label} (⌀${e.diameter})`).join(' and ')}`
+                    + ' - same slot, different cutters.');
+            }
+
+            // A single-file job with more than one number in it is the only case
+            // that actually needs the changer. Everything else runs either way.
+            const needsChange = intent.singleFile && tooling.hasMultiToolFile;
+            const supported = caps.supportsToolChange !== false;
+            let hint = null;
+            if (needsChange && !supported) {
+                hint = `${post?.label || 'This post'} has no tool change. Export one file per operation, or assign one number.`;
+            }
+
+            return {
+                supported,
+                tlcMode: this.core.settings.gcode?.toolLengthCompMode || 'none',
+                hint,
+                warnings,
+                shared: tooling.shared
+            };
         }
 
         /**
@@ -236,7 +296,7 @@
          * strategy object. Called before any handler runs - handlers never
          * need to check pipeline type.
          * @param {Object} operation - The operation with .type and .bounds
-         * @param {Object} params - Flat map from parameterManager.getAllParameters()
+         * @param {Object} params - Flat map from parameterStore.getAllParameters()
          * @returns {Object} Strategy object ready for any handler
          */
         compileOperationParams(operation, params) {
@@ -462,13 +522,13 @@
          * to the registered handler so the core never checks
          * operation type names for geometric decisions.
          */
-        buildPipelineContext(operationId, parameterManager, resolvedTool = null) {
+        buildPipelineContext(operationId, parameterStore, resolvedTool = null) {
             const core = this.core;
-            const operation = core.getOperation(operationId);
+            const operation = core.store.getOperation(operationId);
             if (!operation) throw new Error(`Operation ${operationId} not found.`);
 
             // Get all parameters from manager
-            const params = parameterManager.getAllParameters(operationId);
+            const params = parameterStore.getAllParameters(operationId);
             const resolveDrillAlias = (a, b) => this.resolveDrillAlias(operation, params, a, b);
 
             // Drill milling aliases - JSON can't have duplicate keys with different
@@ -561,7 +621,7 @@
                 // maps originalDiameter.toFixed(3) → tool number for peck
                 // groups; null on every non-drill operation.
                 tool: (() => {
-                    const t = resolvedTool || this.resolveToolDescriptor(operation, params, null);
+                    const t = resolvedTool || this.resolveToolDescriptor(operation, params);
                     return {
                         number: t.number, // null = unassigned, on purpose
                         id: t.id,
@@ -681,13 +741,6 @@
             // know which one is loaded.
             core.gcodeGenerator?.getProcessor(gcode.postProcessor)?.prepareContext?.(context, operation);
 
-            // Prevent accidental mutation by downstream pipeline stages.
-            // TODO [METADATA-BLOAT] - Deep-freeze nested objects or replace
-            // plan.metadata.context references with explicit field copies.
-            // Contract: after translate, ctx may be read ONLY via
-            // plan.metadata.transforms (stamped by the translators) and - until
-            // migrated - MachineProcessor's determineWinding. No other stage
-            // may retain or read ctx. Freeze is the tamper canary for that.
             Object.freeze(context);
             return context;
         }

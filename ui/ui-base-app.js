@@ -19,18 +19,16 @@
             this.lang = null;
 
             this.renderer = null;
+            this._rebuildPending = false;
+            this._rebuildQueued = false;
             this.input = null;
             this.toolController = null;
             this.canvasReadout = null;
 
             this.statusManager = null;
             this.controls = null;
-            this.machineSettings = null;
+            this.machineSettingsValues = {};
             this.canvasExporter = null;
-
-            // Task id for callers that hand a message instead of owning a task
-            // (BaseOperationPanel.runGeneration owns its own).
-            this._shimTaskId = null; // REVIEW - This looks like a fallback? Couldn't this be guaranteed somewhere else?
 
             // Resolved custom properties, cleared whenever the theme changes.
             // getComputedStyle forces a style recalc and resolveLayerColor runs
@@ -39,24 +37,42 @@
             window.addEventListener('themechange', () => { this._cssVarCache.clear(); this.onThemeChanged(); });
         }
 
-        // Shared init sequence
-
+        /**
+         * Shared init sequence. The order is the dependency order: the renderer
+         * exists before anything reads it, machine settings render before the
+         * panels that gate against them, and the theme is applied last so it
+         * sees every control that will be styled.
+         */
         async initShared() {
             this.initRenderer();
             this.initViewportInteraction();
-            this.initStatusManager();
-            this.initControls();
-            this.initMachineSettings();
-            this.initFocusZones();
-            this.initResize();
-            this.initializeTheme();
+
+            this.statusManager = new StatusManager(this);
+            this.controls = new UIControls(this);
+            this.controls.init(this.renderer);
+
+            this.renderMachineSettings();
+
+            UIControls.setupCollapsibles(document);
+            UIControls.setupArrowSidebarNav('#sidebar-right');
+
+            window.addEventListener('resize', () => {
+                this.renderer.resizeCanvas();
+                this.renderer.render();
+            });
+
+            // CamController.initializeTheme reads and applies the stored theme
+            // and returns the name the renderer needs. Different method, same
+            // name, one object away - which is its own argument for not having
+            // a one-line wrapper here.
+            this.renderer.setOptions({ theme: this.ctrl.initializeTheme() });
+
             this.initStaticTooltips();
+            this.watchDecorativeIcons();
         }
 
-        // Renderer
-
         initRenderer() {
-            this.renderer = new LayerRenderer('preview-canvas', this.core);
+            this.renderer = new RendererCore('preview-canvas', this.core);
 
             const theme = document.documentElement.getAttribute('data-theme') || 'dark';
             this.renderer.setOptions(this.getDefaultRendererOptions(theme));
@@ -65,7 +81,7 @@
             const parent = this.renderer.canvas.parentElement;
             if (parent) {
                 new ResizeObserver(() => {
-                    this.renderer.core.resizeCanvas();
+                    this.renderer.resizeCanvas();
                     this.renderer.render();
                 }).observe(parent);
             }
@@ -74,9 +90,7 @@
             this.canvasExporter = new CanvasExporter(this.renderer);
         }
 
-        /**
-         * Universal renderer options
-         */
+        /** Universal renderer options */
         getDefaultRendererOptions(theme) {
             return {
                 ...window.CAMConfig.defaults.rendering.defaultOptions,
@@ -90,13 +104,11 @@
         shouldRenderPrimitive(primitive, layerType) { return true; }
         renderOverlay(ctx, core) {}
 
-        // Viewport interaction
-
         initViewportInteraction() {
             const canvas = document.getElementById('preview-canvas');
             if (!canvas || !this.renderer) return;
 
-            this.canvasReadout = new CanvasReadout(this.renderer.core);
+            this.canvasReadout = new CanvasReadout(this.renderer);
             this.input = new InputManager(canvas, { readout: this.canvasReadout });
 
             this.toolController = new ToolController(this.buildToolContext(canvas));
@@ -126,42 +138,6 @@
             return new PanZoomTool({ allowedButtons: [0, 1, 2] });
         }
 
-        // Status, Controls, Machine, Focus, Theme, Resize
-        initStatusManager() {
-            this.statusManager = new StatusManager(this);
-        }
-
-        initControls() {
-            this.controls = new UIControls(this);
-            this.controls.init(this.renderer);
-        }
-
-        initMachineSettings() {
-            this.machineSettings = new MachineSettingsUI(this);
-            this.machineSettings.setup();
-        }
-
-        // REVIEW - This name is outdated? Rename to something more descriptive?
-        initFocusZones() {
-            UIControls.setupCollapsibles(document);
-            UIControls.setupArrowSidebarNav('#sidebar-right');
-        }
-
-        initResize() {
-            window.addEventListener('resize', () => {
-                if (!this.renderer?.core) return;
-                this.renderer.core.resizeCanvas();
-                this.renderer.render();
-            });
-        }
-
-        initializeTheme() {
-            const theme = this.ctrl.initializeTheme();
-            if (this.renderer) this.renderer.setOptions({ theme });
-        }
-
-        // Static Tooltip Scanner
-
         initStaticTooltips() {
             if (!this.lang || !window.TooltipManager) return;
             const processed = new Set();
@@ -179,6 +155,146 @@
             });
         }
 
+        /**
+         * Where each machine-settings category mounts. An app that gives a
+         * category its own panel gets it there; everything else goes to
+         * #machine-controls. Read by the render and by the visibility pass.
+         */
+        machineHosts() {
+            const hosts = { default: document.getElementById('machine-controls') };
+            const stock = document.getElementById('stock-fields');
+            if (stock) hosts.stock = stock;
+            return hosts;
+        }
+
+        renderMachineSettings() {
+            const hosts = this.machineHosts();
+            if (!hosts.default) return;
+            const ps = this.ctrl.parameterStore;
+            const rend = this.ctrl.inputRenderer;
+            const gen = this.ctrl.gcodeGenerator;
+            const lasers = this.ctrl.graphicsExporter;
+            const post = this.core.settings.gcode.postProcessor;
+            const postDesc = gen.getProcessorInfo(post);
+            // No active profile is legitimate: an app removes every laser.* entry
+            // in its profile, and deviceSchema contributes nothing for a null.
+            const laserDesc = lasers.getProfileInfo(this.core.settings.laser?.activeProfile);
+
+            // machineSchema applies the app's deltas per entry, so a profile that
+            // only overrides `default` keeps the type, category, unit and bounds.
+            // A device's own settings are spliced in at the picker that chose it:
+            // the Roland model dropdown is a refinement of "which post", and
+            // reading it three fields below the start-code textarea makes no sense.
+            const schema = {};
+            for (const [path, def] of Object.entries(this.core.machineSchema(this.ctrl.appProfile))) {
+                schema[path] = def;
+                if (path === 'gcode.postProcessor') Object.assign(schema, ps.deviceSchema(postDesc, 'processorSettings', ['router']));
+                if (path === 'laser.activeProfile') Object.assign(schema, ps.deviceSchema(laserDesc, 'laserSettings', ['laser']));
+            }
+
+            const label = v => this.lang.get(`enums.${v}`, v);
+            const sources = {
+                processors: gen.getAllProcessorDescriptors().map(d => ({ value: d.id, label: d.label })),
+                laserProfiles: lasers.getAllProfileDescriptors().map(d => ({ value: d.id, label: d.label })),
+                tlcModes: (postDesc?.capabilities?.toolLengthComp?.modes || []).map(m => ({ value: m, label: label(m) })),
+                rotaryRoutes: (postDesc?.capabilities?.rotary?.routes || []).map(r => ({ value: r, label: label(r) }))
+            };
+            const resolvers = {
+                startCode: () => gen.resolveStartCode(post, this.core.settings.gcode.userStartCode),
+                endCode: () => gen.resolveEndCode(post, this.core.settings.gcode.userEndCode)
+            };
+            rend.renderSettingsForm(hosts, schema, {
+                sources, resolvers, lang: this.lang,
+                categoryTitle: c => this.ctrl.appProfile?.ui?.categories?.[c] || c,
+                onChange: (name, value, param) => this.onSettingCascade(name, value, param)
+            });
+            this.refreshMachineSettings();
+        }
+
+        /**
+         * Visibility and capability gates. Called when the active machine classes
+         * change; that does not change which fields exist, so it never re-renders.
+         */
+        refreshMachineSettings() {
+            const hosts = this.machineHosts();
+            if (!hosts.default) return;
+            const ps = this.ctrl.parameterStore;
+            const rend = this.ctrl.inputRenderer;
+            const post = this.core.settings.gcode.postProcessor;
+
+            // The pipeline declaration is the truth, not what happens to be
+            // loaded: fiber pins isolation and clearing to the laser while the
+            // session class stays 'router', so both blocks must show.
+            const classes = new Set([this.core.machineClass, ...Object.values(this.core.classByType || {})]);
+            for (const op of this.core.operations) classes.add(this.core.machineClassOf(op));
+
+            const gates = ps.setOptionGates(this.ctrl.gcodeGenerator.getOptionGates(this.core.settings));
+            const visibility = {
+                caps: this.ctrl.gcodeGenerator.getProcessorInfo(post)?.capabilities || {},
+                classes,
+                owners: { processorSettings: post, laserSettings: this.core.settings.laser?.activeProfile }
+            };
+            for (const host of Object.values(hosts)) {
+                rend.applyOptionGates(host, gates);
+                rend.applyVisibility(host, visibility);
+            }
+            (this.traceOperationPanel || this.shapeOperationPanel)?.refresh?.();
+        }
+
+        /**
+         * A device may declare that one of its settings implies others. Nothing
+         * here names a device: the post or laser profile answers for itself.
+         */
+        onSettingCascade(name, value, param) {
+            if (param.owner) {
+                const device = this.ctrl.gcodeGenerator.getProcessor(param.owner)
+                    || this.ctrl.graphicsExporter.getProfileInfo(param.owner);
+                const patch = device?.onParameterChange?.(name, value);
+                if (!patch) return;
+                for (const [k, v] of Object.entries(patch)) {
+                    this.core.setSetting(`${param.namespace || "processorSettings"}.${param.owner}.${k}`, v);
+                }
+                this.renderMachineSettings();
+                return;
+            }
+            if ("postProcessor" === name || "activeProfile" === name) {
+                this.renderMachineSettings();
+                this.rebuildLayers();
+                this.setStatus(`Switched to ${value}. Recalculate toolpaths to apply changes.`, "warning");
+            }
+        }
+
+        /**
+         * Sprite icons are decorative next to their own text label. Left
+         * unmarked, an inline <svg> is exposed as a graphics object by several
+         * screen readers, so every button reads its label twice.
+         *
+         * An observer rather than a call at each render site: icons are
+         * injected from tree rows, stage nodes, tabs, the drill grid and the
+         * log, and a call list goes stale the first time a panel gains one.
+         */
+        watchDecorativeIcons() {
+            const mark = (root) => {
+                if (root.nodeType !== 1) return;
+                if (root.matches?.('svg.cam-icon:not([aria-hidden]):not([role="img"])')) {
+                    root.setAttribute('aria-hidden', 'true');
+                    root.setAttribute('focusable', 'false');
+                }
+                root.querySelectorAll?.('svg.cam-icon:not([aria-hidden]):not([role="img"])')
+                    .forEach(svg => {
+                        svg.setAttribute('aria-hidden', 'true');
+                        svg.setAttribute('focusable', 'false');
+                    });
+            };
+
+            mark(document.body);
+
+            this._iconObserver = new MutationObserver(records => {
+                for (const r of records) r.addedNodes.forEach(mark);
+            });
+            this._iconObserver.observe(document.body, { childList: true, subtree: true });
+        }
+
         // Status
 
         setStatus(message, type, skipLog = false) {
@@ -189,40 +305,26 @@
             }
         }
 
-        // Zoom helpers
-
-        zoomFit()  {
+        /**
+         * Viewport controls, shared by the toolbar buttons and the keyboard
+         * shortcuts registered in CamController. In 3D the camera owns the fit,
+         * so the request goes to the 3D view instead.
+         * No optional chaining past `renderer`: RendererCore declares zoomFit,
+         * zoomIn, zoomOut and the readout, and a `?.` here spent two sessions
+         * turning a dead property into a button that did nothing quietly.
+         */
+        zoomFit() {
             if (this.ctrl.renderMode === '3d') {
                 this.ctrl.renderer3D?.fitToContent();
                 return;
             }
-            this.renderer?.core?.zoomFit(true);
-            this.renderer?.render();
-            this.canvasReadout?.updateZoom();
+            this.renderer.zoomFit(true);
+            this.renderer.render();
+            this.canvasReadout.updateZoom();
         }
 
-        zoomIn()   { this.renderer?.core?.zoomIn(); this.renderer?.render(); this.canvasReadout?.updateZoom(); }
-        zoomOut()  { this.renderer?.core?.zoomOut(); this.renderer?.render(); this.canvasReadout?.updateZoom(); }
-
-        // Canvas Spinner
-
-        /**
-         * Spinner over the StatusManager task API. Repeated calls relabel the
-         * live task instead of stacking.
-         */
-        showCanvasSpinner(message) {
-            const sm = this.statusManager;
-            if (sm.isBusy() && this._shimTaskId != null) {
-                sm.tick(this._shimTaskId, { label: message });
-            } else {
-                this._shimTaskId = sm.beginTask(message);
-            }
-        }
-
-        hideCanvasSpinner() {
-            this.statusManager.endTask(this._shimTaskId);
-            this._shimTaskId = null;
-        }
+        zoomIn() { this.renderer.zoomIn(); this.renderer.render(); this.canvasReadout.updateZoom(); }
+        zoomOut() { this.renderer.zoomOut(); this.renderer.render(); this.canvasReadout.updateZoom(); }
 
         // Layer color/z-index resolution
 
@@ -251,9 +353,44 @@
         onThemeChanged() {
             if (!this.renderer) return;
             this.renderer.setOptions({ theme: document.documentElement.getAttribute('data-theme') || 'dark' });
-            this.renderer.core?.updateThemeColors?.();
+            this.renderer.updateThemeColors();
             this.renderer.render();
         }
+
+        /**
+         * The one render funnel. Both apps clear, rebuild from their own source
+         * of truth, mirror into 3D and repaint - only the middle step differs,
+         * and that is collectLayers().
+         * Coalesced: a rebuild requested during a rebuild runs once more on the
+         * next frame instead of stacking. EasyTrace's fusion path is async and
+         * several UI events fire together.
+         */
+        async rebuildLayers() {
+            if (!this.renderer) return;
+            if (this._rebuildPending) { this._rebuildQueued = true; return; }
+            this._rebuildPending = true;
+            try {
+                this.renderer.clearLayers();
+                await this.collectLayers();
+                this.renderer.render();
+                // The 3D view mirrors these layers and goes stale unless it
+                // rebuilds from the same funnel.
+                this.ctrl.refresh3D();
+                this.afterRebuildLayers();
+            } finally {
+                this._rebuildPending = false;
+                if (this._rebuildQueued) {
+                    this._rebuildQueued = false;
+                    requestAnimationFrame(() => this.rebuildLayers());
+                }
+            }
+        }
+
+        /** Per-app layer population. Overridden in both apps. */
+        async collectLayers() {}
+
+        /** Per-app post-rebuild UI sync. EasyTrace refreshes origin and stats. */
+        afterRebuildLayers() {}
 
         /**
          * Colour for an operation TYPE, from the theme's operation palette.
@@ -320,8 +457,6 @@
 
             return null; // signal subclass to handle (isolation=200, clearing=200, etc.)
         }
-
-        // Debug
 
         // REVIEW - debug states need to be centralized
         debug(message, data = null) {

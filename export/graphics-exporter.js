@@ -11,17 +11,52 @@
 
 (function() {
     'use strict';
+    const ROOT = globalThis;
 
-    const C = window.CAMConfig.constants;
-    const D = window.CAMConfig.defaults;
+    const C = ROOT.CAMConfig.constants;
+    const D = ROOT.CAMConfig.defaults;
     const PRECISION = C.precision.coordinate;
     const debugState = D.debug;
 
     class GraphicsExporter {
         constructor() {
             this.DECIMAL = 4;
-            this.HAIRLINE_STROKE = 0.01; // mm - standard svg hairline
+            this.HAIRLINE_STROKE = .01; // mm - standard svg hairline
             this.MAX_CANVAS_DIM = 16000;
+            this.profiles = new Map;
+        }
+
+        /**
+         * The profile table, loaded once by the controller. A profile is to a
+         * laser what a post-processor descriptor is to a mill: an id, a label,
+         * a palette and its own settings. Holding the table here is why nothing
+         * outside this file has to know that laser profiles exist.
+         */
+        setProfiles(json) {
+            if (json?.profiles) {
+            this.profiles = new Map(Object.entries(json.profiles).map(([id, p]) => [id, { id: id, ...p }]));
+            }
+        }
+
+        getProfileInfo(id) {
+            return this.profiles ? this.profiles.get(id) || null : null;
+        }
+
+        getAllProfileDescriptors() {
+            return this.profiles ? [...this.profiles.values()] : [];
+        }
+
+        /**
+         * Everything the renderers need, resolved once: the profile's own
+         * table under the user's edits for that profile. A missing profile is
+         * a wiring bug - falling back to a bare settings read produced a
+         * plausible export with no palette and the wrong colours.
+         */
+        resolveOptions(settings) {
+            const id = settings.laser.activeProfile;
+            const profile = this.getProfileInfo(id);
+            if (!profile) throw new Error(`Laser profile '${id}' is not registered`);
+            return { ...profile, ...settings.laserSettings[profile.id] };
         }
 
         /**
@@ -42,27 +77,41 @@
             if (!operations || operations.length === 0) return { success: false, files: [] };
 
             const laser = ctx.laser;
+            const profile = ctx.profile;
+
             const format = overrides.format || laser.exportFormat;
             const dpi = overrides.dpi || laser.exportDPI;
-            const padding = overrides.padding ?? laser.exportPadding ?? D.laser.exportPadding;
+            const padding = overrides.padding ?? laser.exportPadding;
             const singleFile = overrides.singleFile !== false;
             const baseName = overrides.baseName || D.export.defaultBaseName;
 
-            const activeProfile = laser.profiles?.[laser.activeProfile || 'generic'] || {};
-            const layerColors = overrides.layerColors || laser.layerColors || {};
+            // The profile answers for everything the target software dictates.
+            // `??`, not `||`: the plain-vector route overrides reverseCutOrder
+            // and colorPerPass to false, and those must beat a profile's true.
+            const style = {
+                svgGrouping: overrides.svgGrouping ?? profile.svgGrouping,
+                reverseCutOrder: overrides.reverseCutOrder ?? profile.reverseCutOrder,
+                heatManagement: overrides.heatManagement ?? profile.heatManagement,
+                colorPerPass: overrides.colorPerPass ?? profile.colorPerPass,
+                palette: overrides.palette ?? profile.palette,
+                paletteLumping: overrides.paletteLumping ?? profile.paletteLumping,
+                layerColors: overrides.layerColors ?? profile.layerColors
+            };
+            const layerColors = style.layerColors;
 
             const commonOptions = {
                 dpi,
                 padding,
                 transforms: ctx.transforms,
                 bounds: ctx.bounds,
-                heatManagement: overrides.heatManagement ??
-                    ((laser.heatManagement !== 'off' && format !== 'png') ? laser.heatManagement : 'off'),
-                reverseCutOrder: overrides.reverseCutOrder ?? laser.reverseCutOrder ?? false,
-                svgGrouping: overrides.svgGrouping ?? laser.svgGrouping ?? 'layer',
-                colorPerPass: overrides.colorPerPass ?? laser.colorPerPass ?? false,
-                palette: overrides.palette ?? activeProfile.palette ?? null,
-                paletteLumping: overrides.paletteLumping ?? activeProfile.paletteLumping ?? false,
+                // PNG has no per-pass colour channel, so heat management has
+                // nothing to sequence against.
+                heatManagement: format === 'png' ? 'off' : style.heatManagement,
+                reverseCutOrder: style.reverseCutOrder,
+                svgGrouping: style.svgGrouping,
+                colorPerPass: style.colorPerPass,
+                palette: style.palette,
+                paletteLumping: style.paletteLumping,
                 includeComments: overrides.includeComments
             };
 
@@ -174,12 +223,12 @@
                 heightMm: output.heightMm,
                 padding: padding,
                 origin: options.transforms?.origin || { x: 0, y: 0 },
-                heatManagement: options.heatManagement || 'off',
-                reverseCutOrder: options.reverseCutOrder || false,
-                svgGrouping: options.svgGrouping || 'layer',
-                colorPerPass: options.colorPerPass || false,
-                palette: options.palette || null,
-                paletteLumping: options.paletteLumping || false,
+                heatManagement: options.heatManagement,
+                reverseCutOrder: options.reverseCutOrder,
+                svgGrouping: options.svgGrouping,
+                colorPerPass: options.colorPerPass,
+                palette: options.palette,
+                paletteLumping: options.paletteLumping,
                 includeComments: options.includeComments,
                 commentBlock: options.commentBlock
             };
@@ -664,10 +713,17 @@
             const scaleX = pxW / widthMm;
             const scaleY = pxH / heightMm;
 
-            const canvas = document.createElement('canvas');
-            canvas.width = pxW;
-            canvas.height = pxH;
-            const ctx = canvas.getContext('2d');
+            // OffscreenCanvas exists in every Worker, so the document branch is
+            // browser-main-thread only. Neither exists under Node: fail by name
+            // rather than as a bare ReferenceError on `document`.
+            let canvas;
+            if (typeof OffscreenCanvas !== 'undefined') {
+                canvas = new OffscreenCanvas(pxW, pxH);
+            } else if (typeof document !== 'undefined') {
+                canvas = Object.assign(document.createElement('canvas'), { width: pxW, height: pxH });
+            } else {
+                throw new Error('[graphicsExporter] PNG export needs OffscreenCanvas or a DOM canvas; neither is available in this host. Export SVG instead.');
+            }
 
             // White background
             ctx.fillStyle = '#FFFFFF';
@@ -1102,18 +1158,7 @@
         }
 
         createLinePrimitive(p0, p1, properties) {
-            if (typeof PathPrimitive !== 'undefined') {
-                return new PathPrimitive([{
-                    points: [p0, p1], isHole: false,
-                    nestingLevel: 0, parentId: null,
-                    arcSegments: [], curveIds: []
-                }], properties);
-            }
-            return {
-                type: 'path',
-                contours: [{ points: [p0, p1], isHole: false }],
-                properties: properties
-            };
+            return new PathPrimitive([{ points: [p0, p1], isHole: false, closed: false }], properties);
         }
 
         /**
@@ -1260,5 +1305,5 @@
         }
     }
 
-    window.GraphicsExporter = GraphicsExporter;
+    ROOT.GraphicsExporter = GraphicsExporter;
 })();

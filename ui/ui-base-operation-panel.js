@@ -23,7 +23,8 @@
 
             this.ui = ui;
             this.core = null;
-            this.parameterManager = null;
+            this.parameterStore = null;
+            this.inputRenderer = null;
             this.toolLibrary = null;
             this.lang = null;
             this.appProfile = null;
@@ -40,16 +41,22 @@
         // Initialization - called by subclass init()
         // ═══════════════════════════════════════════════════════════════
 
-        initBase(core, paramManager, appProfile, lang) {
+        /**
+         * @param {Object} o
+         * @param {CamCore} o.core
+         * @param {ParameterStore} o.store
+         * @param {InputRenderer} o.renderer
+         * @param {Object} o.appProfile
+         * @param {Object} o.lang
+         */
+        initBase({ core, store, renderer, appProfile, lang }) {
             this.core = core;
-            this.parameterManager = paramManager;
+            this.parameterStore = store;
+            this.inputRenderer = renderer;
             this.toolLibrary = core?.toolLibrary || null;
             this.appProfile = appProfile;
             this.lang = lang;
-
-            this.parameterManager.addChangeListener((change) => {
-                this.onExternalParameterChange(change);
-            });
+            this.parameterStore.addChangeListener(change => this.onExternalParameterChange(change));
         }
 
         // ═══════════════════════════════════════════════════════════════
@@ -71,13 +78,11 @@
         getMachineClass(operationType) {
             const current = this.resolveCurrentOperation();
             const op = current && this.resolveOperationType(current) === operationType
-                ? this.core.getOperation(current.id)
+                ? this.core.store.getOperation(current.id)
                 : null;
             if (op) return this.core.machineClassOf(op);
 
-            return this.ui.ctrl.resolveMachineClass?.(operationType)
-                || this.ui.ctrl.pipelineState?.machineClass
-                || 'router';
+            return op ? this.core.machineClassOf(op) : this.core.machineClassForType(operationType);
         }
 
         /**
@@ -90,8 +95,8 @@
             return {
                 machineClass,
                 dimension: registry?.dimensionFor(operationType, machineClass) || null,
-                stages: this.parameterManager.getStages(operationType, machineClass),
-                artifacts: this.parameterManager.getArtifacts(operationType, machineClass)
+                stages: this.parameterStore.getStages(operationType, machineClass),
+                artifacts: this.parameterStore.getArtifacts(operationType, machineClass)
             };
         }
 
@@ -100,7 +105,7 @@
             if (!this.currentOperationId) return;
             const operation = this.resolveCurrentOperation();
             if (!operation) return;
-            this.parameterManager.commitToOperation(this.normalizeForCommit(operation));
+            this.parameterStore.commitToOperation(this.normalizeForCommit(operation));
             this.debug(`Saved state for ${this.currentOperationId}`);
         }
 
@@ -135,7 +140,7 @@
         onDrillToolingChange(name, value) {
             const operation = this.resolveDrillOperation();
             if (operation) {
-                const settings = this.parameterManager.getAllParameters(this.currentOperationId) || {};
+                const settings = this.parameterStore.getAllParameters(this.currentOperationId) || {};
                 try {
                     this.core.getHandler('drill').ensureDrillTable(operation, settings);
                 } catch (e) {
@@ -157,35 +162,29 @@
          * resolves to null and simply skips the table refresh.
          */
         resolveDrillOperation() {
-            if (this.currentBucket) return this.currentBucket.getOperation(this.core);
-            return this.core?.getOperation?.(this.currentOperationId) || null;
+            if (this.currentBucket) return this.core.store.getOperation(this.currentBucket.id);
+            return this.core.store.getOperation(this.currentOperationId) || null;
         }
 
         /**
-         * A parameter changed. Bump that stage's revision and let the core
+         * A parameter changed, bump that stage's revision and let the core
          * work out whether anything downstream went stale.
-         *
-         * This used to be a per-app override and the two drifted: EasyShape
-         * fired on the geometry stage only and whenever offsets existed;
-         * EasyTrace fired on geometry OR strategy but only once the
-         * operation was already export-ready. Neither watched stock
-         * thickness, machine heights or the workspace transform at all.
          */
         checkInvalidation(paramName) {
             const target = this.resolveCurrentOperation();
             if (!target) return;
 
-            const op = this.core.getOperation(target.id);
+            const op = this.core.store.getOperation(target.id);
             if (!op) return;
 
-            const def = this.parameterManager.parameterDefinitions[paramName];
+            const def = this.parameterStore.parameterDefinitions[paramName];
             if (!def || !def.stage) return;
             // Identity-carrying fields (tool number, labels) move no geometry.
             if (def.invalidates === false) return;
 
-            this.core.bumpOperationRevision(op.id, def.stage);
+            this.core.store.bumpOperationRevision(op.id, def.stage);
             const reason = `'${def.label || paramName}' changed after generation - regenerate before exporting.`;
-            if (this.core.refreshStaleFlags(op.id, reason)) this.ui.setStatus(op.invalidatedReason, 'warning');
+            if (this.core.store.refreshStaleFlags(op.id, reason)) this.ui.setStatus(op.invalidatedReason, 'warning');
             this.onInvalidated(op);
         }
 
@@ -201,33 +200,35 @@
 
         /**
          * Renders parameter fields grouped by category into a container.
-         * Called by both showOperationProperties variants.
          */
         renderParameterForm(container, opType, stage, values) {
-            const pm = this.parameterManager;
+            const store = this.parameterStore;
             const ctx = this.getOperationContext(opType);
-            const groups = this.groupByCategory(pm.getStageParameters(stage, opType, ctx));
+            const groups = this.groupByCategory(store.getStageParameters(stage, opType, ctx));
             const prefix = this.getIdPrefix();
 
             for (const cat of this.orderCategories(Object.keys(groups))) {
                 const section = document.createElement('div');
                 section.className = 'property-section';
                 section.dataset.category = cat;
-
                 const h3 = document.createElement('h3');
                 h3.textContent = this.getCategoryTitle(cat);
                 section.appendChild(h3);
 
                 for (const p of groups[cat]) {
-                    const val = void 0 !== values[p.name] ? values[p.name] : p.default;
-                    section.appendChild(ParameterManager.createField(p, val, {
-                        idPrefix: prefix, opType, toolLibrary: this.toolLibrary, lang: this.lang,
+                    const val = values[p.name] !== undefined ? values[p.name] : p.default;
+                    section.appendChild(this.inputRenderer.createField(p, val, {
+                        idPrefix: prefix,
+                        opType: opType,
+                        toolLibrary: this.toolLibrary,
+                        lang: this.lang,
                         onChange: (name, newVal, el) => this.onParameterChange(name, newVal, el, opType)
                     }));
                 }
                 container.appendChild(section);
             }
-            ParameterManager.evaluateConditionals(container, values, pm.optionGates);
+
+            this.inputRenderer.refreshFields(container, values, store.optionGates);
             UIControls.setupPropertyGridNavigation(container);
         }
 
@@ -248,8 +249,8 @@
                 op.userOverrides.add(name);
             }
 
-            const pm = this.parameterManager;
-            const getStage = paramName => pm.parameterDefinitions[paramName]?.stage || this.currentStage;
+            const ps = this.parameterStore;
+            const getStage = paramName => ps.parameterDefinitions[paramName]?.stage || this.currentStage;
 
             // Tool selection change - sync all tool attributes
             if (inputEl?.tagName === 'SELECT' && (name === 'tool' || name.endsWith('Tool')) && this.toolLibrary) {
@@ -259,16 +260,17 @@
                 }
             }
 
-            // Validate through ParameterManager
-            const result = pm.setParameter(this.currentOperationId, getStage(name), name, value);
+            // Validate through ParameterStore
+            const result = ps.setParameter(this.currentOperationId, getStage(name), name, value);
 
             if (result.success) {
-                if (inputEl) inputEl.classList.remove('input-error');
+                if (inputEl) { inputEl.classList.remove('input-error'); inputEl.removeAttribute('aria-invalid'); }
             } else {
-                if (inputEl) inputEl.classList.add('input-error');
+                if (inputEl) { inputEl.classList.add('input-error'); inputEl.setAttribute('aria-invalid', 'true'); }
                 if (result.correctedValue !== undefined && inputEl) {
                     inputEl.value = result.correctedValue;
                     inputEl.classList.remove('input-error');
+                    inputEl.removeAttribute('aria-invalid');
                 }
                 if (result.error) this.ui.setStatus(result.error, 'error');
             }
@@ -277,15 +279,15 @@
             // which parameters exist and how many stages the chain has, so the
             // form is rebuilt rather than patched.
             // CNC Stencil only, for diode/co2 lasers, vinyl cutters or drag knife machines
-            const boundDef = pm.parameterDefinitions[name];
+            const boundDef = ps.parameterDefinitions[name];
             if (boundDef?.bindsMachineClass) {
                 clearTimeout(this.changeTimeout);
-                const target = this.core.getOperation(this.currentOperationId);
+                const target = this.core.store.getOperation(this.currentOperationId);
                 if (target) {
                     const label = boundDef.options?.find(o => o.value === value)?.label || value;
                     target.machineClass = value;
-                    this.core.bumpOperationRevision(target.id, 'geometry');
-                    this.core.refreshStaleFlags(target.id,
+                    this.core.store.bumpOperationRevision(target.id, 'geometry');
+                    this.core.store.refreshStaleFlags(target.id,
                         `Machine changed to ${label} - regenerate before exporting.`);
                     this.saveCurrentState();
                     this.currentStage = this.getOperationContext(opType).stages[0];
@@ -310,11 +312,11 @@
             // Invalidate generated geometry when source params change
             this.checkInvalidation(name);
 
-            // Re-evaluate conditionals from PM state (single source of truth)
+            // Re-evaluate conditionals from PS state (single source of truth)
             const formContainer = this.getFormContainer();
             if (formContainer) {
-                const allParams = pm.getAllParameters(this.currentOperationId);
-                ParameterManager.evaluateConditionals(formContainer, allParams, pm.optionGates);
+                const allParams = ps.getAllParameters(this.currentOperationId);
+                this.inputRenderer.refreshFields(formContainer, allParams, ps.optionGates);
             }
 
             // Debounced auto-save
@@ -327,14 +329,14 @@
 
         syncToolParameters(tool, opType) {
             if (!tool || !this.currentOperationId) return;
-            const pm = this.parameterManager;
+            const ps = this.parameterStore;
             const prefix = this.getIdPrefix();
             const setField = (paramName, val) => {
                 if (null == val) return;
-                const def = pm.parameterDefinitions[paramName];
+                const def = ps.parameterDefinitions[paramName];
                 if (!def) return;
                 if (def.operationTypes && !def.operationTypes.includes(opType)) return;
-                pm.setParameter(this.currentOperationId, def.stage || this.currentStage, paramName, val);
+                ps.setParameter(this.currentOperationId, def.stage || this.currentStage, paramName, val);
                 const el = document.getElementById(`${prefix}${paramName}`);
                 el && ("checkbox" === el.type ? (el.checked = !!val) : (el.value = val));
             };
@@ -412,90 +414,57 @@
 
         /**
          * Calls the operation handler's orchestrateGeneration.
-         * Returns the handler's result object { success, message, status }.
          */
         async runGeneration(operationId) {
-            const operation = this.core.getOperation(operationId);
-            if (!operation) {
-                return { success: false, message: `Operation ${operationId} not found`, status: 'error' };
-            }
+            const operation = this.core.store.getOperation(operationId);
+            if (!operation) return { success: false, message: `Operation ${operationId} not found`, status: "error" };
 
             let handler;
             try {
                 handler = this.core.getHandler(operation.type);
             } catch (e) {
-                return { success: false, message: `No handler for '${operation.type}': ${e.message}`, status: 'warning' };
+                return { success: false, message: `No handler for '${operation.type}': ${e.message}`, status: "warning" };
             }
 
-            const params = this.parameterManager.getAllParameters(operationId);
-
-            // Task ownership lives HERE: every entry point into generation
-            // (handleAction, EasyShape bucket flows) funnels through
-            // runGeneration, so this is the one begin/end pair. Progress is
-            // forwarded STRUCTURED ({frac,label}); StatusManager formats.
-            // REVIEW - EasyTrace5000 should be updated for this as well.
+            const params = this.parameterStore.getAllParameters(operationId);
             const sm = this.ui.statusManager;
-            const taskId = sm?.beginTask?.(
-                this.getSpinnerLabel?.('geometry', operation.type) || 'Generating');
-            const onProgress = (p) => sm?.tick?.(taskId, p);
+            const taskId = sm?.beginTask?.(this.getSpinnerLabel?.("geometry", operation.type) || "Generating");
+            const onProgress = p => sm?.tick?.(taskId, p);
 
-            // Tool number is the operator's responsibility and it is taken
-            // HERE, at generation, not at export. Scope matters: the check
-            // must ask whether toolNumber applies to THIS operation type, not
-            // whether it exists in the profile at all. Stencil is not in
-            // toolNumber's operationTypes, so loadFromOperation skips the key,
-            // getAllParameters returns undefined, and a global check blocks
-            // stencil generation outright.
-            const toolNumDef = this.parameterManager.parameterDefinitions.toolNumber;
-            // In multi-tool drilling the sidebar's number is hidden and the table
-            // carries one per size, so the gate that applies is describeTable's,
-            // not this one.
-            const multiToolDrill = 'drill' === operation.type && true === params.drillMultiTool;
-            const toolNumApplies = toolNumDef && !multiToolDrill
-                && (!toolNumDef.operationTypes || toolNumDef.operationTypes.includes(operation.type));
+            const toolNumDef = this.parameterStore.parameterDefinitions.toolNumber;
+            const multiToolDrill = "drill" === operation.type && true === params.drillMultiTool;
+            const toolNumApplies = toolNumDef && !multiToolDrill && (!toolNumDef.operationTypes || toolNumDef.operationTypes.includes(operation.type));
+
             if (toolNumApplies) {
                 const toolNum = Number(params.toolNumber);
                 if (!Number.isInteger(toolNum) || toolNum < 1) {
-                    if (taskId != null) sm?.endTask?.(taskId);
+                    if (null != taskId) sm?.endTask?.(taskId);
                     return {
                         success: false,
-                        status: 'warning',
-                        message: 'Enter a tool number (the T word your controller ' +
-                            'receives) before generating. If your machine has no ' +
-                            'tool changer, 1 is correct.'
+                        status: "warning",
+                        message: "Enter a tool number (the T word your controller receives) before generating. If your machine has no tool changer, 1 is correct."
                     };
                 }
             }
 
-            // Let the overlay paint before any main-thread-blocking work.
+            // Let the overlay paint before blocking work
             await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
 
             try {
-                const result = await handler.orchestrateGeneration(
-                    operation, params, this.core, { onProgress });
-
-                // An operation with no strategy stage has no second button to
-                // build the preview artifact, and preview.ready is the export
-                // gate isExportReady and executeExport both read. Route it
-                // through runPreview rather than core.generateCNCPreview so
-                // the 3D refresh below happens for both paths.
+                const result = await handler.orchestrateGeneration(operation, params, this.core, { onProgress: onProgress });
                 const { stages, artifacts } = this.getOperationContext(operation.type);
                 if (result?.success) {
-                    this.core.stampArtifact(operationId, 'offsets');
-                    // A chain that declares a preview artifact but no stage to build
-                    // it from has no second button, so build it here. A chain that
-                    // declares no preview must not get one: stamping an artifact the
-                    // chain does not list hides the offsets layer behind a node that
-                    // is never drawn.
-                    if (artifacts.includes('preview') && !stages.includes('strategy')) await this.runPreview(operationId);
+                    this.core.store.stampArtifact(operationId, "offsets");
+                    if (artifacts.includes("preview") && !stages.includes("strategy")) {
+                        await this.runPreview(operationId);
+                    }
                 }
                 return this.withDepthWarning(result, operation, params);
             } catch (e) {
                 console.error(`[BaseOperationPanel] Generation failed for ${operation.type}:`, e);
-                return { success: false, message: `Generation failed: ${e.message}`, status: 'error' };
+                return { success: false, message: `Generation failed: ${e.message}`, status: "error" };
             } finally {
-                sm?.endTask?.(taskId);
-                // Never leave a UI closure retained on the operation object.
+                if (null != taskId) sm?.endTask?.(taskId);
                 operation._onProgress = null;
             }
         }
@@ -507,12 +476,12 @@
          * behaviours that make a per-operation plan a per-operation plan.
          */
         async runToolpaths(operationId) {
-            const operation = this.core.getOperation(operationId);
+            const operation = this.core.store.getOperation(operationId);
             if (!operation) {
                 return { success: false, message: `Operation ${operationId} not found`, status: 'error' };
             }
 
-            const params = this.parameterManager.getAllParameters(operationId) || {};
+            const params = this.parameterStore.getAllParameters(operationId) || {};
 
             // Feeds are the one parameter with no safe default anywhere in the
             // stack. F0 is not "use the last feed": Grbl and grblHAL reject it
@@ -562,8 +531,10 @@
             }
         }
 
-        /* Read-only job summary for the output stage. The modal owns file layout,
-        ordering and tool changes, and the stage's action button opens it. */
+        /**
+         * Read-only job summary for the output stage. The modal owns file layout,
+         * ordering and tool changes, and the stage's action button opens it.
+         */
         createOutputBlock(operation) {
             const section = document.createElement('div');
             section.className = 'property-section';
@@ -571,7 +542,7 @@
             h3.textContent = 'Output';
             section.appendChild(h3);
 
-            const tp = this.core.getToolpaths?.(operation.id);
+            const tp = this.core.store.getToolpaths(operation.id);
             const summary = document.createElement('div');
             summary.className = 'summary-line';
             if (tp?.plans?.length) {
@@ -593,7 +564,7 @@
          * Returns { success, message, status }.
          */
         async runPreview(operationId) {
-            const operation = this.core.getOperation(operationId);
+            const operation = this.core.store.getOperation(operationId);
             if (!operation) {
                 return { success: false, message: `Operation ${operationId} not found`, status: 'error' };
             }
@@ -602,16 +573,16 @@
                 return { success: false, message: 'Generate geometry first', status: 'warning' };
             }
 
-            const success = this.core.generateCNCPreview(operationId);
+            const success = this.core.store.generateCNCPreview(operationId);
             if (!success) {
                 return { success: false, message: 'Preview generation failed (check tool diameter)', status: 'error' };
             }
-            this.core.stampArtifact(operationId, 'preview');
+            this.core.store.stampArtifact(operationId, 'preview');
 
             operation.exportReady = true;
             return this.withDepthWarning(
                 { success: true, message: 'Preview generated', status: 'success' },
-                operation, this.parameterManager.getAllParameters(operationId)
+                operation, this.parameterStore.getAllParameters(operationId)
             );
         }
 
@@ -634,7 +605,7 @@
             const maxSafe = this.core.settings?.machine?.heights?.maxSafeDepth;
             if (typeof maxSafe !== 'number') return null;
 
-            const deepestZ = this.core.resolveSurfaceZ(operation) - Math.abs(params.cutDepth);
+            const deepestZ = this.core.pipelineContext.resolveSurfaceZ(operation) - Math.abs(params.cutDepth);
 
             if (deepestZ < maxSafe) {
                 return `cut reaches Z ${deepestZ.toFixed(2)}mm, past the machine's max ` +
@@ -700,7 +671,7 @@
          * parameter, not the app: declaring it is all Batch C has to do.
          */
         supportsDrillTooling() {
-            return !!this.parameterManager?.parameterDefinitions?.drillMultiTool;
+            return !!this.parameterStore?.parameterDefinitions?.drillMultiTool;
         }
 
         /**
@@ -843,42 +814,65 @@
             const opType = this.resolveOperationType(operation);
             const machineClass = this.getMachineClass(opType);
             const yieldToRender = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
-
             const advance = () => {
-                const next = this.parameterManager.getNextStage(stage, opType, machineClass);
-                if (!next) return;
-                setTimeout(() => { this.switchStage(next); this.onStageTransition(next); }, D.ui.timing.uiTransitionDelay);
+                const next = this.parameterStore.getNextStage(stage, opType, machineClass);
+                if (next) {
+                    setTimeout(() => {
+                        this.switchStage(next);
+                        this.onStageTransition(next);
+                    }, D.ui.timing.uiTransitionDelay);
+                }
             };
 
-            // Every chain terminates in the job modal. Per-operation G-code was a
-            // second producer for the same file with none of the modal's ordering,
-            // tool-change or split-drill context.
-            if ('output' === stage) {
+            if ("output" === stage) {
                 this.onExportStage(opId, operation);
                 return;
             }
 
             const ACTIONS = {
-                geometry: { run: () => this.runGeneration(opId), after: id => this.onGenerationSuccess(id, operation), spinner: null },
-                strategy: { run: () => this.runPreview(opId), after: id => this.onPreviewSuccess(id, operation), spinner: 'Generating preview...' },
-                machine: { run: () => this.runToolpaths(opId), after: id => this.onToolpathSuccess(id, operation), spinner: 'Calculating toolpaths...' }
+                geometry: {
+                    run: () => this.runGeneration(opId),
+                    after: id => this.onGenerationSuccess(id, operation),
+                    spinner: null
+                },
+                strategy: {
+                    run: () => this.runPreview(opId),
+                    after: id => this.onPreviewSuccess(id, operation),
+                    spinner: "Generating preview..."
+                },
+                machine: {
+                    run: () => this.runToolpaths(opId),
+                    after: id => this.onToolpathSuccess(id, operation),
+                    spinner: "Calculating toolpaths..."
+                }
             };
 
             const action = ACTIONS[stage];
             if (!action) return;
 
-            const spinner = this.getSpinnerLabel?.(stage, opType) || action.spinner;
-            if (spinner) { this.ui.showCanvasSpinner?.(spinner); await yieldToRender(); }
+            const spinner = action.spinner === null ? null : (this.getSpinnerLabel?.(stage, opType) || action.spinner);
+            let taskId = null;
+            if (spinner) {
+                taskId = this.ui.statusManager.beginTask(spinner);
+                await yieldToRender();
+            }
+
             try {
                 const result = await action.run();
                 this.ui.setStatus(result.message, result.status);
-                if (result.success) { await action.after(opId); advance(); }
-                else if ('geometry' === stage) this.onGenerationFailure(opId, operation, stage);
+                if (result.success) {
+                    await action.after(opId);
+                    advance();
+                } else if ("geometry" === stage) {
+                    this.onGenerationFailure(opId, operation, stage);
+                }
             } catch (e) {
                 console.error(`[${this.constructor.name}] ${stage} failed:`, e);
-                this.ui.setStatus(`${stage} failed: ${e.message}`, 'error');
+                this.ui.setStatus(`${stage} failed: ${e.message}`, "error");
             } finally {
-                if (spinner) this.ui.hideCanvasSpinner?.();
+                if (taskId !== null) {
+                    this.ui.statusManager.endTask(taskId);
+                }
             }
             this.returnFocusToTree();
         }

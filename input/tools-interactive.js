@@ -25,7 +25,7 @@
     const WHEEL_ZOOM_SPEED = 0.002;
 
     function unprojectToWorld(ctx, canvasX, canvasY) {
-        return ctx.renderer.core.canvasToWorld(canvasX, canvasY);
+        return ctx.renderer.canvasToWorld(canvasX, canvasY);
     }
 
     /**
@@ -37,7 +37,7 @@
     function hitToleranceWorld(ctx) {
         const screenPx = 4;
         const dpr = window.devicePixelRatio || 1;
-        const scale = ctx.renderer.core.viewScale;
+        const scale = ctx.renderer.viewScale;
         if (!scale || scale <= 0) return 0;
         return (screenPx * dpr) / scale;
     }
@@ -144,7 +144,7 @@
 
                 case 'drag-move': {
                     // Total delta from gesture start. The shapes have already
-                    // moved live during onPointerMove - we just record.
+                    // moved live during onPointerMove - just record.
                     const totalDx = this.lastWorld.x - this.startWorld.x;
                     const totalDy = this.lastWorld.y - this.startWorld.y;
                     if ((totalDx !== 0 || totalDy !== 0) && this.dragShapeIds && this.dragShapeIds.length > 0) {
@@ -224,7 +224,7 @@
 
         onWheel(data, ctx) {
             const zoomFactor = Math.exp(-data.deltaY * WHEEL_ZOOM_SPEED);
-            ctx.renderer.core.zoomToPoint(data.canvasX, data.canvasY, zoomFactor);
+            ctx.renderer.zoomToPoint(data.canvasX, data.canvasY, zoomFactor);
             ctx.renderer.render();
             ctx.canvasReadout?.updateZoom?.();
             return true;
@@ -266,13 +266,11 @@
                 const shapeIds = ctx.scene.collectShapeIds(node);
                 for (const sid of shapeIds) {
                     const s = ctx.scene.findShape(sid);
-                    if (s && ctx.renderer.updateLayerTransform) {
-                        ctx.renderer.updateLayerTransform(
-                            window.LayerNaming.shape(s.id),
-                            s.getWorldMatrix(),
-                            ctx.scene.getShapeWorldBounds(s)
-                        );
-                    }
+                    if (s) ctx.renderer.updateLayerTransform(
+                        window.LayerNaming.shape(sid),
+                        s.getWorldMatrix(),
+                        ctx.scene.getShapeWorldBounds(s)
+                    );
                 }
             }
         }

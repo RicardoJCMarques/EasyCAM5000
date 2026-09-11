@@ -17,6 +17,7 @@
 
 (function() {
     'use strict';
+    const ROOT = globalThis;
 
     class STLParser extends ParserCore {
         constructor(options = {}) {
@@ -179,5 +180,5 @@
         }
     }
 
-    window.STLParser = STLParser;
+    ROOT.STLParser = STLParser;
 })();

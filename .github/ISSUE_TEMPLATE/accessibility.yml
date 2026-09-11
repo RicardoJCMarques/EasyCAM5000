@@ -7,7 +7,26 @@ body:
     attributes:
       value: |
         ### Accessibility Report
-        Thank you for helping us make EasyTrace5000 accessible to everyone.
+        Thank you for helping make EasyCAM5000 accessible to everyone.
+
+  - type: markdown
+    attributes:
+      value: |
+        ### Before you submit
+        Please check the [known limitations](https://github.com/RicardoJCMarques/EasyCAM5000#status-and-known-limitations),
+        [known bugs](https://github.com/RicardoJCMarques/EasyCAM5000/blob/main/CHANGELOG.md)
+        and for [open issues](https://github.com/RicardoJCMarques/EasyCAM5000/issues).
+
+  - type: dropdown
+    id: app
+    attributes:
+      label: Which app?
+      options:
+        - EasyTrace5000 (PCB)
+        - EasyShape5000 (CNC routing)
+        - Both / not sure
+    validations:
+      required: true
   
   - type: textarea
     id: description

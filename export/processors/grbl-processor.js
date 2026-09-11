@@ -11,6 +11,7 @@
 
 (function() {
     'use strict';
+    const ROOT = globalThis;
 
     class GRBLPostProcessor extends BasePostProcessor {
         constructor() {
@@ -49,5 +50,5 @@
         }
     }
 
-    window.GRBLPostProcessor = GRBLPostProcessor;
+    ROOT.GRBLPostProcessor = GRBLPostProcessor;
 })();

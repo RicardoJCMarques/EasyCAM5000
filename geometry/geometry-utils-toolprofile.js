@@ -24,9 +24,7 @@
 
 (function() {
     'use strict';
-
     const ROOT = (typeof self !== 'undefined') ? self : window;
-
     const DEG = Math.PI / 180;
 
     /**

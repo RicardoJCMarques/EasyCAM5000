@@ -11,9 +11,9 @@
 
 (function() {
     'use strict';
+    const ROOT = globalThis;
 
-    const C = window.CAMConfig.constants;
-    const D = window.CAMConfig.defaults;
+    const C = ROOT.CAMConfig.constants;
     const formatConfig = C.formats.excellon;
 
     class ExcellonParser extends ParserCore {
@@ -507,8 +507,19 @@
                 this.errors.push('Holes found but no tools defined');
             }
 
+            // REVIEW - Still worth keeping?
+            // Large-board warning. Not a validation gate - the file is accepted
+            // either way; this only flags a plausible unit or format mistake.
+            if (this.drillData.holes.length > 0) {
+                const range = this.coordinateValidation.coordinateRange;
+                const width = range.maxX - range.minX;
+                const height = range.maxY - range.minY;
+                if (width > 1000 || height > 1000) {
+                    this.warnings.push(`Large board: ${width.toFixed(1)}x${height.toFixed(1)}mm`);
+                }
+            }
+
             this.calculateDrillBounds();
-            this.validateCoordinateConsistency();
             this.generateDrillStats();
 
             this.drillData.units = this.options.units;
@@ -556,18 +567,6 @@
             }
         }
 
-        validateCoordinateConsistency() {
-            if (this.drillData.holes.length === 0) return;
-
-            const range = this.coordinateValidation.coordinateRange;
-            const width = range.maxX - range.minX;
-            const height = range.maxY - range.minY;
-
-            if (width > 1000 || height > 1000) {
-                this.warnings.push(`Large board: ${width.toFixed(1)}x${height.toFixed(1)}mm`);
-            }
-        }
-
         generateDrillStats() {
             const toolUsage = new Map();
             this.drillData.holes.forEach(hole => {
@@ -582,5 +581,5 @@
         }
     }
 
-    window.ExcellonParser = ExcellonParser;
+    ROOT.ExcellonParser = ExcellonParser;
 })();

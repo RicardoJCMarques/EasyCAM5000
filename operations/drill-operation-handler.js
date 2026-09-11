@@ -11,9 +11,10 @@
 
 (function() {
     'use strict';
+    const ROOT = globalThis;
 
-    const C = window.CAMConfig.constants;
-    const D = window.CAMConfig.defaults;
+    const C = ROOT.CAMConfig.constants;
+    const D = ROOT.CAMConfig.defaults;
     const EPSILON = C.precision.epsilon;
     const PRECISION = C.precision.coordinate;
 
@@ -130,13 +131,11 @@
 
         /**
          * Builds a fresh drill table from the current summary.
-         * null in a row means INHERIT the operation - that is what keeps the
-         * single-tool desktop path one click, and it is also why nothing here
-         * writes toolNumber: a slot number is not derivable from a diameter,
-         * and enumerating T1/T2/T3 across rows is exactly the invention the
-         * tool contract forbids. Rows stay on the operation's number until the
-         * operator assigns one, which checkToolAssignment then reports as the
-         * collision it is.
+         * null in a row means INHERIT the operation, which is what keeps the
+         * single-tool desktop path one click. Rows carry no toolNumber
+         * because a slot number is not derivable from a diameter - the
+         * operator assigns one per size when they want the change, and until
+         * then every row cuts on the operation's own number.
          */
         buildDrillTable(operation, settings, preset = 'flatten') {
             const table = { preset, rows: {}, generatedAt: Date.now() };
@@ -169,9 +168,8 @@
         }
 
         /**
-         * Auto-match for one row: an exact drill bit pecks, otherwise the largest
-         * end mill that still leaves a millable ring bores it, otherwise the row is
-         * skipped and says so.
+         * Fields with no column stay null on purpose: all three are read downstream
+         * and none is visible to the operator. Surface them before writing them.
          */
         matchLibraryTool(row, library) {
             const tolerance = D.toolpath.generation.drilling.matchTolerance;
@@ -207,8 +205,8 @@
          * Surface them before writing them again.
          * TODO(drill-tool-numbers) - ToolLibrary.importTools already accepts and
          * dedups tool.toolNumber, so a custom library could seed row.toolNumber
-         * here. The shipped tools.json declares none, and inventing one is what
-         * the tool contract forbids.
+         * here. Blocked on the shipped tools.json declaring none: seeding from
+         * an empty field would write null over a number the operator set.
          */
         applyLibraryTool(row, tool, diameter) {
             const cut = tool.cutting || {};
@@ -592,7 +590,7 @@
             }
 
             operation.primitives = accepted;
-            operation.bounds = this.core.recalculateBounds(accepted);
+            operation.bounds = this.core.ingest.recalculateBounds(accepted)
             operation.drillSummary = {
                 ...DrillHandler.summarizePrimitives(accepted, 'svg'),
                 totalAccepted: accepted.length,
@@ -740,7 +738,7 @@
                 }
             }
 
-            operation.bounds = this.core.recalculateBounds(operation.primitives);
+            operation.bounds = this.core.ingest.recalculateBounds(operation.primitives)
             delete operation.drillRecoverable;
 
             // Rebuild drill summary
@@ -817,7 +815,6 @@
                 metadata: {
                     strategy: 'offset',
                     toolDiameter: settings.toolDiameter,
-                    finalCount: processedGeometry.length,
                     generatedAt: Date.now()
                 }
             }];
@@ -829,7 +826,7 @@
             const token = this.beginRun(operation, options, core);
 
             // Compile parameters
-            const opParams = core.compileOperationParams(operation, params);
+            const opParams = core.pipelineContext.compileOperationParams(operation, params);
 
             if (opParams.isLaser) {
                 await this.generateLaserFills(operation, opParams);
@@ -897,6 +894,11 @@
             return { milledGroups: toGroups(millsByKey), peckGroups: toGroups(pecksByKey) };
         }
 
+        // Keyed on the primitives array identity: regeneration replaces the
+        // array, so a stale entry cannot survive a regenerate. Three call
+        // sites hit this per checkbox event.
+        static _splitCache = new WeakMap();
+
         /**
          * Files a split export writes for one operation, in emission order.
          * Splitting exists to give one file per BIT. A peck size is always one
@@ -910,36 +912,50 @@
          * set generation actually ran with - operation.settings is sparse in
          * EasyTrace5000 and lives on the bucket in EasyShape5000.
          */
+        // REVIEW - Outdated comment?
         static splitDrillFiles(operation) {
+            const primitives = operation?.preview?.primitives;
+            if (!primitives) return [];
+            const hit = DrillHandler._splitCache.get(primitives);
+            if (hit) return hit;
+
             const { milledGroups, peckGroups } = DrillHandler.groupPrimitivesByDiameter(operation);
             const settings = operation?.offsets?.[0]?.settings || null;
             const files = [];
-
             if (milledGroups.length > 0) {
                 if (DrillHandler.isMultiTool(settings)) {
                     for (const group of milledGroups) {
-                        files.push({
-                            key: `milled_${group.key}`,
-                            label: `drill milled ⌀${group.key}mm`,
-                            primitives: group.primitives
-                        });
+                        files.push({ key: `milled_${group.key}`, label: `drill milled ⌀${group.key}mm`, primitives: group.primitives });
                     }
                 } else {
-                    files.push({
-                        key: 'milled',
-                        label: 'drill milled',
-                        primitives: milledGroups.flatMap(g => g.primitives)
-                    });
+                    files.push({ key: "milled", label: "drill milled", primitives: milledGroups.flatMap(g => g.primitives) });
                 }
             }
             for (const group of peckGroups) {
-                files.push({
-                    key: `drill_${group.diameter}mm`,
-                    label: `drill ⌀${group.diameter}mm`,
-                    primitives: group.primitives
-                });
+                files.push({ key: `drill_${group.diameter}mm`, label: `drill ⌀${group.diameter}mm`, primitives: group.primitives });
             }
+            DrillHandler._splitCache.set(primitives, files);
             return files;
+        }
+
+        /**
+         * Copies Excellon header tool indices onto the drill table. A fab file
+         * that uses two T codes for one diameter - plated and non-plated is the
+         * common case - collapses to one row here, so the count of skipped codes
+         * is reported rather than swallowed.
+         */
+        static applyNativeToolNumbers(operation) {
+            let applied = 0, ambiguous = 0;
+            for (const row of Object.values(operation.drillTable?.rows || {})) {
+                const codes = row.nativeTools || [];
+                if (codes.length > 1) ambiguous++;
+                const parsed = parseInt(String(codes[0] || "").replace(/\D/g, ""), 10);
+                if (parsed > 0) {
+                    DrillHandler.updateDrillRow(operation, row.key, { toolNumber: parsed });
+                    applied++;
+                }
+            }
+            return { applied, ambiguous };
         }
 
         /**
@@ -985,7 +1001,6 @@
                 type: 'drill',
                 metadata: {
                     sourceCount: operation.primitives.length,
-                    finalCount: strategyGeometry.length,
                     generatedAt: Date.now(),
                     toolDiameter: recordDiameter,
                     drill: {
@@ -1259,5 +1274,5 @@
         }
     }
 
-    window.DrillHandler = DrillHandler;
+    ROOT.DrillHandler = DrillHandler;
 })();

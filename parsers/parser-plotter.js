@@ -11,9 +11,10 @@
 
 (function() {
     'use strict';
+    const ROOT = globalThis;
 
-    const C = window.CAMConfig.constants;
-    const D = window.CAMConfig.defaults;
+    const C = ROOT.CAMConfig.constants;
+    const D = ROOT.CAMConfig.defaults;
     const PRECISION = C.precision.coordinate;
     const debugState = D.debug;
 
@@ -114,74 +115,66 @@
         }
 
         plotExcellonData(excellonData) {
-            this.debug('Starting Excellon plotting');
+            this.debug("Starting Excellon plotting");
             this.reset();
-
             const drillData = excellonData.drillData;
+            drillData.holes && drillData.holes.forEach((item, index) => {
+                let primitive = null;
+                const properties = {
+                    tool: item.tool,
+                    plated: item.plated,
+                    polarity: "dark",
+                    diameter: item.diameter
+                };
+                if (!item.start || !item.end) {
+                    item.start = { ...item.position || { x: 0, y: 0 } };
+                    item.end = { ...item.position || { x: 0, y: 0 } };
+                }
 
-            if (drillData.holes) {
-                drillData.holes.forEach((item, index) => {
-                    let primitive = null;
-                    const properties = { 
-                        tool: item.tool, 
-                        plated: item.plated, 
-                        polarity: 'dark',
-                        diameter: item.diameter
-                    };
+                // Calculate distance between start and end
+                const dx = item.end.x - item.start.x;
+                const dy = item.end.y - item.start.y;
+                const lengthSq = dx * dx + dy * dy;
+                const length = Math.sqrt(lengthSq);
+                const radius = item.diameter / 2;
 
-                    if (!item.start || !item.end) {
-                        item.start = { ...(item.position || { x: 0, y: 0 }) };
-                        item.end = { ...(item.position || { x: 0, y: 0 }) };
+                this.debug(`Plotter Input [${index}]: type=${item.type}, start=(${item.start.x.toFixed(3)}, ${item.start.y.toFixed(3)}), end=(${item.end.x.toFixed(3)}, ${item.end.y.toFixed(3)}), diameter=${item.diameter.toFixed(3)}, calculated length=${length.toFixed(5)}`);
+
+                if (lengthSq < PRECISION * PRECISION) {
+                    // It's a hole
+                    properties.role = "drill_hole";
+                    primitive = new CirclePrimitive(item.start, radius, properties);
+                    this.debug(`Plotter Output [${index}]: Creating drill_hole (length < ${PRECISION}mm)`);
+                } else {
+                    // It's a slot
+                    properties.role = "drill_slot";
+                    properties.originalSlot = { start: item.start, end: item.end };
+
+                    // Calculate Bounding Box for Obround Primitive
+                    const minX = Math.min(item.start.x, item.end.x) - radius;
+                    const minY = Math.min(item.start.y, item.end.y) - radius;
+                    const maxX = Math.max(item.start.x, item.end.x) + radius;
+                    const maxY = Math.max(item.start.y, item.end.y) + radius;
+
+                    primitive = new ObroundPrimitive(
+                        { x: minX, y: minY }, // Position (bottom-left)
+                        maxX - minX, // Width
+                        maxY - minY, // Height
+                        properties
+                    );
+                    this.debug(`Plotter Output [${index}]: Creating drill_slot (length >= ${PRECISION}mm)`);
+                }
+
+                if (primitive) {
+                    // Late scaling: apply metric conversion just before finalizing the primitive
+                    if ("inch" === drillData.units) {
+                        this.convertToMetric(primitive);
                     }
-
-                    // Calculate distance between start and end
-                    const dx = item.end.x - item.start.x;
-                    const dy = item.end.y - item.start.y;
-                    const lengthSq = dx * dx + dy * dy;
-                    const radius = item.diameter / 2;
-
-                    this.debug(`Plotter Input [${index}]: type=${item.type}, start=(${item.start.x.toFixed(3)}, ${item.start.y.toFixed(3)}), end=(${item.end.x.toFixed(3)}, ${item.end.y.toFixed(3)}), diameter=${item.diameter.toFixed(3)}, calculated length=${length.toFixed(5)}`);
-
-                    if (lengthSq < PRECISION * PRECISION) {
-                        // It's a hole
-                        properties.role = 'drill_hole';
-                        primitive = new CirclePrimitive(
-                            item.start, 
-                            radius,
-                            properties
-                        );
-                        this.debug(`Plotter Output [${index}]: Creating drill_hole (length < ${PRECISION}mm)`);
-                    } else {
-                        // It's a slot
-                        properties.role = 'drill_slot';
-                        properties.originalSlot = { start: item.start, end: item.end };
-
-                        // Calculate Bounding Box for Obround Primitive
-                        const minX = Math.min(item.start.x, item.end.x) - radius;
-                        const minY = Math.min(item.start.y, item.end.y) - radius;
-                        const maxX = Math.max(item.start.x, item.end.x) + radius;
-                        const maxY = Math.max(item.start.y, item.end.y) + radius;
-
-                        primitive = new ObroundPrimitive(
-                            { x: minX, y: minY }, // Position (bottom-left)
-                            maxX - minX,          // Width
-                            maxY - minY,          // Height
-                            properties
-                        );
-                        this.debug(`Plotter Output [${index}]: Creating drill_slot (length >= ${PRECISION}mm)`);
-                    }
-
-                    if (primitive) {
-                        // Late scaling: apply metric conversion just before finalizing the primitive
-                        if (drillData.units === 'inch') {
-                            this.convertToMetric(primitive);
-                        }
-                        this.primitives.push(primitive);
-                        this.creationStats.primitivesCreated++;
-                        this.creationStats.drillsCreated++;
-                    }
-                });
-            }
+                    this.primitives.push(primitive);
+                    this.creationStats.primitivesCreated++;
+                    this.creationStats.drillsCreated++;
+                }
+            });
 
             // If an excellon with arcs ever shows up, this is where a connection to mergeContinuousArcs should be included.
 
@@ -190,7 +183,7 @@
                 success: true,
                 primitives: this.primitives,
                 bounds: this.bounds,
-                units: 'mm', // Units have by now been successfully converted
+                units: "mm", // Units have by now been successfully converted
                 creationStats: { drillHolesCreated: this.primitives.length }
             };
         }
@@ -284,26 +277,20 @@
 
                 // Handle simple point arrays (from polygon/polyline)
                 if (segments.length > 0 && segments[0].x !== undefined) {
-                    // Determine hole status from winding: in Y-up, CCW = positive area = outer
-                    const isCW = GeometryUtils.isClockwise(segments);
-                    const isHole = (analyticSubpaths.length > 1) ? isCW : false;
-
-                    // Enforce: outer=CCW, hole=CW
-                    if (!isHole && isCW) {
-                        segments.reverse();
-                    } else if (isHole && !isCW) {
-                        segments.reverse();
-                    }
-
+                    // Hole assignment is NOT derived here. resolveCompoundContours below
+                    // resets isHole and re-derives it from containment for every compound.
+                    // A single-subpath region never reaches that path, so outer=CCW must
+                    // still be enforced.
+                    if (GeometryUtils.isClockwise(segments)) segments.reverse();
                     contours.push({
                         points: segments,
-                        isHole: isHole,
-                        nestingLevel: isHole ? 1 : 0, // Simple nesting
-                        parentId: isHole ? 0 : null,
+                        isHole: false,
+                        nestingLevel: 0,
+                        parentId: null,
                         arcSegments: [],
                         curveIds: []
                     });
-                    return; // Done with this subpath
+                    return;
                 }
 
                 if (segments.length === 0) return;
@@ -342,8 +329,8 @@
                             if (Math.abs(seg.rx - seg.ry) < PRECISION && Math.abs(seg.phi) < PRECISION) {
                                 // This is a circular arc - register it
                                 let curveId = null;
-                                if (window.globalCurveRegistry) {
-                                    curveId = window.globalCurveRegistry.register({
+                                if (ROOT.globalCurveRegistry) {
+                                    curveId = ROOT.globalCurveRegistry.register({
                                         type: 'arc',
                                         center: { x: seg.center.x, y: seg.center.y },
                                         radius: seg.rx,
@@ -442,41 +429,21 @@
                 }
 
                 if (points.length > 0) {
-
                     let isCW = GeometryUtils.isClockwise(points);
-                    let isHole;
-
-                    if (analyticSubpaths.length > 1) {
-                        // Compound path: CW = hole (negative area in Y-up)
-                        // TODO: [WINDING-HIERARCHY] This blindly assumes CW = hole. 
-                        // Disjoint outer paths (e.g., dot of an 'i') will be falsely flagged as holes here due to Y-flip.
-                        // Review replacing this assignment with a spatial/topological check later.
-                        isHole = isCW;
-                    } else {
-                        isHole = false;
-                    }
-
                     const contourObj = {
-                        points: points,
-                        isHole: isHole,
-                        nestingLevel: isHole ? 1 : 0,
-                        parentId: isHole ? 0 : null,
-                        arcSegments: arcSegments,
+                        points,
+                        isHole: false,
+                        nestingLevel: 0,
+                        parentId: null,
+                        arcSegments,
                         curveIds: arcSegments.map(a => a.curveId).filter(Boolean)
                     };
-
-                    // Enforce: outer=CCW, hole=CW
-                    if (!isHole && isCW) {
+                    if (isCW) {
                         GeometryTopology.reverseContourWinding(contourObj);
                         isCW = false;
-                        this.debug(`Normalized outer contour to CCW.`);
-                    } else if (isHole && !isCW) {
-                        GeometryTopology.reverseContourWinding(contourObj);
-                        isCW = true;
-                        this.debug(`Normalized hole contour to CW.`);
+                        this.debug('Normalized outer contour to CCW.');
                     }
-
-                    this.debug(`Processed subpath #${subpathIndex} (of ${analyticSubpaths.length}): ${contourObj.points.length} pts. Winding: ${isCW ? 'CW' : 'CCW'}. isHole: ${isHole}.`);
+                    this.debug(`Processed subpath #${subpathIndex} (of ${analyticSubpaths.length}): ${contourObj.points.length} pts. Winding: CCW.`);
                     contours.push(contourObj);
                 }
             }); 
@@ -1118,8 +1085,8 @@
                             }
 
                             // Update Global Curve Registry
-                            if (window.globalCurveRegistry && prev.curveId) {
-                                const regCurve = window.globalCurveRegistry.getCurve(prev.curveId);
+                            if (ROOT.globalCurveRegistry && prev.curveId) {
+                                const regCurve = ROOT.globalCurveRegistry.getCurve(prev.curveId);
                                 if (regCurve) {
                                     regCurve.endAngle = prev.endAngle;
                                     regCurve.sweepAngle = prev.sweepAngle;
@@ -1357,8 +1324,8 @@
          */
         registerDetectedArc(points, arcSegments, endpoint, arc, source) {
             let curveId = null;
-            if (window.globalCurveRegistry) {
-                curveId = window.globalCurveRegistry.register({
+            if (ROOT.globalCurveRegistry) {
+                curveId = ROOT.globalCurveRegistry.register({
                     type: 'arc',
                     center: { x: arc.center.x, y: arc.center.y },
                     radius: arc.radius,
@@ -1449,5 +1416,5 @@
         }
     }
 
-    window.ParserPlotter = ParserPlotter;
+    ROOT.ParserPlotter = ParserPlotter;
 })();

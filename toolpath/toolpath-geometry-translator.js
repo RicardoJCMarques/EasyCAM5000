@@ -11,9 +11,10 @@
 
 (function() {
     'use strict';
+    const ROOT = globalThis;
 
-    const C = window.CAMConfig.constants;
-    const D = window.CAMConfig.defaults;
+    const C = ROOT.CAMConfig.constants;
+    const D = ROOT.CAMConfig.defaults;
     const PRECISION = C.precision.coordinate;
     const debugState = D.debug;
 
@@ -208,7 +209,6 @@
                 const entryY = innerRing.center.y;
 
                 const plan = new ToolpathPlan(operationId);
-                plan.metadata.context = ctx;
                 plan.metadata.transforms = ctx.transforms;
                 plan.metadata.operationId = operationId;
                 plan.metadata.operationType = 'drill';
@@ -275,7 +275,6 @@
                 const drill = this.resolveDrillRow(source, ctx);
 
                 const plan = new ToolpathPlan(operationId);
-                plan.metadata.context = ctx;
                 plan.metadata.transforms = ctx.transforms;
                 plan.metadata.operationId = operationId;
                 plan.metadata.operationType = 'drill';
@@ -419,7 +418,6 @@
         translatePeckMark(primitive, ctx) {
             const { operationId, cutting, strategy, transforms, computed } = ctx;
             const plan = new ToolpathPlan(operationId);
-            plan.metadata.context = ctx;
             plan.metadata.transforms = ctx.transforms;
             plan.metadata.cutDepth = computed.depthLevels[computed.depthLevels.length - 1];
             plan.metadata.feedRate = cutting.feedRate;
@@ -507,8 +505,7 @@
             const drillMillCtx = { ...ctx, isDrillMilling: true };
             const plan = this.createPurePlan(contour, drillMillCtx, false, false, false);
             if (!plan || !plan.metadata.exitPoint) {
-                // Returning [] here used to be silent, which is why a regression
-                // upstream read as "the slot vanished" with nothing in the log.
+                // An empty return here is indistinguishable from "the slot vanished". Log the reason.
                 this.warnOperation(ctx, 'Centerline slot skipped - no exit point resolved from its contour.');
                 return [];
             }
@@ -552,7 +549,7 @@
          */
         warnOperation(ctx, message) {
             console.warn(`[GeometryTranslator] ${message}`);
-            const op = this.core.getOperation?.(ctx.operationId);
+            const op = this.core.store.getOperation(ctx.operationId);
             if (!op) return;
             op.warnings ||= [];
             if (!op.warnings.some(w => w?.message === message)) {
@@ -624,7 +621,6 @@
             // REVIEW - Why is this necessary?!?
             if (!commandsToSend || commandsToSend.length === 0) {
                 const tempPlan = new ToolpathPlan(ctx.operationId);
-                tempPlan.metadata.context = ctx;
                 tempPlan.metadata.transforms = ctx.transforms;
                 tempPlan.metadata.isClosed = true;
                 this.translatePrimitiveToCutting(tempPlan, contour, ctx.cutting.feedRate);
@@ -751,20 +747,11 @@
             }
         }
 
-        // TODO [METADATA-BLOAT] - plan.metadata.context is now referenced by
-        // exactly ONE remaining consumer family: MachineProcessor's
-        // determineWinding/planContext (5 sites). metadata.transforms is
-        // already stamped alongside; migrate those reads, then delete the 7
-        // context stamps. Separately: the big multipliers are MotionCommand
-        // (COMMAND-STREAM-MEMORY) and the per-depth-level {...cmd} clones +
-        // metadata.standardCommands in MachineProcessor's tab expansion -
-        // both resolve together in the packed-stream refactor.
         createPurePlan(primitive, ctx, isClosed, isHole, generateCommands = true) {
             // Get all settings from the context
             const { operationId, operationType, tool, cutting, strategy } = ctx;
 
             const plan = new ToolpathPlan(operationId);
-            plan.metadata.context = ctx; 
             plan.metadata.transforms = ctx.transforms;
 
             // Set metadata
@@ -1491,5 +1478,5 @@
         return props.holeIndex ?? -1;
     }
 
-    window.GeometryTranslator = GeometryTranslator;
+    ROOT.GeometryTranslator = GeometryTranslator;
 })();

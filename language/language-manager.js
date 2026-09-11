@@ -12,8 +12,8 @@
 (function() {
     'use strict';
 
-    const C = window.CAMConfig.constants;
     const D = window.CAMConfig.defaults;
+    const debugState = D.debug;
 
     class LanguageManager {
         constructor() {
@@ -36,7 +36,7 @@
                 // REVIEW - Is this fallback still necessary?
                 this.strings = data.strings || data;
                 this.isLoaded = true;
-                console.log(`[Lang] Language pack '${lang}' loaded.`);
+                this.debug(`[Lang] Language pack '${lang}' loaded.`);
             } catch (err) {
                 console.error('[Lang] Failed to load language file:', err);
                 this.strings = {}; // Fallback to empty
@@ -111,6 +111,12 @@
                 str = str.replace(new RegExp(`\\{${token}\\}`, 'g'), value);
             }
             return str;
+        }
+
+        debug(message, data = null) {
+            if (!debugState.enabled) return;
+            data ? console.log(`[LanguageManager] ${message}`, data)
+                 : console.log(`[LanguageManager] ${message}`);
         }
     }
 

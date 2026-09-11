@@ -40,7 +40,7 @@
             if (step <= 0) return;
 
             const view = this.core.getViewBounds();
-            const origin = this.core.getOriginPosition();
+            const origin = this.core.originPosition;
 
             this.ctx.save();
             this.ctx.strokeStyle = colors.grid;
@@ -177,8 +177,8 @@
         renderRulers() {
             if (!this.core.options.showRulers) return;
 
-            // Use Core to reset transform (Screen Space)
-            this.core.resetTransform();
+            // Back to screen space: pairs with the save() in setupTransform.
+            this.core.ctx.restore();
 
             const colors = this.core.colors.render2d;
             if (!colors) return;
@@ -228,7 +228,7 @@
             // Calculate Layout
             const stepWorld = this.calculateStepSize();
             const view = this.core.getViewBounds();
-            const origin = this.core.getOriginPosition();
+            const origin = this.core.originPosition;
 
             // How many pixels between ticks?
             const stepPixels = stepWorld * this.core.viewScale;

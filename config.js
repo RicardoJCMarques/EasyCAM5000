@@ -29,8 +29,73 @@
     // ╔═══════════════════════════════════════════════════════════════════════╗
     // ║  ASSET PATHS                                                          ║
     // ╚═══════════════════════════════════════════════════════════════════════╝
+    // REVIEW - field-worker likely won't change places, why keep this here?
     paths: {
         fieldWorker: '../geometry/field-worker.js'
+    },
+
+    // ╔═══════════════════════════════════════════════════════════════════════╗
+    // ║ MACHINE PARAMETERS                                                    ║
+    // ║ Global settings form. The KEY is the settings path; the last segment  ║
+    // ║ is the parameter name, used for the en.json lookup, the DOM id and    ║
+    // ║ `conditional`. A post's or laser profile's own settings are not here  ║
+    // ║ - they come from its descriptor and are keyed by owner automatically. ║
+    // ║ An app removes an entry by setting it to null in its profile's        ║
+    // ║ machineParameters block.                                              ║
+    // ╚═══════════════════════════════════════════════════════════════════════╝
+    machineParameters: {
+        "gcode.postProcessor":      { default: "grbl", type: "select", category: "post", source: "processors", classes: ["router"] },
+        "gcode.userStartCode":      { default: "", type: "textarea", rows: 5, category: "post", resolver: "startCode", classes: ["router"] },
+        "gcode.userEndCode":        { default: "", type: "textarea", rows: 5, category: "post", resolver: "endCode", classes: ["router"] },
+        "gcode.units":              { default: "mm", type: "select", category: "post", capability: "supportsUnits", classes: ["router"],
+                                      options: [{ value: "mm", label: "Millimeters (G21)" }, { value: "inch", label: "Inches (G20)" }] },
+        "gcode.lineNumbers":        { default: false, type: "checkbox", category: "post", capability: "supportsLineNumbers", classes: ["router"] },
+        "gcode.lineNumberStep":     { default: 10, type: "number", category: "post", capability: "supportsLineNumbers", classes: ["router"],
+                                      conditional: "lineNumbers", min: 1, max: 1000, step: 1, unit: "step" },
+        "gcode.toolLengthCompMode": { default: "", type: "select", category: "post", source: "tlcModes", classes: ["router"] }, // '' = use the active post's declared default. Only a value the post cannot emit gets overwritten.
+
+        "machine.stock.thickness": { default: 1.8, type: "number", category: "stock", min: 0.1, step: 0.1, unit: "mm" },
+        "machine.stock.width": { default: 200, type: "number", category: "stock", min: 1, step: 1, unit: "mm" },
+        "machine.stock.length": { default: 150, type: "number", category: "stock", min: 1, step: 1, unit: "mm" },
+        "machine.stock.margin": { default: 0, type: "number", category: "stock", min: 0, step: 1, unit: "mm" }, // Clearance kept around the geometry when fitting stock to it.
+        "machine.stock.material": { default: "fr", type: "select", category: "stock", options: [
+            { value: "fr", label: "FR" },
+            { value: "plywood", label: "Plywood" },
+            { value: "mdf", label: "MDF" },
+            { value: "hardwood", label: "Hardwood" },
+            { value: "softwood", label: "Softwood" },
+            { value: "acrylic", label: "Acrylic" },
+            { value: "aluminum", label: "Aluminum (soft)" },
+            { value: "foam", label: "Foam / Modeling Board" },
+            { value: "custom", label: "Custom" }
+        ] },
+        "machine.stock.zeroReference": { default: "material", type: "select", category: "stock", options: [
+            { value: "material", label: "Material Surface (Top)" },
+            { value: "bed", label: "Machine Bed (Spoilboard)" }
+        ] },
+
+        "machine.heights.safeZ":    { default: 5, type: "number", category: "heights", step: 0.5, unit: "mm", classes: ["router"] },
+        "machine.heights.travelZ":  { default: 2, type: "number", category: "heights", step: 0.5, unit: "mm", classes: ["router"] },
+        "machine.speeds.rapidFeed": { default: 1000, type: "number", category: "heights", step: 100, unit: "mm/min", classes: ["router"] },
+        "machine.coolant":          { default: "none", type: "select", category: "heights", capability: "supportsCoolant", classes: ["router"],
+                                      options: [{ value: "none", label: "None" }, { value: "mist", label: "Mist" }, { value: "flood", label: "Flood" }] },
+        "machine.vacuum":           { default: false, type: "checkbox", category: "heights", capability: "supportsCoolant", classes: ["router"] },
+
+        "machine.heights.feedHeight":     { default: 1 }, // Clearance above Z0 where the G0→G1 handoff occurs.
+        "machine.heights.maxSafeDepth":   { default: -10.1 }, // Negative Z limit. Deeper values raise a warning at generation.
+        "machine.speeds.maxFeed":         { default: 2000 },
+
+        "gcode.rotaryRoute": { default: "", type: "select", category: "rotary", source: "rotaryRoutes", classes: ["router"] },
+
+        "gcode.indexDwell":  { default: "", type: "number", category: "rotary", nullable: true, min: 0, max: 5, step: 0.1, unit: "s", placeholder: "Auto", classes: ["router"] }, // Rotary index settling dwell, SECONDS. '' = the post's declared value.
+
+        "laser.activeProfile": { default: "xToolStudio", type: "select", category: "laser", source: "laserProfiles", classes: ["laser"] },
+        "laser.spotSize":      { default: 0.02, type: "number", category: "laser", min: 0.01, max: 1, step: 0.01, unit: "mm", classes: ["laser"] },
+        "laser.exportFormat":  { default: "svg", type: "select", category: "laser", classes: ["laser"],
+                                 options: [{ value: "svg", label: "SVG - Vector" }, { value: "png", label: "PNG - Raster Image" }] },
+        "laser.exportDPI":     { default: 1000, type: "number", category: "laser", conditional: "exportFormat:png",
+                                 classes: ["laser"], min: 100, max: 4000, step: 100, unit: "DPI" },
+        "laser.exportPadding": { default: 5.0 }
     },
 
     // ╔═══════════════════════════════════════════════════════════════════════╗
@@ -52,7 +117,8 @@
             epsilon: 1e-9, // Floating-point near-zero. Guard divisions, cross-product zero checks.
             collinear: 1e-12, // Stricter near-zero for geometric collinearity where even tiny deviations matter.
             coordinate: 0.001, // Coordinate quantization grid. All coordinates snap to this resolution.
-            rdpSimplification: 0.0001 // Douglas-Peucker polygon simplification.
+            rdpSimplification: 1e-4, // 2D polyline RDP tolerance.
+            scalarField: 1e-4 // Height/radius comparison threshold for Float32 terrain fields.
         },
 
         // ====================================================================
@@ -318,7 +384,7 @@
     // ╚═══════════════════════════════════════════════════════════════════════╝
     defaults: {
         // REVIEW - Is this really necessary? Seems like an over complication?
-        pipeline: { machineClass: 'router', classByType: null, laser: null },
+        pipeline: { machineClass: 'router', classByType: null },
 
         // ====================================================================
         // WORKERS
@@ -338,61 +404,19 @@
         // ====================================================================
         // MACHINE
         // ====================================================================
-        machine: {
-            pcb: {
-                thickness: 1.8,
-                minFeatureSize: 0.1
-            },
-            heights: {
-                safeZ: 5.0,
-                travelZ: 2.0,
-                feedHeight: 1.0,    // Clearance above Z0 where G0→G1 handoff occurs.
-                maxSafeDepth: -10.1 // Negative Z limit. Calculated values below this throw a warning. These checks get annoying in EasyShape5000 though.
-            },
-            speeds: {
-                rapidFeed: 1000,
-                maxFeed: 2000
-            },
-            coolant: 'none',
-            vacuum: false
-        },
+
+        // Namespace roots for per-device settings. Filled by loadSettings from
+        // each registered post-processor and laser profile - the device owns
+        // its own settings, so adding one must not need an edit here. The empty
+        // objects are the roots setSetting writes into.
+        // REVIEW - Why not default these next to setSetting directly?
+        processorSettings: {},
+        laserSettings: {},
 
         // ====================================================================
         // G-CODE GENERATION
         // ====================================================================
         gcode: {
-            postProcessor: 'grbl',
-            units: 'mm',
-            // 4th-axis export route. '' means "not chosen yet" and only
-            // survives until the machine-settings picker first renders, which
-            // resolves it to the selected post's first declared route and
-            // commits that concrete value. A saved route the current post does
-            // not declare resolves the same way. There is no 'auto' route.
-            // See BasePostProcessor.normalizeRotary for the route semantics.
-            rotaryRoute: '',
-            // '' = use the active post's declared default. Same contract as
-            // rotaryRoute: only a value the post cannot emit gets overwritten.
-            toolLengthCompMode: '',
-            // Rotary index settling dwell, SECONDS. '' = use the selected
-            // post's declared indexDwell. This is a property of the rotary
-            // HARDWARE (belt vs geared/servo with a brake), not the
-            // controller - one post drives both kinds, so the machine
-            // setting has to be able to override the post's guess.
-            indexDwell: '',
-            // N words. The POST owns the dialect (start/step/max, which
-            // characters must never be numbered); the USER owns whether.
-            // Inert on GRBL and grblHAL (the parser strips them), honoured by
-            // Fanuc, LinuxCNC, Mach3, UCCNC and WinPC-NC, and useful on any
-            // sender that echoes the failing block back.
-            lineNumbers: false,
-            lineNumberStep: 10,
-            decimals: {
-                coordinates: 3,
-                feedrate: 0,
-                spindle: 0,
-                arc: 3
-            },
-
             optimization: {
                 // Or-opt relocation refinement (refinePlanOrder /
                 // refineRegionOrder). routeCost is O(blocks), so a pass is
@@ -410,113 +434,6 @@
         // ====================================================================
         laser: {
         // Global Machine & Pipeline Settings
-            spotSize: 0.02,
-            exportFormat: 'svg',
-            exportDPI: 1000,
-            exportPadding: 5.0,
-            defaultClearStrategy: 'offset',
-
-            svgGrouping: 'none',
-            reverseCutOrder: false,
-            heatManagement: 'standard',
-            colorPerPass: false,
-
-            // Active profile key - drives structural SVG decisions
-            // REVIEW - isn't this pulled from profile.json?
-            activeProfile: 'generic',
-
-            // Profile definitions - each represents a laser control software target
-            // REVIEW - Is it worth splitting these like "post-processors"? Maybe adding them to the profile-trace.json?
-            profiles: {
-                generic: {
-                    label: 'Generic (Very Experimental)',
-                    svgGrouping: 'layer',
-                    reverseCutOrder: false,
-                    heatManagement: 'standard', // Sort primitives smallest-first within each pass
-                    colorPerPass: false, // Assign unique hue-rotated color per pass for color-mapped layers
-                    layerColors: {
-                        isolation: '#ff0000',
-                        drill:     '#0000ff',
-                        clearing:  '#00ff00',
-                        cutout:    '#000000',
-                        stencil:   '#860694'
-                    }
-                },
-                lasergrbl: {
-                    label: 'LaserGRBL (Very Experimental)',
-                    svgGrouping: 'group',        // Standard SVG groups; LaserGRBL imports grouped geometry as separate operations
-                    reverseCutOrder: false,
-                    heatManagement: 'standard',
-                    colorPerPass: false,
-                    layerColors: {
-                        isolation: '#ff0000',
-                        drill:     '#0000ff',
-                        clearing:  '#00ff00',
-                        cutout:    '#000000',
-                        stencil:   '#860694'
-                    }
-                },
-                xToolStudio: {
-                    label: 'xTool Studio (Less Experimental)',
-                    svgGrouping: 'color',
-                    reverseCutOrder: true,
-                    heatManagement: 'standard',
-                    colorPerPass: true,
-                    paletteLumping: true,
-                    // The exact 16 colors xCS maps to layers, ordered from Smallest/Delicate to Largest/Lumped
-                    palette: [
-                        '#EB3DBA', '#FE0002', '#FF7F56', '#E1C000', '#C29900', 
-                        '#96D71D', '#00C715', '#00897B', '#2366FF', '#00BEFE', 
-                        '#8170EF', '#A958FF', '#582FA8', '#D9D9D9', '#848B96',
-                        '#000000'
-                    ],
-                    layerColors: {
-                        isolation: '#FE0002',
-                        drill:     '#2366FF',
-                        clearing:  '#FE0002',
-                        cutout:    '#2366FF',
-                        stencil:   '#582FA8'
-                    }
-                },
-                lightburn: {
-                    label: 'LightBurn (Very Experimental)',
-                    svgGrouping: 'none',           // LightBurn prefers flat geometry; it builds its own layer tree from colors
-                    reverseCutOrder: true,         // LightBurn reads SVG bottom-to-top; reverse so first-in-file = first-cut
-                    heatManagement: 'standard',    // Sort primitives smallest-first within each pass
-                    colorPerPass: true,            // Assign unique hue-rotated color per pass
-                    layerColors: {
-                        isolation: '#ff0000',
-                        drill:     '#0000ff',
-                        clearing:  '#00ff00',
-                        cutout:    '#000000',
-                        stencil:   '#860694'
-                    }
-                },
-                rdworks: {
-                    label: 'RDWorks / Ruida (Very Experimental)',
-                    svgGrouping: 'layer',          // RDWorks maps Inkscape layers to its own laser layers
-                    reverseCutOrder: false,        // RDWorks processes layers top-to-bottom (standard DOM order)
-                    heatManagement: 'off',         // RDWorks handles its own optimization internally
-                    colorPerPass: false,           // Single color per layer; RDWorks assigns power/speed per layer, not per color // REVIEW - add a color per layer toggle?
-                    layerColors: {
-                        isolation: '#ff0000',
-                        drill:     '#00ff00',
-                        clearing:  '#0000ff',
-                        cutout:    '#000000',
-                        stencil:   '#ff00ff'
-                    }
-                }
-            },
-
-            // Runtime layer colors - synced from active profile on selection. // REVIEW - Should hatch have it's own dedicated color hardcoded here too?
-            layerColors: {
-                isolation: '#ff0000',
-                drill:     '#0000ff',
-                clearing:  '#00ff00',
-                cutout:    '#000000',
-                stencil:   '#860694'
-            },
-
             // Operation-Specific Overrides
             operations: {
                 isolation: { laserIsolationWidth: 0.4, laserStepOver: 10, laserClearStrategy: 'offset', laserHatchAngle: 0 },
@@ -528,9 +445,11 @@
 
         // ====================================================================
         // GEOMETRY PROCESSING
-        // Tunable parameters affecting output quality, not correctness.
         // ====================================================================
         geometry: {
+            decimals: {
+                coordinates: 3
+            },
             offsetting: {
                 miterLimit: 2.0
             }
@@ -704,6 +623,49 @@
         ui: {
             theme: 'dark',
 
+            // combo → action name. Handlers are registered in code; which key
+            // runs them is data. This is the VOCABULARY, not a per-app list:
+            // an entry whose action no app registers is skipped by applyTable,
+            // so a verb one app lacks costs nothing and arrives free the day
+            // it gains it. Only bindings unique to one app belong in a profile.
+            shortcuts: [
+                // View
+                { combo: "F2", action: "toggle3D" },
+                { combo: "f", action: "zoomFit" },
+                { combo: "Home", action: "zoomFit" },
+                { combo: "=", action: "zoomFit" },
+                { combo: "+", action: "zoomIn", shiftOptional: true },
+                { combo: "-", action: "zoomOut" },
+                { combo: "g", action: "toggleGrid" },
+                { combo: "w", action: "toggleWireframe" },
+                // Global
+                { combo: "Escape", action: "escape" },
+                { combo: "F1", action: "showHelp" },
+                { combo: "ctrl+alt+d", action: "toggleVerboseDebug", mod: true, alt: true },
+                { combo: "F6", action: "cycleFocusZone", shiftOptional: true },
+                // Editing
+                { combo: "ctrl+z", action: "undo", mod: true },
+                { combo: "ctrl+shift+z", action: "redo", mod: true },
+                { combo: "ctrl+y", action: "redo", mod: true },
+                { combo: "ctrl+g", action: "group", mod: true },
+                { combo: "ctrl+shift+g", action: "ungroup", mod: true },
+                { combo: "ctrl+a", action: "selectAll", mod: true },
+                // Destructive: the tree owns Delete for the focused node, so
+                // the global selection delete must stay out of it.
+                { combo: "Delete", action: "deleteSelection", allowInTree: false },
+                { combo: "Backspace", action: "deleteSelection", allowInTree: false },
+                // Files & origin
+                { combo: "i", action: "addFiles", allowInTree: false },
+                { combo: "b", action: "bottomLeftOrigin" },
+                { combo: "o", action: "offsetOrigin" },
+                { combo: "c", action: "centerOrigin" },
+                // Pan. shiftOptional because the handler reads e.shiftKey.
+                { combo: "ArrowLeft", action: "pan", args: [1, 0], allowInTree: false, shiftOptional: true },
+                { combo: "ArrowRight", action: "pan", args: [-1, 0], allowInTree: false, shiftOptional: true },
+                { combo: "ArrowUp", action: "pan", args: [0, 1], allowInTree: false, shiftOptional: true },
+                { combo: "ArrowDown", action: "pan", args: [0, -1], allowInTree: false, shiftOptional: true }
+            ],
+
             timing: {
                 statusMessageDuration: 5000,
                 modalAnimationDuration: 300,
@@ -720,15 +682,7 @@
                 delayHide: 150
             },
 
-            logHistoryMax: 500,
-
-            // REVIEW - Dead Code?
-            // visualization: {
-            //     geometryStageTransition: {
-            //         enabled: true,
-            //         duration: 300
-            //     }
-            // }
+            logHistoryMax: 500
         },
 
         // ====================================================================

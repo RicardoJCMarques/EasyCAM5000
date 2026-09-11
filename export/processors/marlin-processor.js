@@ -11,6 +11,7 @@
 
 (function() {
     'use strict';
+    const ROOT = globalThis;
 
     class MarlinPostProcessor extends BasePostProcessor {
         constructor() {
@@ -116,5 +117,5 @@
         */
     }
 
-    window.MarlinPostProcessor = MarlinPostProcessor;
+    ROOT.MarlinPostProcessor = MarlinPostProcessor;
 })();

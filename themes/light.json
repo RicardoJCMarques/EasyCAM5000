@@ -130,11 +130,7 @@
       "peckMarkError": "#ff0000",
       "peckMarkSlow": "#ff5e00",
       "reconstructed": "#0891b2",
-      "reconstructedPath": "#7a6f00",
-      "debugContourColors": ["#00a600", "#ff0000", "#0000ff", "#b38600", "#ff00ff", "#0891b2"],
-      "debugCurveColors":   ["#ff0000", "#00a600", "#0000ff", "#b38600", "#ff00ff", "#0891b2"],
-      "debugLabel": "#000000",
-      "debugLabelStroke": "#ffffff"
+      "reconstructedPath": "#7a6f00"
     },
 
     "debug": {

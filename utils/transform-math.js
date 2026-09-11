@@ -30,6 +30,7 @@
 
 (function() {
     'use strict';
+    const ROOT = globalThis;
 
     const TransformMath = {
 
@@ -90,12 +91,8 @@
             };
         },
 
-        applyToPoint(m, p) {
-            return {
-                x: m.a * p.x + m.c * p.y + m.e,
-                y: m.b * p.x + m.d * p.y + m.f
-            };
-        },
+        applyToPoint: (m, p) => ({ x: m.a * p.x + m.c * p.y + m.e, y: m.b * p.x + m.d * p.y + m.f }),
+        applyToPoints: (m, points) => points.map(p => ({ x: m.a * p.x + m.c * p.y + m.e, y: m.b * p.x + m.d * p.y + m.f })),
 
         det(m) { return m.a * m.d - m.b * m.c; },
 
@@ -111,7 +108,8 @@
         windingFlipped(m) { return this.det(m) < 0; },
 
         /** Param-based winding check (identical result for workspace params).
-         *  Kept for pipeline code that has the params struct but no matrix. */
+         *  Kept for pipeline code that has the params struct but no matrix.
+         */
         windingFlippedParams(t) {
             if (!t) return false;
             return !!((t.mirrorX ? 1 : 0) ^ (t.mirrorY ? 1 : 0));
@@ -223,5 +221,5 @@
 
     };
 
-    window.TransformMath = TransformMath;
+    ROOT.TransformMath = TransformMath;
 })();

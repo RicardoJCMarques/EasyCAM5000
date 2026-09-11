@@ -36,27 +36,6 @@ html {
    Colors loaded from theme JSON via theme-loader.js
    ============================================================================ */
 :root {
-    /* Layout Dimensions */
-    --toolbar-height-base: 3.375rem;      /* The actual content height */
-    --status-bar-height: 2.75rem;         /* 44px */
-    --section-header-height: 2.25rem;     /* 36px */
-    
-    /* Safe Area Environment Variables */
-    --safe-area-top: env(safe-area-inset-top, 0px);
-    --safe-area-bottom: env(safe-area-inset-bottom, 0px);
-    --safe-area-left: env(safe-area-inset-left, 0px);
-    --safe-area-right: env(safe-area-inset-right, 0px);
-    
-    /* Calculated Header Height: Toolbar Content + Notch Space */
-    --header-layout-height: calc(var(--toolbar-height-base) + var(--safe-area-top));
-    
-    /* Total footer height including safe area */
-    --footer-total-height: calc(var(--status-bar-height) + var(--safe-area-bottom));
-    
-    /* Sidebar widths */
-    --sidebar-left-width: clamp(15.5rem, 20vw, 21rem);
-    --sidebar-right-width: clamp(15.5rem, 20vw, 22rem);
-
     /* Spacing Scale */
     --spacing-xs: 0.25rem;    /* 4px */
     --spacing-sm: 0.5rem;     /* 8px */
@@ -108,14 +87,24 @@ html {
     --touch-target-min: 2.75rem;      /* 44px */
     --touch-target-compact: 2.25rem;  /* 36px */
     
-    /* Modal Dimensions */
-    --modal-max-width: min(850px, 95vw);
-    --modal-max-height: calc(var(--vh-small) - var(--spacing-xl) * 2);
-    --modal-padding-block: var(--spacing-lg);
-    --modal-padding-inline: var(--spacing-lg);
-    --modal-header-min-height: 3.5rem;
-    --modal-footer-min-height: 3.5rem;
-    --modal-gap: var(--spacing-xl);
+    /* Environment insets */
+    --safe-area-top: env(safe-area-inset-top, 0px);
+    --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-area-left: env(safe-area-inset-left, 0px);
+    --safe-area-right: env(safe-area-inset-right, 0px);
+
+    /* Layout Scale */
+    --toolbar-height-base: 3.375rem;
+    --status-bar-height: 2.75rem;
+    --section-header-height: 2.25rem;
+
+    --sidebar-left-width: clamp(15.5rem, 20vw, 21rem);
+    --sidebar-right-width: clamp(15.5rem, 20vw, 22rem);
+
+    /* Chrome bands including the device inset, so .workspace can subtract both
+       ends from the viewport height in one calc. */
+    --header-layout-height: calc(var(--toolbar-height-base) + var(--safe-area-top));
+    --footer-total-height: calc(var(--status-bar-height) + var(--safe-area-bottom));
 
     /* Set DEFAULTS to the safe fallback */
     --vh-dynamic: 100vh;
@@ -337,4 +326,31 @@ svg[fill="currentColor"] {
 .checkbox-label > *:not(input):not(button):not(.tooltip-trigger),
 .radio-label > *:not(input):not(button):not(.tooltip-trigger) {
     pointer-events: none;
+}
+
+/* ============================================================================
+MOTION AND FORCED COLOURS
+============================================================================*/
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+@media (forced-colors: active) {
+    /* Backgrounds are dropped in forced-colors, so a button that relied on one
+       for its edge becomes invisible. A transparent border is repainted. */
+    .btn, .btn--icon, .op-type-tab, .menu-item, .section-header {
+        border: 1px solid transparent;
+    }
+    .path-row[aria-selected="true"], .group-row[aria-selected="true"],
+    .bucket-header.selected, .stage-node.selected {
+        forced-color-adjust: none;
+        background: Highlight;
+        color: HighlightText;
+    }
+    .canvas-container { forced-color-adjust: none; }
 }

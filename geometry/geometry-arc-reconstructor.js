@@ -11,10 +11,11 @@
 
 (function() {
     'use strict';
+    const ROOT = globalThis;
 
-    const C = window.CAMConfig.constants;
+    const C = ROOT.CAMConfig.constants;
     const PRECISION = C.precision.coordinate;
-    const debugState = window.CAMConfig.defaults.debug;
+    const debugState = ROOT.CAMConfig.defaults.debug;
 
     class ArcReconstructor {
         constructor(options = {}) {
@@ -27,7 +28,7 @@
             this.minArcPoints = arcConfig.minArcPoints;
 
             // Use global registry
-            this.registry = window.globalCurveRegistry;
+            this.registry = ROOT.globalCurveRegistry;
             if (!this.registry) {
                 throw new Error('[ArcReconstructor] Global curve registry not found! Arc reconstruction isn\'t possible without it.');
             }
@@ -54,11 +55,6 @@
                 wrappedGroups: 0
             };
             this.debug('Stats reset');
-        }
-
-        // Get curve by ID from global registry
-        getCurve(id) {
-            return this.registry.getCurve(id);
         }
 
         // Main reconstruction method - process fused primitives
@@ -165,7 +161,7 @@
 
             for (const group of groups) {
                 if (group.type === 'curve' && group.points.length >= this.minArcPoints) {
-                    const curveData = this.getCurve(group.curveId);
+                    const curveData = this.registry.getCurve(group.curveId);
 
                     if (curveData) {
                         const arcFromPoints = this.calculateArcFromPoints(group.points, curveData);
@@ -655,7 +651,7 @@
 
                 // Both neighbors must be originally tagged with the SAME curve
                 if (prevId > 0 && prevId === nextId) {
-                    const curveData = this.getCurve(prevId);
+                    const curveData = this.registry.getCurve(prevId);
                     if (curveData && this.pointBelongsToCurve(current, curveData, PRECISION)) {
                         current.curveId = prevId;
                         recovered++;
@@ -677,5 +673,5 @@
         }
     }
 
-    window.ArcReconstructor = ArcReconstructor;
+    ROOT.ArcReconstructor = ArcReconstructor;
 })();

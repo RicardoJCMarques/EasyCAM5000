@@ -1,14 +1,13 @@
 {
   "_projectInfo": {
     "file": "language/en.json",
-    "description": "English strings for the EasyCAM5000 Suite (schema v2).",
+    "description": "English strings for the EasyCAM5000 Suite.",
     "author": "Eltryus - Ricardo Marques",
     "see": "https://github.com/RicardoJCMarques/EasyCAM5000",
     "license": "AGPL-3.0-or-later",
     "copyright": "Copyright (C) 2025-2026 Eltryus - Ricardo Marques"
   },
   "_schema": {
-    "version": 2,
     "params": "Keyed by the parameter name used in ui/profile-*.json. { label, help } - both live here, never in the profile or the HTML.",
     "enums": "Dropdown option values, keyed by the value the code stores.",
     "ui": "Static chrome, keyed by a flat dotted path. A string, or { label, help } where the control carries a tooltip.",
@@ -105,6 +104,18 @@
       "help": "Percentage of the tool diameter to overlap on each concentric milling ring inside oversize holes.",
       "label": "Step Over"
     },
+    "drillMultiDepth": {
+      "label": "Multi-depth Milling",
+      "help": "Mill oversize holes in several Z levels instead of one full-depth pass. Easier on small cutters."
+    },
+    "drillDepthPerPass": {
+      "label": "Depth per Pass",
+      "help": "Material removed per Z level while milling an oversize hole."
+    },
+    "drillEntryType": {
+      "label": "Entry Method",
+      "help": "How the cutter enters an oversize hole. Helix spirals down and loads the tool gently; Plunge drops straight in and needs a centre-cutting bit."
+    },
     "drills": {
       "label": "Drills"
     },
@@ -112,7 +123,7 @@
       "label": "Dwell Time",
       "help": "Pause duration at bottom of hole (seconds). Allows chips to clear and reduces burrs."
     },
-    "endCode": {
+    "userEndCode": {
       "label": "End G-code",
       "help": "Custom Postamble to add to the end of this operation's command stream."
     },
@@ -136,7 +147,7 @@
       "label": "Fusion Mode",
       "help": "Merge all overlapping isolation/clearing geometry. Required for Arc Reconstruction."
     },
-    "gcodeUnits": {
+    "units": {
       "label": "G-Code Units",
       "help": "Sets the units for the exported G-code file (G21 for mm, G20 for inches)."
     },
@@ -194,9 +205,17 @@
       "label": "Clearing Strategy",
       "help": "How the laser fills areas that need copper removal.\n\n• Filled Polygon: Exports solid shapes - your laser software handles the fill pattern. SVG only.\n• Offset Paths: Concentric paths shrinking inward. Most reliable for streak prevention.\n• Parallel Hatch: Straight lines at a fixed angle. Fast but single-direction.\n• Hatch: Perpendicular sets of lines. More passes shift the angle between each other."
     },
-    "laserColorPerPass": {
-      "help": "Automatically assigns a different color to each cutting pass. Useful for software that maps power/speed settings to colors.",
-      "label": "Unique Color Per Pass"
+    "laserClearingPadding": {
+      "label": "Clearing Padding",
+      "help": "Extra margin ablated around a copper region, beyond its own outline. Gives the beam room at the edges of a pour."
+    },
+    "laserHatchPasses": {
+      "label": "Hatch Passes",
+      "help": "How many hatch passes to run. Each additional pass is rotated from the base angle, so coverage evens out instead of streaking along one direction."
+    },
+    "colorPerPass": {
+      "help": "Automatically assigns a different color to each cutting pass. Useful for software that allows settings order to colors.",
+      "label": "Unique Color Per Isolation/Clearing Pass"
     },
     "laserCutSide": {
       "label": "Cut Side",
@@ -206,21 +225,21 @@
       "label": "Export Margin Padding",
       "help": "Physical margin in mm added around the exported geometry. Gives the laser software breathing room for alignment."
     },
-    "laserExportDPI": {
-      "help": "Resolution of the exported PNG image. Higher DPI gives finer detail but larger file size. 1000 DPI is suitable for most PCB work. Match this to your laser software's engraving resolution setting.",
-      "label": "Raster Resolution"
+    "exportDPI": {
+      "label": "Export DPI",
+      "help": "Resolution of the exported PNG image. Higher DPI gives finer detail but larger file size. 1000 DPI is suitable for most PCB work. Match this to your laser software's engraving resolution setting."
     },
-    "laserExportFormat": {
-      "help": "SVG exports vector paths that laser software (LightBurn, RDWorks) interprets with its own power/speed settings per color layer. PNG exports a raster image at the specified DPI - useful for direct image engraving modes.",
-      "label": "Export Format"
+    "exportFormat": {
+      "label": "Export Format",
+      "help": "SVG exports vector paths that laser software (LightBurn, RDWorks) interprets with its own power/speed settings per color layer. PNG exports a raster image at the specified DPI - useful for direct image engraving modes."
     },
     "laserHatchAngle": {
       "label": "Hatch Angle",
       "help": "Angle of the hatch lines in degrees. For parallel hatch, lines run at this angle. For cross-hatch, the second set runs perpendicular (angle + 90°). 45° is a good default - it crosses both horizontal and vertical traces."
     },
-    "laserHeatManagement": {
-      "help": "Sorts paths within a pass from smallest to largest area, allowing smaller details time to cool down before larger surrounding cuts.",
-      "label": "Enable Heat Management"
+    "heatManagement": {
+      "label": "Enable Heat Management",
+      "help": "Reorders passes so consecutive cuts are not adjacent, giving the material time to cool. Off emits paths in geometric order."
     },
     "laserIsolationWidth": {
       "label": "Isolation Width",
@@ -238,21 +257,29 @@
       "help": "Select the target software you will use to cut the exported file. This automatically configures SVG grouping, layer colors, and DOM ordering to match what that specific software expects.",
       "label": "Target Laser Software"
     },
+    "activeProfile": {
+      "label": "Laser Software",
+      "help": "The program you will open the exported file in. It decides how layers are grouped, whether colours encode passes, and which palette is used."
+    },
     "laserProfileColors": {
       "help": "Click any swatch to override the default layer color for the current profile. These colors map to the power/speed settings in your target laser software.",
       "label": "Layer Colors"
     },
-    "laserReverseCutOrder": {
-      "help": "Orders the output from bottom to top. Required by LightBurn and xTool to process the first operation first.",
-      "label": "Reverse Cut Order"
+    "reverseCutOrder": {
+      "label": "Reverse Cut Order",
+      "help": "Emit layers last-to-first. Needed where the importer processes the file bottom-up, so the intended first cut ends up first."
     },
     "laserSpacingMode": {
       "help": "Choose how to define the distance between consecutive laser passes. Step Over uses a percentage of spot size. Lines/cm and LPI set the density directly.",
       "label": "Pass Spacing Mode"
     },
-    "laserSpotSize": {
+    "spotSize": {
       "label": "Laser Spot Size",
       "help": "The effective cut width of your laser beam. Manufacturer should list it in the speceification sheet. Typical values: UV laser 0.02-0.08mm, Fiber laser 0.03-0.15mm."
+    },
+    "layerColors": {
+      "label": "Layer Colours",
+      "help": "Colour assigned to each operation type in the exported file. Most laser software maps colour to a cut setting."
     },
     "lineNumbers": {
       "label": "Line Numbers (N)",
@@ -266,9 +293,9 @@
       "label": "Step Over",
       "help": "Percentage of the spot diameter that adjacent paths overlap. Lower values (more overlap) give better copper removal but increase processing time. 50% is a good starting point; reduce to 30% if streaks appear."
     },
-    "laserSvgGrouping": {
-      "help": "Determines how SVG paths are organized. 'By Layer' groups by operation, 'By Color' groups by assigned color, and 'None' outputs flat geometry.",
-      "label": "SVG Grouping"
+    "svgGrouping": {
+      "label": "SVG Grouping",
+      "help": "How paths are grouped in the file. Your laser software decides what it can read: some import layers, some groups, some only colour."
     },
     "leadIn": {
       "label": "Lead-in"
@@ -303,9 +330,41 @@
       "label": "Number of Passes",
       "help": "Number of offset passes to create. More passes clear more copper but take longer."
     },
-    "pcbThickness": {
-      "label": "PCB Thickness",
-      "help": "The total thickness of your PCB material (e.g., 1.6mm). Used for cutout depth calculations."
+    "thickness": {
+      "label": "Stock Thickness",
+      "help": "The total thickness of your stock material is. Used for cutout depth calculations."
+    },
+    "thicknessCopper":{
+      "label": "Copper Thickness",
+      "help": "Copper foil thickness, typically 0.035mm for 1oz. Used for isolation depth suggestions."
+    },
+    "width": {
+      "label": "Width",
+      "help": "Stock width along X."
+    },
+    "length": {
+      "label": "Length",
+      "help": "Stock length along Y."
+    },
+    "margin": {
+      "label": "Fit Margin",
+      "help": "Clearance added around the geometry when using Fit to Object."
+    },
+    "material": {
+      "label": "Material",
+      "help": "Stock material. Used for feed and speed suggestions; it does not change any generated coordinate."
+    },
+    "zeroReference": {
+      "label": "Z Zero Reference",
+      "help": "Where Z0 sits. 'Material Surface' means you zero on top of the stock; 'Machine Bed' means you zero on the spoilboard and depths are measured from there."
+    },
+    "coolant": {
+      "label": "Coolant",
+      "help": ""
+    },
+    "vacuum": {
+      "label": "Vacuum",
+      "help": ""
     },
     "peckDepth": {
       "label": "Peck Depth",
@@ -342,6 +401,10 @@
     "rasterBidirectional": {
       "help": "When checked the tool cuts in both directions. When unchecked it lifts and returns after each line for climb-only cutting.",
       "label": "Bidirectional Raster"
+    },
+    "optimizeToolpath": {
+      "label": "Optimize Toolpaths",
+      "help": "Reorder and simplify the finished toolpath to cut travel time. Turn it off to keep the paths in exactly the order they were generated."
     },
     "regions": {
       "label": "Regions"
@@ -474,6 +537,14 @@
       "label": "Axis Offset (Cross 2)",
       "help": "Shifts the rotation axis in the second cross direction (workspace Z). Same purpose as the first offset. Leave at 0 for a centred model."
     },
+    "rotaryAxialDatum": {
+      "label": "Axial Datum",
+      "help": "Where zero sits along the rotary axis: the start of the model, its centre, or the scene origin. This is the position your controller's zero has to match."
+    },
+    "rotaryAxialOffset": {
+      "label": "Axial Offset",
+      "help": "Shifts the part along the rotary axis after the datum is applied. Use it to match where the blank actually sits between the chuck and the tailstock."
+    },
     "rotaryBlankDiameter": {
       "label": "Blank Diameter",
       "help": "Outside diameter of the raw stock. Leave at 0 to fit the blank to the model automatically. Setting it smaller than the model flattens everything outside it, so only reduce it if the stock really is smaller."
@@ -593,7 +664,7 @@
       "help": "Plunge a shallow pilot hole at each location before the main drilling pass. Improves accuracy on curved or uneven surfaces.",
       "label": "Spot Drill"
     },
-    "startCode": {
+    "userStartCode": {
       "label": "Start G-code",
       "help": "Custom Preamble to add to the beginning of this operation's command stream."
     },
@@ -616,6 +687,14 @@
     "stencilOffset": {
       "help": "Shrinks (negative) or expands (positive) the stencil apertures. -0.05mm is a common default to prevent solder bridging.",
       "label": "Aperture Offset"
+    },
+    "stencilMachine": {
+      "label": "Stencil Output",
+      "help": "What the stencil is cut on. Router mills the apertures and exports G-code; Knife cuts on the line with a cutter offset and exports a vector file. Changing this changes which parameters and stages the operation has."
+    },
+    "stencilCornerRadius": {
+      "label": "Aperture Corner Radius",
+      "help": "Rounds each aperture corner so a drag knife or vinyl cutter can follow it. A radius smaller than the cutter compensation comes out square, because a round cutter cannot cut a corner tighter than itself."
     },
     "stencilRegDiameter": {
       "help": "The physical diameter of the registration pins/dowels you plan to use.",
@@ -721,6 +800,8 @@
   "enums": {
     "climb": "Climb",
     "conventional": "Conventional",
+    "router":"CNC Milling (G-code)",
+    "knife":"Vinyl / Laser (SVG)",
     "g54": "G54",
     "g55": "G55",
     "g56": "G56",
@@ -738,7 +819,18 @@
     "on": "On Line",
     "outside": "Outside",
     "plunge": "Plunge",
-    "ramp": "Ramp"
+    "ramp": "Ramp",
+    "table": "Controller tool table (G43 H<n>)",
+    "table-implicit": "Controller tool table, H from T (T<n> M06 G43)",
+    "probe": "Measured at change time (controller macro)",
+    "a-word": "Rotary word (A/B in degrees)",
+    "wrapped-linear": "Axis replacement (Y carries arc length)",
+    "a-linear": "Rotary word (A/B in arc mm)",
+    "isolation": "Isolation",
+    "clearing": "Clearing",
+    "cutout": "Cutout",
+    "drill": "Drill",
+    "stencil": "Stencil"
   },
   "ui": {
     "app.loading": "Loading...",
@@ -818,7 +910,7 @@
     "modals.exporter.title": "Toolpath Manager & Export",
     "modals.exporter.toolChanges": {
       "label": "Insert tool change commands",
-      "help": "Insert a pause (M0 or M6) when the tool changes between operations. (Not yet implemented)"
+      "help": "Inserts tool change commands (Tx and M6) and tool length compensation when the tool changes between operations."
     },
     "modals.welcome.dontShowAgain": "Don't show this again",
     "modals.welcome.exampleHelp": "Select an example to explore functionality.",
@@ -935,7 +1027,6 @@
     "comments.spindleStart": "Spindle Start",
     "comments.spindleStop": "Spindle Stop",
     "comments.toolChange": "Tool change: {name}",
-    "comments.toolFallback": "No tool number assigned - defaulting to T{n}",
     "comments.toolChangePause": "Tool change pause - press cycle start",
     "comments.toolDiameter": "Diameter: {diameter}mm",
     "comments.toolLengthCancel": "Cancel tool length offset",

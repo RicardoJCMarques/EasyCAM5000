@@ -30,7 +30,7 @@
       "label": "Copper Isolation",
       "extensions": [".gbr", ".gbl", ".gtl", ".gbx", ".svg"],
       "defaultTool": "vbit_45deg_0.2mm",
-      "machineClasses": { "router": "2.5d", "laser": "2d" }
+      "machineClasses": {"router": "2.5d", "laser": "2d"}
     },
     "clearing": {
       "handler": "TraceClearingHandler",
@@ -39,7 +39,7 @@
       "label": "Copper Clearing",
       "extensions": [".gbr", ".gbl", ".gtl", ".gbx", ".svg"],
       "defaultTool": "em_0.8mm_flat",
-      "machineClasses": { "router": "2.5d", "laser": "2d" }
+      "machineClasses": {"router": "2.5d", "laser": "2d"}
     },
     "cutout": {
       "handler": "TraceCutoutHandler",
@@ -47,8 +47,9 @@
       "label": "Board Cutout",
       "extensions": [".gbr", ".gko", ".gml", ".gm1", ".svg"],
       "defaultTool": "em_1.0mm_flat",
-      "machineClasses": { "router": "2.5d", "laser": "2d" },
-      "defaults": { "cutDepth": -1.8, "depthPerPass": 0.3 }
+      "machineClasses": { "router": "2.5d", "laser": "2d"},
+      "defaults": { "depthPerPass": 0.3 },
+      "cutsThrough": true
     },
     "drill": {
       "handler": "DrillHandler",
@@ -56,8 +57,9 @@
       "label": "Drill",
       "extensions": [".drl", ".xln", ".txt", ".tap", ".svg"],
       "defaultTool": "em_1.0mm_flat",
-      "machineClasses": { "router": "2.5d", "laser": "2d" },
-      "defaults": { "cutDepth": -1.8, "drillDepthPerPass": 0.5, "drillEntryType": "helix" }
+      "machineClasses": {"router": "2.5d", "laser": "2d"},
+      "defaults": {"drillDepthPerPass": 0.5, "drillEntryType": "helix"},
+      "cutsThrough": true
     },
     "stencil": {
       "handler": "TraceStencilHandler",
@@ -65,7 +67,7 @@
       "label": "Stencil",
       "extensions": [".gbr", ".gtp", ".gbp", ".svg"],
       "defaultTool": "em_0.5mm_flat",
-      "machineClasses": { "router": "2.5d", "knife": "2d" }
+      "machineClasses": {"router": "2.5d", "knife": "2d"}
     }
   },
   "examples": {
@@ -98,6 +100,11 @@
   },
   "ui": {
     "categories": {
+      "post": "Post-Processor",
+      "stock": "Stock",
+      "heights": "Heights & Feeds",
+      "rotary": "4th Axis",
+      "laser": "Laser Output",
       "stencil": "Stencil Settings",
       "tool": "Tool Selection",
       "laser_tool": "Laser Tool",
@@ -150,108 +157,24 @@
       "statusError": "An error occurred",
       "statusWarning": "Warning",
       "logHintViz": "Toggle verbose debug messages in the Viz Panel."
-    }
+    },
+    "shortcuts": [
+      { "combo": "1", "action": "cycleCategory", "args": ["isolation"] },
+      { "combo": "2", "action": "cycleCategory", "args": ["drill"] },
+      { "combo": "3", "action": "cycleCategory", "args": ["clearing"] },
+      { "combo": "4", "action": "cycleCategory", "args": ["stencil"] },
+      { "combo": "5", "action": "cycleCategory", "args": ["cutout"] }
+    ]
   },
-  "machineDefaults": {
-    "pcb": {
-      "thickness": 1.8,
-      "copperThickness": 0.035,
-      "minFeatureSize": 0.1
-    },
-    "heights": {
-      "safeZ": 5.0,
-      "travelZ": 2.0,
-      "feedHeight": 1.0,
-      "maxSafeDepth": -10.1,
-      "probeZ": -5.0,
-      "homeZ": 10.0
-    },
-    "speeds": {
-      "rapidFeed": 1000,
-      "probeFeed": 25,
-      "maxFeed": 2000,
-      "maxAcceleration": 100
-    },
-    "coolant": "none",
-    "vacuum": false
-  },
-  "laserDefaults": {
-    "spotSize": 0.02,
-    "exportFormat": "svg",
-    "exportDPI": 1000,
-    "exportPadding": 5.0,
-    "defaultClearStrategy": "offset",
-    "svgGrouping": "none",
-    "reverseCutOrder": false,
-    "heatManagement": "standard",
-    "colorPerPass": false,
-    "activeProfile": "xToolStudio",
-    "layerColors": {
-      "isolation": "#ff0000",
-      "drill": "#0000ff",
-      "clearing": "#00ff00",
-      "cutout": "#000000",
-      "stencil": "#860694"
-    },
-    "profiles": {
-      "generic": {
-        "label": "Generic (Very Experimental)",
-        "svgGrouping": "layer",
-        "reverseCutOrder": false,
-        "heatManagement": "standard",
-        "colorPerPass": false,
-        "layerColors": {
-          "isolation": "#ff0000", "drill": "#0000ff", "clearing": "#00ff00", "cutout": "#000000", "stencil": "#860694"
-        }
-      },
-      "lasergrbl": {
-        "label": "LaserGRBL (Very Experimental)",
-        "svgGrouping": "group",
-        "reverseCutOrder": false,
-        "heatManagement": "standard",
-        "colorPerPass": false,
-        "layerColors": {
-          "isolation": "#ff0000", "drill": "#0000ff", "clearing": "#00ff00", "cutout": "#000000", "stencil": "#860694"
-        }
-      },
-      "xToolStudio": {
-        "label": "xTool Studio (Less Experimental)",
-        "svgGrouping": "color",
-        "reverseCutOrder": true,
-        "heatManagement": "standard",
-        "colorPerPass": true,
-        "paletteLumping": true,
-        "palette": [
-          "#EB3DBA", "#FE0002", "#FF7F56", "#E1C000", "#C29900", 
-          "#96D71D", "#00C715", "#00897B", "#2366FF", "#00BEFE", 
-          "#8170EF", "#A958FF", "#582FA8", "#D9D9D9", "#848B96",
-          "#000000"
-        ],
-        "layerColors": {
-          "isolation": "#FE0002", "drill": "#2366FF", "clearing": "#FE0002", "cutout": "#2366FF", "stencil": "#582FA8"
-        }
-      },
-      "lightburn": {
-        "label": "LightBurn (Very Experimental)",
-        "svgGrouping": "none",
-        "reverseCutOrder": true,
-        "heatManagement": "standard",
-        "colorPerPass": true,
-        "layerColors": {
-          "isolation": "#ff0000", "drill": "#0000ff", "clearing": "#00ff00", "cutout": "#000000", "stencil": "#860694"
-        }
-      },
-      "rdworks": {
-        "label": "RDWorks / Ruida (Very Experimental)",
-        "svgGrouping": "layer",
-        "reverseCutOrder": false,
-        "heatManagement": "off",
-        "colorPerPass": false,
-        "layerColors": {
-          "isolation": "#ff0000", "drill": "#00ff00", "clearing": "#0000ff", "cutout": "#000000", "stencil": "#ff00ff"
-        }
-      }
-    }
+  "machineParameters": {
+    "machine.stock.width": null,
+    "machine.stock.length": null,
+    "machine.stock.margin": null,
+    "machine.stock.material": null,
+    "machine.stock.zeroReference": null,
+    "gcode.rotaryRoute": null,
+    "gcode.indexDwell": null,
+    "machine.stock.thicknessCopper": { "default": 0.035 }
   },
   "parameters": {
     "meta": {
@@ -351,6 +274,8 @@
       "max": 0,
       "step": 0.001,
       "default": -0.1,
+      "throughFrom": "machine.stock.thickness",
+      "negate": true,
       "stage": "strategy",
       "category": "depth",
       "operationTypes": ["isolation", "clearing", "cutout", "drill", "stencil"]

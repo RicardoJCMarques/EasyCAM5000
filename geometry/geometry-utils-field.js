@@ -392,12 +392,7 @@
             // floor. Radii below floorR are windowed AS floorR. That is
             // exact because the AXIAL POLICY composes a core floor into the
             // target before compensation (FieldPipeline._composeAxial step
-            // 3), so no cell holds less than floorR to begin with. It used
-            // to be justified by a post-compensation clamp in the rotary
-            // FieldView; the pipeline refactor removed that clamp
-            // deliberately ("the compensated field IS the final tip
-            // surface"), so if a caller ever runs this with coreFloor off,
-            // the exclusion below becomes an approximation.
+            // 3), so no cell holds less than floorR to begin with.
             const colMin = new Float64Array(cols).fill(Infinity);
             for (let iy = 0; iy < rows; iy++) {
                 const base = iy * cols;
@@ -945,10 +940,7 @@
         return inZone;
     }
 
-    ROOT.STAGE_BANDS = STAGE_BANDS;
     ROOT.makeStageScaler = makeStageScaler;
-
-    ROOT.rowEdges = rowEdges;
     ROOT.dilateMask = dilateMask;
     ROOT.ScalarField = ScalarField;
     ROOT.fillFromFootprint = fillFromFootprint;

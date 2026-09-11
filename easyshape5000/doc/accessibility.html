@@ -1,0 +1,1550 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <!--!
+        @file        index.html
+        @description EasyShape5000 Accessibility Guide
+        @author      Eltryus - Ricardo Marques
+        @copyright   2025-2026 Eltryus - Ricardo Marques
+        @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
+        
+        SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
+        SPDX-License-Identifier: AGPL-3.0-or-later
+    -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>EasyShape5000 Doc - Accessibility Guide</title>
+
+    <meta name="description" content="Accessibility information for EasyShape5000. Details on keyboard navigation, focus management, screen reader support, and WCAG 2.1 compliance.">
+    <meta name="author" content="Eltryus">
+    <meta name="robots" content="index, follow">
+    <meta name="theme-color" content="#1a1a1a">
+
+    <link rel="canonical" href="https://cam.eltryus.design/easyshape5000/doc/accessibility">
+
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https://cam.eltryus.design/easyshape5000/doc/accessibility">
+    <meta property="og:title" content="EasyShape5000 Doc - Accessibility Guide">
+    <meta property="og:description" content="Keyboard controls and accessibility compliance for EasyShape5000.">
+    <meta property="og:image" content="https://cam.eltryus.design/images/social-shape.jpg">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:site_name" content="EasyCAM5000">
+    <meta property="og:locale" content="en_US">
+
+    <link rel="icon" type="image/png" href="../../images/favicon/favicon-96x96.png" sizes="96x96">
+    <link rel="icon" type="image/svg+xml" href="../../images/favicon/favicon.svg">
+    <link rel="shortcut icon" href="../../images/favicon/favicon.ico">
+    <link rel="apple-touch-icon" sizes="180x180" href="../../images/favicon/apple-touch-icon.png">
+    <link rel="manifest" href="../../images/favicon/site.webmanifest">
+
+    <link rel="stylesheet" href="../../css/base.css">
+    <link rel="stylesheet" href="../../css/components.css">
+    <link rel="stylesheet" href="../../css/theme.css">
+    <link rel="stylesheet" href="../../css/doc.css">
+
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@graph": [
+            {
+                "@type": "Organization",
+                "@id": "https://www.eltryus.design/#organization",
+                "name": "Eltryus",
+                "url": "https://www.eltryus.design/"
+            },
+            {
+                "@type": "WebSite",
+                "@id": "https://cam.eltryus.design/#website",
+                "name": "EasyCAM5000",
+                "alternateName": "Eltryus EasyCAM5000 Suite",
+                "url": "https://cam.eltryus.design/",
+                "inLanguage": "en",
+                "publisher": { "@id": "https://www.eltryus.design/#organization" }
+            },
+            {
+                "@type": "WebApplication",
+                "@id": "https://cam.eltryus.design/easyshape5000/#app",
+                "name": "EasyShape5000",
+                "url": "https://cam.eltryus.design/easyshape5000/"
+            },
+            {
+                "@type": "CollectionPage",
+                "@id": "https://cam.eltryus.design/easyshape5000/doc/#docs",
+                "name": "EasyShape5000 Documentation",
+                "url": "https://cam.eltryus.design/easyshape5000/doc/"
+            },
+            {
+                "@type": "WebPage",
+                "@id": "https://cam.eltryus.design/easyshape5000/doc/accessibility#webpage",
+                "url": "https://cam.eltryus.design/easyshape5000/doc/accessibility",
+                "name": "EasyShape5000 Doc - Accessibility Guide",
+                "inLanguage": "en",
+                "isPartOf": { "@id": "https://cam.eltryus.design/#website" },
+                "about": { "@id": "https://cam.eltryus.design/easyshape5000/#app" },
+                "mainEntity": { "@id": "https://cam.eltryus.design/easyshape5000/doc/accessibility#article" },
+                "breadcrumb": { "@id": "https://cam.eltryus.design/easyshape5000/doc/accessibility#breadcrumb" },
+                "primaryImageOfPage": "https://cam.eltryus.design/images/social-trace.jpg"
+            },
+            {
+                "@type": "TechArticle",
+                "@id": "https://cam.eltryus.design/easyshape5000/doc/accessibility#article",
+                "headline": "EasyShape5000 Accessibility Guide",
+                "description": "Accessibility information for EasyShape5000. Details on keyboard navigation, focus management, screen reader support, and WCAG 2.1 compliance.",
+                "image": "https://cam.eltryus.design/images/social-trace.jpg",
+                "url": "https://cam.eltryus.design/easyshape5000/doc/accessibility",
+                "inLanguage": "en",
+                "mainEntityOfPage": { "@id": "https://cam.eltryus.design/easyshape5000/doc/accessibility#webpage" },
+                "isPartOf": { "@id": "https://cam.eltryus.design/easyshape5000/doc/#docs" },
+                "about": { "@id": "https://cam.eltryus.design/easyshape5000/#app" },
+                "author": { "@id": "https://www.eltryus.design/#organization" },
+                "publisher": { "@id": "https://www.eltryus.design/#organization" },
+                "datePublished": "2026-09-04",
+                "dateModified": "2026-09-11"
+            },
+            {
+                "@type": "BreadcrumbList",
+                "@id": "https://cam.eltryus.design/easyshape5000/doc/accessibility#breadcrumb",
+                "itemListElement": [
+                    { "@type": "ListItem", "position": 1, "name": "EasyCAM5000", "item": "https://cam.eltryus.design/" },
+                    { "@type": "ListItem", "position": 2, "name": "EasyShape5000", "item": "https://cam.eltryus.design/easyshape5000/" },
+                    { "@type": "ListItem", "position": 3, "name": "Docs", "item": "https://cam.eltryus.design/easyshape5000/doc/" },
+                    { "@type": "ListItem", "position": 4, "name": "Accessibility", "item": "https://cam.eltryus.design/easyshape5000/doc/accessibility" }
+                ]
+            }
+        ]
+    }
+    </script>
+</head>
+<body>
+    <!-- Skip link for keyboard accessibility -->
+    <a href="#doc-content" class="skip-link" aria-label="Skip to main content">Skip to Main Content</a>
+
+    <!-- Header -->
+    <header class="doc-header">
+        <div class="doc-brand"><a href="/" aria-label="EasyCAM5000 Homepage">EasyCAM5000</a></div>
+
+        <nav class="doc-breadcrumb" aria-label="Breadcrumb">
+            <ol>
+                <li><a href="/easyshape5000/" draggable="false">EasyShape5000</a></li>
+                <li><a href="./" draggable="false">Docs</a></li>
+                <li><span aria-current="page">Accessibility</span></li>
+            </ol>
+        </nav>
+
+        <button class="doc-menu-toggle" aria-label="Toggle Navigation Menu" aria-expanded="false">
+            <svg class="icon-menu cam-icon" width="24" height="24" aria-hidden="true"><use href="#icon-menu"></use></svg>
+            <svg class="icon-close cam-icon" width="24" height="24" aria-hidden="true"><use href="#icon-close"></use></svg>
+        </button>
+
+        <nav class="doc-nav" aria-label="Main Navigation">
+            <a href="guide" draggable="false">Workflow Guide</a>
+            <a href="operations" draggable="false">Operations</a>
+            <a href="parameters" draggable="false">Parameters</a>
+            <a href="accessibility" class="active" aria-current="page" draggable="false">Accessibility</a>
+            <span class="separator" aria-hidden="true"></span>
+            <a href="/easyshape5000/" draggable="false">Launch App</a>
+            <a href="https://github.com/RicardoJCMarques/EasyCAM5000" target="_blank" draggable="false" aria-label="GitHub Repository (opens in a new tab)">GitHub</a>
+
+            <button id="theme-toggle" class="btn btn--icon" title="Toggle Theme" aria-label="Toggle Theme">
+                <svg class="cam-icon" width="16" height="16"><use href="#icon-sun"></use></svg>
+            </button>
+        </nav>
+    </header>
+
+    <div class="doc-wrapper has-sidebar">
+        <!-- Sidebar TOC -->
+        <nav class="doc-sidebar" id="toc" aria-label="Table of contents">
+            <p class="doc-sidebar-title">Contents</p>
+                        <ol>
+                <li>
+                    <a href="#keyboard-navigation-overview" draggable="false">Keyboard Navigation Overview</a>
+                </li>
+                <li>
+                    <a href="#zone-specific-controls" draggable="false">Zone-Specific Controls</a>
+                </li>
+                <li>
+                    <a href="#the-3d-viewport" draggable="false">The 3D Viewport</a>
+                </li>
+                <li>
+                    <a href="#modals-dialogs" draggable="false">Modals & Dialogs</a>
+                </li>
+                <li>
+                    <a href="#screen-reader-support" draggable="false">Screen Reader Support</a>
+                </li>
+                <li>
+                    <a href="#wcag-21-compliance" draggable="false">WCAG 2.1 Compliance</a>
+                </li>
+                <li>
+                    <a href="#known-limitations" draggable="false">Known Limitations</a>
+                </li>
+                <li>
+                    <a href="#reporting-issues" draggable="false">Reporting Issues</a>
+                </li>
+            </ol>
+        </nav>
+
+        <!-- Main Content -->
+        <main id="doc-content" class="doc-main" aria-label="Main Content">
+            <section class="hero hero--compact">
+                <h1>EasyShape5000 Accessibility Guide</h1>
+                <p class="tagline">Keyboard navigation, screen reader support, and WCAG compliance</p>
+            </section>
+
+            <p>
+                EasyShape5000 is designed to be usable with keyboard-only navigation and compatible with assistive technologies. This document details keyboard controls, focus management, and WCAG 2.1 compliance efforts.
+            </p>
+            <h2 id="keyboard-navigation-overview">
+                Keyboard Navigation Overview
+            </h2>
+            <p>
+                The interface is designed for full keyboard operability using a <strong>Focus Zone</strong> strategy. This reduces repetitive tabbing by allowing users to jump between major workspace areas.
+            </p>
+            <h3 id="global-navigation">
+                Global Navigation
+            </h3>
+            <p>
+                These shortcuts work globally to navigate the application structure.
+            </p>
+            <table>
+                <thead>
+                    <tr>
+                        <th align="left">
+                            Key
+                        </th>
+                        <th align="left">
+                            Action
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td align="left">
+                            <code>F6</code>
+                        </td>
+                        <td align="left">
+                            Cycle focus forward through zones: <strong>Toolbar</strong> → <strong>Scene &amp; Operations</strong> → <strong>Canvas</strong> → <strong>Settings</strong>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="left">
+                            <code>Shift</code> + <code>F6</code>
+                        </td>
+                        <td align="left">
+                            Cycle focus backward through zones
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="left">
+                            <code>Tab</code>
+                        </td>
+                        <td align="left">
+                            Move focus to the next interactive element within the current zone
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="left">
+                            <code>Shift</code> + <code>Tab</code>
+                        </td>
+                        <td align="left">
+                            Move focus to the previous interactive element
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="left">
+                            <code>F1</code>
+                        </td>
+                        <td align="left">
+                            Open the Help &amp; Shortcuts modal
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="left">
+                            <code>F2</code>
+                        </td>
+                        <td align="left">
+                            Toggle between the 2D canvas and the 3D view
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="left">
+                            <code>Ctrl</code> + <code>Alt</code> + <code>D</code>
+                        </td>
+                        <td align="left">
+                            Toggle verbose debug logging
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+            <blockquote>
+                <p>
+                    <strong>Note:</strong> A <strong>Skip Link</strong> is available on the first <code>Tab</code> press after page load to jump directly to the Canvas. Each <code>F6</code> press announces the zone it landed in through the status region, which matters here because the left sidebar holds two independent panels.
+                </p>
+            </blockquote>
+            <h3 id="editing-and-selection">
+                Editing and Selection
+            </h3>
+            <p>
+                These apply wherever focus is, except inside a text field.
+            </p>
+            <table>
+                <thead>
+                    <tr>
+                        <th align="left">
+                            Key
+                        </th>
+                        <th align="left">
+                            Action
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td align="left">
+                            <code>Ctrl</code> + <code>Z</code>
+                        </td>
+                        <td align="left">
+                            Undo
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="left">
+                            <code>Ctrl</code> + <code>Shift</code> + <code>Z</code> / <code>Ctrl</code> + <code>Y</code>
+                        </td>
+                        <td align="left">
+                            Redo
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="left">
+                            <code>Ctrl</code> + <code>A</code>
+                        </td>
+                        <td align="left">
+                            Select every top-level object in the scene
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="left">
+                            <code>Ctrl</code> + <code>G</code>
+                        </td>
+                        <td align="left">
+                            Group the selection
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="left">
+                            <code>Ctrl</code> + <code>Shift</code> + <code>G</code>
+                        </td>
+                        <td align="left">
+                            Ungroup the selection
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="left">
+                            <code>Delete</code> / <code>Backspace</code>
+                        </td>
+                        <td align="left">
+                            Delete the selected shapes
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="left">
+                            <code>I</code>
+                        </td>
+                        <td align="left">
+                            Open the Add Files dialog
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+            <p>
+                Single-key shortcuts are scoped. Inside the scene tree or the operations panel, <code>Delete</code> removes the focused node rather than the canvas selection. Inside a property row in the right sidebar, no single-key shortcut fires at all, so a stray keystroke while arrowing a form cannot destroy work.
+            </p>
+            <h2 id="zone-specific-controls">
+                Zone-Specific Controls
+            </h2>
+            <p>
+                Each zone has specific interactions once it receives focus.
+            </p>
+            <h3 id="toolbar">
+                Toolbar
+            </h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th align="left">
+                            Key
+                        </th>
+                        <th align="left">
+                            Action
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td align="left">
+                            <code>Tab</code> / <code>Shift</code> + <code>Tab</code>
+                        </td>
+                        <td align="left">
+                            Navigate between buttons and menu items
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="left">
+                            <code>Enter</code> / <code>Space</code>
+                        </td>
+                        <td align="left">
+                            Activate the focused button or open a dropdown
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="left">
+                            <code>↑</code> / <code>↓</code>
+                        </td>
+                        <td align="left">
+                            Move between items in an open dropdown
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="left">
+                            <code>Escape</code>
+                        </td>
+                        <td align="left">
+                            Close an open dropdown and return focus to its button
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+            <h3 id="scene-tree-left-sidebar-upper-panel">
+                Scene Tree (Left Sidebar, upper panel)
+            </h3>
+            <p>
+                The scene tree is an ARIA tree with a <strong>roving tabindex</strong>. Press <code>Tab</code> to enter it, then use arrow keys. Groups nest to any depth; the tree reports each item&#39;s level and position in its branch.
+            </p>
+            <table>
+                <thead>
+                    <tr>
+                        <th align="left">
+                            Key
+                        </th>
+                        <th align="left">
+                            Action
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td align="left">
+                            <code>↑</code> / <code>↓</code>
+                        </td>
+                        <td align="left">
+                            Move focus to the previous or next visible item
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="left">
+                            <code>→</code>
+                        </td>
+                        <td align="left">
+                            Expand a collapsed group
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="left">
+                            <code>←</code>
+                        </td>
+                        <td align="left">
+                            Collapse an expanded group, or move focus to the parent
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="left">
+                            <code>Home</code> / <code>End</code>
+                        </td>
+                        <td align="left">
+                            Jump to the first or last item in the tree
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="left">
+                            <code>Enter</code> / <code>Space</code>
+                        </td>
+                        <td align="left">
+                            Select the focused item
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="left">
+                            <code>Shift</code> / <code>Ctrl</code> + <code>Enter</code>
+                        </td>
+                        <td align="left">
+                            Extend or toggle the selection
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="left">
+                            <code>Delete</code> / <code>Backspace</code>
+                        </td>
+                        <td align="left">
+                            Remove the focused item
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="left">
+                            <code>V</code>
+                        </td>
+                        <td align="left">
+                            Toggle visibility of the focused item
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="left">
+                            <code>L</code>
+                        </td>
+                        <td align="left">
+                            Toggle lock on the focused item
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+            <p>
+                Row buttons are reachable by their shortcut key rather than by <code>Tab</code>, so a hundred-shape file does not add three hundred tab stops to the sidebar.
+            </p>
+            <h3 id="operations-panel-left-sidebar-lower-panel">
+                Operations Panel (Left Sidebar, lower panel)
+            </h3>
+            <p>
+                Each operation is a bucket. Its header is a tree item, and every artifact it has produced — Offsets, Preview, Toolpaths — is a child tree item with its own visibility toggle.
+            </p>
+            <table>
+                <thead>
+                    <tr>
+                        <th align="left">
+                            Key
+                        </th>
+                        <th align="left">
+                            Action
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td align="left">
+                            <code>↑</code> / <code>↓</code>
+                        </td>
+                        <td align="left">
+                            Move focus through bucket headers and stage nodes
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="left">
+                            <code>→</code>
+                        </td>
+                        <td align="left">
+                            Move focus from a bucket header to its first stage node
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="left">
+                            <code>←</code>
+                        </td>
+                        <td align="left">
+                            Move focus from a stage node back to its bucket header
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="left">
+                            <code>Home</code> / <code>End</code>
+                        </td>
+                        <td align="left">
+                            Jump to the first or last item in the panel
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="left">
+                            <code>Enter</code> / <code>Space</code>
+                        </td>
+                        <td align="left">
+                            Select the focused bucket or stage and open its properties
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="left">
+                            <code>Delete</code> / <code>Backspace</code>
+                        </td>
+                        <td align="left">
+                            Delete the focused bucket, or clear the focused stage
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="left">
+                            <code>V</code>
+                        </td>
+                        <td align="left">
+                            Toggle visibility of the focused bucket or stage
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+            <p>
+                An invalidated stage is marked visually with a strikethrough and announced as invalidated, so the state does not depend on colour alone.
+            </p>
+            <h3 id="canvas-controls">
+                Canvas Controls
+            </h3>
+            <p>
+                These controls are active when the <strong>Canvas</strong> zone has focus.
+            </p>
+            <table>
+                <thead>
+                    <tr>
+                        <th align="left">
+                            Key
+                        </th>
+                        <th align="left">
+                            Action
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td align="left">
+                            <code>↑</code> / <code>↓</code> / <code>←</code> / <code>→</code>
+                        </td>
+                        <td align="left">
+                            Pan the view
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="left">
+                            <code>Shift</code> + <code>Arrow</code>
+                        </td>
+                        <td align="left">
+                            Pan faster
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="left">
+                            <code>+</code> / <code>-</code>
+                        </td>
+                        <td align="left">
+                            Zoom in / Zoom out
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="left">
+                            <code>Home</code> / <code>F</code> / <code>=</code>
+                        </td>
+                        <td align="left">
+                            Fit all geometry to view
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="left">
+                            <code>G</code>
+                        </td>
+                        <td align="left">
+                            Toggle Grid visibility
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="left">
+                            <code>F2</code>
+                        </td>
+                        <td align="left">
+                            Switch between the 2D canvas and the 3D view
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+            <h3 id="property-panel-right-sidebar">
+                Property Panel (Right Sidebar)
+            </h3>
+            <p>
+                This panel handles parameter inputs for the selected stage node. The fields it shows change with the stage, so the same keys apply throughout.
+            </p>
+            <table>
+                <thead>
+                    <tr>
+                        <th align="left">
+                            Key
+                        </th>
+                        <th align="left">
+                            Action
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td align="left">
+                            <code>Tab</code>
+                        </td>
+                        <td align="left">
+                            Move to next field or button
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="left">
+                            <code>Shift</code> + <code>Tab</code>
+                        </td>
+                        <td align="left">
+                            Move to previous field
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="left">
+                            <code>↓</code> / <code>↑</code>
+                        </td>
+                        <td align="left">
+                            Navigate focus between property rows (Grid Navigation)
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="left">
+                            <code>Enter</code>
+                        </td>
+                        <td align="left">
+                            Enter &quot;Edit Mode&quot; on a focused row
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="left">
+                            <code>↓</code> / <code>↑</code> <em>(in a number field)</em>
+                        </td>
+                        <td align="left">
+                            Step the value, as a number input normally would
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="left">
+                            <code>Escape</code>
+                        </td>
+                        <td align="left">
+                            Cancel the edit and return focus to the row
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+            <p>
+                Help text is attached to each field as its description rather than to a separate button, so a screen reader reads it when the field takes focus. The <code>?</code> icon beside a label is decorative and is not a tab stop.
+            </p>
+            <h2 id="the-3d-viewport">
+                The 3D Viewport
+            </h2>
+            <p>
+                Unlike EasyTrace5000, where 3D is an optional preview, three EasyShape operations are three-dimensional by definition: <strong>V-Carve</strong>, <strong>Relief</strong> and <strong>Rotary</strong>. Generating one switches the workspace to the 3D view automatically, because there is no 2D contour that represents its output.
+            </p>
+            <p>
+                The camera is fully keyboard-operable once the viewport has focus. Press <code>F2</code> to enter 3D, then <code>F6</code> until focus reaches the viewport.
+            </p>
+            <table>
+                <thead>
+                    <tr>
+                        <th align="left">
+                            Key
+                        </th>
+                        <th align="left">
+                            Action
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td align="left">
+                            <code>↑</code> / <code>↓</code> / <code>←</code> / <code>→</code>
+                        </td>
+                        <td align="left">
+                            Orbit the camera
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="left">
+                            <code>Shift</code> + arrow keys
+                        </td>
+                        <td align="left">
+                            Pan the camera target
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="left">
+                            <code>+</code> / <code>-</code>
+                        </td>
+                        <td align="left">
+                            Zoom in / Zoom out
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="left">
+                            <code>Page Up</code> / <code>Page Down</code>
+                        </td>
+                        <td align="left">
+                            Zoom in / Zoom out
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="left">
+                            <code>Home</code> / <code>F</code>
+                        </td>
+                        <td align="left">
+                            Fit the model to the view
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="left">
+                            <code>F2</code>
+                        </td>
+                        <td align="left">
+                            Return to the 2D canvas
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+            <p>
+                The viewport is exposed as a labelled region so its purpose and its key bindings are announced on entry. What it does not yet have is a text equivalent of what it draws — see <a href="#known-limitations">Known Limitations</a>.
+            </p>
+            <h2 id="modals-dialogs">
+                Modals &amp; Dialogs
+            </h2>
+            <p>
+                When a modal is open, focus is trapped within it until it closes, and global navigation keys (<code>F6</code>) are disabled. Closing a modal returns focus to the element that opened it. Where a modal&#39;s body scrolls, focus lands on the scrollable body so the arrow keys and <code>Page Up</code> / <code>Page Down</code> work immediately.
+            </p>
+            <h3 id="general-navigation">
+                General Navigation
+            </h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th align="left">
+                            Key
+                        </th>
+                        <th align="left">
+                            Action
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td align="left">
+                            <code>Tab</code>
+                        </td>
+                        <td align="left">
+                            Cycle forward through inputs and buttons
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="left">
+                            <code>Shift</code> + <code>Tab</code>
+                        </td>
+                        <td align="left">
+                            Cycle backward through inputs and buttons
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="left">
+                            <code>↑</code> / <code>↓</code>
+                        </td>
+                        <td align="left">
+                            Scroll the body of a long modal
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="left">
+                            <code>Escape</code>
+                        </td>
+                        <td align="left">
+                            Close the modal or cancel the current action
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+            <h3 id="confirmations">
+                Confirmations
+            </h3>
+            <p>
+                Deleting a shape is undoable with <code>Ctrl</code> + <code>Z</code> and happens immediately. Deleting an <strong>operation</strong> is not undoable, so it asks first. The confirmation is an alert dialog, its buttons are reachable by <code>Tab</code>, <code>Escape</code> cancels, and focus returns to the node you were on either way.
+            </p>
+            <h3 id="sortable-lists-export-manager">
+                Sortable Lists (Export Manager)
+            </h3>
+            <p>
+                The Export Manager&#39;s operation list is drag-and-drop, with a full keyboard equivalent:
+            </p>
+            <table>
+                <thead>
+                    <tr>
+                        <th align="left">
+                            Key
+                        </th>
+                        <th align="left">
+                            Action
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td align="left">
+                            <code>Space</code>
+                        </td>
+                        <td align="left">
+                            <strong>Grab</strong> the focused item for reordering
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="left">
+                            <code>↑</code> / <code>↓</code>
+                        </td>
+                        <td align="left">
+                            Move the grabbed item up or down the list
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="left">
+                            <code>Space</code>
+                        </td>
+                        <td align="left">
+                            <strong>Drop</strong> the item in its new position
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="left">
+                            <code>Escape</code>
+                        </td>
+                        <td align="left">
+                            Cancel the grab action and reset position
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+            <h3 id="drill-tooling-table">
+                Drill Tooling Table
+            </h3>
+            <p>
+                The per-diameter drill table is a modal grid. <code>Tab</code> moves between cells and <code>Escape</code> closes the modal. Every input and dropdown carries an accessible name that names both its hole diameter and its column, so a cell is never announced as a bare number.
+            </p>
+            <h2 id="screen-reader-support">
+                Screen Reader Support
+            </h2>
+            <h3 id="live-regions">
+                Live Regions
+            </h3>
+            <ul>
+                <li>
+                    <strong>Status region</strong>: a polite region carries ordinary progress and completion messages; a separate assertive region carries errors, so urgency is not lost.
+                </li>
+                <li>
+                    The visible status text is not itself a live region. Its idle state, which restores a few seconds after every message, is therefore silent rather than being re-announced.
+                </li>
+                <li>
+                    Long-running generation reports progress through the same region, so a background job is audible rather than silent.
+                </li>
+                <li>
+                    The status log holds the full history and is reachable from the keyboard: <code>Tab</code> to the chevron at the left of the status bar and press <code>Enter</code>.
+                </li>
+            </ul>
+            <h3 id="semantic-structure">
+                Semantic Structure
+            </h3>
+            <ul>
+                <li>
+                    Main landmarks: <code>&lt;header&gt;</code> (toolbar), <code>&lt;main&gt;</code> (canvas), <code>&lt;aside&gt;</code> (sidebars), <code>&lt;footer&gt;</code> (status bar)
+                </li>
+                <li>
+                    Both left-hand panels are ARIA trees, each with its own label, and the tree role is dropped while a panel is empty so it never claims children it does not have
+                </li>
+                <li>
+                    Headings hierarchy maintained within sections
+                </li>
+                <li>
+                    Form labels associated with inputs via <code>for</code>/<code>id</code>, and help text via <code>aria-describedby</code>
+                </li>
+            </ul>
+            <h3 id="button-labels">
+                Button Labels
+            </h3>
+            <p>
+                All icon-only buttons include <code>aria-label</code> attributes describing their function:
+            </p>
+            <ul>
+                <li>
+                    &quot;Fit to View&quot;, &quot;Zoom In&quot;, &quot;Zoom Out&quot;
+                </li>
+                <li>
+                    &quot;Toggle Visibility&quot;, &quot;Delete&quot;, etc.
+                </li>
+            </ul>
+            <h3 id="svg-icons">
+                SVG Icons
+            </h3>
+            <p>
+                Decorative icons are marked <code>aria-hidden=&quot;true&quot;</code> as they enter the page, including icons injected into tree rows and stage nodes after load. Icons that carry meaning on their own are given an accessible name instead.
+            </p>
+            <h2 id="wcag-21-compliance">
+                WCAG 2.1 Compliance
+            </h2>
+            <p>
+                EasyShape5000 targets <strong>WCAG 2.1 Level AA</strong> compliance. While the application is fully functional for keyboard users, some visual aspects (such as the 3D viewport) have inherent limitations.
+            </p>
+            <h3 id="implemented-guidelines">
+                Implemented Guidelines
+            </h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>
+                            Guideline
+                        </th>
+                        <th>
+                            Description
+                        </th>
+                        <th>
+                            Status
+                        </th>
+                        <th>
+                            Implementation Notes
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>
+                            <strong>1.1.1</strong>
+                        </td>
+                        <td>
+                            Non-text Content
+                        </td>
+                        <td>
+                            ✓
+                        </td>
+                        <td>
+                            Icon-only buttons include <code>aria-label</code> attributes; decorative icons use <code>aria-hidden=&quot;true&quot;</code>.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <strong>1.3.1</strong>
+                        </td>
+                        <td>
+                            Info and Relationships
+                        </td>
+                        <td>
+                            ✓
+                        </td>
+                        <td>
+                            Semantic HTML5 landmarks and ARIA tree roles for both left-hand panels, including group nesting, level, and position in set.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <strong>1.3.2</strong>
+                        </td>
+                        <td>
+                            Meaningful Sequence
+                        </td>
+                        <td>
+                            ✓
+                        </td>
+                        <td>
+                            DOM order matches the visual layout; focus order flows logically through sidebars and canvas.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <strong>1.4.1</strong>
+                        </td>
+                        <td>
+                            Use of Color
+                        </td>
+                        <td>
+                            ✓
+                        </td>
+                        <td>
+                            Invalidated stages carry a strikethrough and hidden text alongside the colour change; status messages use text labels as well as colour.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <strong>1.4.13</strong>
+                        </td>
+                        <td>
+                            Content on Hover/Focus
+                        </td>
+                        <td>
+                            ✓
+                        </td>
+                        <td>
+                            Tooltips are persistent on focus, hoverable, dismissible with <code>Escape</code>, and do not obscure active content.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <strong>2.1.1</strong>
+                        </td>
+                        <td>
+                            Keyboard
+                        </td>
+                        <td>
+                            ✓
+                        </td>
+                        <td>
+                            All interactive elements — buttons, inputs, both trees, the 2D canvas and the 3D camera — are keyboard accessible.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <strong>2.1.2</strong>
+                        </td>
+                        <td>
+                            No Keyboard Trap
+                        </td>
+                        <td>
+                            ✓
+                        </td>
+                        <td>
+                            Modal dialogs trap focus intentionally while open but release it correctly upon closing.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <strong>2.1.4</strong>
+                        </td>
+                        <td>
+                            Character Key Shortcuts
+                        </td>
+                        <td>
+                            ✓
+                        </td>
+                        <td>
+                            Single-key shortcuts are scoped to the region that owns them and are disabled entirely inside forms and text entry.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <strong>2.2.2</strong>
+                        </td>
+                        <td>
+                            Pause, Stop, Hide
+                        </td>
+                        <td>
+                            ✓
+                        </td>
+                        <td>
+                            No content moves or auto-updates indefinitely; motion is suppressed under <code>prefers-reduced-motion</code>.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <strong>2.4.1</strong>
+                        </td>
+                        <td>
+                            Bypass Blocks
+                        </td>
+                        <td>
+                            ✓
+                        </td>
+                        <td>
+                            A &quot;Skip to Canvas&quot; link appears on the first Tab press.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <strong>2.4.3</strong>
+                        </td>
+                        <td>
+                            Focus Order
+                        </td>
+                        <td>
+                            ✓
+                        </td>
+                        <td>
+                            Panels keep a roving tabindex that follows selection and survives a tree rebuild; closing a modal returns focus to the triggering element.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <strong>2.4.6</strong>
+                        </td>
+                        <td>
+                            Headings and Labels
+                        </td>
+                        <td>
+                            ✓
+                        </td>
+                        <td>
+                            Descriptive headings identify all major workspace sections; inputs have associated <code>&lt;label&gt;</code> elements.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <strong>2.4.7</strong>
+                        </td>
+                        <td>
+                            Focus Visible
+                        </td>
+                        <td>
+                            ✓
+                        </td>
+                        <td>
+                            High-contrast CSS focus rings (<code>:focus-visible</code>) appear on all interactive elements.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <strong>2.5.3</strong>
+                        </td>
+                        <td>
+                            Label in Name
+                        </td>
+                        <td>
+                            ✓
+                        </td>
+                        <td>
+                            Accessible names match visible text; <code>aria-label</code> is used only for icon-only controls, where it matches the visual tooltip.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <strong>2.5.8</strong>
+                        </td>
+                        <td>
+                            Target Size (Minimum)
+                        </td>
+                        <td>
+                            ✓
+                        </td>
+                        <td>
+                            Icon buttons are at least 28 by 28 CSS pixels.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <strong>3.2.1</strong>
+                        </td>
+                        <td>
+                            On Focus
+                        </td>
+                        <td>
+                            ✓
+                        </td>
+                        <td>
+                            Focusing an input or a tree item never triggers a context change.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <strong>3.2.2</strong>
+                        </td>
+                        <td>
+                            On Input
+                        </td>
+                        <td>
+                            ✓
+                        </td>
+                        <td>
+                            Parameter changes update the preview or require explicit confirmation; no unexpected page reloads.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <strong>3.3.1</strong>
+                        </td>
+                        <td>
+                            Error Identification
+                        </td>
+                        <td>
+                            ✓
+                        </td>
+                        <td>
+                            Invalid parameters are marked <code>aria-invalid</code> and described in the status region.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <strong>3.3.4</strong>
+                        </td>
+                        <td>
+                            Error Prevention
+                        </td>
+                        <td>
+                            ✓
+                        </td>
+                        <td>
+                            Shape edits are undoable; deleting an operation, which is not, requires confirmation.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <strong>4.1.2</strong>
+                        </td>
+                        <td>
+                            Name, Role, Value
+                        </td>
+                        <td>
+                            ✓
+                        </td>
+                        <td>
+                            Custom controls use correct ARIA roles, and expanded, selected and level state is kept in sync with the DOM.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <strong>4.1.3</strong>
+                        </td>
+                        <td>
+                            Status Messages
+                        </td>
+                        <td>
+                            ✓
+                        </td>
+                        <td>
+                            Dynamic updates are announced through polite and assertive live regions.
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+            <h3 id="partial-or-planned-support">
+                Partial or Planned Support
+            </h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>
+                            Guideline
+                        </th>
+                        <th>
+                            Description
+                        </th>
+                        <th>
+                            Status
+                        </th>
+                        <th>
+                            Notes
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>
+                            <strong>1.1.1</strong>
+                        </td>
+                        <td>
+                            Non-text Content (3D view)
+                        </td>
+                        <td>
+                            Partial
+                        </td>
+                        <td>
+                            The 3D view is a WebGPU canvas with no non-visual equivalent. A text readout of toolpath metrics on each stage node — depth range, bounding box, pass count, travel distance, estimated time — is planned and matters more here than in EasyTrace5000, because three operation types render only in 3D.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <strong>1.4.3</strong>
+                        </td>
+                        <td>
+                            Contrast (Minimum)
+                        </td>
+                        <td>
+                            Partial
+                        </td>
+                        <td>
+                            Most default text meets 4.5:1, but some secondary and hint text in both themes does not. Dedicated high-contrast themes are in development.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <strong>1.4.10</strong>
+                        </td>
+                        <td>
+                            Reflow
+                        </td>
+                        <td>
+                            Partial
+                        </td>
+                        <td>
+                            The workspace is laid out for a landscape viewport and does not reflow to a single column; below roughly 768 CSS pixels a warning bar appears instead. Because browser zoom narrows the viewport as it magnifies, this is reached at high zoom on a wide display. Collapsible side panels are planned. In the meantime, text-only zoom or operating-system display scaling magnifies without narrowing the viewport.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <strong>1.4.11</strong>
+                        </td>
+                        <td>
+                            Non-text Contrast
+                        </td>
+                        <td>
+                            Partial
+                        </td>
+                        <td>
+                            Some UI borders and disabled states in the default themes may fall below 3:1.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <strong>1.2.x</strong>
+                        </td>
+                        <td>
+                            Time-based Media
+                        </td>
+                        <td>
+                            N/A
+                        </td>
+                        <td>
+                            The application does not contain audio or video content.
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+            <h2 id="known-limitations">
+                Known Limitations
+            </h2>
+            <ol>
+                <li>
+                    <p>
+                        <strong>3D view</strong>: V-Carve, Relief and Rotary render only in 3D. The camera is keyboard-operable, but the geometry it draws has no text equivalent yet, so a non-visual user can generate and export these operations without being able to inspect them. This is the largest open gap and is tracked as planned work.
+                    </p>
+                </li>
+                <li>
+                    <p>
+                        <strong>Canvas interaction</strong>: The 2D canvas preview is visual-only. Object data is available through the scene tree and the property panel, but spatial relationships require visual inspection.
+                    </p>
+                </li>
+                <li>
+                    <p>
+                        <strong>Narrow viewports and high zoom</strong>: See guideline 1.4.10 above. Rotating a tablet to landscape, or widening the window, restores the full workspace.
+                    </p>
+                </li>
+                <li>
+                    <p>
+                        <strong>Per-operation announcements</strong>: Generation messages name the stage but not yet which operation produced them, which is ambiguous when several are queued.
+                    </p>
+                </li>
+                <li>
+                    <p>
+                        <strong>Drag-and-drop file upload</strong>: Requires a pointer. Alternative: activate the drop zones with <code>Enter</code>, or use the import button and the <code>I</code> shortcut.
+                    </p>
+                </li>
+                <li>
+                    <p>
+                        <strong>Moving shapes on the canvas</strong>: Dragging is pointer-driven. The X, Y and rotation fields in the property panel are the keyboard equivalent.
+                    </p>
+                </li>
+                <li>
+                    <p>
+                        <strong>Touch devices</strong>: Touch zoom, pan and orbit work, but keyboard navigation is the primary accessibility path.
+                    </p>
+                </li>
+                <li>
+                    <p>
+                        <strong>Audio</strong>: EasyShape5000 produces no sound. Every state change is reported as text, so no information is conveyed by audio alone.
+                    </p>
+                </li>
+                <li>
+                    <p>
+                        <strong>EasyTrace5000</strong>: This guide covers EasyShape5000 only.
+                    </p>
+                </li>
+            </ol>
+            <h2 id="reporting-issues">
+                Reporting Issues
+            </h2>
+            <p>
+                If you encounter accessibility barriers, please report them via <strong>GitHub Issues</strong>.
+            </p>
+            <p>
+                There&#39;s a dedicated template available for these reports to ensure the necessary technical details are included.
+            </p>
+            <ol>
+                <li>
+                    Go to the <a href="https://github.com/RicardoJCMarques/EasyCAM5000/issues/new/choose">New Issue page</a>
+                </li>
+                <li>
+                    Select the <strong>Accessibility Report</strong> template
+                </li>
+                <li>
+                    Fill in the required details (Browser, OS, Assistive Technology)
+                </li>
+            </ol>
+            <h2 id="resources">
+                Resources
+            </h2>
+            <ul>
+                <li>
+                    <a href="https://www.w3.org/WAI/WCAG21/quickref/">WCAG 2.1 Guidelines</a>
+                </li>
+                <li>
+                    <a href="https://www.w3.org/WAI/ARIA/apg/">WAI-ARIA Authoring Practices</a>
+                </li>
+                <li>
+                    <a href="https://webaim.org/techniques/keyboard/">WebAIM Keyboard Testing</a>
+                </li>
+            </ul>
+
+        </main>
+        <!-- Footer -->
+        <footer class="doc-footer" aria-label="Footer">
+            <p>
+                <a href="#doc-content" draggable="false" aria-label="Scroll back to top">Back to Top</a> |
+                <a href="https://github.com/RicardoJCMarques/EasyCAM5000" target="_blank" draggable="false" aria-label="GitHub Repository (opens in a new tab)">GitHub</a> |
+                <a href="/#support" draggable="false" aria-label="Support Development via Sponsorship">Support Development</a> |
+                <a href="../../LICENSE" target="_blank" draggable="false" aria-label="AGPLv3 License (opens in a new tab)">AGPLv3 Licensed</a> |
+                <a href="https://www.eltryus.design/" draggable="false" aria-label="Eltryus, developer of EasyCAM5000">by ELTRYUS</a>
+            </p>
+        </footer>
+
+    </div>
+
+    <!-- Scripts -->
+    <script defer src="../../themes/theme-loader.js"></script>
+    <script defer src="../../figures.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Load the SVG Sprite
+            fetch('../../images/icons/sprite.svg')
+                .then(response => {
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    return response.text();
+                })
+                .then(svgText => {
+                    const div = document.createElement('div');
+                    div.innerHTML = svgText;
+                    const svg = div.querySelector('svg');
+                    if (svg) {
+                        svg.setAttribute('aria-hidden', 'true');
+                        svg.style.cssText = 'position: absolute; width: 0; height: 0; visibility: hidden;';
+                        document.body.insertBefore(svg, document.body.firstChild);
+                    }
+                })
+                .catch(err => console.warn('Failed to load icon sprite:', err));
+
+            // Theme toggle logic
+            const themeBtn = document.getElementById('theme-toggle');
+            if (themeBtn && window.ThemeLoader) {
+                const useEl = themeBtn.querySelector('use');
+                const initialTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+
+                if (useEl) useEl.setAttribute('href', initialTheme === 'dark' ? '#icon-sun' : '#icon-moon');
+
+                themeBtn.addEventListener('click', async () => {
+                    const theme = await window.ThemeLoader.toggleTheme();
+                    if (useEl) useEl.setAttribute('href', theme === 'dark' ? '#icon-sun' : '#icon-moon');
+                });
+            }
+
+            // Mobile Menu Logic
+            const menuBtn = document.querySelector('.doc-menu-toggle');
+            const nav = document.querySelector('.doc-nav');
+
+            if (menuBtn && nav) {
+                const useEl = menuBtn.querySelector('use');
+                menuBtn.addEventListener('click', () => {
+                    const isExpanded = menuBtn.getAttribute('aria-expanded') === 'true';
+                    menuBtn.setAttribute('aria-expanded', !isExpanded);
+                    nav.classList.toggle('is-open');
+
+                    if (useEl) useEl.setAttribute('href', !isExpanded ? '#icon-close' : '#icon-menu');
+                });
+            }
+        });
+    </script>
+</body>
+</html>

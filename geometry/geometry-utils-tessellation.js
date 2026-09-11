@@ -25,7 +25,6 @@
 
 (function () {
     'use strict';
-
     const ROOT = globalThis;
     const C = ROOT.CAMConfig.constants;
     const D = ROOT.CAMConfig.defaults;

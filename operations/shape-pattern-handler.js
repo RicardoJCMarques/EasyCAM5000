@@ -13,6 +13,7 @@
 // Not wired
 (function() {
     'use strict';
+    const ROOT = globalThis;
 
     class ShapePatternHandler extends BaseOperationHandler {
 
@@ -29,5 +30,5 @@
         }
     }
 
-    window.ShapePatternHandler = ShapePatternHandler;
+    ROOT.ShapePatternHandler = ShapePatternHandler;
 })();

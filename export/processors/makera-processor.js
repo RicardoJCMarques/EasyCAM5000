@@ -11,6 +11,7 @@
 
 (function() {
     'use strict';
+    const ROOT = globalThis;
 
     /**
      * Makera (Carvera) Post-Processor
@@ -24,8 +25,8 @@
      *   - MTC: Proprietary M-code sequence for manual collet swap + auto-probe
      *   - Auto-vacuum: M331 (on) / M332 (off) - not standard M10/M11
      *   - Program end: G28 parks at clearance position (important for ATC magazine)
-     *   REVIEW - No Line Numbers, no inches either? Double check/test?
      */
+    // REVIEW - No Line Numbers, no inches either? Double check/test?
     class MakeraPostProcessor extends BasePostProcessor {
         constructor() {
             super('Makera', {
@@ -64,9 +65,9 @@
                     // drive the machine back out of the ATC park position.
                     endCode: '', // Instead of - endCode: 'M5\nG0 X0Y0\nM2', 
                 },
-                customParameters: [
+                parameters: [
                     {
-                        key: 'makeraToolChangeMode',
+                        name: 'makeraToolChangeMode',
                         label: 'Tool Change Mode',
                         type: 'select',
                         category: 'machine',
@@ -99,11 +100,6 @@
             lines.push(this.modalState.plane);
             lines.push(this.modalState.feedRateMode);
             lines.push('');
-
-            // REVIEW - Dead Code?
-            // lines.push(this.appendComment(`T${initialTool} M6`, c.initialTool, options));
-            // const initialTool = options.toolNumber || 1;
-            // lines.push('');
 
 
             // Peripherals
@@ -187,14 +183,15 @@
         }
 
         generateInitialTool(tool, options = {}) {
-            const n = tool?.number ?? options.toolNumber ?? 1;
-            this.currentToolNumber = n;
             // Carvera firmware ignores TLO without an M6 before first motion.
             // The ATC/MTC branch belongs to a CHANGE; the initial load is the
             // bare selection either way.
+            const n = tool?.number ?? options.toolNumber ?? null;
+            if (n === null) return '';
+            this.currentToolNumber = n;
             return `M6 T${n}`;
         }
     }
 
-    window.MakeraPostProcessor = MakeraPostProcessor;
+    ROOT.MakeraPostProcessor = MakeraPostProcessor;
 })();

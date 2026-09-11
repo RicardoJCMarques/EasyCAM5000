@@ -11,12 +11,13 @@
 
 (function() {
     'use strict';
+    const ROOT = globalThis;
 
     class TraceClearingHandler extends OffsetOperationHandler {
 
         isCopperOperation() { return true; }
-        isInternalOffset() { return true; }
-        isOnLine() { return false; }
+        /** Copper clearing always grows inward from the region boundary. */
+        resolveCutSide() { return 'inside'; }
 
         getToolpathPolicy() {
             return {
@@ -64,5 +65,5 @@
         }
     }
 
-    window.TraceClearingHandler = TraceClearingHandler;
+    ROOT.TraceClearingHandler = TraceClearingHandler;
 })();

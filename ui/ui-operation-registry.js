@@ -35,9 +35,7 @@
             this.stageMeta = profile?.ui?.stages || {};
             this.artifactMeta = profile?.ui?.artifacts || {};
 
-            // Extension → type. Built once; getOperationTypeFromExtension
-            // used to scan every type × every extension per dropped file.
-            // First declaration wins, matching the old scan order.
+            // Extension → type. Built once.
             this._byExtension = new Map();
             for (const [type, def] of Object.entries(this.entries)) {
                 if (def?.virtual) continue;
@@ -118,6 +116,13 @@
          */
         defaultsFor(type) { return this.entries[type]?.defaults || null; }
 
+        /**
+         * Whether this type cuts the stock through. Depth then follows stock
+         * thickness instead of the shared cutDepth default, which isolation
+         * needs at 0.1 mm into copper.
+         */
+        cutsThrough(type) { return this.entries[type]?.cutsThrough === true; }
+
         // Machine class & dimensionality
 
         /**
@@ -131,14 +136,9 @@
             return !!this.entries[type]?.machineClasses?.[machineClass];
         }
 
-        /**
-         * Falls back to the type's FIRST declared class. A router-only type
-         * asked for under a laser session resolves to router rather than
-         * disappearing - Batch B Part 2 gates the tab strip so the case
-         * should not arise, but a saved project can carry one.
-         */
         resolveMachineClass(type, preferred) {
-            if (this.supports(type, preferred)) return preferred;
+            if (this.supports(type, preferred)) return preferred; // First declaration wins.
+            if ("laser" === preferred && this.supports(type, "knife")) return "knife";
             return this.machineClassesFor(type)[0] || preferred || null;
         }
 

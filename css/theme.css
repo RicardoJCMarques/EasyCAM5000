@@ -121,20 +121,6 @@
     --color-primitive-peck-mark-slow: #ff5e00;
     --color-primitive-reconstructed: #00ffff;
     --color-primitive-reconstructed-path: #ffff00;
-    --color-primitive-debug-contour-colors-0: #00ff00;
-    --color-primitive-debug-contour-colors-1: #ff0000;
-    --color-primitive-debug-contour-colors-2: #0000ff;
-    --color-primitive-debug-contour-colors-3: #ffff00;
-    --color-primitive-debug-contour-colors-4: #ff00ff;
-    --color-primitive-debug-contour-colors-5: #00ffff;
-    --color-primitive-debug-curve-colors-0: #ff0000;
-    --color-primitive-debug-curve-colors-1: #00ff00;
-    --color-primitive-debug-curve-colors-2: #0000ff;
-    --color-primitive-debug-curve-colors-3: #ffff00;
-    --color-primitive-debug-curve-colors-4: #ff00ff;
-    --color-primitive-debug-curve-colors-5: #00ffff;
-    --color-primitive-debug-label: #ffffff;
-    --color-primitive-debug-label-stroke: #000000;
 
     /* Bw Colors */
     --color-bw-black: #000000;

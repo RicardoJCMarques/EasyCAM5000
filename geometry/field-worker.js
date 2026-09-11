@@ -45,6 +45,7 @@ function ensureModules(constants, debug) {
             'delaunator.5.0.0.min.js',
             '../utils/transform-math-3d.js',
             'geometry-utils-tessellation.js',
+            'geometry-utils-points.js',
             'geometry-utils-vcarve.js',
             'geometry-utils-toolprofile.js',
             'geometry-utils-field.js',
@@ -52,11 +53,7 @@ function ensureModules(constants, debug) {
             'geometry-utils-heightmap.js',
             'geometry-utils-cylmap.js',
             'geometry-utils-fieldpipeline.js',
-            // geometry-utils-sections.js is intentionally absent: SectionSlicer
-            // is validation-only (stage 2) and envelopeTop has no caller, so
-            // importing it costs a fetch + parse per worker boot for nothing.
-            // Re-add it with the survey stage.
-            // 'geometry-utils-sections.js',
+            "geometry-utils-sections.js",
             'geometry-utils-relief.js',
             'geometry-utils-rotary.js'
         );
@@ -71,9 +68,11 @@ function ensureModules(constants, debug) {
     if (constants) Object.assign(self.CAMConfig.constants, constants);
 }
 
-/** Rebuilds packed loops into the {x,y} shape VCarveGenerator's
- *  prepareContours expects. Deliberately runs HERE and not on the main
- *  thread - the allocation is the whole reason the handler packs. */
+/**
+ * Rebuilds packed loops into the {x,y} shape VCarveGenerator's
+ * prepareContours expects. Deliberately runs HERE and not on the main
+ * thread - the allocation is the whole reason the handler packs.
+ */
 function unpackLoops(packed) {
     if (!packed) return null;
     const { counts, flags, xy } = packed;
@@ -91,8 +90,10 @@ function unpackLoops(packed) {
     return loops;
 }
 
-/** Flattens generator output (plain-object toPrimitive fallback) into
- *  transferable records. */
+/**
+ * Flattens generator output (plain-object toPrimitive fallback) into
+ * transferable records.
+ */
 function flattenPrimitives(prims, transfer) {
     const out = [];
     for (const p of prims) {
@@ -114,12 +115,14 @@ function flattenPrimitives(prims, transfer) {
     return out;
 }
 
-/** V-Carve: one job = ONE primitive, polygonized and arc-densified by the
- *  handler (GeometryUtils is main-thread only) and packed into typed
- *  arrays. The one-job-one-connected-region invariant is established by the
- *  nesting merge before packing; nothing here can verify it, and the
- *  medial-axis split/parity tests cannot distinguish overlapping wedges of
- *  unrelated regions if it is broken. */
+/**
+ * V-Carve: one job = ONE primitive, polygonized and arc-densified by the
+ * handler (GeometryUtils is main-thread only) and packed into typed
+ * arrays. The one-job-one-connected-region invariant is established by the
+ * nesting merge before packing; nothing here can verify it, and the
+ * medial-axis split/parity tests cannot distinguish overlapping wedges of
+ * unrelated regions if it is broken.
+ */
 function runVCarve(id, data, transfer) {
     // NOT the stage scaler. STAGE_BANDS describes the FIELD pipeline
     // (slice → compensate → upsample → emit); V-Carve has none of those

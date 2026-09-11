@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 300" role="img" aria-labelledby="title desc" xmlns:c2pa="http://c2pa.org/manifest">
+  <title id="title">Where the origin sits and what board placement changes</title>
+  <desc id="desc">The origin you set becomes zero-zero in the exported program, and it has to match where you zero the machine on the stock. Rotation and mirroring move the geometry around that origin.</desc>
+  <style>
+    /* Inlined by figures.js, so these resolve against the page theme.
+       Fallbacks match the dark theme in css/theme.css. */
+    svg{
+      --bg:var(--color-bg-primary,#0f0f0f);
+      --panel:var(--color-bg-secondary,#1a1a1a);
+      --panel2:var(--color-bg-tertiary,#242424);
+      --line:var(--color-border-secondary,#3a3a3a);
+      --text:var(--color-text-primary,#e5e5e5);
+      --muted:var(--color-text-secondary,#a0a0a0);
+      --accent:var(--color-accent-primary,#2563eb);
+      --ext:var(--color-geometry-offset-external,#a60000);
+      --int:var(--color-geometry-offset-internal,#00a600);
+      --on:var(--color-geometry-offset-on,#bcbc02);
+      --preview:var(--color-geometry-preview,#0060dd);
+      --toolpath:var(--color-geometry-toolpath,#00ffff);
+      --copper:var(--color-geometry-source-isolation,#ff8844);
+      --drillc:var(--color-operation-drill,#4488ff);
+      --clearc:var(--color-operation-clearing,#44ff88);
+      --cutc:var(--color-operation-cutout,#ff00ff);
+      --stenc:var(--color-operation-stencil,#90177d);
+      --ok:var(--color-primitive-peck-mark-good,#16d329);
+      --warn:var(--color-primitive-peck-mark-warn,#d2cb00);
+      --bad:var(--color-primitive-peck-mark-error,#ff0000);
+      --stock:var(--color-render3d-stock,#8a7a5c);
+    }
+    .bg{fill:var(--bg)}
+    .panel{fill:var(--panel)}
+    .panel2{fill:var(--panel2)}
+    .edge{fill:none;stroke:var(--line);stroke-width:1.5}
+    .t{fill:var(--text);font:13px system-ui,sans-serif}
+    .tb{fill:var(--text);font:bold 14px system-ui,sans-serif}
+    .tm{fill:var(--muted);font:12px system-ui,sans-serif}
+  </style>
+  <rect class="bg" width="800" height="300"/>
+  <text class="tb" x="24" y="34">The origin you set is where you have to zero the machine</text>
+  <rect class="panel2" x="70" y="70" width="180" height="120" stroke="var(--muted)" stroke-width="2"/>
+  <circle cx="70" cy="190" r="8" fill="var(--on)"/>
+  <path d="M70 190h34M70 190v-34" stroke="var(--on)" stroke-width="2.5"/>
+  <text class="t" x="160" y="228" text-anchor="middle">Bottom-left</text>
+  <text class="tm" x="160" y="252" text-anchor="middle">easy to find on a square blank</text>
+  <rect class="panel2" x="330" y="70" width="180" height="120" stroke="var(--muted)" stroke-width="2"/>
+  <circle cx="420" cy="130" r="8" fill="var(--on)"/>
+  <path d="M420 130h34M420 130v-34" stroke="var(--on)" stroke-width="2.5"/>
+  <text class="t" x="420" y="228" text-anchor="middle">Centre</text>
+  <text class="tm" x="420" y="252" text-anchor="middle">easy to find with an edge finder</text>
+  <rect class="panel2" x="590" y="76" width="120" height="108" stroke="var(--muted)" stroke-width="2" transform="rotate(12 650 130)"/>
+  <circle cx="580" cy="195" r="8" fill="var(--on)"/>
+  <path d="M580 195h34M580 195v-34" stroke="var(--on)" stroke-width="2.5"/>
+  <text class="t" x="660" y="228" text-anchor="middle">Rotated</text>
+  <text class="tm" x="660" y="252" text-anchor="middle">geometry turns, origin reference may change</text>
+  <text class="tm" x="24" y="288">Changing origin, rotation or mirror after generating invalidates the operations that used them.</text>
+</svg>

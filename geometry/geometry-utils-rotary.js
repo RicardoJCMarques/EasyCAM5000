@@ -145,8 +145,8 @@
             }
 
             cm.meta.appliedDepth = totalDepth;
-            if (!(totalDepth > FP.VALUE_EPS) && !(stockStartRadius > refR)) {
-                this.debug('Nothing to carve (totalDepth ≈ 0)');
+            if (!(totalDepth > FP.scalarField || stockStartRadius > refR)) {
+                this.debug(`Nothing to carve (totalDepth ${totalDepth.toFixed(4)}mm ≈ 0)`);
                 return [];
             }
 

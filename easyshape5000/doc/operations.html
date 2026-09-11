@@ -138,6 +138,7 @@
             <a href="guide" draggable="false">Workflow Guide</a>
             <a href="operations" class="active" aria-current="page" draggable="false">Operations</a>
             <a href="parameters" draggable="false">Parameters</a>
+            <a href="accessibility" draggable="false">Accessibility</a>
             <span class="separator" aria-hidden="true"></span>
             <a href="/easyshape5000/" draggable="false">Launch App</a>
             <a href="https://github.com/RicardoJCMarques/EasyCAM5000" target="_blank" draggable="false" aria-label="GitHub Repository (opens in a new tab)">GitHub</a>
@@ -150,168 +151,269 @@
 
     <div class="doc-wrapper has-sidebar">
         <nav class="doc-sidebar" id="toc" aria-label="Table of contents">
-            <h2>Contents <span class="doc-badge doc-badge--stable">Stable</span></h2>
+            <p class="doc-sidebar-title">Contents <span class="doc-badge doc-badge--stable">Stable</span></p>
             <ol>
                 <li><a href="#overview" draggable="false">Overview</a></li>
-                <li><a href="#op-profile" draggable="false">Profile Cut</a></li>
-                <li><a href="#op-pocket" draggable="false">Pocket Clearing</a></li>
-                <li><a href="#op-drill" draggable="false">Drilling</a></li>
-                <li><a href="#op-engrave" draggable="false">Engraving</a></li>
                 <li>
-                    <a href="#three-d" draggable="false">3D Operations</a>
+                    <a href="#ops-flat" draggable="false">Flat Operations</a>
                     <ol>
-                        <li><a href="#op-vcarve" draggable="false">V-Carve</a></li>
-                        <li><a href="#op-relief" draggable="false">3D Flat Relief</a></li>
-                        <li><a href="#op-rotary" draggable="false">3D Rotary Relief (4th Axis)</a></li>
+                        <li><a href="#op-profile" draggable="false">Profile Cut</a></li>
+                        <li><a href="#op-pocket" draggable="false">Pocket Clear</a></li>
+                        <li><a href="#op-drill" draggable="false">Drill Holes</a></li>
+                        <li><a href="#op-engrave" draggable="false">Engrave</a></li>
                     </ol>
                 </li>
+                <li>
+                    <a href="#ops-3d" draggable="false">3D Operations</a>
+                    <ol>
+                        <li><a href="#op-vcarve" draggable="false">V-Carve</a></li>
+                        <li><a href="#op-relief" draggable="false">Relief / 2.5D Carve</a></li>
+                        <li><a href="#op-rotary-radial" draggable="false">Rotary - Radial</a></li>
+                        <li><a href="#op-rotary-indexed" draggable="false">Rotary - Indexed 3+1</a></li>
+                    </ol>
+                </li>
+                <li><a href="#not-yet" draggable="false">Not Yet Available</a></li>
             </ol>
         </nav>
 
         <main id="doc-content" class="doc-main">
+
+            <div class="callout callout--warning">
+                <p>Development goes fast, documentation may be outdated. Proceed with some caution.</p>
+            </div>
+
             <section class="hero hero--compact">
                 <h1>EasyShape5000 Operation Guide</h1>
-                <p class="tagline">What each EasyShape5000 operation does, and what's coming</p>
+                <p class="tagline">What each operation does, when to reach for it, and what it needs</p>
             </section>
 
             <section id="overview">
                 <h2>Overview</h2>
-                <p>EasyShape assigns operations <strong>per shape</strong>. Select one or more shapes in the scene tree or on the canvas, drop them into an operation bucket, set parameters, and generate geometry. Operations are independent and fully undoable. All shapes must be <strong>closed paths</strong> - open paths trigger a warning. Every parameter named here is documented on the <a href="parameters" draggable="false">Parameter Reference</a>.</p>
+                <p>EasyShape5000 assigns operations <strong>per shape</strong>. Select one or more shapes on the canvas or in the scene tree, drop them into an <strong>operation bucket</strong>, set the parameters, and generate. Buckets are independent, and every change is undoable. Every parameter named here is documented in full on the <a href="parameters" draggable="false">Parameter Guide</a>.</p>
+
+                <p>Seven operations produce toolpaths. Four are flat operations that cut at a set depth; three cut at a different depth at every point and run in the background with a 3D view of the result.</p>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th scope="col">Operation</th>
+                            <th scope="col">Source</th>
+                            <th scope="col">Suggested tool</th>
+                            <th scope="col">Needs closed shapes</th>
+                            <th scope="col">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>Profile Cut</td><td>SVG</td><td>3.175 mm flat end mill</td><td>yes</td><td>Stable</td></tr>
+                        <tr><td>Pocket Clear</td><td>SVG</td><td>3.175 mm flat end mill</td><td>yes</td><td>Stable</td></tr>
+                        <tr><td>Drill Holes</td><td>SVG</td><td>3.175 mm drill</td><td>circles and obrounds</td><td>Stable</td></tr>
+                        <tr><td>Engrave</td><td>SVG</td><td>10° V-bit, 0.1 mm tip</td><td>no</td><td>Stable</td></tr>
+                        <tr><td>V-Carve</td><td>SVG</td><td>90° V-bit, 0.3 mm tip</td><td>yes</td><td>Beta</td></tr>
+                        <tr><td>Relief / 2.5D Carve</td><td>STL</td><td>3.175 mm ball nose</td><td>n/a</td><td>Beta</td></tr>
+                        <tr><td>Rotary / 4th Axis</td><td>STL</td><td>3.175 mm ball nose</td><td>n/a</td><td>Beta</td></tr>
+                    </tbody>
+                </table>
+
+                <p>All seven output G-code for a CNC router. Laser and drag-knife work lives in <a href="/easytrace5000/doc/" draggable="false">EasyTrace5000</a>.</p>
+            </section>
+
+            <section id="ops-flat">
+                <h2>Flat Operations</h2>
+                <p>These four cut at a depth you set, in as many passes as needed. Curved geometry stays curved all the way to the file, so an offset arc exports as a real arc rather than a string of tiny line segments.</p>
+
+                <figure>
+                    <div class="doc-figure" data-figure="fig-depth-passes.svg"></div>
+                    <figcaption>Cut depth is divided into passes; every flat operation works this way</figcaption>
+                </figure>
+
+                <h3 id="op-profile"><svg class="cam-icon" width="24" height="24" aria-hidden="true"><use href="#icon-op-profile"></use></svg> Profile Cut <span class="doc-badge doc-badge--stable">Stable</span></h3>
+                <p>Cuts along a shape's outline. <strong>Cut side</strong> decides which edge of the tool lands on your line.</p>
+
+                <figure>
+                    <div class="doc-figure" data-figure="fig-cut-side.svg"></div>
+                    <figcaption>Outside keeps the part's size, inside keeps the opening's size, on-line splits the difference</figcaption>
+                </figure>
+
+                <p><strong>Holding tabs</strong> leave small uncut bridges so parts do not break free on the last pass. Tab height is measured up from the cut floor: a 2 mm tab on an 18 mm cut leaves 2 mm of material holding the part.</p>
+
+                <figure>
+                    <div class="doc-figure" data-figure="fig-cutout-tabs.svg"></div>
+                    <figcaption>Tabs interrupt the cut at evenly spaced positions around the outline</figcaption>
+                </figure>
+
+                <p><strong>Detect nested holes</strong> treats a shape fully inside another as a hole, so a rectangle with a circle in it cuts the outer boundary and the inner one correctly rather than as two unrelated outlines.</p>
+                <p><strong>Use it for:</strong> cutting parts out, interior windows, and centreline scoring.</p>
+                <p><strong>Key parameters:</strong> cut side, detect nested holes, tabs (count, width, height), plus the depth settings.</p>
+
+                <h3 id="op-pocket"><svg class="cam-icon" width="24" height="24" aria-hidden="true"><use href="#icon-op-pocket"></use></svg> Pocket Clear <span class="doc-badge doc-badge--stable">Stable</span></h3>
+                <p>Clears the whole interior of a closed shape, working inward pass by pass at the step-over you set. Shapes nested inside the boundary are treated as islands and left standing.</p>
+                <p>Running out of material to remove is the intended end state, so a message saying the geometry collapsed at some pass is this operation finishing normally. If a pocket produces nothing at all, the tool is wider than the shape.</p>
+                <p><strong>Use it for:</strong> recesses, inlay cavities, and surfacing bounded areas.</p>
+                <p><strong>Key parameters:</strong> step-over, clearing strategy, optional finishing pass and finish step-over, plus depth and entry settings.</p>
                 <div class="callout callout--info">
-                    <p>Seven operations produce toolpaths today. The 3D set (V-Carve, Relief, Rotary) is newer than the rest and under active testing - dry-run before you cut. Only the Pattern Generator is still scaffolding.</p>
+                    <h4>Raster strategy is not implemented</h4>
+                    <p>The clearing strategy dropdown offers a raster mode with its own angle and bidirectional settings. It is not written yet - inward passes are the only strategy that produces paths today.</p>
                 </div>
-            </section>
 
-            <section id="op-profile">
-                <h2><svg class="cam-icon" width="22" height="22" aria-hidden="true"><use href="#icon-op-profile"></use></svg> Profile Cut <span class="doc-badge doc-badge--stable">Stable</span></h2>
-                <p>Cuts along a shape's contour. <strong>Cut side</strong> chooses outside (part stays full size), inside (cut within the boundary), or on-path (tool centered on the line). Each shape produces a single offset pass; <strong>holding tabs</strong> can leave bridges so parts don't break free on the last depth pass.</p>
-                <p><strong>Use it for:</strong> cutting parts out, interior windows, and centerline scoring.</p>
-                <p><strong>Key parameters:</strong> cut side; detect nested holes; tabs (count, width, height); depth and entry settings on the strategy stage.</p>
-            </section>
+                <h3 id="op-drill"><svg class="cam-icon" width="24" height="24" aria-hidden="true"><use href="#icon-op-drilling"></use></svg> Drill Holes <span class="doc-badge doc-badge--stable">Stable</span></h3>
+                <p>Treats SVG circles and obrounds as holes and picks a strategy per hole by comparing its size with the tool: drilled straight down when the tool matches, milled in a circle when the hole is bigger. A hole too small to mill still gets marked, so nothing is silently dropped.</p>
 
-            <section id="op-pocket">
-                <h2><svg class="cam-icon" width="22" height="22" aria-hidden="true"><use href="#icon-op-pocket"></use></svg> Pocket Clearing <span class="doc-badge doc-badge--stable">Stable</span></h2>
-                <p>Clears the entire interior of a shape to a set depth using <strong>concentric inward offsets</strong> spaced by step-over. Shapes nested inside the boundary are treated as islands (holes) and left standing. A raster/zig-zag strategy is planned but not yet implemented.</p>
-                <p><strong>Use it for:</strong> recesses, inlay cavities, and surfacing bounded regions.</p>
-                <p><strong>Key parameters:</strong> step-over; clearing strategy (concentric offsets); optional finishing pass + finish step-over; depth and entry settings.</p>
-            </section>
+                <figure>
+                    <div class="doc-figure" data-figure="fig-drill-strategy.svg"></div>
+                    <figcaption>Every hole is measured against your tool, and colour-coded on the canvas</figcaption>
+                </figure>
 
-            <section id="op-drill">
-                <h2><svg class="cam-icon" width="22" height="22" aria-hidden="true"><use href="#icon-op-drilling"></use></svg> Drilling <span class="doc-badge doc-badge--stable">Stable</span></h2>
-                <p>Treats circles and obround slots as holes and selects peck/plunge or circular milling automatically, depending on hole size versus tool. Uses the same engine as EasyTrace; the only difference is that shapes arrive one at a time rather than as a batch file.</p>
+                <h4>Milling holes and slots</h4>
+                <p>Turn on <em>Mill Oversize Holes</em> and any hole wider than the tool is cut out rather than drilled: the tool drops inside and walks a circle inset by its own radius, taking as many passes as the step-over needs to clear the middle. It is how you get a 12 mm hole out of a 3 mm end mill, and it is slower than drilling - which is why it is a choice.</p>
+                <p>Obround slots work the same way along a line. The tool runs the slot centreline and stops one radius short of each end, so the finished slot matches the width and length you drew. Anything in the selection that is neither a circle nor an obround is skipped with a warning rather than guessed at.</p>
+
+                <figure>
+                    <div class="doc-figure" data-figure="fig-mill-holes.svg"></div>
+                    <figcaption>Milling an oversize hole, and milling an obround slot</figcaption>
+                </figure>
+                <p><strong>Multi-tool drilling.</strong> Turn on <em>Multi-Tool Drilling</em> for a table with a row per hole size - each with its own strategy, cutter diameter and tool number. Auto-match fills strategy and cutter from the tool library. A row left without a tool number falls back to the operation's number. On a machine without a tool changer, use <em>Split drill files by hole diameter</em> in the Export Manager so each file loads exactly one bit.</p>
                 <p><strong>Use it for:</strong> mounting holes, dowel holes, and slots.</p>
-                <p><strong>Key parameters:</strong> mill oversize holes + mill step-over; canned cycle, peck depth, dwell, retract height; optional spot drill (+ spot depth).</p>
-            </section>
+                <p><strong>Key parameters:</strong> mill oversize holes and mill step-over; drill cycle (G81/G82/G83/G73), peck depth, dwell, retract height; optional spot drill; entry type and multi-depth settings.</p>
 
-            <section id="op-engrave">
-                <h2><svg class="cam-icon" width="22" height="22" aria-hidden="true"><use href="#icon-op-engrave"></use></svg> Engraving <span class="doc-badge doc-badge--stable">Stable</span></h2>
-                <p>Traces a path directly with no offset — the tool centre follows the line. Bypasses the offset pipeline and Clipper entirely, so open paths are as valid as closed ones and nothing collapses when the tool is wider than the shape.</p>
+                <h3 id="op-engrave"><svg class="cam-icon" width="24" height="24" aria-hidden="true"><use href="#icon-op-engrave"></use></svg> Engrave <span class="doc-badge doc-badge--stable">Stable</span></h3>
+                <p>Follows a path exactly, with no offset - the tool centre runs along the line. Because nothing is offset, <strong>open paths work as well as closed ones</strong>, and nothing collapses when the tool is wider than the shape.</p>
                 <p><strong>Use it for:</strong> lettering, outlines, score lines, and any single-line artwork.</p>
-                <p><strong>Key parameters:</strong> cut depth; multi-depth + depth per pass; feeds and speeds.</p>
-            </section>
-
-            <section id="three-d">
-                <h2>3D Operations <span class="doc-badge doc-badge--dev">Beta</span></h2>
-                <p>The three operations below produce per-point Z toolpaths rather than flat contours. They run on a background worker, report progress in stages, and render in the 3D preview (<kbd>F2</kbd>) with playback. They are the newest part of the suite — verify output before cutting.</p>
-            </section>
-
-            <section id="op-vcarve">
-                <h2><svg class="cam-icon" width="22" height="22" aria-hidden="true"><use href="#icon-op-vcarve"></use></svg> V-Carve <span class="doc-badge doc-badge--dev">Beta</span></h2>
-                <p>Variable-depth carving with a V-bit. The engine samples each closed region's boundary, builds a Voronoi/Delaunay <strong>medial axis</strong>, and drops the bit until its flanks touch both walls — so cut width tracks the shape's local thickness automatically. Regions wider than the bit can reach at max depth get a flat floor with a stitched perimeter.</p>
-                <p><strong>Use it for:</strong> carved lettering, decorative inlays, and sign work.</p>
-                <p><strong>Key parameters:</strong> V-bit included angle and tip diameter; start depth; max depth; chain/corner quality settings.</p>
+                <p><strong>Key parameters:</strong> cut depth, multi-depth and depth per pass, feeds and speeds.</p>
                 <div class="callout callout--info">
-                    <p>For a V-bit, <em>tool diameter</em> means the tip flat, not the cutting diameter at the surface. A 90° bit with a 0.3 mm tip is entered as 0.3.</p>
+                    <h4>No fill</h4>
+                    <p>Engrave follows paths only - there is no hatch or area fill mode. Say so on the issue tracker if you want one.</p>
                 </div>
             </section>
 
-            <section id="op-relief">
-                <h2><svg class="cam-icon" width="22" height="22" aria-hidden="true"><use href="#icon-op-relief"></use></svg> 3D Relief <span class="doc-badge doc-badge--dev">Beta</span></h2>
-                <p>Surfaces an imported STL as a height field. The mesh is sliced into a heightmap at generation time (resolution, orientation and Z datum are operation parameters, not import settings), the target surface is compensated for the real tool shape, and the result is rastered into roughing layers plus a finishing pass.</p>
-                <p><strong>Use it for:</strong> moulds, terrain tiles, medallions, and any 2.5D surface from a mesh.</p>
-                <p><strong>Key parameters:</strong> tool shape and corner radius; depth mapping and total depth; boundary mode; rough/finish mode, stepdown, stepover and stock-to-leave; raster axis and cell size.</p>
-            </section>
+            <section id="ops-3d">
+                <h2>3D Operations <span class="doc-badge doc-badge--dev">Beta</span></h2>
+                <p>These three cut at a different depth at every point rather than at a flat depth per pass, so they skip the depth step entirely - the height is part of the path. They generate in the background and render in the 3D view (<kbd>F2</kbd>).</p>
+                <p>They are the newest part of the suite. Check the result in the 3D view and dry-run before cutting.</p>
 
-            <section id="op-rotary">
-                <h2><svg class="cam-icon" width="22" height="22" aria-hidden="true"><use href="#icon-op-rotary"></use></svg> Rotary - 4th Axis <span class="doc-badge doc-badge--dev">Beta</span></h2>
-                <p>One operation type with two engines, chosen by the <strong>kinematics</strong> parameter.</p>
-                <dl>
-                    <dt>Radial (continuous)</dt>
-                    <dd>The mesh is sliced into a cylindrical radius map R(x, θ) and machined as a developed strip that the post converts into A-axis motion. Best for turned, wrapped or fully round parts.</dd>
-                    <dt>Indexed 3+1</dt>
-                    <dd>The blank is treated as an N-sided prism: the part is machined as N ordinary flat reliefs at fixed A angles, joined by pure positioning moves. Best for undercuts and features a continuous wrap can't reach.</dd>
-                </dl>
-                <p><strong>Use it for:</strong> table legs, chess pieces, columns, and faceted or multi-sided parts.</p>
-                <p><strong>Key parameters:</strong> kinematics; rotary axis and model orientation; stock shape and blank diameter (or face count and blank width, indexed); workholding mode with per-end settings; minimum radius (drive core); rough/finish stepdown and stepover.</p>
+                <h3 id="op-vcarve"><svg class="cam-icon" width="24" height="24" aria-hidden="true"><use href="#icon-op-vcarve"></use></svg> V-Carve <span class="doc-badge doc-badge--dev">Beta</span></h3>
+                <p>Variable-depth carving with a V-bit. The bit drops deeper where a shape is wide and rises where it narrows, so the cut width follows the shape and corners come to a clean point - the look you get on carved lettering and signs.</p>
+                <p>Where an area is wider than the bit can reach at your maximum depth, the floor is flattened at that depth and a pass is added around it, so wide areas get a proper machined floor instead of an impossible one.</p>
+                <p><strong>Use it for:</strong> carved lettering, decorative inlays, and sign work.</p>
+                <p><strong>Key parameters:</strong> V-bit included angle and tip radius; start depth; maximum depth; and four quality settings - minimum chain length, corner angle, sample spacing and noise threshold - which control how much fine detail survives. Loosen them if a carve comes out noisy; tighten them if fine detail is being lost.</p>
                 <div class="callout callout--warning">
-                    <p>Rotary output is generated in the machine frame: workspace rotation, mirroring and origin do not apply to it, and the max-safe-depth guard is a flat-stock rule that a surface-datum rotary job legitimately passes. Check your A-axis route and travel limits on the controller first.</p>
+                    <h4>Tool diameter means the flat at the tip</h4>
+                    <p>For a V-bit, the <em>Tool Diameter</em> field is the flat at the very tip, not the width it cuts at the surface. A 90° bit with a 0.3 mm tip is entered as 0.3. The separate <em>Tip Radius</em> parameter describes rounding at that tip - leave it at 0 for a true point.</p>
                 </div>
+
+                <h3 id="op-relief"><svg class="cam-icon" width="24" height="24" aria-hidden="true"><use href="#icon-op-relief"></use></svg> Relief / 2.5D Carve <span class="doc-badge doc-badge--dev">Beta</span></h3>
+                <p>Carves an imported STL as a surface, with roughing passes to clear the bulk and a finishing pass to bring out the detail.</p>
+                <p><strong>Pick the right tip shape.</strong> A ball nose, a flat end mill and a bull nose each reach a different depth over the same slope, and the paths are calculated for the shape you tell it you have. Choosing wrong gouges the model or leaves stock behind - it is not a cosmetic setting.</p>
+                <p><strong>Depth mapping</strong> chooses between <em>Scaled</em>, which stretches the model's height range to fill your carve depth - right for artwork - and <em>Literal</em>, which carves the model at its real millimetres - right for dimensioned parts.</p>
+                <p><strong>Silhouette boundary</strong> decides what happens at the model's edge: <em>Stop</em> leaves the surrounding stock alone, <em>Roll Over</em> forms a wall down past the edge, and <em>Extend</em> keeps cutting a set distance beyond it.</p>
+                <p><strong>Use it for:</strong> moulds, terrain tiles, medallions, and any carved surface from a mesh.</p>
+                <p><strong>Key parameters:</strong> tool tip shape and corner radius; depth mapping, relief depth and start depth; silhouette boundary and its distance; roughing stepdown, step-over and stock to leave; finishing step-over, raster direction and cross finish; resolution and detail cap.</p>
+                <div class="callout callout--info">
+                    <h4>Mold mode is not usable yet</h4>
+                    <p>The depth inversion toggle runs but does not yet produce output you should cut. It is mentioned here so the control in the form is not a mystery.</p>
+                </div>
+
+                <h3 id="op-rotary-radial"><svg class="cam-icon" width="24" height="24" aria-hidden="true"><use href="#icon-op-rotary"></use></svg> Rotary - Radial <span class="doc-badge doc-badge--dev">Beta</span></h3>
+                <p>Continuous 4th-axis machining. The blank spins under the cutter while the tool moves along it, so the whole surface is reachable in one operation - the way a lathe reaches everything, but with a shaped profile instead of a round one.</p>
+                <p>Rotary works in its own frame: zero is the <strong>rotary centreline</strong> rather than a corner of the table, so negative Z below the axis is correct output. Workspace rotation, mirroring and origin do not apply, and neither does the maximum-depth check - that check assumes flat stock. See <a href="guide#coordinates" draggable="false">Stock, Z zero and coordinates</a> before your first rotary job.</p>
+                <p>Set which axis the part spins about, how the mesh is oriented on it, the blank you are cutting from, and how the part is held. <strong>Workholding</strong> and the two end settings decide how far past each end of the model the tool may travel: the chuck end is the low end of the axis, the tail end is the high end, and each can stop at the model, roll over into a lip, or taper down to the drive stub.</p>
+                <p><strong>Minimum radius</strong> is the drive stub the tool never cuts into - what a chuck grips and a tailstock centre bears on. Leave enough of it.</p>
+                <p><strong>Use it for:</strong> table legs, chess pieces, columns, and anything turned or fully round.</p>
+                <p><strong>Key parameters:</strong> kinematics, rotary axis, model orientation, axial datum and offset, stock shape and blank diameter, workholding and end modes, minimum radius, roughing and finishing settings, resolution and detail cap.</p>
+                <div class="callout callout--warning">
+                    <h4>Roll Over needs a flat, on-axis end</h4>
+                    <p>The lip comes out uneven on a slanted, domed, eccentric or off-axis end - that is a consequence of the shape, not something to tune out. <em>Stop</em> is the default for a reason, and you get a warning when the end you have is a poor candidate.</p>
+                </div>
+
+                <h3 id="op-rotary-indexed"><svg class="cam-icon" width="24" height="24" aria-hidden="true"><use href="#icon-op-rotary"></use></svg> Rotary - Indexed 3+1 <span class="doc-badge doc-badge--dev">Beta</span></h3>
+                <p>The same operation with kinematics set to indexed. Instead of spinning while cutting, the blank rotates to a fixed angle, locks, and one flat face is machined with ordinary three-axis motion. Then it rotates to the next face and repeats.</p>
+                <p>That reaches undercuts and flats a continuous wrap cannot, at the cost of a faceted blank. <strong>Face count</strong> is a fixed set - 2, 3, 4, 6 or 8 - because the blank has to be a real prism. <strong>Blank width</strong> is the across-flats size; leave it at 0 to have it worked out from the mesh, or enter your own. It doubles as your Z datum, so it only ever grows when you regenerate - a small model change cannot silently move your zero.</p>
+                <p><strong>Axis overcut</strong> cuts a little deeper into the waste outside the drive core so opposing faces overlap rather than meeting exactly. It is separate from the drive stub, and a job can and often should have both.</p>
+                <p><strong>Use it for:</strong> faceted and multi-sided parts, and undercuts a continuous wrap cannot reach.</p>
+                <p><strong>Key parameters:</strong> face count, start angle, blank width, indexed depth, axis overcut, collision guard, roughing stepdown, raster direction and cross finish - plus everything shared with radial.</p>
+                <div class="callout callout--warning">
+                    <h4>Indexed jobs depend on the post-processor</h4>
+                    <p>Indexed 3+1 needs a post that can drive the A axis. Changing the post invalidates every generated indexed operation, and you have to regenerate before exporting.</p>
+                </div>
+
+            </section>
+
+            <section id="not-yet">
+                <h2>Not Yet Available</h2>
+                <p>Listed here so nothing on this page describes something that does not exist:</p>
+                <ul>
+                    <li><strong>Pattern generator</strong> - not functional, and likely to become its own tool rather than an operation.</li>
+                    <li><strong>Pocket raster strategy</strong> - selectable, not implemented.</li>
+                    <li><strong>Engrave fill</strong> - paths only, no hatch.</li>
+                    <li><strong>Relief mold mode</strong> - inversion runs but is not usable.</li>
+                    <li><strong>Grayscale image heightmaps</strong> - planned alongside STL. STL is the only mesh input today.</li>
+                    <li><strong>Toolpath playback</strong> - the 3D view draws paths and stock but does not animate them.</li>
+                </ul>
             </section>
 
         </main>
         <!-- Footer -->
         <footer class="doc-footer" aria-label="Footer">
             <p>
-                <a href="#doc-content" draggable="false" aria-label="Scroll back to top">Back to Top</a> |
-                <a href="https://github.com/RicardoJCMarques/EasyCAM5000" target="_blank" draggable="false" aria-label="GitHub Repository (opens in a new tab)">GitHub</a> |
-                <a href="/#support" draggable="false" aria-label="Support Development via Sponsorship">Support Development</a> |
-                <a href="../../LICENSE" target="_blank" draggable="false" aria-label="AGPLv3 License (opens in a new tab)">AGPLv3 Licensed</a> |
-                <a href="https://www.eltryus.design/" draggable="false" aria-label="Eltryus, developer of EasyCAM5000">by ELTRYUS</a>
+                <a href="#doc-content" draggable="false">Back to Top</a> |
+                <a href="https://github.com/RicardoJCMarques/EasyCAM5000" target="_blank" draggable="false">GitHub</a> |
+                <a href="/#support" draggable="false">Support Development</a> |
+                <a href="../../LICENSE" target="_blank" draggable="false">AGPLv3 Licensed</a> |
+                <a href="https://www.eltryus.design/" draggable="false">by ELTRYUS</a>
             </p>
         </footer>
-
     </div>
-
-    <!-- Scripts -->
-    <script defer src="../../themes/theme-loader.js"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            // Load the SVG Sprite
-            fetch('../../images/icons/sprite.svg')
-                .then(response => {
-                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                    return response.text();
-                })
-                .then(svgText => {
-                    const div = document.createElement('div');
-                    div.innerHTML = svgText;
-                    const svg = div.querySelector('svg');
-                    if (svg) {
-                        svg.setAttribute('aria-hidden', 'true');
-                        svg.style.cssText = 'position: absolute; width: 0; height: 0; visibility: hidden;';
-                        document.body.insertBefore(svg, document.body.firstChild);
-                    }
-                })
-                .catch(err => console.warn('Failed to load icon sprite:', err));
-
-            // Theme toggle
-            const themeBtn = document.getElementById('theme-toggle');
-            if (themeBtn && window.ThemeLoader) {
-                const useEl = themeBtn.querySelector('use');
-                const initialTheme = document.documentElement.getAttribute('data-theme') || 'dark';
-
-                if (useEl) useEl.setAttribute('href', initialTheme === 'dark' ? '#icon-sun' : '#icon-moon');
-
-                themeBtn.addEventListener('click', async () => {
-                    const theme = await window.ThemeLoader.toggleTheme();
-                    if (useEl) useEl.setAttribute('href', theme === 'dark' ? '#icon-sun' : '#icon-moon');
-                });
-            }
-
-            // Mobile menu toggle
-            const menuBtn = document.querySelector('.doc-menu-toggle');
-            const nav = document.querySelector('.doc-nav');
-            if (menuBtn && nav) {
-                const useEl = menuBtn.querySelector('use');
-                menuBtn.addEventListener('click', () => {
-                    const isExpanded = menuBtn.getAttribute('aria-expanded') === 'true';
-                    menuBtn.setAttribute('aria-expanded', !isExpanded);
-                    nav.classList.toggle('is-open');
-
-                    if (useEl) useEl.setAttribute('href', !isExpanded ? '#icon-close' : '#icon-menu');
-                });
-            }
-        });
-    </script>
 </body>
+
+<!-- Scripts -->
+<script defer src="../../themes/theme-loader.js"></script>
+<script src="../../figures.js" defer></script>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // Load the SVG Sprite
+        fetch('../../images/icons/sprite.svg')
+            .then(response => {
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                return response.text();
+            })
+            .then(svgText => {
+                const div = document.createElement('div');
+                div.innerHTML = svgText;
+                const svg = div.querySelector('svg');
+                if (svg) {
+                    svg.setAttribute('aria-hidden', 'true');
+                    svg.style.cssText = 'position: absolute; width: 0; height: 0; visibility: hidden;';
+                    document.body.insertBefore(svg, document.body.firstChild);
+                }
+            })
+            .catch(err => console.warn('Failed to load icon sprite:', err));
+
+        // Theme toggle
+        const themeBtn = document.getElementById('theme-toggle');
+        if (themeBtn && window.ThemeLoader) {
+            const useEl = themeBtn.querySelector('use');
+            const initialTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+
+            if (useEl) useEl.setAttribute('href', initialTheme === 'dark' ? '#icon-sun' : '#icon-moon');
+
+            themeBtn.addEventListener('click', async () => {
+                const theme = await window.ThemeLoader.toggleTheme();
+                if (useEl) useEl.setAttribute('href', theme === 'dark' ? '#icon-sun' : '#icon-moon');
+            });
+        }
+
+        // Mobile menu toggle
+        const menuBtn = document.querySelector('.doc-menu-toggle');
+        const nav = document.querySelector('.doc-nav');
+        if (menuBtn && nav) {
+            const useEl = menuBtn.querySelector('use');
+            menuBtn.addEventListener('click', () => {
+                const isExpanded = menuBtn.getAttribute('aria-expanded') === 'true';
+                menuBtn.setAttribute('aria-expanded', !isExpanded);
+                nav.classList.toggle('is-open');
+
+                if (useEl) useEl.setAttribute('href', !isExpanded ? '#icon-close' : '#icon-menu');
+            });
+        }
+    });
+</script>
 </html>

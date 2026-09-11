@@ -13,17 +13,14 @@
 (function() {
     'use strict';
 
-    const C = window.CAMConfig.constants;
     const D = window.CAMConfig.defaults;
-    const debugState = D.debug;
-    const decimals = D.gcode.decimals.coordinates;
+    const decimals = D.geometry.decimals.coordinates;
 
     class EasyShapeController extends CamController {
         constructor() {
             super();
             this.scene = null;
             this.selection = null;
-            this.sceneInteraction = null;
             this.history = null;
 
             this.renderer3D = null;
@@ -35,7 +32,7 @@
         // Template Hooks
         // ════════════════════════════════════════════════════════════════
 
-        getAppLabel() { return 'EasyShape5000 Workspace'; }
+        getAppLabel() { return 'EasyShape5000 Router Workspace'; }
 
         getProfileConfig() {
             return { embeddedVar: 'EMBEDDED_PROFILE_SHAPE', fetchPath: '../ui/profile-shape.json' };
@@ -44,15 +41,7 @@
         onCoreReady() {
             this.scene = this.core.scene;
             this.selection = this.scene.selection;
-            this.sceneInteraction = this.core.sceneInteraction;
             this.history = new CommandManager(this);
-        }
-
-        /**
-         * Factory stock straight from the app profile
-         */
-        getStockDefaults() {
-            return { ...(this.appProfile?.machineDefaults?.stock || {}) };
         }
 
         createUI() {
@@ -61,8 +50,8 @@
 
         registerHandlers() {
             // Parsers
-            this.core.registerParser('.svg', new SVGParser());
-            this.core.registerParser('.stl', new STLParser());
+            this.core.ingest.registerParser('.svg', new SVGParser());
+            this.core.ingest.registerParser('.stl', new STLParser());
 
             // Handlers (profile-declared, incl. the rotary-indexed alias)
             super.registerHandlers();
@@ -78,47 +67,49 @@
         }
 
         registerAppShortcuts() {
-            const sm = this.shortcutManager;
-
-            sm.register('ctrl+z', () => this.history.undo(), { mod: true });
-            sm.register('ctrl+shift+z', () => this.history.redo(), { mod: true });
-            sm.register('ctrl+y', () => this.history.redo(), { mod: true });
-            sm.register('ctrl+g', () => this.groupSelection(), { mod: true });
-            sm.register('ctrl+shift+g', () => this.ungroupSelection(), { mod: true });
-            sm.register('ctrl+a', () => {
-                const ids = [];
-                for (const child of this.scene.root.children) ids.push(child.id);
-                if (ids.length > 0) this.selection.replace(ids);
-            }, { mod: true });
-            sm.register('Delete', () => {
+            const deleteSelection = () => {
                 if (this.selection.size() > 0) this.deleteShapes(Array.from(this.selection.toSet()));
+            };
+            this.shortcutManager.registerActions({
+                undo: () => this.history.undo(),
+                redo: () => this.history.redo(),
+                group: () => this.groupSelection(),
+                ungroup: () => this.ungroupSelection(),
+                selectAll: () => {
+                    const ids = [];
+                    for (const child of this.scene.root.children) ids.push(child.id);
+                    if (ids.length > 0) this.selection.replace(ids);
+                },
+                deleteSelection,
+                addFiles: () => this.modalManager.showModal('quickstart'),
+                bottomLeftOrigin: () => this.ui.bottomLeftOrigin?.(),
+                centerOrigin: () => this.ui.centerOrigin?.(),
+                pan: (e, mx, my) => {
+                    if (document.activeElement?.closest('#sidebar-left, #sidebar-right')) return;
+                    const amount = e.shiftKey ? 100 : 25;
+                    this.ui.renderer.pan(mx * amount, my * amount);
+                    this.ui.renderer.render();
+                }
             });
-            sm.register('Backspace', () => {
-                if (this.selection.size() > 0) this.deleteShapes(Array.from(this.selection.toSet()));
-            });
-            sm.register('i', () => this.importGeometry());
         }
 
         onBindEvents() {
             this.selection.addChangeListener(() => this.ui.onSelectionChanged());
-
             this.history.addListener(() => {
                 this.ui.updateHistoryButtons();
             });
             this.setupToolbar();
             this.setupViewportBarDismiss();
-            this.setupWelcomeFlow();
             this.setupStockAndMachine();
         }
 
         onFinalize() {
             this.ui.renderAll();
             this.modalManager.showModal('welcome');
-            window.easyshape = this;
         }
 
         /**
-         * Welcome-modal card → app action. EasyShape is CNC-only; the 3D card
+         * Welcome-modal card → app action. EasyShape5000 is CNC-only; the 3D card
          * selects the workspace, not a pipeline.
          */
         onPipelineSelected(pipelineId) {
@@ -144,7 +135,6 @@
             return !any; // empty scene: leave the toggle free
         }
 
-        /** EasyShape wires its own single drop target in setupWelcomeFlow. */
         getQuickstartOpTypes() { return ['unassigned']; }
 
         getTreeFocusSelector() { return '#scene-tree-list [tabindex="0"]'; }
@@ -159,17 +149,17 @@
 
         get3DStockBox(w2m) {
             const stock = this.core.stock;
-            if (!(stock?.width > 0 && stock?.height > 0)) return null;
+            if (!(stock?.width > 0 && stock?.length > 0)) return null;
             const isBedZero = stock.zeroReference && "material" !== stock.zeroReference;
             const topZ = (isBedZero && stock.thickness) || 0;
-            const machineMatrix = this.core.getTransforms().machineMatrix;
+            const machineMatrix = this.core.pipelineContext.getTransforms().machineMatrix;
             return {
                 width: stock.width,
-                depth: stock.height,
+                depth: stock.length,
                 thickness: stock.thickness || 0,
                 topZ: topZ,
                 centerX: stock.width / 2,
-                centerY: stock.height / 2,
+                centerY: stock.length / 2,
                 matrix: machineMatrix
             };
         }
@@ -182,29 +172,28 @@
         refresh3DModel(ctx) {
             const { view, w2m, machineMatrix, topZ } = ctx;
 
-            // ── Model + frame: ONE operation owns both ──
+            // Model + frame: ONE operation owns both
             // Resolving the mesh by scanning the SCENE while the blank and the
             // orient came from whichever operation matched first let a
             // two-model scene draw one shape's mesh inside another shape's
             // blank, tagged with the wrong nodeId - which then mis-routed 3D
             // picks back onto the other shape.
-            const meshOp = this.core.operations.find(op =>
-                op.sourceMesh?.triangles?.length &&
-                op.offsets?.[0]?.metadata?.is3DToolpath) || null;
+            const meshOp = this.core.operations.find(op => op.sourceMesh?.triangles?.length && op.offsets?.[0]?.metadata?.is3DToolpath) || null;
             const meta = meshOp?.offsets?.[0]?.metadata || null;
-
             let meshTris = null;
             let meshNodeId = null;
             let orient = null;
             let offsetX = 0, offsetY = 0, offsetZ = 0;
 
-            if (meshOp) {
-                meshTris = meshOp.sourceMesh.triangles;
-                meshNodeId = this.ui.opsPanel?.getBucket(meshOp.id)?.shapeRefs
-                    .find(id => this.scene.findShape(id)?.reliefMesh) || null;
-            }
-
             if (meshOp && meta.developedSpace && meta.refRadius > 0 && meta.axisCenter) {
+                // Rotary: display the MACHINE frame.
+                meshNodeId = this.ui.opsPanel?.getBucket(meshOp.id)?.shapeRefs.find(id => this.scene.findShape(id)?.reliefMesh) || null;
+                const shapeNode = meshNodeId ? this.scene.findShape(meshNodeId) : null;
+                if (shapeNode && !shapeNode.isVisible) {
+                    view.stock.removeTriangleMesh();
+                    return meta;
+                }
+
                 // Rotary: display the MACHINE frame. The mesh is the
                 // operation's (already XY-transformed) copy, rotated by the
                 // VISUAL orient only - the slicer's internal axis mapping is
@@ -222,7 +211,7 @@
                 // There is no axis height to publish any more: it is 0.
                 const shift = meta.axialShift || 0;
                 const crossOff = -meta.axisCenter.b;
-                if ('y' === meta.rotaryAxis) { offsetX = crossOff; offsetY = shift; }
+                if ("y" === meta.rotaryAxis) { offsetX = crossOff; offsetY = shift; }
                 else { offsetX = shift; offsetY = crossOff; }
                 offsetZ = -meta.axisCenter.c;
 
@@ -232,19 +221,28 @@
                 const along = (meta.originX ?? 0) + len / 2;
                 view.stock.setRotaryBlank({
                     refRadius: meta.refRadius, length: len, axis: meta.rotaryAxis,
-                    center: 'y' === meta.rotaryAxis ? { x: 0, y: along, z: 0 } : { x: along, y: 0, z: 0 }
+                    center: "y" === meta.rotaryAxis ? { x: 0, y: along, z: 0 } : { x: along, y: 0, z: 0 }
                 });
+                meshTris = meshOp.sourceMesh.triangles;
             } else if (meshOp && meta.indexedFrame) {
+                // Indexed 3+1 frame
                 // [INDEXED] Match the frame the toolpaths are wrapped in
                 // (walkPlans + GeometryLayer3D): rotation axis line at
                 // Z = baseZ - apothem, cross axis at 0. Slicing subtracts
                 // Cvis, so exported paths are axis-centered - translate the
                 // mesh by -axisCenter.b on the CROSS axis and leave the AXIAL
                 // one at 0 (slicing preserves it).
+                meshNodeId = this.ui.opsPanel?.getBucket(meshOp.id)?.shapeRefs.find(id => this.scene.findShape(id)?.reliefMesh) || null;
+                const shapeNode = meshNodeId ? this.scene.findShape(meshNodeId) : null;
+                if (shapeNode && !shapeNode.isVisible) {
+                    view.stock.removeTriangleMesh();
+                    return meta;
+                }
+
                 const f = meta.indexedFrame;
                 orient = f.orient || null;
                 const ixShift = f.axialShift || 0;
-                if ('y' === f.machineAxis) { offsetX = -f.axisCenter.b; offsetY = ixShift; }
+                if ("y" === f.machineAxis) { offsetX = -f.axisCenter.b; offsetY = ixShift; }
                 else { offsetX = ixShift; offsetY = -f.axisCenter.b; }
                 offsetZ = -f.axisCenter.c;
 
@@ -268,10 +266,9 @@
                     // is translated by -axisCenter.b to match. Placing the
                     // prism at the world axis instead put the blank beside its
                     // own toolpaths on every model not centred on the axis.
-                    center: 'y' === f.machineAxis
-                        ? { x: 0, y: ixAlong, z: 0 }
-                        : { x: ixAlong, y: 0, z: 0 }
+                    center: "y" === f.machineAxis ? { x: 0, y: ixAlong, z: 0 } : { x: ixAlong, y: 0, z: 0 }
                 });
+                meshTris = meshOp.sourceMesh.triangles;
             } else if (meshOp) {
                 // Flat relief. sourceMesh already carries the shape's world
                 // TRS (syncPrimitives baked it), so only the machine map is
@@ -279,48 +276,47 @@
                 // which expresses translation and rotation exactly. The
                 // workspace matrix carries no scale, so det is +-1; det < 0 is
                 // a mirror and is not a rotation.
-                view.stock.removeRotaryBlank();
-                const m = machineMatrix;
-                const det = m.a * m.d - m.b * m.c;
-                offsetX = m.e;
-                offsetY = m.f;
-                offsetZ = topZ - meshOp.sourceMesh.bounds3D.maxZ;
-                if (det > 0) {
-                    orient = [m.a, m.c, 0,
-                              m.b, m.d, 0,
-                              0,   0,   1];
-                } else {
-                    console.warn('[EasyShape] Workspace mirror is not applied to the 3D model - ' +
-                        'the toolpaths are mirrored, the displayed mesh is not.');
+                meshNodeId = this.ui.opsPanel?.getBucket(meshOp.id)?.shapeRefs.find(id => this.scene.findShape(id)?.reliefMesh) || null;
+                const shapeNode = meshNodeId ? this.scene.findShape(meshNodeId) : null;
+                if (shapeNode && !shapeNode.isVisible) {
+                    view.stock.removeTriangleMesh();
+                    return meta;
                 }
-
+                view.stock.removeRotaryBlank();
+                offsetZ = topZ - meshOp.sourceMesh.bounds3D.maxZ;
+                meshTris = Transform3D.transformTrianglesByAffine2D(meshOp.sourceMesh.triangles, machineMatrix, 1).triangles;
+                offsetX = 0;
+                offsetY = 0;
             } else {
-                // Nothing generated yet - show the imported model so it can be
-                // placed. Translation only: without a sourceMesh there is no
-                // copy carrying the node's rotation and scale to draw instead.
+                // Selected/pre-generation stage: honor node visibility and bake total transform directly into vertices
                 view.stock.removeRotaryBlank();
                 for (const sid of this.scene.collectShapeIds(this.scene.root)) {
                     const s = this.scene.findShape(sid);
                     if (!s?.reliefMesh?.triangles?.length) continue;
+                    if (!s.isVisible) continue;
                     const wm = s.getWorldMatrix();
-                    const off = w2m({ x: wm.e, y: wm.f });
-                    meshTris = s.reliefMesh.triangles;
+                    const totalM = TransformMath.isIdentity(machineMatrix) ? wm : TransformMath.multiply(machineMatrix, wm);
                     meshNodeId = s.id;
-                    offsetX = off.x;
-                    offsetY = off.y;
-                    offsetZ = topZ - s.reliefMesh.bounds3D.maxZ;
+                    const sc = Math.hypot(wm.a, wm.b) || 1;
+                    offsetZ = topZ - s.reliefMesh.bounds3D.maxZ * sc;
+                    meshTris = Transform3D.transformTrianglesByAffine2D(s.reliefMesh.triangles, totalM, sc).triangles;
+                    offsetX = 0;
+                    offsetY = 0;
                     break;
                 }
             }
 
             if (meshTris) {
                 view.stock.setTriangleMesh(meshTris, {
-                    offsetX, offsetY, offsetZ, orient, nodeId: meshNodeId
+                    offsetX: offsetX,
+                    offsetY: offsetY,
+                    offsetZ: offsetZ,
+                    orient: orient,
+                    nodeId: meshNodeId
                 });
             } else {
                 view.stock.removeTriangleMesh();
             }
-
             return meta;
         }
 
@@ -346,25 +342,38 @@
 
         async loadExample(exampleId) {
             const examples = this.getExamples();
-            const example = examples[exampleId];
-            if (!example) { this.ui.setStatus(`Example not found: ${exampleId}`, 'error'); return; }
-            this.ui.setStatus(`Loading example: ${example.name}...`, 'info');
-            try {
-                // Route by file type
-                const path = example.files?.svg || example.files?.stl
-                    || Object.values(example.files || {})[0];
-                if (!path) throw new Error('example has no files');
+            const select = document.getElementById("pcb-example-select");
+            const id = exampleId || select?.value || Object.keys(examples || {})[0];
+            const example = examples?.[id];
 
-                const resp = await fetch(path);
-                if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+            if (!example) {
+                this.ui.setStatus(`Example not found: ${id}`, "error");
+                return;
+            }
 
-                const name = path.split('/').pop();
-                const ext = name.toLowerCase().split('.').pop();
-                const body = (ext === 'stl') ? await resp.arrayBuffer() : await resp.text();
-                const mime = (ext === 'stl') ? 'model/stl' : 'image/svg+xml';
+            this.ui.setStatus(`Loading example: ${example.name}...`, "info");
+            this.clearScene();
 
-                await this.processFile(new File([body], name, { type: mime }));
-            } catch (e) { this.ui.setStatus(`Failed to load example: ${e.message}`, 'error'); }
+            for (const [key, filepath] of Object.entries(example.files || {})) {
+                try {
+                    const resp = await fetch(filepath);
+                    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                    const name = filepath.split("/").pop();
+                    const ext = name.toLowerCase().split(".").pop();
+                    const body = "stl" === ext ? await resp.arrayBuffer() : await resp.text();
+                    const mime = "stl" === ext ? "model/stl" : "image/svg+xml";
+                    await this.processFile(new File([body], name, { type: mime }));
+                } catch (e) {
+                    console.error(`Failed to load example file ${filepath}:`, e);
+                    this.ui.setStatus(`Failed to load ${filepath.split("/").pop()}: ${e.message}`, "error");
+                }
+            }
+
+            this._hasFitted3DOnce = false;
+            this.ui.setStatus(`Example '${example.name}' loaded successfully.`, "success");
+            await this.ui.rebuildLayers();
+            this.ui.zoomFit();
+            this.ui.renderer.render();
         }
 
         /**
@@ -535,7 +544,15 @@
                 snapshots.push({ shape: node, parentId: parent?.id || null, indexInParent: parent ? parent.children.indexOf(node) : -1 });
             }
             if (snapshots.length === 0) return;
-            this.history.executeAndRecord(new DeleteShapesCommand(snapshots));
+
+            const { removed, pruned } = this.planOrphanedBuckets(ids);
+            const shapeText = `${snapshots.length} item${1 === snapshots.length ? "" : "s"}`;
+            const opText = removed.length ? ` This also removes ${removed.length} operation${1 === removed.length ? "" : "s"}.` : "";
+            this.confirmDestructive("Delete geometry", `Delete ${shapeText}?${opText} This can be undone with Ctrl+Z.`, () => {
+                const cmds = [ new DeleteShapesCommand(snapshots) ];
+                (removed.length || pruned.length) && cmds.push(new RemoveBucketsCommand(removed, pruned));
+                this.history.executeAndRecord(1 === cmds.length ? cmds[0] : new CompositeCommand(cmds, `Delete ${shapeText}`));
+            });
         }
 
         toggleNodeFlag(nodeId, flag) {
@@ -627,35 +644,22 @@
         // ════════════════════════════════════════════════════════════════
 
         /**
-         * Removes stale shape refs from every bucket. If a bucket loses
-         * all its refs (every source shape was deleted), the bucket and
-         * its backing core operation are removed entirely.
+         * Which buckets a pending shape deletion would strand, computed BEFORE
+         * the scene changes. This used to run inside afterMutation() and destroy
+         * the operations outright, so undoing a shape delete brought the shape
+         * back and left the operation gone.
          */
-        cleanupOrphanedBuckets() {
-            if (!this.ui.opsPanel) return;
-
-            const bucketsToRemove = [];
-
+        planOrphanedBuckets(deletingIds) {
+            if (!this.ui.opsPanel) return { removed: [], pruned: [] };
+            const doomed = new Set(deletingIds);
+            const removed = [];
+            const pruned = [];
             for (const bucket of this.ui.opsPanel.getAllBuckets()) {
-                const prevCount = bucket.shapeRefs.length;
-
-                bucket.shapeRefs = bucket.shapeRefs.filter(ref =>
-                    this.scene.findShape(ref) !== null
-                );
-
-                if (bucket.shapeRefs.length === 0) {
-                    bucketsToRemove.push(bucket.id);
-                } else if (bucket.shapeRefs.length !== prevCount) {
-                    // Some refs died but bucket survives - update count + invalidate
-                    this.ui.opsPanel.invalidateBucket(
-                        bucket.id, 'Source shape(s) deleted. Regenerate offsets.', this.core);
-                    this.ui.opsPanel.updateBucketDOM(bucket, this.core);
-                }
+                const survivors = bucket.shapeRefs.filter(ref => !doomed.has(ref) && this.scene.findShape(ref) !== null);
+                if (survivors.length === 0) removed.push(bucket.id);
+                else if (survivors.length !== bucket.shapeRefs.length) pruned.push({ bucketId: bucket.id, prevRefs: [...bucket.shapeRefs] });
             }
-
-            for (const bucketId of bucketsToRemove) {
-                this.ui.opsPanel.removeBucket(bucketId, this.core);
-            }
+            return { removed, pruned };
         }
 
         /**
@@ -674,8 +678,6 @@
         }
 
         afterMutation() {
-            this.cleanupOrphanedBuckets();
-
             if (this.ui.opsPanel) {
                 // Collect IDs of shapes that could have changed
                 const changedShapeIds = new Set();
@@ -705,7 +707,7 @@
             for (const op of operations) {
                 const bucket = this.ui.opsPanel?.getBucket(op.id);
                 if (bucket) {
-                    this.parameterManager.loadFromOperation(bucket.toParamSource());
+                    this.parameterStore.loadFromOperation(bucket.toParamSource());
                 }
             }
         }
@@ -766,7 +768,7 @@
             document.getElementById('btn-toggle-3d')?.addEventListener('click', () => this.toggle3DMode());
 
             document.getElementById('toolbar-export-gcode')?.addEventListener('click', () => {
-                const readyOps = this.core.operations.filter(op => this.core.isExportReady(op));
+                const readyOps = this.core.operations.filter(op => this.core.store.isExportReady(op));
                 if (readyOps.length === 0) { this.ui.setStatus('No operations ready for export. Generate previews first.', 'warning'); return; }
                 this.ensureBucketParamsLoaded(readyOps);
                 this.modalManager.showModal('exportManager', { operations: readyOps });
@@ -806,29 +808,6 @@
         // Modals
         // ════════════════════════════════════════════════════════════════
 
-        setupWelcomeFlow() {
-            document.querySelectorAll('[data-welcome-action]').forEach(card => {
-                card.addEventListener('click', e => {
-                    e.preventDefault();
-                    this.modalManager.closeModal();
-                    switch (card.dataset.welcomeAction) {
-                        case 'start': this.modalManager.showModal('quickstart'); break;
-                        case 'example':
-                            // Route through quickstart so the load has a surface to
-                            // report progress on; the bare call closed the modal and
-                            // left the canvas empty for the length of the fetch.
-                            this.modalManager.showModal('quickstart');
-                            break;
-                        case 'reopen': this.ui.setStatus('Project reopen not wired yet.'); break;
-                    }
-                });
-            });
-
-            ['sponsor-slot-1', 'sponsor-slot-2', 'sponsor-slot-3', 'sponsor-contact-cta'].forEach(id => {
-                document.getElementById(id)?.addEventListener('click', (e) => { e.preventDefault(); this.modalManager.showModal('support'); });
-            });
-        }
-
         setupStockAndMachine() {
             this.committedOrigin = this.scene
                 ? { x: this.scene.transform.origin.x, y: this.scene.transform.origin.y }
@@ -839,14 +818,20 @@
             if (xInput) xInput.value = (0).toFixed(decimals);
             if (yInput) yInput.value = (0).toFixed(decimals);
 
-            if (this.scene) {
-                this.scene.addTransformListener(() => {
-                    if (!xInput || !yInput || !this.scene) return;
-                    const o = this.scene.transform.origin;
-                    xInput.value = (o.x - this.committedOrigin.x).toFixed(decimals);
-                    yInput.value = (o.y - this.committedOrigin.y).toFixed(decimals);
-                });
-            }
+            // Writes the pending offset back into the fields. Skips whichever
+            // field has focus unless forced: setOrigin fires this synchronously
+            // on every keystroke, and reformatting mid-edit moves the caret so a
+            // second digit can never be typed. A commit forces it, because the
+            // field the user just pressed Enter in has to show 0 again.
+            const syncOffsets = (force = false) => {
+                if (!xInput || !yInput || !this.scene) return;
+                const o = this.scene.transform.origin;
+                const active = document.activeElement;
+                if (force || active !== xInput) xInput.value = (o.x - this.committedOrigin.x).toFixed(decimals);
+                if (force || active !== yInput) yInput.value = (o.y - this.committedOrigin.y).toFixed(decimals);
+            };
+
+            if (this.scene) this.scene.addTransformListener(() => syncOffsets());
 
             const updatePreview = () => {
                 if (!this.scene) return;
@@ -857,12 +842,34 @@
                 this.ui.renderer?.render();
             };
 
+            const applyOrigin = () => {
+                if (!this.scene) return;
+                updatePreview();
+                this.committedOrigin = { x: this.scene.transform.origin.x, y: this.scene.transform.origin.y };
+                syncOffsets(true);
+                this.ui.setStatus('Stock origin saved at current position', 'success');
+            };
+
+            const resetOrigin = () => {
+                if (!this.scene) return;
+                this.scene.setOrigin(this.committedOrigin.x, this.committedOrigin.y);
+                syncOffsets(true);
+                this.ui.renderer?.render();
+                this.ui.setStatus('Reset to saved stock origin', 'info');
+            };
+
             xInput?.addEventListener('input', updatePreview);
             yInput?.addEventListener('input', updatePreview);
+            const handleEnter = (e) => { if (e.key === 'Enter') applyOrigin(); };
+            xInput?.addEventListener('keypress', handleEnter);
+            yInput?.addEventListener('keypress', handleEnter);
+
+            document.getElementById('apply-stock')?.addEventListener('click', applyOrigin);
+            document.getElementById('reset-stock')?.addEventListener('click', resetOrigin);
 
             document.getElementById('stock-center-btn')?.addEventListener('click', () => {
                 if (!this.scene || !this.core.stock) return;
-                const cx = this.core.stock.width / 2, cy = this.core.stock.height / 2;
+                const cx = this.core.stock.width / 2, cy = this.core.stock.length / 2;
                 this.scene.setOrigin(cx, cy);
                 this.ui.renderer?.render();
             });
@@ -872,51 +879,6 @@
                 this.scene.setOrigin(0, 0);
                 this.ui.renderer?.render();
             });
-
-            const applyStock = () => {
-                const w = parseFloat(document.getElementById('stock-width')?.value);
-                const h = parseFloat(document.getElementById('stock-height')?.value);
-                const t = parseFloat(document.getElementById('stock-thickness')?.value);
-                if (!this.core.stock) this.core.stock = this.getStockDefaults();
-                if (Number.isFinite(w) && w > 0) this.core.stock.width = w;
-                if (Number.isFinite(h) && h > 0) this.core.stock.height = h;
-                if (Number.isFinite(t) && t > 0) this.core.stock.thickness = t;
-                const mat = document.getElementById('stock-material')?.value;
-                const zRef = document.getElementById('z-zero')?.value;
-                if (mat) this.core.stock.material = mat;
-                if (zRef) this.core.stock.zeroReference = zRef;
-                if (this.scene) {
-                    this.committedOrigin = { x: this.scene.transform.origin.x, y: this.scene.transform.origin.y };
-                }
-                if (xInput) xInput.value = (0).toFixed(decimals);
-                if (yInput) yInput.value = (0).toFixed(decimals);
-                this.ui.rebuildLayers(); this.ui.zoomFit();
-                this.core.saveSettings();
-                this.ui.setStatus('Stock settings and origin applied', 'success');
-            };
-
-            const resetStock = () => {
-                const defaults = this.getStockDefaults();
-                this.core.stock = { ...defaults };
-                this.core.saveSettings();
-
-                const stockW = document.getElementById('stock-width');
-                const stockH = document.getElementById('stock-height');
-                const stockT = document.getElementById('stock-thickness');
-                const stockM = document.getElementById('stock-material');
-                const zEl = document.getElementById('z-zero');
-                if (stockW) stockW.value = defaults.width;
-                if (stockH) stockH.value = defaults.height;
-                if (stockT) stockT.value = defaults.thickness;
-                if (stockM) stockM.value = defaults.material;
-                if (zEl) zEl.value = defaults.zeroReference;
-
-                if (this.scene) this.scene.setOrigin(this.committedOrigin.x, this.committedOrigin.y);
-                if (xInput) xInput.value = (0).toFixed(decimals);
-                if (yInput) yInput.value = (0).toFixed(decimals);
-                this.ui.rebuildLayers(); this.ui.zoomFit();
-                this.ui.setStatus('Stock reset to defaults');
-            };
 
             document.getElementById('fit-stock-btn')?.addEventListener('click', () => {
                 // Selected nodes first (groups expand to shapes); all content otherwise
@@ -944,9 +906,14 @@
                         if (b.maxX > maxX) maxX = b.maxX;
                         if (b.maxY > maxY) maxY = b.maxY;
                     }
+                    // reliefMesh is the untransformed import, so its Z span still
+                    // owes the shape's scale - the same factor transformReliefMesh
+                    // applies when the operation bakes its copy.
                     if (s.reliefMesh?.bounds3D) {
+                        const wm = s.getWorldMatrix();
+                        const sc = Math.hypot(wm.a, wm.b);
                         meshSpanZ = Math.max(meshSpanZ,
-                            s.reliefMesh.bounds3D.maxZ - s.reliefMesh.bounds3D.minZ);
+                            (s.reliefMesh.bounds3D.maxZ - s.reliefMesh.bounds3D.minZ) * sc);
                     }
                 }
                 if (!isFinite(minX)) { this.ui.setStatus('Nothing to fit stock to', 'warning'); return; }
@@ -955,32 +922,35 @@
                 }
 
                 // Calculate true dimensions based on the original bounding box
+                const margin = Math.max(0, Number(this.core.stock?.margin) || 0);
                 const actualWidth = maxX - minX;
-                const actualHeight = maxY - minY;
+                const actualLength = maxY - minY;
 
-                // Set the UI inputs to the true dimensions
-                document.getElementById('stock-width').value = Math.max(1, Math.ceil(actualWidth));
-                document.getElementById('stock-height').value = Math.max(1, Math.ceil(actualHeight));
-                if (meshSpanZ > 0) {
-                    document.getElementById('stock-thickness').value = Math.ceil(meshSpanZ * 2) / 2;
-                }
+                // Write through settings, not through inputs the schema now owns.
+                this.core.setSetting("machine.stock.width", Math.max(1, Math.ceil(actualWidth) + 2 * margin));
+                this.core.setSetting("machine.stock.length", Math.max(1, Math.ceil(actualLength) + 2 * margin));
+                if (meshSpanZ > 0) this.core.setSetting("machine.stock.thickness", Math.ceil(meshSpanZ * 2) / 2);
 
-                // Move the physical shapes to the current origin (World 0,0)
+                // Move the physical shapes to the current origin, offset by the margin
                 const ox = this.scene.transform.origin.x;
                 const oy = this.scene.transform.origin.y;
-                const dx = ox - minX;
-                const dy = oy - minY;
+                const dx = ox + margin - minX;
+                const dy = oy + margin - minY;
 
                 if (dx !== 0 || dy !== 0) {
                     // This leverages your undo/redo history to safely translate the shapes
                     this.history.executeAndRecord(new TranslateCommand(ids, dx, dy));
                 }
 
-                // Commit the state
-                applyStock();
-            });
+                this.ui.renderMachineSettings();
+                this.ui.rebuildLayers();
 
-            document.getElementById('reset-stock')?.addEventListener('click', resetStock);
+                // Frame the result ONCE.
+                if (!this._hasFitStockOnce) {
+                    this._hasFitStockOnce = true;
+                    requestAnimationFrame(() => this.ui.zoomFit());
+                }
+            });
         }
     }
 
@@ -998,18 +968,4 @@
     }
 
     window.startShapeApp = startShapeApp;
-
-    // REVIEW - Anywhere else this should be? Is it being used yet? This seems like it should be shared?
-    window.showShapeStats = function() { 
-        if (ctrl) ctrl.logState(); 
-        else console.error('Application not initialized'); 
-    };
-    window.enableShapeDebug = function() { 
-        debugState.enabled = true; 
-        console.log('Debug mode enabled'); 
-    };
-    window.disableShapeDebug = function() { 
-        debugState.enabled = false; 
-        console.log('Debug mode disabled'); 
-    };
 })();

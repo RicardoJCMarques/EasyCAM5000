@@ -11,8 +11,9 @@
 
 (function() {
     'use strict';
+    const ROOT = globalThis;
 
-    const PRECISION = window.CAMConfig.constants.precision.coordinate;
+    const PRECISION = ROOT.CAMConfig.constants.precision.coordinate;
     const maxPasses = 500; // Arbitrary - Change if needed
 
     /**
@@ -25,31 +26,27 @@
         // HOOKS (override in subclasses)
 
         /**
-         * Whether offsets grow inward (clearing) or outward (isolation).
-         * Base implementation respects settings.cutSide for cutout/drill compatibility.
+         * Which side of the geometry the tool runs on: 'outside', 'inside' or
+         * 'on'. One hook rather than two booleans, because two booleans can
+         * encode a state the parameter cannot - internal AND on-line - and an
+         * override that wants to pin a direction had to answer both questions
+         * consistently to do it.
+         * An operation type with no cutSide parameter never carries the key,
+         * so the default is the outside pass every such type wants.
          */
-        isInternalOffset(operation, settings) {
-            return settings.cutSide === 'inside';
-        }
+        resolveCutSide(operation, settings) { return settings.cutSide || 'outside'; }
 
-        /**
-         * Whether tool follows the geometry line with zero offset.
-         */
-        isOnLine(operation, settings) {
-            return settings.cutSide === 'on';
-        }
         
         /**
          * Signed offset distance for a pass, or null when the run is over.
+         * On-line is handled before the loop - a single pass at distance 0 -
+         * so this only sees offset runs.
          * @param {number} passIndex
-         * @param {{isOnLine:boolean, radius:number, sign:number, step:number, settings:Object}} ctx
+         * @param {{radius:number, sign:number, step:number, settings:Object}} ctx
          */
-        // REVIEW - This was regular logic inside a method, why extract it? Does it need propagating through other modules?
-        passDistance(passIndex, { isOnLine, radius, sign, step, settings }) {
-            if (isOnLine) return 0 === passIndex ? 0 : null;
-
+        passDistance(passIndex, { radius, sign, step, settings }) {
             // Laser: walk outward until targetWidth reached
-            if (null !== settings.targetWidth && settings.targetWidth > 0) {
+            if (settings.targetWidth !== null && settings.targetWidth > 0) {
                 if (passIndex >= maxPasses) return null;
                 const currentOffset = radius + (0 === passIndex ? 0 : passIndex * step);
                 return currentOffset + radius > settings.targetWidth + PRECISION ? null : sign * currentOffset;
@@ -98,7 +95,6 @@
          * primitives (traces) must be expanded rather than boundary-offset.
          * Isolation and clearing override to true.
          */
-        // REVIEW - This partially broke some kinds of SVG geometry in EasyTrace5000
         isCopperOperation() {
             return false;
         }
@@ -107,9 +103,7 @@
          * Returns the clearance zone for filled/hatch laser strategies.
          * Override in TraceIsolationHandler and TraceClearingHandler.
          */
-        async getClearanceZone(operation, settings) {
-            return null;
-        }
+        async getClearanceZone(operation, settings) { return null; }
 
         // ORCHESTRATION
 
@@ -121,7 +115,7 @@
             if (resolved) operation.primitives = resolved;
 
             // Compile parameters
-            const opParams = core.compileOperationParams(operation, params);
+            const opParams = core.pipelineContext.compileOperationParams(operation, params);
             // Both branches get the same bag. compileOperationParams only emits
             // the pipeline-agnostic strategy fields, so a handler reading its own
             // profile parameters (every stencil* key) sees undefined without this.
@@ -266,13 +260,18 @@
 
         /**
          * One definition of "this is a centerline to thicken", shared by
-         * preparePrimitivesForOffset and offsetSinglePrimitive so the two
-         * can never disagree about the same primitive.
+         * preparePrimitivesForOffset and offsetSinglePrimitive so the two can
+         * never disagree about the same primitive. isTrace is parser-stamped
+         * on Gerber traces and is authoritative. An SVG stroke is only a
+         * centerline when the path is OPEN - a closed stroked region is a
+         * boundary, and thickening it about its own outline is not an offset.
          */
         isStrokePrimitive(prim) {
             const props = prim.properties || {};
             if (!(props.strokeWidth > 0)) return false;
-            return props.isTrace === true || (props.stroke === true && !props.fill);
+            if (props.isTrace === true) return true;
+            if (props.stroke !== true || props.fill) return false;
+            return !GeometryTopology.isPrimitiveClosed(prim, PRECISION);
         }
 
         async offsetSinglePrimitive(primitive, distance) {
@@ -301,9 +300,10 @@
             this.ensureSourceIds(operation.primitives);
             const srcIndex = this.buildSourceIndex(operation.primitives);
 
-            // Determine offset direction via hooks
-            let isInternal = this.isInternalOffset(operation, settings);
-            let isOnLine = this.isOnLine(operation, settings);
+            // Offset direction. Resolved once; radius/sign/step derive from it.
+            const cutSide = this.resolveCutSide(operation, settings);
+            const isOnLine = cutSide === 'on';
+            const isInternal = cutSide === 'inside';
 
             // Offset distance parameters
             let radius, sign, step;
@@ -324,7 +324,9 @@
             // Distance generator: returns null when exhausted. Subclasses that
             // do not derive their distance from the tool radius override
             // passDistance() instead of reimplementing the pipeline.
-            const getOffsetDistance = passIndex => this.passDistance(passIndex, { isOnLine, radius, sign, step, settings });
+            const getOffsetDistance = passIndex => isOnLine
+                ? (passIndex === 0 ? 0 : null)
+                : this.passDistance(passIndex, { radius, sign, step, settings });
 
             // Guard: prevent internal offsets from collapsing small circular features
             let forceOnLine = false;
@@ -556,7 +558,6 @@
                     p.properties.offsetDistance = distance;
                     p.properties.offsetType = offsetType;
                     p.properties.thermalGroup = thermalGroup;
-                    p.properties.hasAnalyticArcs = (p.type === 'circle') || (p.contours?.some(c => c.arcSegments?.length > 0));
                     p.properties.shapeKey = this.attributeShapeKey(p, srcIndex);   // identity surviving the boolean union
                     if (chainable) {
                         // The translator welds a key's rings into one plan so the
@@ -580,12 +581,10 @@
                     primitives: reconstructedGeometry,
                     metadata: {
                         sourceCount: primitivesToProcess.length,
-                        finalCount: reconstructedGeometry.length,
                         generatedAt: Date.now(),
                         toolDiameter: settings.toolDiameter,
                         targetWidth: settings.targetWidth || null,
                         actualWidth: Math.abs(distance) + (settings.toolDiameter / 2),
-                        wasFused: primitivesToProcess !== operation.primitives,
                         thermalGroup: thermalGroup
                     }
                 });
@@ -609,7 +608,6 @@
                     type: 'offset',
                     metadata: {
                         sourceCount: primitivesToProcess.length,
-                        finalCount: allPassPrimitives.length,
                         generatedAt: Date.now(),
                         toolDiameter: settings.toolDiameter,
                         targetWidth: settings.targetWidth || null,
@@ -679,8 +677,7 @@
                         metadata: {
                             strategy: 'filled',
                             isolationWidth: settings.isolationWidth || 0,
-                            isBoardClearing: settings.isBoardClearing || false,
-                            finalCount: filledGeometry.length
+                            isBoardClearing: settings.isBoardClearing || false
                         }
                     }];
                     break;
@@ -763,5 +760,5 @@
         }
     }
 
-    window.OffsetOperationHandler = OffsetOperationHandler;
+    ROOT.OffsetOperationHandler = OffsetOperationHandler;
 })();

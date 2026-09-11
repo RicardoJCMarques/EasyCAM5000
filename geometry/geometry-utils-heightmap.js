@@ -154,11 +154,8 @@
                 if (y < minY) minY = y; if (y > maxY) maxY = y;
             }
 
-            // Cell size derives from the MODEL extent, BEFORE padding.
-            // Padding used to feed the auto denominator, so a long end
-            // reach (a 60mm tailstock stub) silently halved the resolution
-            // over the model itself. Padding is added afterwards as extra
-            // cells at the same resolution.
+            // Cell size derives from the model extent, before padding:
+            // a long end reach would otherwise halve the resolution.
             const extXraw = maxX - minX, extYraw = maxY - minY;
             if (!(extXraw > 0) || !(extYraw > 0)) {
                 throw new Error('Mesh has degenerate XY extent');
@@ -323,6 +320,39 @@
 
             hm.meta.uncovered = uncovered;
             hm.normalize();
+
+            // Validate raster against analytic section envelope under debug
+            // logging. Two independent faults, and conflating them buries the
+            // one that matters: a HEIGHT disagreement is a rasterizer error on
+            // a cell that was covered, while a MASK gap is a cell the sections
+            // say holds material and the rasterizer never reached - harmless
+            // for plain relief (it interpolates across) and fatal for indexed,
+            // where the mask is the emission gate.
+            if (debugState.enabled && ROOT.SectionSlicer) {
+                const sections = ROOT.SectionSlicer.fromMesh(triangles, {
+                    orient: null, origin: [0, 0, 0], uIsX: true,
+                    a0: minY, pitch: cellSize, count: rows
+                });
+                let heightFaults = 0, maskGaps = 0, worst = 0;
+                for (let s = 0; s < sections.count; s++) {
+                    const { top, cover } = ROOT.SectionSlicer.envelopeTop(sections.stations[s], {
+                        uu: 1, uv: 0, vu: 0, vv: 1, u0: minX, cell: cellSize, cols
+                    });
+                    const rowBase = s * cols;
+                    for (let c = 0; c < cols; c++) {
+                        if (!cover[c]) continue;
+                        if (!hm.mask[rowBase + c]) { maskGaps++; continue; }
+                        const d = Math.abs(hm.data[rowBase + c] + hm.zMin - top[c]);
+                        if (d > cellSize) { heightFaults++; if (d > worst) worst = d; }
+                    }
+                }
+                if (heightFaults > 0) {
+                    console.warn(`[HeightmapBuilder] ${heightFaults} cell(s) disagree with the section envelope by more than one cell, worst ${worst.toFixed(3)}mm - rasterizer error.`);
+                }
+                if (maskGaps > 0) {
+                    console.warn(`[HeightmapBuilder] ${maskGaps} cell(s) hold material per the sections but are unmasked - relief interpolates across, indexed emits nothing there.`);
+                }
+            }
 
             if (debugState.enabled) {
                 console.log(`[HeightmapBuilder] Mesh → ${cols}x${rows} grid @ ${cellSize.toFixed(3)}mm ` +

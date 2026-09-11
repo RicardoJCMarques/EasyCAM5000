@@ -15,24 +15,25 @@
 
 (function() {
     'use strict';
+    const ROOT = globalThis;
 
-    const C = window.CAMConfig.constants;
-    const D = window.CAMConfig.defaults;
+    const C = ROOT.CAMConfig.constants;
+    const D = ROOT.CAMConfig.defaults;
     const debugState = D.debug;
 
     class CamController {
         constructor() {
             this.core = null;
             this.ui = null;
-            this.parameterManager = null;
+            this.parameterStore = null;
+            this.inputRenderer = null;
             this.gcodeGenerator = null;
+            this.graphicsExporter=null;
             this.appProfile = null;
             this.languageManager = null;
             this.modalManager = null;
             this.shortcutManager = null;
 
-            // Machine class is a per-OPERATION fact with a session default.
-            this.pipelineState = { machineClass: 'router', classByType: null, laser: null };
             /**
              * Dimensions this session's workspace can present. EasyShape's 2D
              * workspace has no way to draw a field-generated surface, so the
@@ -58,8 +59,8 @@
         // ════════════════════════════════════════════════════════════════
 
         async initialize() {
-            const appLabel = this.getAppLabel?.() || 'App';
-            console.log(`${appLabel} initializing...`);
+            const appLabel = this.getAppLabel() || 'App';
+            this.debug(`${appLabel} initializing...`);
 
             try {
                 // Core
@@ -76,10 +77,15 @@
 
                 // Pipeline & Storage
                 this.initGCodeGenerator(this.languageManager);
-                this.initPipelineComponents();
+                await this.initGraphicsExporter();
+                this.core.initializePipeline();
                 this.registerHandlers();
                 this.core.settings = this.core.loadSettings(this.storageKeys.settings, this.appProfile);
-                this.syncPipelineFromSettings();
+
+                // Restore the machine class the session was left in before any
+                // panel renders against it.
+                const saved = this.pipelineState;
+                if (saved.machineClass) this.core.setMachineClass(saved.machineClass, saved.classByType);
 
                 // UI
                 this.ui = this.createUI();
@@ -88,6 +94,9 @@
                 this.initState.uiReady = uiReady;
                 if (!uiReady) throw new Error('UI initialization failed');
                 this.modalManager = new ModalManager(this);
+                // One console handle for every app, set as soon as there is
+                // something worth inspecting.
+                window.cam = this;
 
                 // WASM
                 const wasmReady = await this.initializeWASM();
@@ -100,17 +109,17 @@
                 // Events & Shortcuts
                 this.shortcutManager = new ShortcutManager();
                 this.shortcutManager.setModalManager(this.modalManager);
-                this.registerSharedShortcuts();
                 this.registerAppShortcuts();
+                this.registerSharedShortcuts();
                 this.onBindEvents();
 
                 // Finalize
                 this.onFinalize();
                 this.hideLoadingOverlay();
                 this.initState.fullyReady = true;
-                this.ui.setStatus(this.appProfile?.ui?.text?.statusReady || 'Ready');
-                console.log(`${appLabel} ready`);
-
+                this.preload3D();
+                this.ui.setStatus(this.appProfile?.ui?.text?.statusReady || "Ready");
+                console.log(`${appLabel} Ready!`);
             } catch (err) {
                 console.error(`${appLabel} initialization failed:`, err);
                 this.initState.error = err.message;
@@ -139,11 +148,10 @@
 
         /**
          * Instantiates every handler the profile declares, by class name off
-         * `window`. `optionalHandler` reproduces the old defensive
-         * `typeof X !== 'undefined'` guards; a missing NON-optional handler
-         * is a profile/build mismatch and says so.
+         * `window`. `optionalHandler` is declared by six entries across the two
+         * profiles - those types ship in only one app, so a missing class is
+         * expected and silent.
          */
-        // REVIEW - This defensive check is useless, they were useless before.
         registerHandlersFromRegistry() {
             if (!this.registry) return;
 
@@ -166,12 +174,20 @@
             }
         }
 
-        /** Register app-specific keyboard shortcuts */
-        registerAppShortcuts() {}
-
         // ════════════════════════════════════════════════════════════════
         // Optional hooks - subclasses MAY override
         // ════════════════════════════════════════════════════════════════
+
+        /**
+         * Ingest one file into one operation type. Apps own their parser and
+         * operation wiring; processFiles below only sequences them.
+         * @param {File} file
+         * @param {string} type
+         */
+        async processFile(file, type) { throw new Error('processFile() not implemented'); }
+
+        /*Register app-specific keyboard handlers.*/
+        registerAppShortcuts() {}
 
         /** Extra core setup after initCore (scene refs, history, stock) */
         onCoreReady() {}
@@ -350,92 +366,69 @@
         }
 
         /**
-         * Pushes the whole 3D scene from current state: blank, model, the 2D layer
-         * mirror and machine-ready plans. Apps supply the stock box and their own
-         * model through the two hooks. Deliberately never touches the camera.
+         * App-specific model drawing goes through refresh3DModel.
          */
         render3D() {
-            if (this.renderMode !== '3d' || !this.renderer3D) return;
+            if ("3d" !== this.renderMode || !this.renderer3D) return;
             const view = this.renderer3D;
+
             // Same matrix GeometryTranslator stamps into every plan.
-            const machineMatrix = this.core.getTransforms().machineMatrix;
+            const machineMatrix = this.core.pipelineContext.getTransforms().machineMatrix;
             const w2m = p => TransformMath.applyToPoint(machineMatrix, p);
             const box = this.get3DStockBox(w2m);
-            const topZ = box ? (box.topZ || 0) : 0;
+            const topZ = box && box.topZ || 0;
+            const model = this.refresh3DModel({ view: view, w2m: w2m, machineMatrix: machineMatrix, topZ: topZ }) || null;
 
-            const model = this.refresh3DModel({ view, w2m, machineMatrix, topZ }) || null;
             // A 4th-axis operation draws its own blank on the axis line. The flat
             // slab and the operation's flat source outline both describe a part
             // that is not there.
-            const has4thAxisBlank = !!(model?.developedSpace || model?.indexedFrame);
+            const has4thAxisBlank = !(!model?.developedSpace && !model?.indexedFrame);
+            box && !has4thAxisBlank ? view.stock.setStock(box) : view.stock.removeStock();
 
-            this._push3DStock(view, box, has4thAxisBlank);
-            this._push3DLayers(view, { topZ, w2m, hideRotarySource: has4thAxisBlank });
-            this._push3DPlans(view);
-        }
-
-        _push3DStock(view, box, has4thAxisBlank) {
-            if (box && !has4thAxisBlank) view.stock.setStock(box);
-            else view.stock.removeStock();
-        }
-
-        /**
-         * The 2D layer snapshot mirrored as the canvas paints it. No layer is
-         * suppressed here: what a toolpath supersedes is written to
-         * layerVisibility when the toolpath is stored, so the tree icon reports it
-         * and the operator can turn both on together. An implicit rule at this
-         * level was invisible to every icon in both apps.
-         * A rotary source is still hidden beside its own blank: it is a flat
-         * footprint at Z0 with no relationship to the cylinder next to it.
-         */
-        _push3DLayers(view, { topZ, w2m, hideRotarySource }) {
             const defs = [];
             for (const [name, layer] of this.ui.renderer.layers) {
-                if (layer.visible === false || layer.isStock) continue;
-                if (!layer.primitives || layer.primitives.length === 0) continue;
+                if (false === layer.visible || layer.isStock) continue;
+                if (!layer.primitives || 0 === layer.primitives.length) continue;
 
-                const isSource = layer.role === 'source';
-                if (isSource && hideRotarySource && layer.operationType === 'rotary') continue;
+                // A rotary source is hidden beside its own blank: a flat footprint
+                // at Z0 with no relationship to the cylinder next to it.
+                if ("source" === layer.role && has4thAxisBlank && "rotary" === layer.operationType) continue;
 
-                // The preview layer is the tool's swath, not a line: its width
-                // is the cutter. Handing the width down lets the 3D view draw
-                // the same reach the canvas shades, which is what a stock-removal
-                // preview will need to sit on top of.
                 const solidWidth = "preview" === layer.type && layer.metadata?.toolDiameter || 0;
-                const op = layer.operationId ? this.core.getOperation(layer.operationId) : null;
-                const opMachineClass = op ? this.core.machineClassOf(op) : this.resolveMachineClass(layer.operationType || layer.type);
+                const op = layer.operationId
+                    ? this.core.store.getOperation(layer.operationId)
+                    : (layer.name?.startsWith("source_") ? this.core.store.getOperation(layer.name.slice(7)) : null);
+                const hasToolpaths = !!op && this.core.toolpaths.has(op.id);
+                // In 3D, use the differenced copper geometry (with drilled holes punched out) if available
+                const isCopperLayer = "isolation" === layer.operationType || "clearing" === layer.operationType;
+                const isBaseCopper = "source" === layer.role || layer.isFused;
+                const primitives3d = (op && op._3dCopperPrimitives && isBaseCopper && isCopperLayer)
+                    ? op._3dCopperPrimitives
+                    : layer.primitives;
+
                 defs.push({
                     name: name,
-                    primitives: layer.primitives,
+                    primitives: primitives3d,
                     transform: layer.transform || null,
                     zIndex: layer.zIndex || 0,
                     solidWidth: solidWidth,
                     isOffset: "offset" === layer.type || true === layer.isOffset,
                     operationType: layer.operationType || layer.type || null,
                     role: layer.role || null,
-                    machineClass: opMachineClass,
+                    hasToolpaths: hasToolpaths,
+                    machineClass: op ? this.core.machineClassOf(op) : this.core.machineClassForType(layer.operationType || layer.type),
                     metadata: layer.metadata || null,
                     color: this.ui.resolveLayerColor(layer)
                 });
-
             }
             view.geometry.setLayers(defs, { baseZ: topZ, worldToMachine: w2m });
-        }
 
-        /**
-         * Every operation with plans that has not been hidden. Same visibility
-         * record the 2D layers use.
-         */
-        _push3DPlans(view) {
+            // Every operation with plans that has not been hidden
             const plans = [];
             for (const [opId, entry] of this.core.toolpaths) {
                 if (!entry?.plans?.length) continue;
-                const vis = this.core.getOperation(opId)?.layerVisibility;
-                // `generated` is EasyShape's bucket master and is absent in
-                // EasyTrace, where it reads as visible - the toolpath key is
-                // the per-artifact eye in both apps.
-                if (vis?.generated === false || vis?.toolpath === false) continue;
-                plans.push(...entry.plans);
+                const vis = this.core.store.getOperation(opId)?.layerVisibility;
+                false !== vis?.generated && false !== vis?.toolpath && plans.push(...entry.plans);
             }
             view.setPlans(plans);
         }
@@ -466,40 +459,46 @@
         // ════════════════════════════════════════════════════════════════
 
         registerSharedShortcuts() {
-            // Palette first: setOptions resets what Renderer3D owns (background,
-            // grid, lights) and refresh3D re-pushes stock, layers and plans so
-            // every material that reads core.options is rebuilt.
             window.addEventListener("themechange", () => this.applyTheme3D());
             window.addEventListener("settingschange", () => this.refresh3D());
             this.core.scene.addTransformListener(() => this.refresh3D());
-            this.shortcutManager.register("F2", () => this.toggle3DMode());
 
-            const sm = this.shortcutManager;
-
-            // View
-            sm.register('f',     () => this.ui.zoomFit());
-            sm.register('Home',  () => this.ui.zoomFit());
-            sm.register('=',     () => this.ui.zoomFit());
-            sm.register('+',     () => this.ui.zoomIn());
-            sm.register('-',     () => this.ui.zoomOut());
-
-            // Grid
-            sm.register('g', () => {
-                if (this.ui.renderer) {
-                    const t = document.getElementById('show-grid');
-                    if (t) { t.checked = !t.checked; t.dispatchEvent(new Event('change', { bubbles: true })); }
-                    else this.ui.renderer.setOptions({ showGrid: !this.ui.renderer.options.showGrid });
-                }
+            this.shortcutManager.registerActions({
+                toggle3D: () => this.toggle3DMode(),
+                zoomFit: () => this.ui.zoomFit(),
+                zoomIn: () => this.ui.zoomIn(),
+                zoomOut: () => this.ui.zoomOut(),
+                toggleGrid: () => {
+                    if (this.ui.renderer) {
+                        const t = document.getElementById("show-grid");
+                        if (t) {
+                            t.checked = !t.checked;
+                            t.dispatchEvent(new Event("change", { bubbles: true }));
+                        } else {
+                            this.ui.renderer.setOptions({ showGrid: !this.ui.renderer.options.showGrid });
+                        }
+                    }
+                },
+                escape: e => this.handleEscapeKey(e),
+                showHelp: () => this.modalManager?.showModal("help"),
+                toggleVerboseDebug: () => {
+                    const t = document.getElementById("debug-log-toggle");
+                    if (t) {
+                        t.checked = !t.checked;
+                        t.dispatchEvent(new Event("change", { bubbles: true }));
+                        this.ui.setStatus("Verbose debug " + (t.checked ? "on" : "off"), "info", true);
+                    }
+                },
+                cycleFocusZone: e => this.cycleFocusZone(e.shiftKey ? -1 : 1)
             });
 
-            // Escape
-            sm.register('Escape', (e) => this.handleEscapeKey(e));
-
-            // Help
-            sm.register('F1', () => this.modalManager?.showModal('help'));
-
-            // Focus zones
-            sm.register('F6', (e) => this.cycleFocusZone(e.shiftKey ? -1 : 1));
+           // Hard reads. defaults.ui.shortcuts is the vocabulary and is not
+            // optional - a `?.` here turns a typo in config.js into an app
+            // with no keyboard and no error.
+            const profileTable = this.appProfile.ui.shortcuts || [];
+            const overridden = new Set(profileTable.map(s => s.combo));
+            const shared = D.ui.shortcuts.filter(s => !overridden.has(s.combo));
+            this.shortcutManager.applyTable([...profileTable, ...shared]);
         }
 
         // ════════════════════════════════════════════════════════════════
@@ -509,8 +508,10 @@
         cycleFocusZone(direction) {
             if (this.modalManager?.activeModal) return;
 
-            // Define the sequence directly where it's used
-            const zones = ['cam-toolbar', 'sidebar-left', 'preview-canvas', 'sidebar-right'];
+            // The viewport zone is whichever surface is live. The hidden one
+            // cannot take focus, and its _zoneMemory entry must not be picked.
+            const viewportId = this.renderMode === '3d' ? 'viewport-3d' : 'preview-canvas';
+            const zones = ['cam-toolbar', 'sidebar-left', viewportId, 'sidebar-right'];
             if (!this._zoneMemory) this._zoneMemory = new Map();
 
             const activeEl = document.activeElement;
@@ -528,8 +529,8 @@
             });
 
             // Calculate the next zone index, defaulting to the start/end if focus was lost
-            const nextIndex = currentIndex === -1 
-                ? (direction > 0 ? 0 : zones.length - 1) 
+            const nextIndex = currentIndex === -1
+                ? (direction > 0 ? 0 : zones.length - 1)
                 : (currentIndex + direction + zones.length) % zones.length;
 
             const nextId = zones[nextIndex];
@@ -537,15 +538,56 @@
             if (!nextZoneEl) return;
 
             // Restore focus to the remembered element, or grab the first available target
+            let landed = null;
             const remembered = this._zoneMemory.get(nextId);
-            if (remembered && document.body.contains(remembered)) {
+
+            if (remembered && document.body.contains(remembered) && remembered.offsetParent !== null) {
                 remembered.focus();
+                landed = remembered;
+            } else if (nextZoneEl.hasAttribute('tabindex')) {
+                // querySelector below only searches descendants. The viewport
+                // zones ARE the zone element and a canvas has no children so
+                // without this branch focus never enters them.
+                nextZoneEl.focus();
+                landed = nextZoneEl;
             } else {
                 const target = nextZoneEl.querySelector(
-                    '[tabindex="0"]:not(canvas), button:not([disabled]), input:not([disabled]), select:not([disabled])'
+                    '[tabindex="0"], button:not([disabled]):not([tabindex="-1"]), input:not([disabled]), select:not([disabled])'
                 );
-                if (target) target.focus();
+                if (target) { target.focus(); landed = target; }
             }
+
+            if (landed) this.announceFocusZone(nextId, nextZoneEl);
+        }
+
+        announceFocusZone(zoneId, zoneEl) {
+            const fallback = {
+                'cam-toolbar': 'Toolbar',
+                'sidebar-left': 'Left panel',
+                'preview-canvas': 'Canvas',
+                'viewport-3d': '3D viewport',
+                'sidebar-right': 'Properties'
+            };
+            const name = zoneEl.getAttribute('aria-label') || fallback[zoneId] || zoneId;
+            this.ui?.setStatus?.(`${name} focused`, 'info', true);
+        }
+
+        /**
+         * Destructive actions with no undo path get a confirmation. EasyShape's
+         * shape deletes go through history and deliberately do NOT use this -
+         * a dialog in front of an undoable action is friction, not safety.
+         */
+        confirmDestructive(title, message, onConfirm, confirmText = 'Delete') {
+            const returnTo = document.activeElement;
+            const restore = () => {
+                if (returnTo && document.body.contains(returnTo)) returnTo.focus();
+            };
+            this.modalManager?.showWarning(title, message, {
+                confirmText,
+                cancelText: 'Cancel',
+                onConfirm: () => { onConfirm(); restore(); },
+                onCancel: restore
+            });
         }
 
         /** Subclasses override for escape behavior */
@@ -556,11 +598,25 @@
         // ════════════════════════════════════════════════════════════════
 
         initCore() {
-            this.core = new CamCore();
-            this.parameterManager = new ParameterManager(this.core);
-            if (typeof ToolLibrary !== 'undefined') {
-                this.toolLibrary = new ToolLibrary();
-            }
+            // ParameterStore is built before loadProfile, so registry and
+            // toolLibrary are still null here. The getters bind late; a plain
+            // value would freeze the nulls and every stage cascade would return
+            // empty with no error anywhere. `lang` binds the same way - the
+            // LanguageManager is not constructed until after loadProfile.
+            const ctrl = this;
+            this.core = new CamCore({
+                emit: (type, detail) => window.dispatchEvent(new CustomEvent(type, { detail })),
+                storage: window.localStorage
+            });
+            this.parameterStore = new ParameterStore({
+                get settings() { return ctrl.core.settings; },
+                get registry() { return ctrl.core.registry; },
+                get toolLibrary() { return ctrl.core.toolLibrary; },
+                get lang() { return ctrl.languageManager; },
+                getOperation: id => ctrl.core.store.getOperation(id)
+            });
+            this.inputRenderer = new InputRenderer(this.parameterStore, this.core);
+            this.toolLibrary = new ToolLibrary();
             this.initState.coreReady = true;
         }
 
@@ -579,7 +635,7 @@
             }
             if (!data) return null;
 
-            if (data.parameters) this.parameterManager.setDefinitions(data.parameters);
+            if (data.parameters) this.parameterStore.setDefinitions(data.parameters);
 
             this.registry = new OperationRegistry(data);
             // REVIEW - Defensive debug check, worth keeping?
@@ -598,14 +654,35 @@
             this.core.setGCodeGenerator(this.gcodeGenerator);
         }
 
+        async initGraphicsExporter() {
+            this.graphicsExporter = new GraphicsExporter();
+            if (typeof EMBEDDED_LASER_PROFILES !== 'undefined') {
+                this.graphicsExporter.setProfiles(EMBEDDED_LASER_PROFILES);
+                this.core.setGraphicsExporter(this.graphicsExporter);
+                return;
+            }
+            let data = null;
+            try {
+                const url = '../export/laser-profiles.json';
+                const resp = await fetch(url);
+                if (resp.ok) {
+                    data = await resp.json();
+                } else {
+                    console.error(`Failed to load laser profiles: ${url} (${resp.status})`);
+                }
+            } catch (e) {
+                console.error(`Failed to load laser profiles: ${e.message}`);
+            }
+            if (data) this.graphicsExporter.setProfiles(data);
+            this.core.setGraphicsExporter(this.graphicsExporter);
+        }
+
         async initToolLibrary() {
             if (!this.toolLibrary) return;
             this.toolLibrary.registry = this.registry;
             await this.toolLibrary.init(this.appProfile);
             if (this.core.setToolLibrary) this.core.setToolLibrary(this.toolLibrary);
         }
-
-        initPipelineComponents() { this.core.initializePipeline(); }
 
         async initializeWASM() {
             try {
@@ -617,7 +694,7 @@
                 this.debug('Loading Clipper2 WASM modules...');
                 const result = await this.core.initializeProcessors();
                 this.initState.wasmReady = !!result;
-                if (result) console.log('Clipper2 WASM modules loaded successfully');
+                if (result) this.debug('Clipper2 WASM modules loaded successfully');
                 return !!result;
             } catch (error) {
                 console.error('WASM initialization error:', error);
@@ -627,39 +704,46 @@
         }
 
         // ════════════════════════════════════════════════════════════════
-        // Pipeline State - REVIEW - a lot of these look like excessive defensive code
+        // Pipeline State
         // ════════════════════════════════════════════════════════════════
+
+        get pipelineState() { return this.core.settings.pipeline; }
 
         /**
          * @param {string} machineClass - 'router' | 'laser'
          * @param {Object} [opts]
-         * @param {Object} [opts.laser]       - laser machine config
-         * @param {Object} [opts.classByType] - per-type overrides (the old 'hybrid')
+         * @param {Object} [opts.classByType] - per-type class overrides
          */
         setMachineClass(machineClass, opts = {}) {
-            this.pipelineState = {
-                machineClass,
-                classByType: opts.classByType || null,
-                laser: opts.laser !== undefined ? opts.laser : this.pipelineState.laser
-            };
-            if (this.core) {
-                this.core.setMachineClass(machineClass, this.pipelineState.classByType);
-                this.core.updateSettings('pipeline', { ...this.pipelineState });
-            }
-            this.debug(`Machine class set: ${machineClass}`, this.pipelineState);
-            return this.pipelineState;
+            const state = { machineClass, classByType: opts.classByType || null };
+            this.core.updateSettings('pipeline', state);
+            this.core.setMachineClass(machineClass, state.classByType);
+            this.ui.refreshMachineSettings();
+            return state;
         }
 
-        syncPipelineFromSettings() {
-            const saved = this.core?.settings?.pipeline;
-            if (!saved?.machineClass) return;
-            this.pipelineState = {
-                machineClass: saved.machineClass,
-                classByType: saved.classByType || null,
-                laser: saved.laser || null
-            };
-            this.core?.setMachineClass(saved.machineClass, this.pipelineState.classByType);
-            this.debug('Restored pipeline from settings:', this.pipelineState);
+        /**
+         * The pipeline commit behind the laser-config cards.
+         */
+        applyPipelineChoice(choice) {
+            // Copper goes to the laser, holes and outline to the mill.
+            // Per-operation stamps come from this at createOperation.
+            if (choice === 'fiber') {
+                this.setMachineClass('router', { classByType: { isolation: 'laser', clearing: 'laser' } });
+            } else {
+                this.setMachineClass('laser');
+            }
+        }
+
+        /** Batch ingest for the quickstart drop zones. */
+        async processFiles(fileByType) {
+            for (const [type, file] of Object.entries(fileByType)) {
+                if (file) await this.processFile(file, type);
+            }
+            requestAnimationFrame(() => {
+                this.ui.renderer.zoomFit();
+                this.ui.renderer.render();
+            });
         }
 
         /** @param {?string[]} dims - null clears the restriction. */
@@ -670,25 +754,8 @@
 
         allowsOperationType(type) {
             if (!this.workspaceDimensions) return true;
-            const dim = this.registry?.dimensionFor(type, this.resolveMachineClass(type));
+            const dim = this.registry?.dimensionFor(type, this.core.machineClassForType(type));
             return !dim || this.workspaceDimensions.has(dim);
-        }
-
-        /**
-         * Session-level class for a type, before any per-operation override.
-         */
-        resolveMachineClass(operationType) {
-            const s = this.pipelineState;
-            const preferred = s.classByType?.[operationType] || s.machineClass;
-            return this.registry?.resolveMachineClass(operationType, preferred) || preferred;
-        }
-
-        /**
-         * Class an EXISTING operation runs on. The stamp wins.
-         */
-        machineClassOf(operation) {
-            if (!operation) return this.pipelineState.machineClass;
-            return operation.machineClass || this.resolveMachineClass(operation.type);
         }
 
         // ════════════════════════════════════════════════════════════════
@@ -699,22 +766,14 @@
          * Per-operation plans, for the toolpath stage and the 3D view.
          */
         async computeToolpaths(operationId, options = {}) {
-            return this.core.computeToolpaths(operationId, this.parameterManager, options);
-        }
-
-        // generateCNCResults (G-code, a batch) and CamController.calculateToolpaths
-        // (a forward to the second) are three names for two artifacts. The
-        // difference is currentMachinePos, backward-filled metadata.tool and one
-        // convertDevelopedToRotary cursor.
-        async calculateToolpaths(intent) {
-            return this.core.generateCNCResults(intent, this.parameterManager);
+            return this.core.computeToolpaths(operationId, this.parameterStore, options);
         }
 
         async executeExports(intent) {
             const route = ids => {
                 const cncOperationIds = [], laserOperationIds = [], vectorOperationIds = [];
                 for (const id of ids) {
-                    const op = this.core.getOperation(id);
+                    const op = this.core.store.getOperation(id);
                     if (!op) continue;
                     const cls = this.core.machineClassOf(op);
                     if ('laser' === cls) laserOperationIds.push(id);
@@ -726,7 +785,7 @@
 
             const stencils = [], board = [];
             for (const id of intent.operationIds) {
-                ('stencil' === this.core.getOperation(id)?.type ? stencils : board).push(id);
+                ('stencil' === this.core.store.getOperation(id)?.type ? stencils : board).push(id);
             }
 
             const messages = [];
@@ -739,12 +798,13 @@
             }
 
             for (const id of stencils) {
-                const op = this.core.getOperation(id);
-                const label = (op.file?.name || op.id).replace(/\.[^.]+$/, '');
+                const op = this.core.store.getOperation(id);
+                const label = (op.file?.name || op.id).replace(/\.[^.]+$/, "");
                 const r = await this.runExport({
                     ...intent,
                     singleFile: false,
                     baseName: `${intent.baseName}-stencil-${label}`,
+                    gcodeResults: intent.gcodeResults,
                     ...route([id])
                 });
                 success = success || r.success;
@@ -767,14 +827,14 @@
             const parts = [];
 
             // G-code
-            const cncOps = (intent.cncOperationIds || []).map(id => this.core.getOperation(id)).filter(Boolean);
+            const cncOps = (intent.cncOperationIds || []).map(id => this.core.store.getOperation(id)).filter(Boolean);
             if (cncOps.length > 0) {
                 const processorInfo = this.core.gcodeGenerator.getProcessorInfo(this.core.settings.gcode.postProcessor);
                 const cncExt = processorInfo.fileExtension;
 
                 let gcodeResults = intent.gcodeResults;
                 if (!gcodeResults || Object.keys(gcodeResults).length === 0) {
-                    gcodeResults = await this.core.generateCNCResults({
+                    gcodeResults = await this.core.generateGCodeResults({
                         operationIds: intent.cncOperationIds,
                         singleFile: intent.singleFile,
                         // Was `splitDrills`, which nothing ever set: pressing
@@ -784,9 +844,8 @@
                         optimize: intent.optimize ?? true,
                         includeComments: intent.includeComments,
                         toolChanges: intent.toolChanges,
-                        groupByTool: intent.groupByTool,
-                        toolIndexMap: intent.toolIndexMap
-                    }, this.parameterManager);
+                        groupByTool: intent.groupByTool
+                    }, this.parameterStore);
                 }
 
                 if (intent.singleFile) {
@@ -828,53 +887,43 @@
             }
 
             // Laser
-            const laserOps = (intent.laserOperationIds || []).map(id => this.core.getOperation(id)).filter(Boolean);
+            const laserOps = (intent.laserOperationIds || []).map(id => this.core.store.getOperation(id)).filter(Boolean);
             if (laserOps.length > 0) {
                 const unready = laserOps.filter(op => !op.offsets || op.offsets.length === 0);
                 if (unready.length > 0) {
                     this.debug(`Laser export blocked: ${unready.map(o => o.file.name).join(', ')} missing paths`);
                 } else {
                     const laserSettings = this.core.settings.laser;
-                    const activeProfile = laserSettings.profiles?.[laserSettings.activeProfile || 'generic'] || {};
-                    const result = await this.core.generateLaserExportFiles(laserOps, this.parameterManager, {
+                    const result = await this.core.generateLaserExportFiles(laserOps, this.parameterStore, {
                         format: laserSettings.exportFormat,
                         dpi: laserSettings.exportDPI,
                         padding: intent.laserPadding ?? laserSettings.exportPadding,
                         includeComments: intent.includeComments,
                         singleFile: intent.singleFile,
-                        baseName: intent.baseName,
-                        layerColors: laserSettings.layerColors,
-                        heatManagement: laserSettings.heatManagement,
-                        reverseCutOrder: laserSettings.reverseCutOrder,
-                        svgGrouping: laserSettings.svgGrouping,
-                        colorPerPass: laserSettings.colorPerPass,
-                        palette: activeProfile.palette,
-                        paletteLumping: activeProfile.paletteLumping
+                        baseName: intent.baseName
                     });
-                    if (result.success) {
-                        allFiles.push(...result.files);
-                        parts.push('Laser');
-                    }
+                    if (result.success) { allFiles.push(...result.files); parts.push('Laser'); }
                 }
             }
 
             // Plain vector: knife, drag cutter
-            const vectorOps = (intent.vectorOperationIds || []).map(id => this.core.getOperation(id)).filter(Boolean);
+            const vectorOps = (intent.vectorOperationIds || []).map(id => this.core.store.getOperation(id)).filter(Boolean);
             if (vectorOps.length > 0) {
                 const unready = vectorOps.filter(op => !op.offsets || op.offsets.length === 0);
                 if (unready.length > 0) {
                     this.debug(`Vector export blocked: ${unready.map(o => o.file.name).join(', ')} missing geometry`);
                 } else {
-                    const result = await this.core.generateLaserExportFiles(vectorOps, this.parameterManager, {
-                        layerColors: { stencil: '#000000' },
-                        format: 'svg',
+                    const exportBaseName = intent.baseName.includes("stencil") ? intent.baseName : `${intent.baseName}-vector`;
+                    const result = await this.core.generateLaserExportFiles(vectorOps, this.parameterStore, {
+                        layerColors: { stencil: "#000000" },
+                        format: "svg",
                         padding: intent.stencilPadding ?? 5,
                         includeComments: intent.includeComments,
                         singleFile: intent.singleFile,
-                        baseName: intent.baseName + '-vector',
-                        heatManagement: 'off',
+                        baseName: exportBaseName,
+                        heatManagement: "off",
                         reverseCutOrder: false,
-                        svgGrouping: 'layer',
+                        svgGrouping: "layer",
                         colorPerPass: false
                     });
                     if (result.success) {
@@ -918,7 +967,7 @@
         // ════════════════════════════════════════════════════════════════
 
         getExamples() {
-            return this.appProfile?.examples || {};
+            return this.appProfile.examples;
         }
 
         // ════════════════════════════════════════════════════════════════
@@ -931,7 +980,7 @@
         }
 
         initializeTheme() {
-            const key = window.CAMConfig.constants.storageKeys.theme;
+            const key = ROOT.CAMConfig.constants.storageKeys.theme;
             const savedTheme = localStorage.getItem(key) || 'dark';
             document.documentElement.setAttribute('data-theme', savedTheme);
             return savedTheme;
@@ -940,38 +989,81 @@
         setupToolbarDropdown(btnId, menuId) {
             const btn = document.getElementById(btnId);
             const menu = document.getElementById(menuId);
-            if (!btn || !menu) return { close() {} };
+            if (!btn || !menu) return;
 
-            btn.setAttribute('aria-haspopup', 'true');
-            btn.setAttribute('aria-expanded', 'false');
-            menu.setAttribute('role', 'menu');
-            menu.querySelectorAll('.menu-item').forEach(item => item.setAttribute('role', 'menuitem'));
-            const close = () => {
-                btn.classList.remove('active');
-                btn.setAttribute('aria-expanded', 'false');
-                menu.classList.remove('show');
+            btn.setAttribute("aria-haspopup", "true");
+            btn.setAttribute("aria-expanded", "false");
+            menu.setAttribute("role", "menu");
+            menu.querySelectorAll(".menu-item").forEach(item => {
+                item.setAttribute("role", "menuitem");
+                item.setAttribute("tabindex", "-1");
+            });
+
+            const closeMenu = (restoreFocus = false) => {
+                btn.classList.remove("active");
+                btn.setAttribute("aria-expanded", "false");
+                menu.classList.remove("is-open");
+                if (this.activeDropdown?.menu === menu) this.activeDropdown = null;
+                restoreFocus && btn.focus();
             };
 
-            btn.addEventListener('click', (e) => {
+            const openMenu = () => {
+                this.closeDropdown(); // Close any currently open dropdown first
+                btn.classList.add("active");
+                btn.setAttribute("aria-expanded", "true");
+                menu.classList.add("is-open");
+                this.activeDropdown = { menu, close: closeMenu };
+                menu.querySelector(".menu-item")?.focus();
+            };
+
+            btn.addEventListener("click", e => {
                 e.stopPropagation();
-                const expanded = btn.classList.toggle('active');
-                btn.setAttribute('aria-expanded', String(expanded));
-                menu.classList.toggle('show');
+                menu.classList.contains("is-open") ? closeMenu() : openMenu();
             });
 
-            document.addEventListener('click', (e) => {
-                if (!menu.classList.contains('show')) return;
-                if (!btn.contains(e.target) && !menu.contains(e.target)) close();
+            btn.addEventListener("keydown", e => {
+                if ("ArrowDown" === e.key) {
+                    e.preventDefault();
+                    openMenu();
+                }
             });
 
-            menu.addEventListener('click', (e) => e.stopPropagation());
+            menu.addEventListener("keydown", e => {
+                const items = Array.from(menu.querySelectorAll(".menu-item:not([disabled])"));
+                const idx = items.indexOf(document.activeElement);
+                if ("ArrowDown" === e.key) {
+                    e.preventDefault();
+                    items[(idx + 1) % items.length]?.focus();
+                } else if ("ArrowUp" === e.key) {
+                    e.preventDefault();
+                    items[(idx - 1 + items.length) % items.length]?.focus();
+                } else if ("Home" === e.key) {
+                    e.preventDefault();
+                    items[0]?.focus();
+                } else if ("End" === e.key) {
+                    e.preventDefault();
+                    items[items.length - 1]?.focus();
+                } else if ("Escape" === e.key) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    closeMenu(true);
+                } else if ("Tab" === e.key) {
+                    closeMenu();
+                }
+            });
 
-            this.activeDropdown = { close };
-            return this.activeDropdown;
+            document.addEventListener("click", e => {
+                menu.classList.contains("is-open") && !btn.contains(e.target) && !menu.contains(e.target) && closeMenu();
+            });
+
+            menu.addEventListener("click", e => {
+                if (e.target.closest(".menu-item")) closeMenu();
+                else e.stopPropagation();
+            });
         }
 
         closeDropdown() {
-            if (this.activeDropdown) this.activeDropdown.close();
+            this.activeDropdown?.close();
         }
 
         setupViewportBarDismiss(barId = 'workspace-viewport-bar', btnId = 'dismiss-viewport-bar') {
@@ -1006,19 +1098,24 @@
             });
         }
 
+        preload3D() {
+            if ("undefined" === typeof window || window.Renderer3D) return;
+            const fetch3D = () => import("../renderer3d/renderer3d-core.js").catch(() => {});
+            "requestIdleCallback" in window
+                ? window.requestIdleCallback(fetch3D, { timeout: 3000 })
+                : setTimeout(fetch3D, 1500);
+        }        
+
         // Lazy 3D mount: nothing loads until requested. Stock, 2D geometry
         // and relief meshes flow in through refresh3D() so the view can
         // never go stale. Machine-ready plans are not mirrored here - the
         // export path owns toolpath generation.
         async open3DPreview(container) {
-            if (!window.Renderer3D) {
-                await import('../renderer3d/renderer3d-core.js');
-            }
+            window.Renderer3D || await import("../renderer3d/renderer3d-core.js");
             if (!this.renderer3D) {
-                this.renderer3D = await window.Renderer3D.mount(
-                    container, this.buildRenderer3DOptions());
+                this.renderer3D = await window.Renderer3D.mount(container, this.buildRenderer3DOptions());
                 await this.renderer3D.attachOrbitTool({
-                    onPick: (hit) => this.on3DPick?.(hit)
+                    onPick: hit => this.on3DPick?.(hit)
                 });
             }
             return this.renderer3D;
@@ -1058,7 +1155,7 @@
         getStats() {
             return {
                 initialization: this.initState,
-                core: this.core?.getStats?.() || null,
+                core: this.core?.store?.getStats() ?? null,
                 renderer: {
                     hasRenderer: !!this.ui?.renderer,
                     layerCount: this.ui?.renderer?.layers?.size || 0
@@ -1074,5 +1171,5 @@
         }
     }
 
-    window.CamController = CamController;
+    ROOT.CamController = CamController;
 })();

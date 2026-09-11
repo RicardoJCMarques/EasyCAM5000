@@ -11,9 +11,9 @@
 
 (function() {
     'use strict';
+    const ROOT = globalThis;
 
-    const C = window.CAMConfig.constants;
-    const D = window.CAMConfig.defaults;
+    const C = ROOT.CAMConfig.constants;
 
     let nextPrimitiveId = 1;
 
@@ -116,48 +116,37 @@
 
             this.contours.forEach(contour => {
                 // Calculate bounds from outer contours only (skip holes)
-                if (!contour.isHole && contour.points) {
-                    const b = GeometryUtils.boundsOfPoints(contour.points);
-                    if (b) {
-                        if (b.minX < minX) minX = b.minX;
-                        if (b.minY < minY) minY = b.minY;
-                        if (b.maxX > maxX) maxX = b.maxX;
-                        if (b.maxY > maxY) maxY = b.maxY;
+                if (!contour.isHole) {
+                    if (contour.points) {
+                        const b = GeometryUtils.boundsOfPoints(contour.points);
+                        if (b) {
+                            b.minX < minX && (minX = b.minX);
+                            b.minY < minY && (minY = b.minY);
+                            b.maxX > maxX && (maxX = b.maxX);
+                            b.maxY > maxY && (maxY = b.maxY);
+                        }
                     }
-                }
 
-                // Expand bounds for arc segments
-                if (contour.arcSegments && contour.arcSegments.length > 0) {
-                    contour.arcSegments.forEach(seg => {
-                        const { center, radius, startAngle, endAngle, clockwise } = seg;
-                        const checkCrossing = (angle) => {
-                            const normalizedAngle = angle % (2 * Math.PI);
-                            let start = startAngle % (2 * Math.PI);
-                            let end = endAngle % (2 * Math.PI);
-
-                            if (start < 0) start += 2 * Math.PI;
-                            if (end < 0) end += 2 * Math.PI;
-
-                            if (clockwise) {
-                                if (start > end) {
-                                    return normalizedAngle <= start && normalizedAngle >= end;
-                                } else {
-                                    return normalizedAngle <= start || normalizedAngle >= end;
-                                }
-                            } else {
-                                if (start < end) {
-                                    return normalizedAngle >= start && normalizedAngle <= end;
-                                } else {
-                                    return normalizedAngle >= start || normalizedAngle <= end;
-                                }
-                            }
-                        };
-
-                        if (checkCrossing(0)) maxX = Math.max(maxX, center.x + radius);
-                        if (checkCrossing(Math.PI / 2)) maxY = Math.max(maxY, center.y + radius);
-                        if (checkCrossing(Math.PI)) minX = Math.min(minX, center.x - radius);
-                        if (checkCrossing(3 * Math.PI / 2)) minY = Math.min(minY, center.y - radius);
-                    });
+                    // Expand bounds for arc segments
+                    if (contour.arcSegments && contour.arcSegments.length > 0) {
+                        contour.arcSegments.forEach(seg => {
+                            const { center, radius, startAngle, endAngle, clockwise } = seg;
+                            const checkCrossing = angle => {
+                                const norm = angle % (2 * Math.PI);
+                                let start = startAngle % (2 * Math.PI);
+                                let end = endAngle % (2 * Math.PI);
+                                start < 0 && (start += 2 * Math.PI);
+                                end < 0 && (end += 2 * Math.PI);
+                                return clockwise
+                                    ? (start > end ? norm <= start && norm >= end : norm <= start || norm >= end)
+                                    : (start < end ? norm >= start && norm <= end : norm >= start || norm >= end);
+                            };
+                            checkCrossing(0) && (maxX = Math.max(maxX, center.x + radius));
+                            checkCrossing(Math.PI / 2) && (maxY = Math.max(maxY, center.y + radius));
+                            checkCrossing(Math.PI) && (minX = Math.min(minX, center.x - radius));
+                            checkCrossing(3 * Math.PI / 2) && (minY = Math.min(minY, center.y - radius));
+                        });
+                    }
                 }
             });
 
@@ -580,13 +569,13 @@
         }
     }
 
-    window.Polyline3DPrimitive = Polyline3DPrimitive;
-    window.RenderPrimitive = RenderPrimitive;
-    window.PathPrimitive = PathPrimitive;
-    window.CirclePrimitive = CirclePrimitive;
-    window.RectanglePrimitive = RectanglePrimitive;
-    window.ObroundPrimitive = ObroundPrimitive;
-    window.ArcPrimitive = ArcPrimitive;
-    window.EllipticalArcPrimitive = EllipticalArcPrimitive;
-    window.BezierPrimitive = BezierPrimitive;
+    ROOT.Polyline3DPrimitive = Polyline3DPrimitive;
+    ROOT.RenderPrimitive = RenderPrimitive;
+    ROOT.PathPrimitive = PathPrimitive;
+    ROOT.CirclePrimitive = CirclePrimitive;
+    ROOT.RectanglePrimitive = RectanglePrimitive;
+    ROOT.ObroundPrimitive = ObroundPrimitive;
+    ROOT.ArcPrimitive = ArcPrimitive;
+    ROOT.EllipticalArcPrimitive = EllipticalArcPrimitive;
+    ROOT.BezierPrimitive = BezierPrimitive;
 })();

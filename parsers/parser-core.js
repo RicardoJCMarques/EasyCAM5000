@@ -11,12 +11,11 @@
 
 (function() {
     'use strict';
+    const ROOT = globalThis;
 
-    const C = window.CAMConfig.constants;
-    const D = window.CAMConfig.defaults;
-    const PRECISION = C.precision.coordinate;
+    const C = ROOT.CAMConfig.constants;
+    const D = ROOT.CAMConfig.defaults;
     const debugState = D.debug;
-    const validationConfig = debugState.validation;
 
     class ParserCore {
         constructor(options = {}) {
@@ -172,14 +171,6 @@
             }
         }
 
-        calculateWinding(points) {
-            return GeometryUtils.calculateWinding(points);
-        }
-
-        isClockwise(points) {
-            return GeometryUtils.isClockwise(points);
-        }
-
         // Edge deduplication utilities
         createEdgeKey(p1, p2) {
             const edgeKeyDecimals = C.geometry.edgeKeyDecimals;
@@ -262,5 +253,5 @@
         }
     }
 
-    window.ParserCore = ParserCore;
+    ROOT.ParserCore = ParserCore;
 })();

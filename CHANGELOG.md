@@ -1,8 +1,33 @@
 # Changelog
 
-All notable changes to the **EasyTrace5000** project will be documented in this file.
+All notable changes to the **EasyCAM5000** project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [1.6.1] - 2026-09-11
+
+### Added
+- **Copper Holes:** A hidden operation adds holes/slots to rendered copper geometry on drill toolpath generation. Especially useful for oversized tools that eat away copper pads.
+- **EasyShape5000 Accessibility:** Initial draft ARIA implementation and keyboard navigation rework on EasyShape5000.
+- **Stock Margin:** New parameter for stock auto-fit that leaves a space around the bounding box. (May be expanded to automatic cutouts, maybe...)
+
+### Changed
+- **Documentation:** Updated a bit to account for all the recent additions like 3D operations.
+- **Keybard Shortcuts:** Upgraded keyboard shortcut handling between apps.
+- **Loading Apps:** Tweaks to improve loading speed and transitions, for example moving from 2D to 3D rendering.
+- **Laser Profiles .json:** Move towards custom Laser machine profiles.
+- **GitHub Stuff:** Reworked READMEs and TEMPLATES.
+- **ToolChanging Tweaks:** Minor rework of the back-end logic. Shouldn't break anything.
+
+### Fixed
+- **Pocket Nesting:** Hole/Island detection toggle wasn't getting enforced in Pockets so only the outer shell polygon was processed.
+- **3D Rendering + Transforms:** 3D rendering plays nicer with transforms now.
+- **2D Laser in 3D:** 3D Renderer deals with laser geometry better.
+
+### Known Problems
+- **2D Stock Margin:** 2D rendering doesn't know how to deal with stock margin.
+- **Mold Mode:** The inversion on 3D flat reliefs is sort of working but not in a usable way yet.
+
 
 ## [1.6.0] - 2026-09-02
 
@@ -29,6 +54,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - **3D Rendering + Transforms:** 3D Renderer doesn't like mirror/rotation, gcode should be fine.
 - **Mold Mode:** The inversion on 3D flat reliefs is sort of working but not in a usable way yet.
 
+
 ## [1.5.0] - 2026-08-24
 
 ### Added
@@ -49,6 +75,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - **Drill Size:** False alarms are triggering warnings that tool is too big to mill when it's not.
 - **Circle Stay-down:** Stay-down optimizations for full circles seems to be broken. May be related to rotate optimizations.
 - **Mold Mode:** The inversion on 3D flat reliefs is sort of working but not in a usable way yet.
+
 
 ## [1.4.9] - 2026-08-09
 

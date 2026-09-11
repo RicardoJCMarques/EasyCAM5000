@@ -15,7 +15,6 @@
     class TraceOperationPanel extends BaseOperationPanel {
         constructor(ui) {
             super(ui);
-            this.core = ui.core;
         }
 
         // ═══════════════════════════════════════════════════════════════
@@ -25,12 +24,6 @@
         getIdPrefix() { return 'prop-'; }
 
         getFormContainer() { return document.getElementById('property-form'); }
-
-        init(toolLibrary, parameterManager) {
-            this.toolLibrary = toolLibrary;
-            this.initBase(this.core, parameterManager || new ParameterManager(), this.ui.ctrl.appProfile, this.ui.lang);
-            this.debug('Initialized');
-        }
 
         /**
          * Nav tree draws the geometry nodes; refresh them when stale.
@@ -80,14 +73,14 @@
                 // Switching operations: save outgoing, load incoming
                 if (this.currentOperationId) this.saveCurrentState();
                 this.currentOperationId = operation.id;
-                this.parameterManager.loadFromOperation(operation);
+                this.parameterStore.loadFromOperation(operation);
             }
 
             // The chain decides which forms exist. Anything else reached here
             // from a stale caller - clamp into the chain rather than remapping
             // by session class, which cannot see a per-type override.
             const { stages, artifacts } = this.getOperationContext(operation.type);
-            if (!stages.includes(stage)) stage = this.core.isExportReady?.(operation) ? stages[stages.length - 1] : stages[0];
+            if (!stages.includes(stage)) stage = this.core.store.isExportReady(operation) ? stages[stages.length - 1] : stages[0];
             this.currentStage = stage;
 
             // A chain terminating before `toolpath` has no G-code of its own;
@@ -129,7 +122,7 @@
             // millHoles, which lives in the geometry bag. A stage-scoped read
             // resolves the gate to undefined and hides every dependent field.
             // Use getAllParameters so cross-stage conditionals (e.g. millHoles gating drillMultiDepth) evaluate correctly
-            const values = this.parameterManager.getAllParameters(operation.id);
+            const values = this.parameterStore.getAllParameters(operation.id);
             this.renderParameterForm(container, operation.type, stage, values);
 
             // Drill tooling, immediately above the action button: it reports what
@@ -164,7 +157,7 @@
         // ═══════════════════════════════════════════════════════════════
 
         resolveCurrentOperation() {
-            return this.core.getOperation(this.currentOperationId);
+            return this.core.store.getOperation(this.currentOperationId);
         }
 
         resolveOperationType(operation) {
@@ -195,7 +188,7 @@
                     this.ui.navTreePanel.selectGeometryByType(operation.id, 'offsets');
                 }
             }
-            await this.ui.updateRendererAsync();
+            await this.ui.rebuildLayers();
         }
 
         onGenerationFailure(opId, operation, stage) {
@@ -215,7 +208,7 @@
                     this.ui.navTreePanel.selectGeometryByType(operation.id, 'preview');
                 }
             }
-            await this.ui.updateRendererAsync();
+            await this.ui.rebuildLayers();
         }
 
         // REVIEW - Why doesn't EasyShape5000 need this?
@@ -235,14 +228,14 @@
                     this.ui.navTreePanel.selectGeometryByType(opId, 'toolpath');
                 }
             }
-            await this.ui.updateRendererAsync();
-            await this.ui.ctrl.setViewportForNode?.('toolpath', operation);
+            await this.ui.rebuildLayers();
+            await this.ui.ctrl.setViewportForNode('toolpath', operation);
         }
 
         onExportStage(opId, operation) {
             const ctrl = this.ui.ctrl;
             if (ctrl?.modalManager) {
-                const readyOps = this.core.operations.filter(o => this.core.isExportReady(o));
+                const readyOps = this.core.operations.filter(o => this.core.store.isExportReady(o));
                 if (readyOps.length === 0) {
                     this.ui.setStatus('No operations ready. Generate paths first.', 'warning');
                     return;
@@ -288,7 +281,7 @@
             // carries the reason on hover.
             if ('drill' === opType && 'geometry' === stage) {
                 const operation = this.resolveCurrentOperation();
-                const settings = operation ? this.parameterManager.getAllParameters(operation.id) : null;
+                const settings = operation ? this.parameterStore.getAllParameters(operation.id) : null;
                 const info = operation ? DrillHandler.describeTable(operation, settings) : null;
                 if (info && 'perSize' === info.mode) {
                     const count = info.numbers.length;
@@ -319,7 +312,7 @@
             msg.textContent = operation.invalidatedReason || 'Global machine settings have changed. Existing geometry must be regenerated.';
 
             redoBtn.onclick = async () => {
-                this.core.resetOperationState(operation.id);
+                this.core.store.resetOperationState(operation.id);
 
                 const layerKeys = Array.from(this.ui.renderer.layers.keys())
                     .filter(key => key.includes(`_${operation.id}_`));
@@ -330,7 +323,7 @@
                     if (fileNode) this.ui.navTreePanel.updateFileGeometries(fileNode.id, operation);
                 }
 
-                await this.ui.updateRendererAsync();
+                await this.ui.rebuildLayers();
                 this.switchToStageAndRender('geometry');
                 this.ui.setStatus('Invalid geometry cleared. Ready to regenerate.', 'success');
             };
@@ -343,7 +336,7 @@
          * Visible for all operation types when source geometry stage is selected.
          */
         createGeometrySummary(operation) {
-            const summary = this.core.getGeometrySummary(operation);
+            const summary = this.core.ingest.getGeometrySummary(operation)
             if (!summary || summary.totalCount === 0) return null;
 
             const section = document.createElement('div');
@@ -490,7 +483,7 @@
             h3.textContent = isStencil ? 'Stencil Export Summary' : 'Laser Export Summary';
             section.appendChild(h3);
 
-            const params = this.parameterManager.getAllParameters(operation.id) || {};
+            const params = this.parameterStore.getAllParameters(operation.id) || {};
             const strategy = isStencil ? 'stencil' : (params.laserClearStrategy || 'offset');
             const offsetCount = operation.offsets?.length || 0;
             const primCount = operation.offsets?.reduce((sum, o) => sum + (o.primitives?.length || 0), 0) || 0;

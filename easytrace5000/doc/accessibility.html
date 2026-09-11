@@ -99,8 +99,8 @@
                 "about": { "@id": "https://cam.eltryus.design/easytrace5000/#app" },
                 "author": { "@id": "https://www.eltryus.design/#organization" },
                 "publisher": { "@id": "https://www.eltryus.design/#organization" },
-                "datePublished": "2025-01-16",
-                "dateModified": "2026-08-27"
+                "datePublished": "2026-09-04",
+                "dateModified": "2026-09-11"
             },
             {
                 "@type": "BreadcrumbList",
@@ -156,7 +156,30 @@
     <div class="doc-wrapper has-sidebar">
         <!-- Sidebar TOC -->
         <nav class="doc-sidebar" id="toc" aria-label="Table of contents">
-            <h2>Contents <span class="doc-badge doc-badge--stable">Stable</span></h2>
+            <p class="doc-sidebar-title">Contents</p>
+                        <ol>
+                <li>
+                    <a href="#keyboard-navigation-overview" draggable="false">Keyboard Navigation Overview</a>
+                </li>
+                <li>
+                    <a href="#zone-specific-controls" draggable="false">Zone-Specific Controls</a>
+                </li>
+                <li>
+                    <a href="#modals-dialogs" draggable="false">Modals & Dialogs</a>
+                </li>
+                <li>
+                    <a href="#screen-reader-support" draggable="false">Screen Reader Support</a>
+                </li>
+                <li>
+                    <a href="#wcag-21-compliance" draggable="false">WCAG 2.1 Compliance</a>
+                </li>
+                <li>
+                    <a href="#known-limitations" draggable="false">Known Limitations</a>
+                </li>
+                <li>
+                    <a href="#reporting-issues" draggable="false">Reporting Issues</a>
+                </li>
+            </ol>
         </nav>
 
         <!-- Main Content -->
@@ -235,17 +258,49 @@
                     </tr>
                     <tr>
                         <td align="left">
+                            <code>F2</code>
+                        </td>
+                        <td align="left">
+                            Toggle between the 2D canvas and the 3D toolpath view
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="left">
                             <code>1</code> - <code>5</code>
                         </td>
                         <td align="left">
-                            Cycle focus through operation objects (<code>1</code>: Isolation → <code>5</code>: Stencil)
+                            Cycle selection through a category&#39;s files and artifacts (<code>1</code>: Isolation → <code>5</code>: Stencil), announcing the category
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="left">
+                            <code>Delete</code> / <code>Backspace</code>
+                        </td>
+                        <td align="left">
+                            Delete the current selection (outside the tree)
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="left">
+                            <code>I</code>
+                        </td>
+                        <td align="left">
+                            Open the Add Files dialog
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="left">
+                            <code>Ctrl</code> + <code>Alt</code> + <code>D</code>
+                        </td>
+                        <td align="left">
+                            Toggle verbose debug logging
                         </td>
                     </tr>
                 </tbody>
             </table>
             <blockquote>
                 <p>
-                    <strong>Note:</strong> A <strong>Skip Link</strong> is available on the first <code>Tab</code> press after page load to jump directly to the Canvas.
+                    <strong>Note:</strong> A <strong>Skip Link</strong> is available on the first <code>Tab</code> press after page load to jump directly to the Canvas. Each <code>F6</code> press announces the zone it landed in through the status region.
                 </p>
             </blockquote>
             <h2 id="zone-specific-controls">
@@ -254,7 +309,7 @@
             <p>
                 Each zone has specific interactions once it receives focus.
             </p>
-            <h3 id="toolbar-amp-sidebar-headers">
+            <h3 id="toolbar-sidebar-headers">
                 Toolbar &amp; Sidebar Headers
             </h3>
             <table>
@@ -308,6 +363,9 @@
             </h3>
             <p>
                 The tree uses a <strong>roving tabindex</strong> pattern. Press <code>Tab</code> to enter the tree list, then use arrow keys to navigate.
+            </p>
+            <p>
+                Each operation category holds a source file, and each generated artifact — Offsets, Preview, Toolpaths — appears as its own child node with its own visibility toggle.
             </p>
             <table>
                 <thead>
@@ -363,10 +421,10 @@
                     </tr>
                     <tr>
                         <td align="left">
-                            <code>Delete</code>
+                            <code>Delete</code> / <code>Backspace</code>
                         </td>
                         <td align="left">
-                            Remove the selected file or geometry layer
+                            Remove the focused file or artifact node
                         </td>
                     </tr>
                     <tr>
@@ -432,6 +490,14 @@
                             Fit all geometry to view
                         </td>
                     </tr>
+                    <tr>
+                        <td align="left">
+                            <code>F2</code>
+                        </td>
+                        <td align="left">
+                            Switch between the 2D canvas and the 3D toolpath view
+                        </td>
+                    </tr>
                 </tbody>
             </table>
             <p>
@@ -491,11 +557,79 @@
                     </tr>
                 </tbody>
             </table>
+            <p>
+                <strong>3D View</strong>
+            </p>
+            <p>
+                These apply once the 3D viewport has focus. Press <code>F2</code> to enter 3D, then <code>F6</code> until focus reaches the viewport.
+            </p>
+            <table>
+                <thead>
+                    <tr>
+                        <th align="left">
+                            Key
+                        </th>
+                        <th align="left">
+                            Action
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td align="left">
+                            <code>↑</code> / <code>↓</code> / <code>←</code> / <code>→</code>
+                        </td>
+                        <td align="left">
+                            Orbit the camera
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="left">
+                            <code>Shift</code> + <code>Arrow</code>
+                        </td>
+                        <td align="left">
+                            Pan the camera target
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="left">
+                            <code>+</code> / <code>-</code>
+                        </td>
+                        <td align="left">
+                            Zoom in / Zoom out
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="left">
+                            <code>Page Up</code> / <code>Page Down</code>
+                        </td>
+                        <td align="left">
+                            Zoom in / Zoom out
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="left">
+                            <code>Home</code> / <code>F</code>
+                        </td>
+                        <td align="left">
+                            Fit the model to the view
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="left">
+                            <code>F2</code>
+                        </td>
+                        <td align="left">
+                            Return to the 2D canvas
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
             <h3 id="property-panel-right-sidebar">
                 Property Panel (Right Sidebar)
             </h3>
             <p>
-                This panel handles parameter inputs for selected operations.
+                This panel handles parameter inputs for the selected stage node. The fields it shows change with the stage, so the same keys apply throughout.
             </p>
             <table>
                 <thead>
@@ -559,11 +693,11 @@
                     </tr>
                 </tbody>
             </table>
-            <h2 id="modals-amp-dialogs">
+            <h2 id="modals-dialogs">
                 Modals &amp; Dialogs
             </h2>
             <p>
-                When a modal (e.g., <strong>G-code Export</strong>) is open, focus is trapped within it until closed. Global navigation keys (<code>F6</code>) are disabled.
+                When a modal is open, focus is trapped within it until it closes, and global navigation keys (<code>F6</code>) are disabled. Closing a modal returns focus to the element that opened it. Where a modal&#39;s body scrolls, focus lands on the scrollable body so the arrow keys and <code>Page Up</code> / <code>Page Down</code> work immediately.
             </p>
             <h3 id="general-navigation">
                 General Navigation
@@ -604,13 +738,27 @@
                             Close the modal or cancel the current action
                         </td>
                     </tr>
+                    <tr>
+                        <td align="left">
+                            <code>↑</code> / <code>↓</code>
+                        </td>
+                        <td align="left">
+                            Scroll the body of a long modal
+                        </td>
+                    </tr>
                 </tbody>
             </table>
-            <h3 id="sortable-lists-g-code-export">
-                Sortable Lists (G-code Export)
+            <h3 id="confirmations">
+                Confirmations
             </h3>
             <p>
-                For reordering operations in the export list:
+                EasyTrace5000 has no undo. Deleting an operation or a generated artifact therefore asks first. The confirmation is an alert dialog, its buttons are reachable by <code>Tab</code>, <code>Escape</code> cancels, and focus returns to the tree node you were on either way.
+            </p>
+            <h3 id="sortable-lists-export-manager">
+                Sortable Lists (Export Manager)
+            </h3>
+            <p>
+                The Export Manager&#39;s operation list is drag-and-drop, with a full keyboard equivalent:
             </p>
             <table>
                 <thead>
@@ -658,6 +806,12 @@
                     </tr>
                 </tbody>
             </table>
+            <h3 id="drill-tooling-table">
+                Drill Tooling Table
+            </h3>
+            <p>
+                The per-diameter drill table is a modal grid. <code>Tab</code> moves between cells and <code>Escape</code> closes the modal. Every input and dropdown carries an accessible name that names both its hole diameter and its column, so a cell is never announced as a bare number.
+            </p>
             <h2 id="screen-reader-support">
                 Screen Reader Support
             </h2>
@@ -666,10 +820,19 @@
             </h3>
             <ul>
                 <li>
-                    <strong>Status bar</strong>: Uses <code>aria-live=&quot;polite&quot;</code> for general updates, <code>aria-live=&quot;assertive&quot;</code> for errors
+                    <strong>Status region</strong>: a polite region carries ordinary progress and completion messages; a separate assertive region carries errors, so urgency is not lost.
                 </li>
                 <li>
-                    Status messages announce file loading, operation completion, and errors
+                    The visible status text is not itself a live region. Its idle state, which restores a few seconds after every message, is therefore silent rather than being re-announced.
+                </li>
+                <li>
+                    Status messages announce file loading, generation progress, stage completion, and errors
+                </li>
+                <li>
+                    Long-running generation reports progress through the same region, so a background job is audible rather than silent
+                </li>
+                <li>
+                    The status log holds the full history and is reachable from the keyboard: <code>Tab</code> to the chevron at the left of the status bar and press <code>Enter</code>.
                 </li>
             </ul>
             <h3 id="semantic-structure">
@@ -704,7 +867,7 @@
                 SVG Icons
             </h3>
             <p>
-                Decorative icons include <code>aria-hidden=&quot;true&quot;</code> to prevent screen reader noise.
+                Decorative icons are marked <code>aria-hidden=&quot;true&quot;</code> as they enter the page, including icons injected into tree nodes and stage nodes after load. Icons that carry meaning on their own are given an accessible name instead.
             </p>
             <h2 id="wcag-21-compliance">
                 WCAG 2.1 Compliance
@@ -744,7 +907,7 @@
                             ✓
                         </td>
                         <td>
-                            Icon-only buttons include <code>aria-label</code> attributes; decorative icons use <code>aria-hidden=&quot;true&quot;</code>.
+                            Icon-only buttons include <code>aria-label</code> attributes; decorative icons use <code>aria-hidden=&quot;true&quot;</code>. Documentation figures carry a <code>&lt;title&gt;</code> and a caption.
                         </td>
                     </tr>
                     <tr>
@@ -787,20 +950,6 @@
                         </td>
                         <td>
                             Status messages (Success/Error) use both text labels and color indicators.
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>
-                            <strong>1.4.3</strong>
-                        </td>
-                        <td>
-                            Contrast (Minimum)
-                        </td>
-                        <td>
-                            ✓
-                        </td>
-                        <td>
-                            Default text-to-background contrast ratios meet the 4.5:1 standard.
                         </td>
                     </tr>
                     <tr>
@@ -856,7 +1005,7 @@
                             ✓
                         </td>
                         <td>
-                            Single-key shortcuts (e.g., <code>V</code> for visibility, <code>Del</code> for delete) are scoped to the active region (Tree/Canvas) and disabled during text entry.
+                            Single-key shortcuts are scoped to the region that owns them and are disabled entirely inside forms and text entry.
                         </td>
                     </tr>
                     <tr>
@@ -982,7 +1131,7 @@
                             ✓
                         </td>
                         <td>
-                            Dynamic updates (file loading, success messages) are announced via <code>aria-live</code> regions.
+                            Dynamic updates (file loading, generation progress, success messages) are announced via <code>aria-live</code> regions.
                         </td>
                     </tr>
                 </tbody>
@@ -1010,6 +1159,34 @@
                 <tbody>
                     <tr>
                         <td>
+                            <strong>1.4.3</strong>
+                        </td>
+                        <td>
+                            Contrast (Minimum)
+                        </td>
+                        <td>
+                            Partial
+                        </td>
+                        <td>
+                            Most default text meets 4.5:1, but some secondary and hint text in both themes does not. Dedicated high-contrast themes are in development.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <strong>1.4.10</strong>
+                        </td>
+                        <td>
+                            Reflow
+                        </td>
+                        <td>
+                            Partial
+                        </td>
+                        <td>
+                            The workspace is laid out for a landscape viewport and does not reflow to a single column; below roughly 768 CSS pixels a warning bar appears instead. Because browser zoom narrows the viewport as it magnifies, this is reached at high zoom on a wide display. Collapsible side panels are planned. In the meantime, text-only zoom or operating-system display scaling magnifies without narrowing the viewport.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
                             <strong>1.4.11</strong>
                         </td>
                         <td>
@@ -1020,6 +1197,20 @@
                         </td>
                         <td>
                             Some UI borders and disabled states in the default theme may fall below 3:1. High Contrast themes are supported by the engine and are currently in development.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <strong>1.1.1</strong>
+                        </td>
+                        <td>
+                            Non-text Content (3D view)
+                        </td>
+                        <td>
+                            Partial
+                        </td>
+                        <td>
+                            The 3D toolpath view is a WebGPU canvas with no non-visual equivalent. Toolpath statistics — pass count, estimated time, travel distance — appear as text on the Toolpaths node in the operations tree and in the Export Manager. Nothing in the workflow requires the 3D view.
                         </td>
                     </tr>
                     <tr>
@@ -1049,22 +1240,42 @@
                 </li>
                 <li>
                     <p>
-                        <strong>Complex geometry feedback</strong>: When generating offsets or previews, detailed geometric results are shown visually but not fully announced to screen readers beyond success/failure status.
+                        <strong>3D view</strong>: The 3D toolpath view is visual-only, though the camera is fully keyboard-operable. Nothing in the workflow requires it: an operation can be generated, exported and cut without ever opening it.
                     </p>
                 </li>
                 <li>
                     <p>
-                        <strong>Drag-and-drop file upload</strong>: Requires mouse. Alternative: Click drop zones or use the file input buttons in the operations tree.
+                        <strong>Complex geometry feedback</strong>: When generating offsets or toolpaths, detailed geometric results are shown visually but not fully announced to screen readers beyond progress and success/failure status.
                     </p>
                 </li>
                 <li>
                     <p>
-                        <strong>Touch devices</strong>: Touch zoom/pan works but keyboard navigation is primary accessibility path.
+                        <strong>Drag-and-drop file upload</strong>: Requires a pointer. Alternative: click the drop zones, or use the file input buttons in the operations tree.
                     </p>
                 </li>
                 <li>
                     <p>
-                        <strong>Color-coded warnings</strong>: Drill operation warnings use color coding (green/yellow/red). Status messages provide text descriptions.
+                        <strong>Touch devices</strong>: Touch zoom/pan works but keyboard navigation is the primary accessibility path.
+                    </p>
+                </li>
+                <li>
+                    <p>
+                        <strong>Color-coded warnings</strong>: Drill operation warnings use color coding (green/yellow/red). Status messages provide text descriptions of the same information.
+                    </p>
+                </li>
+                <li>
+                    <p>
+                        <strong>Narrow viewports and high zoom</strong>: See guideline 1.4.10 above. Rotating a tablet to landscape, or widening the window, restores the full workspace.
+                    </p>
+                </li>
+                <li>
+                    <p>
+                        <strong>Audio</strong>: EasyTrace5000 produces no sound. Every state change is reported as text, so no information is conveyed by audio alone.
+                    </p>
+                </li>
+                <li>
+                    <p>
+                        <strong>EasyShape5000</strong>: This guide covers EasyTrace5000 only.
                     </p>
                 </li>
             </ol>
@@ -1119,6 +1330,7 @@
 
     <!-- Scripts -->
     <script defer src="../../themes/theme-loader.js"></script>
+    <script defer src="../../figures.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             // Load the SVG Sprite
@@ -1170,3 +1382,4 @@
         });
     </script>
 </body>
+</html>

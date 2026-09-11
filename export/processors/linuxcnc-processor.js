@@ -11,6 +11,7 @@
 
 (function() {
     'use strict';
+    const ROOT = globalThis;
 
     class LinuxCNCPostProcessor extends BasePostProcessor {
         constructor() {
@@ -60,5 +61,5 @@
         }
     }
 
-    window.LinuxCNCPostProcessor = LinuxCNCPostProcessor;
+    ROOT.LinuxCNCPostProcessor = LinuxCNCPostProcessor;
 })();

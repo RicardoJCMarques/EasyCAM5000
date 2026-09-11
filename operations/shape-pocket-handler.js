@@ -16,19 +16,14 @@
 
 (function() {
     'use strict';
+    const ROOT = globalThis;
 
     class ShapePocketHandler extends OffsetOperationHandler {
 
         // Offset direction hooks
 
-        // Pockets are always internal - tool clears inside the shape boundary.
-        isInternalOffset() {
-            return true;
-        }
-
-        isOnLine() {
-            return false;
-        }
+        /*Pocketing always clears inward; cutSide is not a pocket parameter.*/
+        resolveCutSide() { return 'inside'; }
 
         // Concentric rings of one pocket, outermost first: every pass lies
         // inside its predecessor's swath.
@@ -51,20 +46,22 @@
         async orchestrateGeneration(operation, params, core, options = {}) {
             const token = this.beginRun(operation, options, core);
 
+            // Detect nested holes/islands
+            const resolved = this.resolveSourceTopology(operation, params);
+            if (resolved) operation.primitives = resolved;
+
             // Validate: pocket requires closed geometry
             const openCount = this.countOpenPaths(operation);
             if (openCount > 0) {
                 return {
                     success: false,
-                    message: `${openCount} open path(s) detected. Pocket cutting requires closed shapes. Close paths in your SVG editor (the automated too may not be implemented yet).`,
+                    message: `${openCount} open path(s) detected. Pocket cutting requires closed shapes. Close paths in your SVG editor (the automated tool may not be implemented yet).`,
                     status: 'warning'
                 };
             }
 
             const strategy = params.pocketStrategy || 'offset';
-
-            // Raster / zig-zag (future)
-            if (strategy === 'raster') {
+            if ('raster' === strategy) {
                 return {
                     success: false,
                     message: 'Raster pocket strategy not implemented yet. Use concentric offsets.',
@@ -73,8 +70,7 @@
             }
 
             // Concentric offset pocketing
-            const opParams = core.compileOperationParams(operation, params);
-
+            const opParams = core.pipelineContext.compileOperationParams(operation, params);
             await this.generateGeometry(operation, {
                 ...params,
                 ...opParams,
@@ -88,8 +84,7 @@
             const total = operation.offsets?.reduce(
                 (s, o) => s + (o.primitives?.length || 0), 0
             ) || 0;
-            const passCount = operation.offsets?.[0]?.metadata?.offset?.passes
-                || operation.offsets?.length || 0;
+            const passCount = operation.offsets?.[0]?.metadata?.offset?.passes || operation.offsets?.length || 0;
 
             if (total === 0) {
                 return {
@@ -107,5 +102,5 @@
         }
     }
 
-    window.ShapePocketHandler = ShapePocketHandler;
+    ROOT.ShapePocketHandler = ShapePocketHandler;
 })();

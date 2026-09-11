@@ -28,9 +28,7 @@
 
 (function() {
     'use strict';
-
     const ROOT = (typeof self !== 'undefined') ? self : window;
-
     const SectionSlicer = {
 
         /**

@@ -1,23 +1,29 @@
-EasyCAM5000 Copyright (C) 2025-2026 Eltryus
+EasyCAM5000 Copyright (C) 2025-2026 Eltryus - Ricardo Marques
 This program comes with ABSOLUTELY NO WARRANTY.
 This is free software, and you are welcome to redistribute it
 under certain conditions; see the LICENSE file for details.
 
-This software incorporates the following third-party libraries:
-
-** delaunator **
-Distributed under the ISC License.
-(See copy at https://www.isc.org/licenses/)
-Copyright (c) 2026 Mapbox
-
-** three.js **
-Distributed under the MIT License.
-(See copy at https://opensource.org/license/MIT)
-Copyright 2010-2026 Three.js Authors
+This software incorporates the following third-party components:
 
 ** Clipper2 **
-Distributed under the Boost Software License, Version 1.0.
-(See copy at https://www.boost.org/LICENSE_1_0.txt)
-Copyright 2010-2026 Angus Johnson
+Boost Software License, Version 1.0 - https://www.boost.org/LICENSE_1_0.txt
+Copyright (c) 2010-2023 Angus Johnson
+Full text: geometry/LICENSE
 
-The example files may not belong to this project and carry their own copyright licenses.
+** Clipper2-WASM **
+WebAssembly build of Clipper2 by Erik Sombroek.
+https://github.com/ErikSom/Clipper2-WASM
+Distributed under the terms accompanying that project.
+
+** three.js **
+MIT License - https://opensource.org/license/MIT
+Copyright (c) 2010-2025 three.js authors
+Full text: bundled in renderer3d/three.*.min.js
+
+** delaunator **
+ISC License - https://www.isc.org/licenses/
+Copyright (c) 2017, Mapbox
+Full text: bundled in geometry/delaunator.5.0.0.min.js
+
+Example files may not belong to this project and carry their own licenses.
+See examples/LICENSE and the LICENSE file in each example directory.

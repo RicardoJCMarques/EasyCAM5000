@@ -281,17 +281,9 @@
                 // polylines. Moving 2D off-thread means shipping a registry slice per
                 // job and merging offset-derived registrations back. V-carve, relief
                 // and rotary have no registry dependency, which is why they moved.
+                // REVIEW - what if pre/post-processing is managed outside of workers? Then the registry itself wouldn't be necessary?
+                //          The only thing that needs the registry is registration and reconstruction? Which is just a quick parse and replace?
                 const reg = ROOT.globalCurveRegistry;
-                const windingCache = new Map();
-                const getClockwiseForCurve = (curveId) => {
-                    let cw = windingCache.get(curveId);
-                    if (cw === undefined) {
-                        const curve = reg ? reg.getCurve(curveId) : null;
-                        cw = curve ? (curve.clockwise === true) : false;
-                        windingCache.set(curveId, cw);
-                    }
-                    return cw;
-                };
 
                 // Winding is trusted from upstream (parser enforces outer=CCW, hole=CW in Y-up).
                 for (let i = 0; i < points.length; i++) {
@@ -312,7 +304,7 @@
                     let z = BigInt(0);
                     if (this.supportsZ) {
                         if (p.curveId !== undefined && p.curveId !== null && p.curveId > 0) {
-                            const curveClockwise = getClockwiseForCurve(p.curveId);
+                            const curveClockwise = reg?.getCurve(p.curveId)?.clockwise === true;
                             z = this.packMetadata(p.curveId, p.segmentIndex || 0, curveClockwise, 0);
                         } else {
                             const sid = (p.sourceId > 0) ? p.sourceId : contourSourceId;
@@ -547,22 +539,12 @@
                         points.push(point);
                     }
 
-                    const isHole = level % 2 === 1;
+                    const isHole = level % 2 == 1;
                     const contourIdx = contours.length;
-
-                    contours.push({
-                        points: points,
-                        nestingLevel: level,
-                        isHole: isHole,
-                        parentId: parentIdx,
-                        arcSegments: [],
-                        curveIds: Array.from(contourCurveIds) // Store curve IDs per contour
-                    });
-
+                    contours.push({ points: points, nestingLevel: level, isHole: isHole, parentId: parentIdx, arcSegments: [], curveIds: Array.from(contourCurveIds) });
+                    for (const cid of contourCurveIds) curveIds.add(cid);
                     // Recursively process children
-                    for (let c = 0; c < node.count(); c++) {
-                        extractContours(node.child(c), level + 1, contourIdx);
-                    }
+                    for (let c = 0; c < node.count(); c++) extractContours(node.child(c), level + 1, contourIdx);
                 };
 
                 // Root is level 0

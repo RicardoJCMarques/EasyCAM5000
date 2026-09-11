@@ -11,11 +11,11 @@
 
 (function() {
     'use strict';
+    const ROOT = globalThis;
 
     class TraceIsolationHandler extends OffsetOperationHandler {
 
         isCopperOperation() { return true; }
-        isOnLine() { return false; }
 
         getToolpathPolicy() {
             return {
@@ -44,5 +44,5 @@
         }
     }
 
-    window.TraceIsolationHandler = TraceIsolationHandler;
+    ROOT.TraceIsolationHandler = TraceIsolationHandler;
 })();

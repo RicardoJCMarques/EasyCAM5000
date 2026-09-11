@@ -11,8 +11,9 @@
 
 (function() {
     'use strict';
+    const ROOT = globalThis;
 
-    const C = window.CAMConfig.constants;
+    const C = ROOT.CAMConfig.constants;
 
     /**
      * Session-lifetime store, and it stays that way. clear() has no call site
@@ -42,7 +43,6 @@
         constructor() {
             this.registry = new Map();
             this.hashToId = new Map();
-            this.offsetCurveMap = new Map();
             this.nextId = 1;
 
             // Statistics
@@ -50,8 +50,7 @@
                 registered: 0,
                 circles: 0,
                 arcs: 0,
-                endCaps: 0,
-                offsetDerived: 0
+                endCaps: 0
             };
         }
 
@@ -111,15 +110,6 @@
             this.registry.set(id, curveData);
             this.hashToId.set(hash, id);
 
-            // Track offset-derived curves
-            if (metadata.isOffsetDerived) {
-                this.offsetCurveMap.set(id, {
-                    sourceId: metadata.sourceCurveId,
-                    offsetDistance: metadata.offsetDistance
-                });
-                this.stats.offsetDerived++;
-            }
-
             this.stats.registered++;
             if (metadata.type === 'circle') this.stats.circles++;
             else if (metadata.type === 'arc') this.stats.arcs++;
@@ -128,41 +118,13 @@
             return id;
         }
 
+        /**
+         * The registry's only read path. Not a delegator: `this.registry` here
+         * is this class's own private Map, not another object's API.
+         */
         getCurve(id) {
             return this.registry.get(id);
         }
-
-        /**
-         * Records offset provenance WITHOUT touching the hashed record.
-         * generateHash() folds isOffsetDerived into the key, so mutating a
-         * stored curve after register() desynchronises hashToId permanently.
-         */
-        noteOffsetDerived(curveId, sourceCurveId, offsetDistance) {
-            if (!curveId || !this.registry.has(curveId)) return;
-            if (this.offsetCurveMap.has(curveId)) return;
-            this.offsetCurveMap.set(curveId, { sourceId: sourceCurveId, offsetDistance });
-            this.stats.offsetDerived++;
-        }
-
-        getOffsetInfo(curveId) {
-            return this.offsetCurveMap.get(curveId);
-        }
-
-        /*
-        clear() {
-            this.registry.clear();
-            this.hashToId.clear();
-            this.offsetCurveMap.clear();
-            this.nextId = 1;
-            this.stats = {
-                registered: 0,
-                circles: 0,
-                arcs: 0,
-                endCaps: 0,
-                offsetDerived: 0
-            };
-        }
-        */
 
         getStats() {
             return {
@@ -172,6 +134,6 @@
         }
     }
 
-    window.GlobalCurveRegistry = GlobalCurveRegistry;             // The Blueprint
-    window.globalCurveRegistry = new GlobalCurveRegistry();       // The Live Data Container
+    // The singleton IS the export.
+    ROOT.globalCurveRegistry = new GlobalCurveRegistry();
 })();

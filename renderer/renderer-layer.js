@@ -12,82 +12,31 @@
 (function() {
     'use strict';
 
+    /**
+     * Render passes over RendererCore's layers. Owned by the core and not
+     * constructed anywhere else - the core is the public renderer object.
+     * The accessors below are internal reach into the owner, not an API.
+     */
     class LayerRenderer {
-        constructor(canvasId, core) {
-            this.canvas = document.getElementById(canvasId);
-            if (!this.canvas) {
-                throw new Error(`Canvas element '${canvasId}' not found`);
-            }
-
-            // RendererCore reads scene.transform via getters - pass it now
-            // so origin/rotation/mirror are correct on the first paint.
-            this.core = new RendererCore(this.canvas, core ? core.scene : null);
-            this.appCore = core;
-
-            this.primitiveRenderer = new PrimitiveRenderer(this.core);
-            this.overlayRenderer = new OverlayRenderer(this.core);
-
+        constructor(core) {
+            this.core = core;
+            this.primitiveRenderer = new PrimitiveRenderer(core);
+            this.overlayRenderer = new OverlayRenderer(core);
             this.debugPrimitives = [];
             this.debugPrimitivesScreen = [];
             this.renderQueued = false;
             this.renderHandle = null;
-
-            this.core.resizeCanvas();
-            this.core.zoomFit(); // Enforce default origin placement in canvas
         }
 
         // Property accessors
+        get canvas() { return this.core.canvas; }
+        get ctx() { return this.core.ctx; }
         get layers() { return this.core.layers; }
         get options() { return this.core.options; }
         get viewScale() { return this.core.viewScale; }
         get viewOffset() { return this.core.viewOffset; }
-        get ctx() { return this.core.ctx; }
         get bounds() { return this.core.bounds; }
         get renderStats() { return this.core.renderStats; }
-
-        setOptions(options) {
-            this.core.setOptions(options);
-            this.render();
-        }
-
-        addLayer(name, primitives, options = {}) {
-            this.core.addLayer(name, primitives, options);
-        }
-
-        removeLayer(name) {
-            this.core.removeLayer(name);
-        }
-
-        clearLayers() {
-            this.core.clearLayers();
-        }
-
-        /**
-         * Updates a layer's world matrix and bounds without rebuilding any
-         * primitives or render cache entries. Called from drag-move handlers
-         * to avoid the cost of clearLayers() + addLayer() per mousemove tick.
-         *
-         * The per-primitive renderCache.entries[*].bounds stay in LOCAL space
-         * (they describe the primitive's local-frame bbox). The renderer's
-         * per-layer inverse-transform of viewBounds (see renderVisibleLayers
-         * below) compensates so viewport culling stays correct.
-         *
-         * @param {string} layerName   Layer key (e.g. `shape_${shape.id}`)
-         * @param {object} newMatrix   Affine matrix {a,b,c,d,e,f}
-         * @param {object} [newBounds] Optional world-space AABB. If omitted,
-         *                             the cached bounds stay as-is.
-         */
-        updateLayerTransform(layerName, newMatrix, newBounds) {
-            const layer = this.core.layers.get(layerName);
-            if (!layer) return false;
-            layer.transform = newMatrix;
-            if (newBounds) {
-                layer.bounds = newBounds;
-                if (layer.renderCache) layer.renderCache.bounds = newBounds;
-            }
-            this.core.calculateOverallBounds();
-            return true;
-        }
 
         // ========================================================================
         // Main Render Entry Point
@@ -111,8 +60,7 @@
 
             // Apply the global workspace transform as a single matrix.
             // Composition order, mirror pivots, and the mirror-XOR-rotation
-            // sign rule are all baked into Scene.getWorkspaceMatrix() -
-            // the renderer no longer reimplements any transform math.
+            // sign rule are all baked into Scene.getWorkspaceMatrix().
             const scene = this.core.scene;
             if (scene) {
                 const wm = scene.getWorkspaceMatrix();
@@ -139,7 +87,7 @@
                     const m = layer.transform || null;
                     for (const entry of layer.renderCache.entries) {
                         if (this.shouldCollectDebug(entry.primitive)) {
-                            if (m && typeof GeometryUtils !== 'undefined') {
+                            if (m) {
                                 const world = GeometryUtils.transformPrimitive(entry.primitive, m);
                                 if (world) this.debugPrimitives.push(world);
                             } else {
@@ -163,17 +111,17 @@
             if (this.options.showOrigin) this.overlayRenderer.renderOrigin();
 
             // Interaction overlay (marquee box, selection bounds, drag handles).
-            // World-space - drawn before resetTransform so the tool can reason
-            // in mm. EasyTrace never sets this hook, so the call is a no-op
-            // there. The callback receives the canvas 2D context and the
+            // World-space - drawn before the ctx.restore() below so the tool can
+            // reason in mm. EasyTrace never sets this hook, so the call is a
+            // no-op there. The callback receives the canvas 2D context and the
             // renderer core (useful for view-scale-aware line widths via
             // core.frameCache.invScale).
-            if (typeof this.onRenderOverlay === 'function') {
-                this.onRenderOverlay(this.ctx, this.core);
+            if (typeof this.core.onRenderOverlay === 'function') {
+                this.core.onRenderOverlay(this.ctx, this.core);
             }
 
-            // Screen-space overlays
-            this.core.resetTransform();
+            // Screen-space overlays: pairs with the save() in setupTransform.
+            this.core.ctx.restore();
             if (this.options.showRulers) this.overlayRenderer.renderRulers();
             this.overlayRenderer.renderScaleIndicator();
             if (this.options.showStats) this.overlayRenderer.renderStats();
@@ -350,7 +298,7 @@
 
                 const prim = entry.primitive;
                 const role = prim.properties?.role;
-                if (role === 'peck_mark' || prim.properties?.isToolPeckMark) {
+                if (role === 'peck_mark') {
                     peckMarks.push(prim);
                 } else if (role === 'drill_milling_path' || prim.properties?.isCenterlinePath) {
                     drillMillingPaths.push(prim);
@@ -1014,10 +962,15 @@
         // Utility Methods
         // ========================================================================
 
+        /**
+         * Last fallback in the preview stroke-width chain, for a primitive
+         * that carries neither a layer nor a per-primitive diameter.
+         */
         getToolDiameterForPrimitive(primitive) {
             const opId = primitive.properties?.operationId;
-            if (!opId || !this.appCore) return null;
-            const operation = this.appCore.getOperation(opId);
+            const appCore = this.core?.appCore;
+            if (!opId || !appCore) return null;
+            const operation = appCore.store?.getOperation(opId);
             const diameterStr = operation?.settings?.toolDiameter;
             if (diameterStr === undefined) return null;
             const diameter = parseFloat(diameterStr);

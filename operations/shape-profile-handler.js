@@ -16,18 +16,9 @@
 
 (function() {
     'use strict';
+    const ROOT = globalThis;
 
     class ShapeProfileHandler extends OffsetOperationHandler {
-
-        // Offset direction hooks
-
-        isInternalOffset(operation, settings) {
-            return settings.cutSide === 'inside';
-        }
-
-        isOnLine(operation, settings) {
-            return settings.cutSide === 'on';
-        }
 
         // Orchestration
 
@@ -39,9 +30,7 @@
         async orchestrateGeneration(operation, params, core, options = {}) {
             const token = this.beginRun(operation, options, core);
 
-            // The base orchestration calls this immediately after the token;
-            // overriding orchestration meant detectNesting reached the hook and
-            // the hook was never invoked.
+            // Detect nested holes/islands
             const resolved = this.resolveSourceTopology(operation, params);
             if (resolved) operation.primitives = resolved;
 
@@ -55,7 +44,7 @@
                 };
             }
 
-            const opParams = core.compileOperationParams(operation, params);
+            const opParams = core.pipelineContext.compileOperationParams(operation, params);
 
             // Profile always produces a single offset pass per shape
             await this.generateGeometry(operation, {
@@ -89,5 +78,5 @@
         }
     }
 
-    window.ShapeProfileHandler = ShapeProfileHandler;
+    ROOT.ShapeProfileHandler = ShapeProfileHandler;
 })();

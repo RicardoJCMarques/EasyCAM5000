@@ -1,0 +1,92 @@
+{
+  "_projectInfo": {
+    "file": "export/laser-profiles.json",
+    "description": "Laser output profiles",
+    "author": "Eltryus - Ricardo Marques",
+    "see": "https://github.com/RicardoJCMarques/EasyCAM5000",
+    "license": "AGPL-3.0-or-later",
+    "copyright": "Copyright (C) 2025-2026 Eltryus - Ricardo Marques"
+  },
+  "meta": {
+    "app": "EasyTrace5000",
+    "version": "1.0"
+  },
+  "profiles": {
+    "generic": {
+      "label": "Generic (Very Experimental)",
+      "palette": null,
+      "paletteLumping": false,
+      "parameters": [
+        { "name": "svgGrouping", "label": "SVG Grouping", "type": "select", "category": "laser", "default": "layer",
+          "options": [{ "value": "none", "label": "None" }, { "value": "layer", "label": "Layer" }, { "value": "group", "label": "Group" }, { "value": "color", "label": "Colour" }] },
+        { "name": "reverseCutOrder", "label": "Reverse Cut Order", "type": "checkbox", "category": "laser", "default": false },
+        { "name": "heatManagement", "label": "Heat Management", "type": "select", "category": "laser", "default": "standard",
+          "options": [{ "value": "off", "label": "Off" }, { "value": "standard", "label": "Standard" }] },
+        { "name": "colorPerPass", "label": "Colour Per Pass", "type": "checkbox", "category": "laser", "default": false },
+        { "name": "layerColors", "label": "Layer Colours", "type": "colorgrid", "category": "laser",
+          "default": { "isolation": "#ff0000", "drill": "#0000ff", "clearing": "#00ff00", "cutout": "#000000", "stencil": "#860694" } }
+      ]
+    },
+    "lasergrbl": {
+      "label": "LaserGRBL (Very Experimental)",
+      "palette": null,
+      "paletteLumping": false,
+      "parameters": [
+        { "name": "svgGrouping", "label": "SVG Grouping", "type": "select", "category": "laser", "default": "group",
+          "options": [{ "value": "none", "label": "None" }, { "value": "layer", "label": "Layer" }, { "value": "group", "label": "Group" }, { "value": "color", "label": "Colour" }] },
+        { "name": "reverseCutOrder", "label": "Reverse Cut Order", "type": "checkbox", "category": "laser", "default": false },
+        { "name": "heatManagement", "label": "Heat Management", "type": "select", "category": "laser", "default": "standard",
+          "options": [{ "value": "off", "label": "Off" }, { "value": "standard", "label": "Standard" }] },
+        { "name": "colorPerPass", "label": "Colour Per Pass", "type": "checkbox", "category": "laser", "default": false },
+        { "name": "layerColors", "label": "Layer Colours", "type": "colorgrid", "category": "laser",
+          "default": { "isolation": "#ff0000", "drill": "#0000ff", "clearing": "#00ff00", "cutout": "#000000", "stencil": "#860694" } }
+      ]
+    },
+    "xToolStudio": {
+      "label": "xTool Studio (Less Experimental)",
+      "palette": ["#EB3DBA", "#FE0002", "#FF7F56", "#E1C000", "#C29900", "#96D71D", "#00C715", "#00897B",
+                  "#2366FF", "#00BEFE", "#8170EF", "#A958FF", "#582FA8", "#D9D9D9", "#848B96", "#000000"],
+      "paletteLumping": true,
+      "parameters": [
+        { "name": "svgGrouping", "label": "SVG Grouping", "type": "select", "category": "laser", "default": "color",
+          "options": [{ "value": "none", "label": "None" }, { "value": "layer", "label": "Layer" }, { "value": "group", "label": "Group" }, { "value": "color", "label": "Colour" }] },
+        { "name": "reverseCutOrder", "label": "Reverse Cut Order", "type": "checkbox", "category": "laser", "default": true },
+        { "name": "heatManagement", "label": "Heat Management", "type": "select", "category": "laser", "default": "standard",
+          "options": [{ "value": "off", "label": "Off" }, { "value": "standard", "label": "Standard" }] },
+        { "name": "colorPerPass", "label": "Colour Per Pass", "type": "checkbox", "category": "laser", "default": true },
+        { "name": "layerColors", "label": "Layer Colours", "type": "colorgrid", "category": "laser",
+          "default": { "isolation": "#FE0002", "drill": "#2366FF", "clearing": "#FE0002", "cutout": "#2366FF", "stencil": "#582FA8" } }
+      ]
+    },
+    "lightburn": {
+      "label": "LightBurn (Very Experimental)",
+      "palette": null,
+      "paletteLumping": false,
+      "parameters": [
+        { "name": "svgGrouping", "label": "SVG Grouping", "type": "select", "category": "laser", "default": "none",
+          "options": [{ "value": "none", "label": "None" }, { "value": "layer", "label": "Layer" }, { "value": "group", "label": "Group" }, { "value": "color", "label": "Colour" }] },
+        { "name": "reverseCutOrder", "label": "Reverse Cut Order", "type": "checkbox", "category": "laser", "default": true },
+        { "name": "heatManagement", "label": "Heat Management", "type": "select", "category": "laser", "default": "standard",
+          "options": [{ "value": "off", "label": "Off" }, { "value": "standard", "label": "Standard" }] },
+        { "name": "colorPerPass", "label": "Colour Per Pass", "type": "checkbox", "category": "laser", "default": true },
+        { "name": "layerColors", "label": "Layer Colours", "type": "colorgrid", "category": "laser",
+          "default": { "isolation": "#ff0000", "drill": "#0000ff", "clearing": "#00ff00", "cutout": "#000000", "stencil": "#860694" } }
+      ]
+    },
+    "rdworks": {
+      "label": "RDWorks / Ruida (Very Experimental)",
+      "palette": null,
+      "paletteLumping": false,
+      "parameters": [
+        { "name": "svgGrouping", "label": "SVG Grouping", "type": "select", "category": "laser", "default": "layer",
+          "options": [{ "value": "none", "label": "None" }, { "value": "layer", "label": "Layer" }, { "value": "group", "label": "Group" }, { "value": "color", "label": "Colour" }] },
+        { "name": "reverseCutOrder", "label": "Reverse Cut Order", "type": "checkbox", "category": "laser", "default": false },
+        { "name": "heatManagement", "label": "Heat Management", "type": "select", "category": "laser", "default": "off",
+          "options": [{ "value": "off", "label": "Off" }, { "value": "standard", "label": "Standard" }] },
+        { "name": "colorPerPass", "label": "Colour Per Pass", "type": "checkbox", "category": "laser", "default": false },
+        { "name": "layerColors", "label": "Layer Colours", "type": "colorgrid", "category": "laser",
+          "default": { "isolation": "#ff0000", "drill": "#00ff00", "clearing": "#0000ff", "cutout": "#000000", "stencil": "#ff00ff" } }
+      ]
+    }
+  }
+}

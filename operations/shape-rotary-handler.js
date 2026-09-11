@@ -23,6 +23,7 @@
 
 (function() {
     'use strict';
+    const ROOT = globalThis;
 
     class ShapeRotaryHandler extends FieldOperationHandler {
 
@@ -113,7 +114,7 @@
                               c: p.rotaryAxisOffsetC || 0 },
                 // Radiality gate: reject faces within ~asin(√v) of axial
                 // (end caps, tilted bases a radial tool cannot form).
-                minRadiality: window.CAMConfig.constants.rotary.minRadialitySin2,
+                minRadiality: ROOT.CAMConfig.constants.rotary.minRadialitySin2,
                 // Grid reserved PER END from that end's OWN reach, so a
                 // 'stop' end does not inherit the other end's overrun as
                 // dead grid (which also degrades the auto cell size).
@@ -127,7 +128,7 @@
         buildGeneratorOptions(p, wh) {
             const toolDiameter = p.toolDiameter;
             const mode = p.rotaryMode;
-            const C = window.CAMConfig.constants.rotary;
+            const C = ROOT.CAMConfig.constants.rotary;
 
             return {
                 toolDiameter,
@@ -213,5 +214,5 @@
         }
     }
 
-    window.ShapeRotaryHandler = ShapeRotaryHandler;
+    ROOT.ShapeRotaryHandler = ShapeRotaryHandler;
 })();

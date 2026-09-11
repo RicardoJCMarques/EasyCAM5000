@@ -20,8 +20,6 @@
     class EasyTraceController extends CamController {
         constructor() {
             super();
-            this.uploadedFiles = { isolation: null, drill: null, clearing: null, cutout: null, stencil: null };
-            this.queuedFiles = [];
             this.pendingOperations = [];
         }
 
@@ -29,7 +27,7 @@
         // Template Hooks
         // ════════════════════════════════════════════════════════════════
 
-        getAppLabel() { return 'EasyTrace5000 Workspace'; }
+        getAppLabel() { return 'EasyTrace5000 PCB Workspace'; }
 
         getProfileConfig() {
             return { embeddedVar: 'EMBEDDED_PROFILE_TRACE', fetchPath: '../ui/profile-trace.json' };
@@ -41,22 +39,125 @@
 
         registerHandlers() {
             // Parsers
-            if (typeof SVGParser !== 'undefined') this.core.registerParser('.svg', new SVGParser());
-            if (typeof GerberParser !== 'undefined') {
-                const gerber = new GerberParser();
-                for (const ext of ['.gbr', '.gtl', '.gbl', '.gts', '.gbs', '.gto', '.gbo', '.gtp', '.gbp', '.gm1', '.gko']) {
-                    this.core.registerParser(ext, gerber);
-                }
+            this.core.ingest.registerParser('.svg', new SVGParser());
+
+            const gerber = new GerberParser();
+            for (const ext of ['.gbr', '.ger', '.gtl', '.gbl', '.gp1', '.gnd', '.gbp', '.gm1', '.gko']) {
+                this.core.ingest.registerParser(ext, gerber);
             }
-            if (typeof ExcellonParser !== 'undefined') {
-                const excellon = new ExcellonParser();
-                for (const ext of ['.drl', '.xln', '.exc', '.txt']) {
-                    this.core.registerParser(ext, excellon);
-                }
+
+            const excellon = new ExcellonParser();
+            for (const ext of ['.drl', '.xln', '.txt', '.drill', '.exc']) {
+                this.core.ingest.registerParser(ext, excellon);
             }
 
             // Handlers
             super.registerHandlers();
+        }
+
+        /**
+         * Generates a 2D differenced copper layer (Copper - Drill Holes) for 3D rendering.
+         * Without arc reconstruction.
+         */
+        async compute3DSubtractedCopper() {
+            const isolationOp = this.core.operations.find(o => "isolation" === o.type && o.primitives?.length > 0);
+            const drillOp = this.core.operations.find(o => "drill" === o.type && this.core.store.toolpaths.has(o.id));
+            if (!isolationOp || !drillOp || !this.core.geometryProcessor) return null;
+
+            // Standardize copper traces and pads into filled polygons
+            const copperPolys = [];
+            for (const prim of isolationOp.primitives) {
+                const res = this.core.geometryProcessor.standardizePrimitive(prim, prim.curveIds || []);
+                if (res) Array.isArray(res) ? copperPolys.push(...res) : copperPolys.push(res);
+            }
+            if (0 === copperPolys.length) return null;
+
+            // Build cut footprint polygons based on drill strategy and hole sizes
+            const holePolys = [];
+            const drillRows = drillOp.drillTable?.rows || {};
+            const drillParams = this.parameterStore.getAllParameters(drillOp.id);
+            const opToolDia = parseFloat(drillParams.toolDiameter) || 0;
+            const minMillMargin = D.toolpath?.generation?.drilling?.millMargin ?? 0.05;
+
+            const createSlotPoly = (p1, p2, r) => {
+                const dx = p2.x - p1.x, dy = p2.y - p1.y;
+                const len = Math.hypot(dx, dy);
+                if (len < 1e-6) {
+                    return GeometryTessellation.circleToPath({ center: p1, radius: r, properties: { polarity: "dark" } });
+                }
+                const angle = Math.atan2(dy, dx);
+                const segs = 16;
+                const pts = [];
+                for (let i = 0; i <= segs; i++) {
+                    const a = angle - Math.PI / 2 + (i / segs) * Math.PI;
+                    pts.push({ x: p2.x + r * Math.cos(a), y: p2.y + r * Math.sin(a) });
+                }
+                for (let i = 0; i <= segs; i++) {
+                    const a = angle + Math.PI / 2 + (i / segs) * Math.PI;
+                    pts.push({ x: p1.x + r * Math.cos(a), y: p1.y + r * Math.sin(a) });
+                }
+                return new PathPrimitive([{ points: pts, isHole: false, nestingLevel: 0, parentId: null, arcSegments: [], curveIds: [] }], { polarity: "dark", closed: true, fill: true });
+            };
+
+            for (const prim of drillOp.primitives || []) {
+                const role = prim.properties?.role;
+                if ("drill_hole" !== role && "drill_slot" !== role) continue;
+
+                const holeDia = prim.properties?.diameter || (prim.radius ? 2 * prim.radius : 0);
+                if (!(holeDia > 0)) continue;
+
+                const dKey = Number(holeDia).toFixed(3);
+                const row = drillRows[dKey];
+                const toolDia = (row && row.toolDiameter > 0) ? row.toolDiameter : opToolDia;
+                const strategy = row?.strategy || (drillParams.millHoles ? "mill" : "peck");
+
+                const diff = holeDia - toolDia;
+                const canMill = diff >= minMillMargin - 1e-9;
+                const isMilled = "mill" === strategy;
+
+                if ("drill_hole" === role && prim.center) {
+                    // Milled -> removes hole diameter; Pecked -> removes tool diameter
+                    const cutRadius = (isMilled && canMill || Math.abs(diff) < PRECISION ? holeDia : toolDia) / 2;
+                    if (cutRadius > 0) {
+                        const path = GeometryTessellation.circleToPath({
+                            center: prim.center,
+                            radius: cutRadius,
+                            properties: { polarity: "dark" }
+                        });
+                        path && holePolys.push(path);
+                    }
+                } else if ("drill_slot" === role && prim.properties?.originalSlot) {
+                    const slot = prim.properties.originalSlot;
+                    if (isMilled) {
+                        // Milled or centerline slot -> continuous cut along the line
+                        const r = (canMill || Math.abs(diff) < PRECISION ? holeDia : toolDia) / 2;
+                        if (r > 0) {
+                            const poly = createSlotPoly(slot.start, slot.end, r);
+                            poly && holePolys.push(poly);
+                        }
+                    } else {
+                        // Pecked at slot endpoints
+                        const r = toolDia / 2;
+                        if (r > 0) {
+                            const p1 = GeometryTessellation.circleToPath({ center: slot.start, radius: r, properties: { polarity: "dark" } });
+                            const p2 = GeometryTessellation.circleToPath({ center: slot.end, radius: r, properties: { polarity: "dark" } });
+                            p1 && holePolys.push(p1);
+                            p2 && holePolys.push(p2);
+                        }
+                    }
+                }
+            }
+
+            if (0 === holePolys.length) return null;
+
+            // Single WASM Clipper difference (Copper - Drill Cutters)
+            const differenced = await this.core.geometryProcessor.difference(copperPolys, holePolys);
+            if (differenced && differenced.length > 0) {
+                isolationOp._3dCopperPrimitives = differenced;
+                return differenced;
+            }
+
+            return null;
         }
 
         /**
@@ -65,10 +166,10 @@
         get3DStockBox(w2m) {
             const b = this.core.scene?.boardBounds;
             if (!(b && b.maxX > b.minX)) return null;
-            const thickness = this.core.settings.machine.pcb.thickness;
-            const zeroRef = this.core.settings?.machine?.stock?.zeroReference;
-            const topZ = (zeroRef && "material" !== zeroRef) ? thickness : 0;
-            const machineMatrix = this.core.getTransforms().machineMatrix;
+            const thickness = this.core.settings.machine.stock.thickness;
+            const zeroRef = this.core.settings.machine.stock.zeroReference;
+            const topZ = zeroRef && "material" !== zeroRef ? thickness : 0;
+            const machineMatrix = this.core.pipelineContext.getTransforms().machineMatrix;
             const w = b.maxX - b.minX;
             const d = b.maxY - b.minY;
             return {
@@ -82,36 +183,52 @@
             };
         }
 
-        onPostWASM() { this.ui.machineSettings?.updatePipelineFieldVisibility(); }
+        refresh3DModel(ctx) {
+            const isolationOp = this.core.operations.find(o => "isolation" === o.type);
+            const drillOp = this.core.operations.find(o => "drill" === o.type);
+            // Require valid drill toolpaths before punching holes in 3D copper
+            const hasDrillToolpaths = drillOp && this.core.store.toolpaths.has(drillOp.id) && !this.core.store.isArtifactStale(drillOp, "toolpath");
+
+            if (isolationOp && hasDrillToolpaths && !isolationOp._3dCopperPrimitives && !this._computingHoles) {
+                this._computingHoles = true;
+                this.compute3DSubtractedCopper().then(diff => {
+                    this._computingHoles = false;
+                    if (diff) this.render3D();
+                }).catch(() => { this._computingHoles = false; });
+            } else if (isolationOp?._3dCopperPrimitives && !hasDrillToolpaths) {
+                // If drill toolpaths were deleted or invalidated, restore solid copper
+                delete isolationOp._3dCopperPrimitives;
+                this.render3D();
+            }
+            return null;
+        }
 
         registerAppShortcuts() {
-            const sm = this.shortcutManager;
-
-            sm.register('w', () => {
-                const t = document.getElementById('show-wireframe');
-                if (t) { t.checked = !t.checked; t.dispatchEvent(new Event('change', { bubbles: true })); }
-            });
-            sm.register('Delete', () => this.removeSelectedOperation());
-            sm.register('b', () => this.ui.bottomLeftOrigin());
-            sm.register('o', () => this.ui.applyOffsetAndSetOrigin());
-            sm.register('c', () => this.ui.centerOrigin());
-
-            // Operation category cycling
-            for (const [key, opType] of Object.entries({ '1': 'isolation', '2': 'drill', '3': 'clearing', '4': 'cutout', '5': 'stencil' })) {
-                sm.register(key, () => this.ui.navTreePanel.cycleOperationCategory(opType));
-            }
-
-            // Arrow panning (only when not in sidebar)
-            const panKeys = { ArrowLeft: [1, 0], ArrowRight: [-1, 0], ArrowUp: [0, 1], ArrowDown: [0, -1] };
-            for (const [key, [mx, my]] of Object.entries(panKeys)) {
-                sm.register(key, (e) => {
-                    const inSidebar = document.activeElement?.closest('#sidebar-left, #sidebar-right');
-                    if (inSidebar) return;
+            this.shortcutManager.registerActions({
+                toggleWireframe: () => {
+                    const t = document.getElementById('show-wireframe');
+                    if (t) {
+                        t.checked = !t.checked;
+                        t.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+                },
+                deleteSelection: () => this.removeSelectedOperation(),
+                addFiles: () => this.modalManager.showModal('quickstart'),
+                bottomLeftOrigin: () => this.ui.bottomLeftOrigin(),
+                offsetOrigin: () => this.ui.applyOffsetAndSetOrigin(),
+                centerOrigin: () => this.ui.centerOrigin(),
+                cycleCategory: (e, opType) => {
+                    this.ui.navTreePanel.cycleOperationCategory(opType);
+                    const label = this.registry?.labelFor(opType) || opType;
+                    this.ui.setStatus(`${label} category`, 'info', true);
+                },
+                pan: (e, mx, my) => {
+                    if (document.activeElement?.closest('#sidebar-left, #sidebar-right')) return;
                     const amount = e.shiftKey ? 100 : 25;
-                    this.ui.renderer.core?.pan(mx * amount, my * amount);
+                    this.ui.renderer.pan(mx * amount, my * amount);
                     this.ui.renderer.render();
-                }, { allowInTree: false });
-            }
+                }
+            });
         }
 
         handleEscapeKey(e) {
@@ -132,7 +249,6 @@
 
         onFinalize() {
             this.processPendingOperations();
-            window.easytrace = this;
 
             const hash = window.location.hash.substring(1);
             const deepLinkModals = ['support', 'welcome', 'quickstart'];
@@ -158,7 +274,7 @@
             });
 
             document.getElementById('toolbar-manage-toolpaths')?.addEventListener('click', () => {
-                const readyOps = this.core.operations.filter(op => this.core.isExportReady(op));
+                const readyOps = this.core.operations.filter(op => this.core.store.isExportReady(op));
                 if (readyOps.length === 0) {
                     this.ui.setStatus('No operations ready for export. Finish each operation through its Toolpaths stage first.', 'warning');
                     return;
@@ -215,53 +331,51 @@
             }
         }
 
-        ensureCoordinateSystem() {
-            if (this.core.scene && !this.core.scene.boardBounds) {
-                this.core.scene.initializeEmptyBoardBounds();
-            }
-            this.ui.updateOriginDisplay?.();
-        }
-
         // ════════════════════════════════════════════════════════════════
         // File Processing
         // ════════════════════════════════════════════════════════════════
 
         async loadExample(exampleId) {
-            if (!exampleId) {
-                const select = document.getElementById('pcb-example-select');
-                exampleId = select ? select.value : 'exampleSMD1';
-            }
             const examples = this.getExamples();
-            const example = examples[exampleId];
-            if (!example) { this.ui.setStatus(`Example not found: ${exampleId}`, 'error'); return; }
-            this.ui.setStatus(`Loading example: ${example.name}...`, 'info');
-            if (this.core) this.core.clearAll();
-            this.ui.navTreePanel.refreshTree();
-            for (const [type, filepath] of Object.entries(example.files)) {
+            const select = document.getElementById("pcb-example-select");
+            const id = exampleId || select?.value || Object.keys(examples || {})[0];
+            const example = examples?.[id];
+
+            if (!example) {
+                this.ui.setStatus(`Example not found: ${id}`, "error");
+                return;
+            }
+
+            this.ui.setStatus(`Loading example: ${example.name}...`, "info");
+            this.core?.clearAll();
+            this.ui.navTreePanel?.refreshTree();
+
+            for (const [type, filepath] of Object.entries(example.files || {})) {
                 try {
                     const response = await fetch(filepath);
                     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                     const content = await response.text();
-                    const fileName = filepath.split('/').pop();
-                    await this.processFile(new File([content], fileName, { type: 'text/plain' }), type);
+                    const fileName = filepath.split("/").pop();
+                    await this.processFile(new File([content], fileName, { type: "text/plain" }), type);
                 } catch (e) {
                     console.error(`Failed to load example file ${filepath}:`, e);
-                    this.ui.setStatus(`Failed to load ${filepath.split('/').pop()}`, 'error');
+                    this.ui.setStatus(`Failed to load ${filepath.split("/").pop()}: ${e.message}`, "error");
                 }
             }
+
             this.core.updateBoardBounds();
             this._hasFitted3DOnce = false;
-            this.ui.setStatus(`Example '${example.name}' loaded successfully.`, 'success');
-            await this.ui.updateRendererAsync();
+            this.ui.setStatus(`Example '${example.name}' loaded successfully.`, "success");
+            await this.ui.rebuildLayers();
             this.ui.zoomFit();
             this.ui.renderer.render();
         }
 
         async processFile(file, type) {
             if (!file || !type) { console.error('Invalid file or type provided'); return; }
-            const validation = this.core.validateFileType(file.name, type);
+            const validation = this.core.ingest.validateFileType(file.name, type);
             if (validation && !validation.valid) { this.ui.setStatus(validation.message, 'error'); return; }
-            const operation = this.core.createOperation(type, file);
+            const operation = this.core.store.createOperation(type, file);
             if (!operation) { console.error('Failed to create operation'); return; }
             this.ui.navTreePanel.addFileNode(operation);
             this.ui.setStatus(`${this.appProfile.ui.text.statusLoading || 'Loading...'} ${file.name}...`, 'info', true);
@@ -270,7 +384,7 @@
             return new Promise((resolve) => {
                 reader.onload = async (e) => {
                     operation.file.content = e.target.result;
-                    const success = await this.core.parseOperation(operation);
+                    const success = await this.core.ingest.parseOperation(operation);
 
                     if (success) {
                         const count = operation.primitives.length;
@@ -312,8 +426,7 @@
                         if (fileNode) this.ui.navTreePanel.updateFileGeometries(fileNode.id, operation);
                     }
 
-                    if (this.ui.updateRendererAsync) await this.ui.updateRendererAsync();
-                    else if (this.ui.updateRenderer) await this.ui.updateRenderer();
+                    await this.ui.rebuildLayers();
 
                     if (this.core.operations.length <= 1) this.ui.zoomFit();
                     this.ui.updateStatistics();
@@ -367,12 +480,12 @@
                         const compounds = GeometryTopology.assembleCutoutCompounds(topology);
                         operation.primitives = compounds.length > 0 ? compounds : allLoops;
                         delete operation.extractedLoops;
-                        operation.bounds = this.core.recalculateBounds(operation.primitives);
-                        this.core.analyzeGeometricContext(operation, operation.primitives);
+                        operation.bounds = this.core.ingest.recalculateBounds(operation.primitives);
+                        this.core.ingest.analyzeGeometricContext(operation, operation.primitives);
                         delete operation.needsClosurePrompt; delete operation.closureInfo;
                         if (operation.warnings) operation.warnings = operation.warnings.filter(w => !(typeof w === 'string' ? w : w.message).includes('do not form closed loops'));
                         if (this.ui.navTreePanel) { const fn = this.ui.navTreePanel.getNodeByOperationId(operation.id); if (fn) this.ui.navTreePanel.updateFileGeometries(fn.id, operation); }
-                        await this.ui.updateRendererAsync();
+                        await this.ui.rebuildLayers();
                         this.ui.setStatus('Cutout paths automatically closed.', 'success');
                     } else { this.ui.setStatus('Cannot close - test with a higher tolerance first.', 'error'); }
                 },
@@ -430,7 +543,7 @@
                 onConfirm: async () => {
                     this.core.getHandler('drill').promoteDrillRecoverable(operation, circleCount > 0, obroundCount > 0);
                     if (this.ui.navTreePanel) { const fn = this.ui.navTreePanel.getNodeByOperationId(operation.id); if (fn) this.ui.navTreePanel.updateFileGeometries(fn.id, operation); }
-                    await this.ui.updateRendererAsync();
+                    await this.ui.rebuildLayers();
                     this.ui.setStatus(`Recovered ${circleCount + obroundCount} drill shape(s)`, 'success');
                 },
                 onCancel: () => { delete operation.drillRecoverable; this.ui.setStatus('Compound shapes skipped', 'info'); }
@@ -460,7 +573,7 @@
             if (this.pendingOperations.length === 0 && this.initState.fullyReady) {
                 this.core.updateBoardBounds();
                 this._hasFitted3DOnce = false;
-                await this.ui.updateRendererAsync();
+                await this.ui.rebuildLayers();
                 this.ui.zoomFit();
                 this.ui.renderer.render();
                 if (fileCount > 1) {
@@ -488,7 +601,7 @@
         removeSelectedOperation() {
             const selectedNode = this.ui.navTreePanel.selectedNode;
             if (selectedNode?.type === 'file' && selectedNode.operation) {
-                this.ui.removeOperation(selectedNode.operation.id);
+                this.ui.promptRemoveOperation(selectedNode.operation.id);
             }
         }
 
@@ -527,15 +640,4 @@
     }
 
     window.startTraceApp = startTraceApp;
-
-    // Debug utilities
-    // REVIEW - Anywhere else this should be? Is it being used yet? This seems like it should be shared?
-    window.showTraceStats = function() { if (ctrl) ctrl.logState(); };
-    window.enableTraceDebug = function() { debugState.enabled = true; };
-    window.disableTraceDebug = function() { debugState.enabled = false; };
-
-    window.addFile = function(type) {
-        if (!ctrl?.ui?.triggerFileInput) { console.error('Controller not initialized'); return; }
-        ctrl.ui.triggerFileInput(type);
-    };
 })();

@@ -17,12 +17,17 @@
     const debugState = D.debug;
 
     class CanvasExporter {
+        /**
+         * @param {RendererCore} renderer The public renderer object. `core` is
+         * kept as a second name for it only because this file reads it ~40 times
+         * and the shorter name is what the drawing code was written against.
+         */
+        // REVIEW - Use shorter names in more places?
         constructor(renderer) {
             this.renderer = renderer;
-            this.core = renderer.core;
             this.svgNS = 'http://www.w3.org/2000/svg';
 
-            // REVIEW - Check these fallbacks, useless?
+            // REVIEW - Check these fallbacks, are they dead/useless?
             this.options = {
                 decimals: 3,
                 padding: D.export.svg.padding ?? 5,
@@ -41,25 +46,27 @@
          * resolved yet - they are not a second palette.
          */
         getColors() {
-            const c = this.core.colors || {};
-            const src = c.source || {};
-            const geo = c.geometry || {};
-            const prim = c.primitives || {};
-            const bw = c.bw || {};
+            const c = this.renderer.colors;
+            const src = c.source;
+            const geo = c.geometry;
+            const prim = c.primitives;
+            const bw = c.bw;
 
             return {
-                drillSource: src.drill || '#4488ff',
+                drillSource: src.drill,
 
-                preview: geo.preview || '#0060dd',
-                offsetExternal: geo.offset?.external || '#a60000',
-                offsetInternal: geo.offset?.internal || '#00a600',
+                preview: geo.preview,
+                offsetExternal: geo.offset?.external,
+                offsetInternal: geo.offset?.internal,
 
+                bwWhite: bw.white,
+                bwBlack: bw.black,
 
-                statusGood: prim.peckMarkGood || '#16d329',
-                statusWarn: prim.peckMarkWarn || '#d2cb00',
-                statusError: prim.peckMarkError || '#ff0000',
+                statusGood: prim.peckMarkGood,
+                statusWarn: prim.peckMarkWarn,
+                statusError: prim.peckMarkError,
 
-                white: bw.white || '#ffffff'
+                white: bw.white
             };
         }
 
@@ -88,7 +95,7 @@
             const isOffset = layer.isOffset || layer.type === 'offset';
             const isSourceDrill = layer.type === 'drill' && !isOffset && !isPreview;
 
-            const isPeck = props.role === 'peck_mark' || props.isToolPeckMark;
+            const isPeck = props.role === 'peck_mark';
             const statusColor = this.getStatusColor(toolRelation);
 
             let geometryColor, geometryFill, markColor;
@@ -133,8 +140,8 @@
             const exportConfig = { ...this.options, ...options };
             const filename = exportConfig.filename || 'EasyCAM5000-CanvasContents.svg';
 
-            this.core.calculateOverallBounds();
-            const bounds = this.core.bounds;
+            this.renderer.calculateOverallBounds();
+            const bounds = this.renderer.bounds;
 
             if (!bounds || !isFinite(bounds.width)) {
                 console.warn('[CanvasExporter] No content to export');
@@ -154,7 +161,7 @@
         }
 
         createExportComment() {
-            const vo = this.core.options;
+            const vo = this.renderer.options;
             const appName = this.renderer.appCore.appProfile.meta.app;
             const commentText = ` ${appName} Canvas Export | ${new Date().toLocaleString()} \n Mode: ${vo.showWireframe ? 'Wireframe' : 'Solid'} | Geometry: ${vo.fuseGeometry ? 'Fused' : 'Source'} `;
             return document.createComment(commentText);
@@ -183,27 +190,30 @@
             const style = document.createElementNS(this.svgNS, 'style');
             const colors = this.getColors();
 
-            const src = this.core.colors?.source || {};
-            const bwPal = this.core.colors?.bw || {};
+            const src = this.renderer.colors.source;
+            const bwPal = this.renderer.colors.bw;
+            const isBW = !!this.renderer.options?.blackAndWhite;
 
             let css = `.lg { stroke-linecap: round; stroke-linejoin: round; }\n`;
 
             if (isBW) {
-                const w = bwPal.white || '#ffffff';
-                const b = bwPal.black || '#000000';
+                const w = bwPal.white;
+                const b = bwPal.black;
                 css += `svg { background: ${b}; }\n`;
-                css += `.fill { fill: ${w}; stroke: none; fill-rule: evenodd; }\n`;
-                css += `.str { fill: none; stroke: ${w}; }\n`;
+                css += `.iso, .drl, .clr, .fus { fill: ${w}; stroke: none; }\n`;
+                css += `.fus { fill-rule: evenodd; }\n`;
+                css += `.cut { fill: ${b}; stroke: none; }\n`;
+                css += `.trc, .off-e, .off-i, .prv { fill: none; stroke: ${w}; }\n`;
             } else {
                 // Source layer fills
-                css += `.iso { fill: ${src.isolation || '#ff8844'}; }\n`;
-                css += `.drl { fill: ${src.drill || '#4488ff'}; }\n`;
-                css += `.clr { fill: ${src.clearing || '#44ff88'}; }\n`;
-                css += `.cut { fill: ${src.cutout || '#333333'}; }\n`;
-                css += `.fus { fill: ${src.isolation || '#ff8844'}; fill-rule: evenodd; }\n`;
+                css += `.iso { fill: ${src.isolation}; }\n`;
+                css += `.drl { fill: ${src.drill}; }\n`;
+                css += `.clr { fill: ${src.clearing}; }\n`;
+                css += `.cut { fill: ${src.cutout}; }\n`;
+                css += `.fus { fill: ${src.isolation}; fill-rule: evenodd; }\n`;
 
                 // Stroke-only layers
-                css += `.trc { fill: none; stroke: ${src.isolation || '#ff8844'}; }\n`;
+                css += `.trc { fill: none; stroke: ${src.isolation}; }\n`;
                 css += `.off-e { fill: none; stroke: ${colors.offsetExternal}; }\n`;
                 css += `.off-i { fill: none; stroke: ${colors.offsetInternal}; }\n`;
                 css += `.prv { fill: none; stroke: ${colors.preview}; }\n`;
@@ -224,8 +234,8 @@
             let transformStr = 'scale(1,-1)'; 
 
             // Read the unified global transform matrix from the scene
-            if (this.core.scene) {
-                const wm = this.core.scene.getWorkspaceMatrix();
+            if (this.renderer.scene) {
+                const wm = this.renderer.scene.getWorkspaceMatrix();
                 if (wm && typeof window.TransformMath !== 'undefined' && !window.TransformMath.isIdentity(wm)) {
                     transformStr += ` matrix(${fmt(wm.a)} ${fmt(wm.b)} ${fmt(wm.c)} ${fmt(wm.d)} ${fmt(wm.e)} ${fmt(wm.f)})`;
                 }
@@ -238,7 +248,7 @@
 
         // Layer Export
         exportVisibleLayers(parentGroup, config) {
-            const visibleLayers = this.core.getVisibleLayers();
+            const visibleLayers = this.renderer.getVisibleLayers();
             const order = ['cutout', 'source', 'fused', 'preprocessed', 'clearing', 'isolation', 'drill', 'offset', 'preview'];
 
             const sortedLayers = Array.from(visibleLayers.entries())
@@ -281,7 +291,7 @@
 
         // Visibility helper
         shouldExportLayer(layer) {
-            const opts = this.core.options;
+            const opts = this.renderer.options;
             
             if (layer.type === 'offset' && !opts.showOffsets) return false;
             if (layer.type === 'preview' && !opts.showPreviews) return false;
@@ -293,7 +303,7 @@
 
         // Group styling
         applyGroupClass(group, layer) {
-            if (this.core.options.showWireframe) return;
+            if (this.renderer.options.showWireframe) return;
 
             const isDrillOperation = layer.operationType === 'drill' || layer.type === 'drill';
 
@@ -317,7 +327,7 @@
             const role = props.role;
 
             // Dispatch by role (mirrors renderer logic)
-            if (role === 'peck_mark' || props.isToolPeckMark) {
+            if (role === 'peck_mark') {
                 return this.exportPeckMark(primitive, layer, config);
             }
 
@@ -454,19 +464,19 @@
         }
 
         // Milling Path Handler
-        exportMillingPath(primitive, layer, config) {
+        exportMillingPath(primitive,layer,config){
             const prec = config.decimals;
-            const fmt = (n) => this.formatNumber(n, prec);
+            const fmt = n => this.formatNumber(n, prec);
             const props = primitive.properties || {};
+            const colors = this.getColors();
 
-            // Get Unified Colors
-            const { geometryColor, geometryFill, markColor } = this.getDrillElementColors(primitive, layer);
+            // Get Unified Colors // REVIEW - geometryFill: geometryFill is useless?
+            const {geometryColor: geometryColor, geometryFill: geometryFill, markColor: markColor } = this.getDrillElementColors(primitive, layer);
 
             // State Flags
-            const isPreview = layer.isPreview || layer.type === 'preview';
+            const isPreview = layer.isPreview || "preview" === layer.type;
             const isCenterline = props.isCenterlinePath;
-
-            const group = document.createElementNS(this.svgNS, 'g');
+            const group = document.createElementNS(this.svgNS, "g");
             let mainEl = null;
 
             // Generate the Main Geometry
@@ -649,54 +659,6 @@
                 el.setAttribute('fill', 'none');
             }
             // Else: filled geometry uses CSS class from parent group
-
-            return el;
-        }
-
-        // Helper to separate creation from styling
-        styleStandardElement(el, primitive, layer, config) {
-            const fmt = (n) => this.formatNumber(n, config.decimals);
-            const props = primitive.properties || {};
-            const colors = this.getColors();
-
-            if (layer.isPreview || layer.type === 'preview') {
-                // Preview Mode: Use tool diameter width
-                const toolDia = props.toolDiameter || layer.metadata?.toolDiameter || 0.1;
-
-                el.setAttribute('fill', 'none');
-                el.setAttribute('stroke', colors.preview);
-                el.setAttribute('stroke-width', fmt(toolDia));
-                el.setAttribute('stroke-linecap', 'round');
-                el.setAttribute('stroke-linejoin', 'round');
-
-            } else if (layer.isOffset || layer.type === 'offset') {
-                // Offset Mode: Thin lines
-                const offsetColor = layer.offsetType === 'internal' 
-                    ? colors.offsetInternal 
-                    : colors.offsetExternal;
-
-                el.setAttribute('fill', 'none');
-                el.setAttribute('stroke', offsetColor);
-                el.setAttribute('stroke-width', fmt(0.025)); // Hairline
-                el.setAttribute('stroke-linejoin', 'round');
-
-            } else {
-                // Source Mode
-                // Traces/Strokes
-                if ((props.isTrace || props.stroke) && !props.fill) {
-                    el.setAttribute('fill', 'none');
-                    // If the element has a class (from layer group), stroke color comes from CSS.
-                    // Must set width if defined.
-                    if (props.strokeWidth) {
-                        el.setAttribute('stroke-width', fmt(props.strokeWidth));
-                    }
-                    // If it's a generic stroke without width, default to 0
-                }
-                // Regions/Fills - handled by CSS classes on the parent Group usually, but if specific properties override, handle here:
-                else if (props.fill === false) {
-                    el.setAttribute('fill', 'none');
-                }
-            }
 
             return el;
         }

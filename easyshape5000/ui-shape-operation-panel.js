@@ -40,14 +40,19 @@
 
         getFormContainer() { return document.getElementById('operation-form-container'); }
 
-        init(scene, selection, core, paramManager, appProfile, lang) {
-            this.scene = scene;
-            this.selection = selection;
-            this.initBase(core, paramManager, appProfile, lang);
+        /**
+         * EasyShape keeps its own init because scene and selection are its
+         * state, not the base's. EasyTrace has no extra state and calls
+         * initBase directly.
+         */
+        init(opts) {
+            this.scene = opts.scene;
+            this.selection = opts.selection;
+            this.initBase(opts);
         }
 
         /**
-         * The {id, type, settings} view ParameterManager wants, with
+         * The {id, type, settings} view parameterStore wants, with
          * userOverrides forwarded to the object that actually OWNS it.
          *
          * onParameterChange records overrides on the scene node or the
@@ -82,7 +87,7 @@
             const bucket = this.currentBucket;
             const captured = this.captureFormStateForId(bucket.id, bucket.type, bucket.shapeRefs);
             bucket.settings = { ...bucket.settings, ...captured };
-            this.parameterManager.commitToOperation(bucket.toParamSource());
+            this.parameterStore.commitToOperation(bucket.toParamSource());
             this.debug(`Saved bucket state for ${this.currentOperationId}`);
         }
 
@@ -127,20 +132,25 @@
             // can read toolDiameter and all other defaults. Without this,
             // getAllParameters() returns {} and offset distances become NaN.
             const node = this.scene.findShape(shapeId);
-            this.parameterManager.loadFromOperation(
+            this.parameterStore.loadFromOperation(
                 node ? this.paramSourceFor(node, opType, {})
                      : { id: shapeId, type: opType, settings: {} });
 
-            const values = this.parameterManager.getAllParameters(shapeId);
+            const values = this.parameterStore.getAllParameters(shapeId);
             this.renderParameterForm(container, opType, 'geometry', values);
 
-            const wrapper = document.createElement('div');
-            wrapper.className = 'property-actions';
-            const btn = document.createElement('button');
-            btn.className = 'btn btn--primary btn--block';
-            btn.id = 'action-button';
-            btn.textContent = 'Generate Offsets';
-            btn.addEventListener('click', () => this.emit('createAndGenerate', { shapeId, opType }));
+            const wrapper = document.createElement("div");
+            wrapper.className = "property-actions";
+            const btn = document.createElement("button");
+            btn.className = "btn btn--primary btn--block";
+            btn.id = "action-button";
+            const actionInfo = this.getActionButtonInfo("geometry", opType);
+            btn.textContent = actionInfo?.text || "Generate";
+            btn.disabled = !!actionInfo?.disabled;
+            btn.addEventListener("click", () => this.emit("createAndGenerate", {
+                shapeId: shapeId,
+                opType: opType
+            }));
             wrapper.appendChild(btn);
             container.appendChild(wrapper);
         }
@@ -151,7 +161,7 @@
         showBucketStage(container, bucket, stage) {
             // The form below is rendered from getAllParameters(bucket.id), so
             // currentOperationId MUST be bucket.id: onParameterChange writes
-            // through it, evaluateConditionals re-reads through it, and
+            // through it, applyConditionals re-reads through it, and
             // onExternalParameterChange compares against it. Pointing it at
             // shapeRefs[0] made the panel read one store and write another -
             // conditionals re-evaluated against a different (possibly stale)
@@ -162,11 +172,7 @@
 
             const opType = bucket.type;
 
-            // Node → form. `stage` here is the ARTIFACT node name ('offsets',
-            // 'preview', 'toolpath') or 'geometry' for the bucket header.
-            // Artifact node i shows stages[i + 1]; the header shows stages[0].
-            // The old positional `stages[1] || 'machine'` fallback is what
-            // rendered Feeds & Speeds under a node captioned "Offsets".
+            // Positional indexing here renders the wrong stage under a node's caption.
             const ctx = this.getOperationContext(opType);
             const { stages, artifacts } = ctx;
             const nodeIndex = artifacts.indexOf(stage);
@@ -174,7 +180,7 @@
             this.currentStage = paramStage;
 
             // Load bucket settings into parameter manager
-            this.parameterManager.loadFromOperation(bucket.toParamSource());
+            this.parameterStore.loadFromOperation(bucket.toParamSource());
 
             // Header
             const header = document.createElement('div');
@@ -187,11 +193,11 @@
             container.appendChild(header);
 
             // Render Parameter form
-            const values = this.parameterManager.getAllParameters(bucket.id);
+            const values = this.parameterStore.getAllParameters(bucket.id);
             this.renderParameterForm(container, opType, paramStage, values);
 
             if (paramStage === 'output') {
-                const op = this.core.getOperation(bucket.id);
+                const op = this.core.store.getOperation(bucket.id);
                 if (op) container.appendChild(this.createOutputBlock(op));
             }
 
@@ -199,7 +205,7 @@
             // EasyTrace. Bucket context only: the shape context has no core
             // operation yet, so there is no summary to describe.
             if ('drill' === opType && ('geometry' === stage || 'strategy' === stage) && this.supportsDrillTooling()) {
-                const operation = this.core.getOperation(bucket.id);
+                const operation = this.core.store.getOperation(bucket.id);
                 if (operation) container.appendChild(this.createDrillToolingCard(operation, values, stage));
             }
 
@@ -275,7 +281,7 @@
         }
 
         async onGenerationSuccess(opId, operation) {
-            this.ui.rebuildLayers?.();
+            this.ui.rebuildLayers();
             this.selectArtifactNode(opId, 'offsets');
         }
 
@@ -287,12 +293,12 @@
         }
 
         async onPreviewSuccess(opId, operation) {
-            this.ui.rebuildLayers?.();
+            this.ui.rebuildLayers();
             this.selectArtifactNode(opId, 'preview');
         }
 
         async onToolpathSuccess(opId, operation) {
-            this.ui.rebuildLayers?.();
+            this.ui.rebuildLayers();
             this.selectArtifactNode(opId, "toolpath");
         }
 
@@ -346,8 +352,8 @@
             if ('geometry' === stage) {
                 const text = bucket.hasOffsets ? 'Regenerate Offsets' : 'Generate Offsets';
                 if ('drill' === bucket.type) {
-                    const operation = this.core.getOperation(bucket.id);
-                    const settings = this.parameterManager.getAllParameters(bucket.id);
+                    const operation = this.core.store.getOperation(bucket.id);
+                    const settings = this.parameterStore.getAllParameters(bucket.id);
                     const info = operation ? DrillHandler.describeTable(operation, settings) : null;
                     if (info && 'perSize' === info.mode) {
                         return { text, disabled: !info.complete, title: info.complete ? '' : info.reason };
@@ -363,7 +369,7 @@
             const produces = artifacts[nodeIndex + 1];
             const hasThis = stage === 'offsets' ? bucket.hasOffsets
                           : stage === 'preview' ? bucket.hasPreview
-                          : !!bucket.getOperation(this.core)?.stamps?.[stage];
+                          : !!this.core.store.getOperation(bucket.id)?.stamps?.[stage];
 
             if (!produces) {
                 return {
@@ -385,7 +391,7 @@
          * definitions that apply to `opType`.
          */
         collectParamsForType(sourceId, opType) {
-            const pm = this.parameterManager;
+            const pm = this.parameterStore;
             const source = pm.getAllParameters(sourceId);
             const out = {};
 
@@ -410,7 +416,7 @@
         captureFormStateForId(targetId, opType, shapeIds = null) {
             clearTimeout(this.changeTimeout);
 
-            const pm = this.parameterManager;
+            const pm = this.parameterStore;
             const captured = this.collectParamsForType(this.currentOperationId, opType);
 
             for (const [name, value] of Object.entries(captured)) {

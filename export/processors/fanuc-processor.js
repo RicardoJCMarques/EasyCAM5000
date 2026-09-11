@@ -49,6 +49,8 @@
 
     // REVIEW - Add a safety check for machines with absolute Z0 coordinates that can't have negative Z values in operations since that can mean plunging dangerously into the perfectly leveled spoil-board.
     
+    const ROOT = globalThis;
+
     class FanucPostProcessor extends BasePostProcessor {
         constructor() {
             super('Fanuc', {
@@ -101,23 +103,23 @@
                     startCode: '',
                     endCode: ''
                 },
-                customParameters: [
+                parameters: [
                     {
-                        key: 'fanucProgramNumber',
+                        name: 'fanucProgramNumber',
                         label: 'Program Number (O)',
                         type: 'number',
                         category: 'machine',
                         default: 1000, min: 1, max: 9999, step: 1
                     },
                     {
-                        key: 'fanucProgramName',
+                        name: 'fanucProgramName',
                         label: 'Program Name (comment on O-line)',
                         type: 'text',
                         category: 'machine',
                         default: 'EASYSHAPE5000'
                     },
                     {
-                        key: 'fanucWorkOffset',
+                        name: 'fanucWorkOffset',
                         label: 'Work Offset',
                         type: 'select',
                         category: 'machine',
@@ -129,7 +131,7 @@
                         default: 'G54'
                     },
                     {
-                        key: 'fanucRotaryUnwind',
+                        name: 'fanucRotaryUnwind',
                         label: 'Rotary Position at Program End',
                         type: 'select',
                         category: 'machine',
@@ -238,7 +240,7 @@
             }
 
             let startCode = options.startCode || '';
-            startCode = startCode.replace(/{toolNumber}/g, options.toolNumber ?? 1);
+            startCode = startCode.replace(/{toolNumber}/g, options.toolNumber ?? '');
             if (startCode.trim()) lines.push(startCode);
 
             return lines.join('\n');
@@ -331,5 +333,5 @@
         }
     }
 
-    window.FanucPostProcessor = FanucPostProcessor;
+    ROOT.FanucPostProcessor = FanucPostProcessor;
 })();

@@ -142,13 +142,13 @@
                         break;
                     case 'update':
                         // Full re-process and redraw (e.g., fusion, offsets)
-                        if (option) this.renderer.core.setOptions({ [option]: isChecked });
+                        if (option) this.renderer.setOptions({ [option]: isChecked });
                         // Special logic for fusion/arc changes
                         if (option === 'fuseGeometry' && !isChecked) this.resetFusionStates();
                         if (option === 'fuseGeometry' || option === 'enableArcReconstruction') {
                             this.ui.core.geometryProcessor.clearCachedStates?.();
                         }
-                        if (this.ui.updateRendererAsync) await this.ui.updateRendererAsync();
+                        if (this.ui.rebuildLayers) await this.ui.rebuildLayers();
                         break;
                     case 'toggle-debug':
                         D.debug.enabled = isChecked;
@@ -209,10 +209,6 @@
         // ═══════════════════════════════════════════════════════════════
         // Instance convenience (delegates to static)
         // ═══════════════════════════════════════════════════════════════
-
-        collapseRightSidebar() {
-            UIControls.collapseAllIn('#sidebar-right');
-        }
 
         debug(message, data = null) {
             if (this.ui.debug) this.ui.debug(`[UIControls] ${message}`, data);
@@ -276,6 +272,9 @@
                 if (!['ArrowUp', 'ArrowDown'].includes(e.key)) return;
                 const focused = document.activeElement;
                 if (!sidebar.contains(focused)) return;
+                // Native stepping owns arrows on these; taking them costs the
+                // user the only keyboard way to change the value.
+                if (focused.tagName === 'SELECT' || focused.type === 'number') return;
                 e.preventDefault();
 
                 if (focused.classList.contains('section-header')) {
@@ -316,6 +315,111 @@
                     }
                 }
             });
+        }
+
+        
+        /**
+         * @param {Function} [onStatus] - (message, level) for reorder feedback.
+         * A shared control cannot reach the app singleton for this: a global
+         * lookup is untestable and no-ops silently before the app is ready.
+         */
+        static makeSortable(container, rowSelector, onStatus = null) {
+            let draggedItem = null;
+            container.addEventListener("dragstart", e => {
+                if (!container.classList.contains("is-orderable")) {
+                    e.preventDefault();
+                    return;
+                }
+                const targetItem = e.target.closest(rowSelector);
+                if (targetItem && container.contains(targetItem) && !targetItem.dataset.locked) {
+                    draggedItem = targetItem;
+                    draggedItem.classList.add("dragging");
+                    e.dataTransfer.effectAllowed = "move";
+                } else e.preventDefault();
+            });
+            container.addEventListener("dragend", () => {
+                if (draggedItem) {
+                    draggedItem.classList.remove("dragging");
+                    draggedItem = null;
+                }
+            });
+            container.addEventListener("dragover", e => {
+                e.preventDefault();
+                if (!draggedItem) return;
+                const afterElement = UIControls.getDragAfterElement(container, e.clientY, rowSelector);
+                if (null == afterElement) {
+                    const firstLocked = container.querySelector(`${rowSelector}[data-locked="true"]`);
+                    firstLocked ? container.insertBefore(draggedItem, firstLocked) : container.appendChild(draggedItem);
+                } else if (afterElement.dataset.locked !== 'true') {
+                    container.insertBefore(draggedItem, afterElement);
+                }
+            });
+            container.querySelectorAll(rowSelector).forEach((item, idx) => {
+                item.draggable = true;
+                item.setAttribute("tabindex", 0 === idx ? "0" : "-1");
+                item.setAttribute("role", "listitem");
+                item.setAttribute("aria-grabbed", "false");
+            });
+            container.addEventListener("keydown", e => {
+                const focused = document.activeElement;
+                if (!focused || !focused.matches(rowSelector) || !container.contains(focused)) return;
+                const items = Array.from(container.querySelectorAll(rowSelector));
+                const isGrabbed = "true" === focused.getAttribute("aria-grabbed");
+                if (" " === e.key) {
+                    e.preventDefault();
+                    if (!container.classList.contains("is-orderable") || focused.dataset.locked) return;
+                    if (isGrabbed) {
+                        focused.setAttribute("aria-grabbed", "false");
+                        focused.classList.remove("is-grabbed");
+                        onStatus?.('Item placed', 'info');
+                    } else {
+                        items.forEach(item => {
+                            item.setAttribute("aria-grabbed", "false");
+                            item.classList.remove("is-grabbed");
+                        });
+                        focused.setAttribute("aria-grabbed", "true");
+                        focused.classList.add("is-grabbed");
+                        onStatus?.('Item grabbed. Use Up/Down to move, Space to place.', 'info');
+                    }
+                }
+                if ("ArrowDown" === e.key || "ArrowUp" === e.key) {
+                    e.preventDefault();
+                    const idx = items.indexOf(focused);
+                    const targetIdx = "ArrowDown" === e.key ? idx + 1 : idx - 1;
+                    if (isGrabbed) {
+                        const sibling = "ArrowDown" === e.key ? focused.nextElementSibling : focused.previousElementSibling;
+                        if (sibling && sibling.matches(rowSelector) && !sibling.dataset.locked) {
+                            "ArrowUp" === e.key ? container.insertBefore(focused, sibling) : container.insertBefore(sibling, focused);
+                            focused.focus();
+                        }
+                    } else if (items[targetIdx]) {
+                        focused.setAttribute("tabindex", "-1");
+                        items[targetIdx].setAttribute("tabindex", "0");
+                        items[targetIdx].focus();
+                    }
+                }
+                if ("Escape" === e.key && isGrabbed) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    focused.setAttribute("aria-grabbed", "false");
+                    focused.classList.remove("is-grabbed");
+                    onStatus?.('Reorder cancelled', 'info');
+                }
+            });
+        }
+
+        /**
+         * Inner half of makeSortable - not callable standalone, which is why
+         * rowSelector has no default: the sortable rows are makeSortable's
+         * argument and there is no second answer to that question.
+         */
+        static getDragAfterElement(container, y, rowSelector) {
+            const draggableElements = [...container.querySelectorAll(`${rowSelector}:not(.dragging)`)];
+            return draggableElements.reduce((closest, child) => {
+                const box = child.getBoundingClientRect();
+                const offset = y - box.top - box.height / 2;
+                return offset < 0 && offset > closest.offset ? { offset: offset, element: child } : closest;
+            }, { offset: Number.NEGATIVE_INFINITY }).element;
         }
 
         /**
@@ -379,15 +483,10 @@
          * form container. Used for right-sidebar parameter grids.
          */
         static setupPropertyGridNavigation(container) {
-            const getNavigableItems = () => {
-                return Array.from(container.querySelectorAll(
-                    '.property-field, .tooltip-trigger, input:not([disabled]), select:not([disabled]), button:not([disabled])'
-                )).filter(el => {
-                    if (el.offsetParent === null) return false;
-                    if (el.matches('input, select') && el.closest('.property-field')) return false;
-                    return true;
-                });
-            };
+            const getNavigableItems = () => Array.from(container.querySelectorAll(
+                '.property-field, input:not([disabled]), select:not([disabled]), button:not([disabled])'
+            )).filter(el => el.offsetParent !== null &&
+                            (!el.matches('input, select') || !el.closest('.property-field')));
 
             const items = getNavigableItems();
             if (items.length === 0) return;
@@ -406,10 +505,10 @@
                 const currentIdx = currentItems.indexOf(focused);
                 const isEditing = focused.matches('input, select, textarea') &&
                                   focused.closest('.property-field');
-                const isTooltip = focused.classList.contains('tooltip-trigger');
 
                 if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
-                    if (focused.tagName === 'SELECT') return;
+                    // Native stepping owns arrows on these.
+                    if (focused.tagName === 'SELECT' || focused.type === 'number') return;
                     e.preventDefault();
                     if (window.TooltipManager) window.TooltipManager.hide();
 
@@ -447,15 +546,6 @@
                         focused.blur();
                         const row = focused.closest('.property-field');
                         if (row) { row.setAttribute('tabindex', '0'); row.focus(); }
-                    } else if (isTooltip) {
-                        e.preventDefault();
-                        if (window.TooltipManager) window.TooltipManager.hide();
-                        const nextIdx = currentIdx + 1;
-                        if (currentItems[nextIdx]) {
-                            focused.setAttribute('tabindex', '-1');
-                            currentItems[nextIdx].setAttribute('tabindex', '0');
-                            currentItems[nextIdx].focus();
-                        }
                     }
                 }
             });
@@ -464,72 +554,199 @@
         /**
          * Attaches standard tree keyboard navigation to a container.
          * Works for NavScenePanel, NavTreePanel and NavOperationsPanel.
-         *
          * @param {HTMLElement} container - The tree container element
-         * @param {string} rowSelector - CSS selector for navigable rows
+         * @param {string|Array} rows - A row selector for a flat tree, or an
+         *     ordered levels descriptor [{ selector, idFrom, onActivate }] with
+         *     index 0 outermost. Descend/ascend are derived from document order:
+         *     a child row follows its parent and the run ends at the first row
+         *     at the same or shallower depth, so a tree gains a level by adding
+         *     an entry rather than a switch arm.
          * @param {Object} callbacks
-         * @param {Function} callbacks.onSelect - (id, e) called on Enter/Space
-         * @param {Function} callbacks.onDelete - (id, e) called on Delete
-         * @param {Function} [callbacks.onExpand] - (id) called on ArrowRight for groups
-         * @param {Function} [callbacks.onCollapse] - (id) called on ArrowLeft for groups
+         * @param {Function} [callbacks.onSelect] - (id, e) Enter/Space, when the
+         *     focused level declares no onActivate
+         * @param {Function} [callbacks.onDelete] - (id, focused) Delete/Backspace
+         * @param {Function} [callbacks.onExpand] - (id, focused) ArrowRight, when
+         *     there is no deeper row to move to
+         * @param {Function} [callbacks.onCollapse] - (id, focused, items, idx)
+         *     ArrowLeft, when there is no shallower row to move to
+         *     @param {Function} [callbacks.depthOf] - (el) => number. Overrides the
+         *     levels-derived depth for trees whose nesting is runtime, e.g.
+         *     reading aria-level. Required for ArrowLeft/ArrowRight to traverse
+         *     a variable-depth tree.
+         * @param {Function} [callbacks.onKey] - (key, id, focused, e) anything else.
          */
-        static setupTreeKeyboard(container, rowSelector, callbacks) {
-            if (!container) return;
+        static setupTreeKeyboard(container, rows, callbacks) {
+            if (!container) {
+                this.debug('[UIControls] setupTreeKeyboard: no container - keyboard navigation is off for this panel.');
+                return;
+            }
 
-            container.addEventListener('keydown', (e) => {
+            const levels = Array.isArray(rows)
+                ? rows
+                : [{ selector: rows, idFrom: null, onActivate: null }];
+            const allSelector = levels.map(l => l.selector).join(', ');
+
+            container.addEventListener('keydown', e => {
                 const focused = document.activeElement;
                 if (!container.contains(focused)) return;
 
-                const rows = Array.from(container.querySelectorAll(rowSelector));
-                const idx = rows.indexOf(focused);
+                // offsetParent filters collapsed rows: a hidden row cannot take
+                // focus, and stepping onto one strands the roving tabindex.
+                const items = Array.from(container.querySelectorAll(allSelector))
+                    .filter(el => el.offsetParent !== null);
+                const idx = items.indexOf(focused);
                 if (idx === -1) return;
 
-                const id = focused.dataset.pathId || focused.dataset.groupId ||
-                           focused.dataset.bucketId || focused.dataset.fileId;
+                // A tree with runtime depth (nested groups) supplies its own
+                // depth reader; a fixed-shape tree derives it from the levels
+                // list. Either way descend/ascend below is the same walk.
+                const depthOf = callbacks.depthOf || (el => {
+                    const d = levels.findIndex(l => el.matches(l.selector));
+                    return d === -1 ? 0 : d;
+                });
+                const depth = depthOf(focused);
+                const level = levels[depth] || levels[0];
+                const id = level.idFrom
+                    ? level.idFrom(focused)
+                    : (focused.dataset.pathId || focused.dataset.groupId
+                        || focused.dataset.bucketId || focused.dataset.fileId
+                        || focused.closest('[data-file-id]')?.dataset.fileId);
+
+                const moveTo = el => {
+                    if (!el) return;
+                    focused.setAttribute('tabindex', '-1');
+                    el.setAttribute('tabindex', '0');
+                    el.focus();
+                };
+
+                // First row deeper than this one, before the run ends.
+                const firstChild = () => {
+                    for (let i = idx + 1; i < items.length; i++) {
+                        const d = depthOf(items[i]);
+                        if (d <= depth) return null;
+                        if (d === depth + 1) return items[i];
+                    }
+                    return null;
+                };
+
+                // Nearest row above that is shallower - the owning parent.
+                const parentRow = () => {
+                    for (let i = idx - 1; i >= 0; i--) {
+                        if (depthOf(items[i]) < depth) return items[i];
+                    }
+                    return null;
+                };
 
                 switch (e.key) {
                     case 'ArrowDown':
                         e.preventDefault();
-                        if (rows[idx + 1]) {
-                            focused.setAttribute('tabindex', '-1');
-                            rows[idx + 1].setAttribute('tabindex', '0');
-                            rows[idx + 1].focus();
-                        }
+                        moveTo(items[idx + 1]);
                         break;
                     case 'ArrowUp':
                         e.preventDefault();
-                        if (rows[idx - 1]) {
-                            focused.setAttribute('tabindex', '-1');
-                            rows[idx - 1].setAttribute('tabindex', '0');
-                            rows[idx - 1].focus();
-                        }
+                        moveTo(items[idx - 1]);
                         break;
-                    case 'ArrowRight':
+                    case 'ArrowRight': {
                         e.preventDefault();
-                        if (callbacks.onExpand && id) callbacks.onExpand(id, focused);
+                        // Descend if the tree has depth here. A flat tree falls
+                        // through to onExpand, which is where group expansion
+                        // lives - the two are different questions.
+                        const child = firstChild();
+                        if (child) moveTo(child);
+                        else if (callbacks.onExpand && id) callbacks.onExpand(id, focused);
                         break;
-                    case 'ArrowLeft':
+                    }
+                    case 'ArrowLeft': {
                         e.preventDefault();
-                        if (callbacks.onCollapse) callbacks.onCollapse(id, focused, rows, idx);
+                        // onCollapse first: a group that is open should close
+                        // before focus leaves it. It returns truthy when it acted.
+                        if (callbacks.onCollapse
+                            && callbacks.onCollapse(id, focused, items, idx) === true) break;
+                        const parent = parentRow();
+                        if (parent) moveTo(parent);
                         break;
-                    case 'Enter': case ' ':
+                    }
+                    case 'Enter':
+                    case ' ':
                         e.preventDefault();
-                        if (callbacks.onSelect && id) callbacks.onSelect(id, e);
+                        if (level.onActivate) level.onActivate(focused, e);
+                        else if (callbacks.onSelect && id) callbacks.onSelect(id, e);
                         break;
-                    case 'Delete': case 'Backspace':
+                    case 'Delete':
+                    case 'Backspace':
+                        // Without stopPropagation the same keystroke reaches the
+                        // document listener and runs the GLOBAL delete on the
+                        // canvas selection as well as this node.
                         e.preventDefault();
+                        e.stopPropagation();
                         if (callbacks.onDelete && id) callbacks.onDelete(id, focused);
                         break;
                     case 'Home':
                         e.preventDefault();
-                        if (rows[0]) { focused.setAttribute('tabindex', '-1'); rows[0].setAttribute('tabindex', '0'); rows[0].focus(); }
+                        moveTo(items[0]);
                         break;
                     case 'End':
                         e.preventDefault();
-                        if (rows.length) { const last = rows[rows.length - 1]; focused.setAttribute('tabindex', '-1'); last.setAttribute('tabindex', '0'); last.focus(); }
+                        moveTo(items[items.length - 1]);
+                        break;
+                    default:
+                        if (callbacks.onKey) callbacks.onKey(e.key, id, focused, e);
                         break;
                 }
             });
+        }
+
+        /**
+         * Identity of a tree row across a rebuild. Bucket headers carry no id
+         * of their own, so the owning row supplies it.
+         */
+        static treeRowKey(el) {
+            if (!el) return null;
+            const owner = el.dataset.pathId || el.dataset.groupId || el.dataset.bucketId ||
+                          el.dataset.fileId || el.closest('[data-bucket-id]')?.dataset.bucketId || '';
+            const stage = el.dataset.stage ||
+                          (el.classList.contains('bucket-header') ? 'geometry' : '');
+            return `${owner}|${stage}`;
+        }
+
+        /**
+         * Exactly one row carries tabindex="0" so Tab can enter the tree.
+         * Without it every row is -1 and the panel is mouse-only.
+         */
+        static seedRovingTabindex(container, rowSelector) {
+            if (!container) return null;
+            const rows = Array.from(container.querySelectorAll(rowSelector));
+            if (!rows.length) return null;
+            const entry = rows.find(r => r.getAttribute('tabindex') === '0')
+                       || rows.find(r => r.classList.contains('selected'))
+                       || rows[0];
+            for (const r of rows) r.setAttribute('tabindex', r === entry ? '0' : '-1');
+            return entry;
+        }
+
+        /**
+         * Runs a rebuild that replaces rows and puts focus back on the same
+         * logical node, falling back to the same position when it is gone.
+         */
+        static preserveTreeFocus(container, rowSelector, rebuild) {
+            const active = document.activeElement;
+            const had = !!container && container.contains(active) &&
+                        typeof active.matches === 'function' && active.matches(rowSelector);
+            const key = had ? UIControls.treeRowKey(active) : null;
+            const index = had ? Array.from(container.querySelectorAll(rowSelector)).indexOf(active) : -1;
+
+            rebuild();
+
+            const rows = Array.from(container?.querySelectorAll(rowSelector) || []);
+            if (!rows.length) return;
+
+            const target = (key && rows.find(r => UIControls.treeRowKey(r) === key))
+                        || (index >= 0 ? rows[Math.min(index, rows.length - 1)] : null)
+                        || rows.find(r => r.classList.contains('selected'))
+                        || rows[0];
+
+            for (const r of rows) r.setAttribute('tabindex', r === target ? '0' : '-1');
+            if (had) target.focus();
         }
     }
 

@@ -10,6 +10,19 @@
  */
 
 /* ============================================================================
+   MODAL SIZING
+   ============================================================================ */
+:root {
+    --modal-max-width: min(850px, 95vw);
+    --modal-max-height: calc(var(--vh-small) - var(--spacing-xl) * 2);
+    --modal-padding-inline: var(--spacing-lg);
+    --modal-padding-block: var(--spacing-lg);
+    --modal-header-min-height: 3.5rem;
+    --modal-footer-min-height: 3.5rem;
+    --modal-gap: var(--spacing-xl);
+}
+
+/* ============================================================================
    MODAL BASE STRUCTURE
    ============================================================================ */
 
@@ -971,6 +984,22 @@
     letter-spacing: 0.5px;
     margin-bottom: var(--spacing-sm);
     flex-shrink: 0;
+}
+
+.preview-warnings {
+    flex-shrink: 0;
+    max-height: 6em;
+    overflow-y: auto;
+    margin-top: var(--spacing-sm);
+    padding: var(--spacing-sm);
+    background: var(--color-bg-tertiary);
+    border-radius: var(--radius);
+    font-size: var(--font-size-xs);
+    color: var(--color-warning, var(--color-text-secondary));
+}
+
+.preview-warning + .preview-warning {
+    margin-top: 2px;
 }
 
 .preview-stats {

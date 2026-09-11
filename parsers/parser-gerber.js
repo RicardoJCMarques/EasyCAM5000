@@ -11,9 +11,10 @@
 
 (function() {
     'use strict';
+    const ROOT = globalThis;
 
-    const C = window.CAMConfig.constants;
-    const D = window.CAMConfig.defaults;
+    const C = ROOT.CAMConfig.constants;
+    const D = ROOT.CAMConfig.defaults;
     const PRECISION = C.precision.coordinate;
     const formatConfig = C.formats.gerber;
 
@@ -737,13 +738,13 @@
 
                 let arc1Id = null;
                 let arc2Id = null;
-                if (window.globalCurveRegistry) {
-                    arc1Id = window.globalCurveRegistry.register({
+                if (ROOT.globalCurveRegistry) {
+                    arc1Id = ROOT.globalCurveRegistry.register({
                         type: 'arc', center: { x: c2.x, y: c2.y }, radius: radius,
                         startAngle: angle - Math.PI / 2, endAngle: angle + Math.PI / 2,
                         clockwise: false, source: 'macro_obround_cap2'
                     });
-                    arc2Id = window.globalCurveRegistry.register({
+                    arc2Id = ROOT.globalCurveRegistry.register({
                         type: 'arc', center: { x: c1.x, y: c1.y }, radius: radius,
                         startAngle: angle + Math.PI / 2, endAngle: angle + 3 * Math.PI / 2,
                         clockwise: false, source: 'macro_obround_cap1'
@@ -808,8 +809,8 @@
 
                     // Register corner arcs
                     let arcId = null;
-                    if (window.globalCurveRegistry) {
-                        arcId = window.globalCurveRegistry.register({
+                    if (ROOT.globalCurveRegistry) {
+                        arcId = ROOT.globalCurveRegistry.register({
                             type: 'arc', center: { x: circle.x, y: circle.y }, radius: radius,
                             startAngle: startAngle, endAngle: endAngle, clockwise: false, source: 'macro_roundrect_corner'
                         });
@@ -1011,8 +1012,8 @@
                                     const startAngle = Math.atan2(start.y - center.y, start.x - center.x);
                                     const endAngle = Math.atan2(pos.y - center.y, pos.x - center.x);
 
-                                    if (window.globalCurveRegistry) {
-                                        const curveId = window.globalCurveRegistry.register({
+                                    if (ROOT.globalCurveRegistry) {
+                                        const curveId = ROOT.globalCurveRegistry.register({
                                             type: 'arc',
                                             center: { x: center.x, y: center.y },
                                             radius: radius,
@@ -1152,8 +1153,8 @@
 
             for (let i = 1; i < finalPoints.length; i++) {
                 const pt = finalPoints[i];
-                if (pt.curveId && pt.curveId > 0 && window.globalCurveRegistry) {
-                    const curve = window.globalCurveRegistry.getCurve(pt.curveId);
+                if (pt.curveId && pt.curveId > 0 && ROOT.globalCurveRegistry) {
+                    const curve = ROOT.globalCurveRegistry.getCurve(pt.curveId);
                     if (curve) {
                         arcSegments.push({
                             startIndex: i - 1,
@@ -1439,5 +1440,5 @@
         }
     }
 
-    window.GerberParser = GerberParser;
+    ROOT.GerberParser = GerberParser;
 })();

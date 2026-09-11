@@ -11,7 +11,9 @@
 
 !function () {
     'use strict';
-    const PRECISION = window.CAMConfig.constants.precision.coordinate;
+    const ROOT = globalThis;
+
+    const PRECISION = ROOT.CAMConfig.constants.precision.coordinate;
 
     /**
      * Solder-stencil apertures. An aperture is a hole, so the geometry is an
@@ -22,8 +24,8 @@
 
         // Offset pipeline hooks
 
-        isInternalOffset() { return this._stencil?.total < 0; }
-        isOnLine() { return false; }
+        /** A negative total is a shrink: the aperture closes inward. */
+        resolveCutSide() { return this._stencil?.total < 0 ? 'inside' : 'outside'; }
 
         /**
          * Collapse is a real outcome on a fine-pitch pad and the run reports
@@ -132,12 +134,13 @@
                 p.properties.strokeWidth = 0;
             }
 
+            const isRouter = 'router' === this.core.machineClassOf(operation);
             record.type = 'stencil';
             record.metadata = {
                 ...record.metadata,
                 strategy: 'offset',
                 isStencil: true,
-                finalCount: record.primitives.length,
+                isKnife: !isRouter,
                 toolDiameter: settings.toolDiameter || 0,
                 cornerRadius: this._stencil.radius,
                 actualWidth: Math.abs(this._stencil.total),
@@ -257,5 +260,5 @@
         }
 
     }
-    window.TraceStencilHandler = TraceStencilHandler;
+    ROOT.TraceStencilHandler = TraceStencilHandler;
 }();

@@ -11,6 +11,7 @@
 
 (function() {
     'use strict';
+    const ROOT = globalThis;
 
     /**
      * Roland RML-1 Post-Processor
@@ -40,7 +41,7 @@
      * Coordinates are integer "steps" (mm x stepsPerMM).
      */
     class RolandPostProcessor {
-        constructor(processorConfig = {}) { // REVIEW - processorConfig isn't used.
+        constructor() {
             this.name = 'roland';
             this.config = {
                 fileExtension: '.rml',
@@ -231,17 +232,43 @@
 
             // Public descriptor
             this.descriptor = {
-                id: 'roland',
-                label: 'Roland (RML) (Experimental)',
-                fileExtension: '.rml',
+                id: "roland",
+                label: "Roland (RML) (Experimental)",
+                fileExtension: ".rml",
+
+                parameters: [
+                    { name: "rolandModel", label: "Machine Model", type: "select", category: "post", default: "mdx50",
+                     options: Object.entries(this.profiles).map(([value, p]) => ({ value, label: p.label })) },
+                    { name: "rolandStepsPerMM", label: "Steps per mm", type: "number",
+                     category: "post", default: 100, min: 1, step: 1, unit: "steps/mm" },
+                    { name: "rolandMaxFeed", label: "Max Feed Rate", type: "number",
+                     category: "post", default: 60, min: 0.1, step: 0.1, unit: "mm/sec" },
+                    { name: "rolandZMode", label: "Z Command Mode", type: "select",
+                     category: "post", default: "3d",
+                    options: [
+                        { value: "3d", label: "3D - Z x,y,z (simultaneous XYZ)" },
+                        { value: "2.5d", label: "2.5D - PU/PD (pen up/down only)" }
+                    ] },
+                    { name: "rolandSpindleMode", label: "Spindle Control", type: "select",
+                     category: "post", default: "direct",
+                    options: [
+                        { value: "direct", label: "Direct RPM (!RC + !MC)" },
+                        { value: "manual", label: "Manual Only (!MC on/off)" }
+                    ] },
+                    { name: "rolandSpindleSpeed", label: "Spindle Speed", type: "number",
+                     category: "post", default: 10000, min: 0, step: 500, unit: "rpm" }
+                ],
+
                 capabilities: {
                     supportsToolChange: false,
                     supportsLineNumbers: false,
+                    supportsUnits: false,
+                    supportsCoolant: false,
                     useM6: false,
                     emitsInitialTool: false,
-                    // RML-1 has no tool-length word. The MDX-50's length sensor
-                    // is a machine-side operation, not a file command.
-                    toolLengthComp: { modes: ['none'], default: 'none' },
+                    // RML-1 has no tool-length word. The MDX-50's length sensor is a
+                    // machine-side operation, not a file command.
+                    toolLengthComp: { modes: ["none"], default: "none" },
                     supportsToolLengthComp: false,
                     pauseAfterToolChange: false,
                     // RML-1 has no comment syntax - ';' terminates a command.
@@ -249,19 +276,12 @@
                     supportsArcCommands: false,
                     supportsCannedCycles: false,
                     arcFormat: null,
-                    // No rotary word in this command set. Declared empty rather
-                    // than absent so consumers read a normalized shape.
-                    rotary: { routes: [], axisWords: [], inverseTime: false,
-                              maxInverseTime: 0, indexDwell: 0, continuous: false },
+                    // No rotary word in this command set. Declared empty rather than
+                    // absent so consumers read a normalized shape.
+                    rotary: { routes: [], axisWords: [], inverseTime: false, maxInverseTime: 0, indexDwell: 0, continuous: false }
                 },
-                defaults: {
-                    startCode: ';;^DF\nPA;',
-                    endCode: '!MC0;\n;;^DF',
-                },
-                limits: {
-                    maxSpindleSpeed: 15000,
-                    maxRapidRate: 60,
-                }
+                defaults: { startCode: ";;^DF\nPA;", endCode: "!MC0;\n;;^DF" },
+                limits: { maxSpindleSpeed: 15000, maxRapidRate: 60 }
             };
 
             this.resetState();
@@ -272,6 +292,30 @@
          */
         getProfile(modelId) {
             return this.profiles[modelId] || this.profiles['custom'];
+        }
+
+        /**
+         * A model choice implies the machine's own numbers. Returns a patch of
+         * sibling parameter values; the caller writes them into this post's
+         * namespace and never needs to know which post it is talking to.
+         * The model's init/end commands update the descriptor default rather than
+         * the user override - writing them into gcode.userStartCode manufactured
+         * an override the operator never made, which then survived a post switch.
+         */
+        onParameterChange(name, value) {
+            if (name !== "rolandModel") return null;
+            const profile = this.profiles[value];
+            if (!profile) return null;
+            this.descriptor.defaults.startCode = `${profile.initCommand}\nPA;`;
+            this.descriptor.defaults.endCode = profile.endCommand;
+            return {
+                rolandStepsPerMM: profile.stepsPerMM,
+                rolandMaxFeed: profile.maxFeedXY,
+                rolandZMode: profile.zMode,
+                rolandSpindleMode: profile.spindleMode,
+                rolandSpindleSpeed: profile.spindleFixed
+                    || (profile.spindleRange ? Math.round((profile.spindleRange.min + profile.spindleRange.max) / 2) : 10000)
+            };
         }
 
         /**
@@ -329,6 +373,7 @@
         // velocity and Z is always flat-stock referenced.
         validateCommand(cmd, options = {}) {
             return BasePostProcessor.validateCommandLimits(cmd, options, {
+                zFloor: this.descriptor.limits?.zFloor ?? null,
                 maxRapidRate: this.descriptor.limits.maxRapidRate,
                 inverseTime: false,
                 maxInverseTime: 0,
@@ -339,12 +384,16 @@
         resetState() {
             this.currentPosition = { x: 0, y: 0, z: 0 };
             this.currentSpindle = 0;
-            // Not a BasePostProcessor subclass - the generator reads this
-            // field on whatever processor is active, so it has to exist here
-            // too even though RML can never change a tool.
+            // Not a BasePostProcessor subclass - the generator reads these
+            // fields on whatever processor is active, so they have to exist
+            // here too even though RML can never change a tool. This post
+            // formats its own integer steps and does not call
+            // formatNumberSafe, so the count stays 0 and the program scan is
+            // what covers it.
             this.currentToolNumber = null;
-            this.currentFeed = null;    // VS value (mm/min internally, for 2.5D XY)
-            this.currentVZ = null;      // !VZ value (mm/min internally)
+            this.numericFaults = 0;
+            this.currentFeed = null; // VS value (mm/min internally, for 2.5D XY)
+            this.currentVZ = null; // !VZ value (mm/min internally)
 
             // !PZ register tracking (in mm, converted on output)
             this.pzDownMM = 0;
@@ -352,8 +401,8 @@
 
             // Machine parameters (set from options in generateHeader)
             this.stepsPerMM = 100;
-            this.maxFeedXY = 60;        // mm/sec - machine maximum for XY
-            this.maxFeedZ = 60;         // mm/sec - machine maximum for Z
+            this.maxFeedXY = 60; // mm/sec - machine maximum for XY
+            this.maxFeedZ = 60; // mm/sec - machine maximum for Z
             this.zMode = '3d';
             this.spindleMode = 'direct';
             this.travelZ = 3.0;
@@ -747,7 +796,7 @@
          * Emits !PZ command only if register values actually changed.
          */
         emitPZIfChanged(newDownMM, newUpMM) {
-            const EPSILON = window.CAMConfig.constants.precision.coordinate;
+            const EPSILON = ROOT.CAMConfig.constants.precision.coordinate;
             const downChanged = Math.abs(newDownMM - this.pzDownMM) > EPSILON;
             const upChanged = Math.abs(newUpMM - this.pzUpMM) > EPSILON;
 
@@ -783,5 +832,5 @@
         }
     }
 
-    window.RolandPostProcessor = RolandPostProcessor;
+    ROOT.RolandPostProcessor = RolandPostProcessor;
 })();

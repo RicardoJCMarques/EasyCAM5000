@@ -14,7 +14,6 @@
 (function() {
     'use strict';
 
-    const C = window.CAMConfig.constants;
     const D = window.CAMConfig.defaults;
     const debugState = D.debug;
 
@@ -26,7 +25,6 @@
             this.traceOperationPanel = null;
             this.canvasExporter = null;
             this.scene = null;
-            this.sceneInteraction = null;
             this.updatePending = false;
             this.updateQueued = false;
         }
@@ -35,16 +33,14 @@
             try {
                 // Shorthand refs - used heavily by board transform controls.
                 // core.scene is the canonical owner; these avoid ~30 long-form lookups.
-                // REVIEW: EasyShape keeps transform setup in its controller; EasyTrace keeps it here.
-                // Target convention: transform wiring lives in ui-core-*, controllers own lifecycle only.
+                // REVIEW - EasyShape keeps transform setup in its controller; EasyTrace keeps it here. Target convention: transform wiring lives in ui-core-*, controllers own lifecycle only.
                 this.scene = this.core.scene;
-                this.sceneInteraction = this.core.sceneInteraction;
 
                 await this.initShared();
 
                 this.initializeSceneListeners();
                 this.initTreePanel();
-                this.initTraceOperationPanel(this.ctrl.parameterManager);
+                this.initTraceOperationPanel(this.ctrl.parameterStore, this.ctrl.inputRenderer);
                 this.initBoardTransforms();
 
                 this.debug('EasyTraceUI initialized');
@@ -145,7 +141,6 @@
         // ═══════════════════════════════════════════════════════════════
 
         initTreePanel() {
-            if (typeof NavTreePanel === 'undefined') return;
             this.navTreePanel = new NavTreePanel(this);
             this.navTreePanel.init();
 
@@ -154,7 +149,7 @@
                 if (this.handleOperationSelection) this.handleOperationSelection(operation, stage || 'geometry');
             });
             this.navTreePanel.on('action', ({ id, action, artifactKey, layerName, element }) => {
-                if (action === 'delete') { this.removeOperation(id); return; }
+                if (action === 'delete') { this.promptRemoveOperation(id); return; }
                 if (action === 'visibility' && element) {
                     this.navTreePanel.toggleLayerVisibility(element, artifactKey, layerName);
                 }
@@ -166,11 +161,16 @@
             });
         }
 
-        initTraceOperationPanel(parameterManager) {
-            if (typeof TraceOperationPanel !== 'undefined') {
-                this.traceOperationPanel = new TraceOperationPanel(this);
-                this.traceOperationPanel.init(this.ctrl.toolLibrary, parameterManager);
-            }
+        initTraceOperationPanel(store, renderer) {
+            this.traceOperationPanel = new TraceOperationPanel(this);
+            this.traceOperationPanel.initBase({
+                core: this.core,
+                store,
+                renderer,
+                appProfile: this.ctrl.appProfile,
+                lang: this.lang
+            });
+            this.debug('TraceOperationPanel Initialized');
         }
 
         // ═══════════════════════════════════════════════════════════════
@@ -179,12 +179,11 @@
 
         initBoardTransforms() {
             this.committedOrigin = this.scene ? { ...this.scene.transform.origin } : { x: 0, y: 0 };
-            this.inputTracking = { lastXValue: '0', lastYValue: '0' };
             this.setupOffsetControls();
             this.setupRotationControls();
             this.setupMirrorControls();
-            // REVIEW - is this scene check necessary?
-            if (this.scene) this.scene.addTransformListener(() => this.updateOffsetInputsWithTracking());
+            // REVIEW - is this defensive scene check necessary?
+            if (this.scene) this.scene.addTransformListener(() => this.updateOffsetInputs());
         }
 
         setupOffsetControls() {
@@ -193,14 +192,10 @@
             if (!xInput || !yInput) return;
             xInput.removeAttribute('readonly');
             yInput.removeAttribute('readonly');
-            this.inputTracking.lastXValue = xInput.value || '0';
-            this.inputTracking.lastYValue = yInput.value || '0';
 
             const applyPreview = () => {
                 if (!this.scene) return;
                 this.scene.setOrigin(this.committedOrigin.x + (parseFloat(xInput.value) || 0), this.committedOrigin.y + (parseFloat(yInput.value) || 0));
-                this.inputTracking.lastXValue = xInput.value;
-                this.inputTracking.lastYValue = yInput.value;
             };
             xInput.addEventListener('input', applyPreview);
             yInput.addEventListener('input', applyPreview);
@@ -231,8 +226,14 @@
                     if (e.key === 'Enter') { rotationInput.blur(); commitRotation(); }
                 });
             }
-            document.getElementById('apply-rotation-btn')?.addEventListener('click', commitRotation);
-            document.getElementById('reset-rotation-btn')?.addEventListener('click', () => this.resetBoardRotationOnly());
+            document.getElementById("apply-rotation-btn")?.addEventListener("click", commitRotation);
+            document.getElementById("reset-rotation-btn")?.addEventListener("click", () => {
+                if (this.scene) {
+                    this.scene.resetRotation();
+                    this.updateOriginDisplay();
+                    this.setStatus("Board rotation reset (position unchanged)", "success");
+                }
+            });
 
             // Keep the field on the absolute board angle, except while typing.
             const syncRotation = () => {
@@ -280,7 +281,7 @@
         applyOffsetAndSetOrigin() {
             if (!this.scene) return;
             this.committedOrigin = { ...this.scene.transform.origin };
-            this.updateOffsetInputsWithTracking();
+            this.updateOffsetInputs(true);
             this.updateOriginDisplay();
             this.setStatus('Origin saved at current position', 'success');
         }
@@ -292,56 +293,43 @@
             this.setStatus('Reset to saved origin', 'success');
         }
 
-        resetBoardRotationOnly() {
-            if (!this.scene) return;
-            this.scene.resetRotation();
-            this.updateOriginDisplay();
-            this.setStatus('Board rotation reset (position unchanged)', 'success');
-        }
-
-        updateOffsetInputsWithTracking() {
+        /**
+         * Writes the pending offset back into the fields. Skips whichever field
+         * has focus unless forced: setOrigin fires this on every keystroke via the
+         * transform listener, and reformatting mid-edit moves the caret so a
+         * second digit can never be typed. A commit forces it, because the field
+         * the user just pressed Enter in has to show 0 again.
+         */
+        updateOffsetInputs(force = false) {
             const xInput = document.getElementById('x-offset');
             const yInput = document.getElementById('y-offset');
             if (!xInput || !yInput || !this.scene) return;
             const o = this.scene.transform.origin;
-            const decimals = D.gcode.decimals.coordinates;
-            const xs = (o.x - this.committedOrigin.x).toFixed(decimals);
-            const ys = (o.y - this.committedOrigin.y).toFixed(decimals);
-            xInput.value = xs;
-            yInput.value = ys;
-            this.inputTracking.lastXValue = xs;
-            this.inputTracking.lastYValue = ys;
+            const decimals = D.geometry.decimals.coordinates;
+            const active = document.activeElement;
+            if (force || active !== xInput) xInput.value = (o.x - this.committedOrigin.x).toFixed(decimals);
+            if (force || active !== yInput) yInput.value = (o.y - this.committedOrigin.y).toFixed(decimals);
         }
 
         // ═══════════════════════════════════════════════════════════════
         // Renderer layer management
         // ═══════════════════════════════════════════════════════════════
 
-        // REVIEW - Any reason this is named differently than in EasyShape5000?
-        async updateRendererAsync() {
-            if (this.updatePending) { this.updateQueued = true; return; }
-            this.updatePending = true;
-            try {
-                this.renderer.clearLayers();
-                if (this.renderer.options.fuseGeometry) await this.performFusion();
-                else this.addIndividualLayers();
-                this.addOffsetLayers();
-                this.renderer.render();
-                // The 3D view mirrors these layers, so it goes stale unless it
-                // rebuilds from the same funnel.
-                this.ctrl.refresh3D?.();
-                this.updateOriginDisplay();
-                this.updateStatistics();
-            } finally {
-                this.updatePending = false;
-                if (this.updateQueued) {
-                    this.updateQueued = false;
-                    requestAnimationFrame(() => this.updateRendererAsync());
-                }
+        async collectLayers() {
+            // Clear cached 3D subtracted copper on layer rebuild
+            for (const op of this.core.operations) {
+                if (op._3dCopperPrimitives) delete op._3dCopperPrimitives;
             }
+            this.renderer.options.fuseGeometry ? await this.performFusion() : this.addIndividualLayers();
+            this.addOffsetLayers();
         }
 
-        onThemeChanged() { super.onThemeChanged(); this.updateRendererAsync(); }
+        afterRebuildLayers() {
+            this.updateOriginDisplay();
+            this.updateStatistics();
+        }
+
+        onThemeChanged() { super.onThemeChanged(); this.rebuildLayers(); }
 
         async performFusion() {
             if (this.core.geometryProcessor) this.core.geometryProcessor.clearCachedStates();
@@ -384,7 +372,7 @@
                 if (opId) { if (!byOperation.has(opId)) byOperation.set(opId, []); byOperation.get(opId).push(p); }
             });
             byOperation.forEach((primitives, opId) => {
-                const operation = this.core.getOperation(opId);
+                const operation = this.core.store.getOperation(opId);
                 if (operation) this.renderer.addLayer(window.LayerNaming.preprocessed(opId), primitives, {
                     type: operation.type,
                     visible: true,
@@ -400,11 +388,14 @@
             const byOperation = new Map();
             fused.forEach(p => { const opId = p.properties?.sourceOperationId; if (opId) { if (!byOperation.has(opId)) byOperation.set(opId, []); byOperation.get(opId).push(p); } });
             byOperation.forEach((primitives, opId) => {
-                const operation = this.core.getOperation(opId);
+                const operation = this.core.store.getOperation(opId);
                 if (operation) {
                     const layerName = window.LayerNaming.fused(opId);
                     this.renderer.addLayer(layerName, primitives, {
                         type: operation.type,
+                        operationType: operation.type,
+                        operationId: operation.id,
+                        role: 'source',
                         visible: this.resolveLayerVisibility(operation, 'source', true),
                         isFused: true,
                         zIndex: this.getLayerZIndex(operation.type, { operationType: operation.type })
@@ -422,6 +413,7 @@
                     this.renderer.addLayer(layerName, operation.primitives, {
                         type: operation.type,
                         operationType: operation.type,
+                        operationId: operation.id,
                         role: 'source',
                         visible: this.resolveLayerVisibility(operation, 'source', defaultVis),
                         zIndex: this.getLayerZIndex(operation.type, { operationType: operation.type })
@@ -439,6 +431,7 @@
                     this.renderer.addLayer(layerName, operation.primitives, {
                         type: operation.type,
                         operationType: operation.type,
+                        operationId: operation.id,
                         role: 'source',
                         visible: this.resolveLayerVisibility(operation, 'source', defaultVis),
                         zIndex: this.getLayerZIndex(operation.type, { operationType: operation.type })
@@ -463,7 +456,7 @@
         addOffsetLayers() {
             this.core.operations.forEach(operation => {
                 if (operation.offsets?.length > 0) {
-                    const isLaser = this.ctrl.machineClassOf?.(operation) === 'laser';
+                    const isLaser = this.core.machineClassOf(operation) === 'laser';
                     const isCombined = operation.offsets[0]?.metadata?.offset?.combined || isLaser;
 
                     if (isCombined) {
@@ -522,11 +515,11 @@
                 const b = this.scene.getVisualBounds() || this.scene.getBoardBounds();
                 if (b) sizeElement.textContent = b.width.toFixed(1) + ' x ' + b.height.toFixed(1) + ' mm';
             }
-            this.updateOffsetInputsWithTracking();
+            this.updateOffsetInputs(true);
         }
 
         updateStatistics() {
-            const stats = this.core.getStats();
+            const stats = this.core.store.getStats()
             const filesStat = document.getElementById('stat-files');
             if (filesStat) { const fileSet = new Set(this.core.operations.map(op => op.file.name)); filesStat.textContent = fileSet.size; }
             const opsStat = document.getElementById('stat-operations');
@@ -539,21 +532,44 @@
         // Operation management
         // ═══════════════════════════════════════════════════════════════
 
+        /**
+         * Confirms, then deletes. Named for the prompt, not the action: the
+         * thing that actually removes is removeOperation below, and CamCore's
+         * removeOperation is the one that keeps board bounds in step.
+         */
+        promptRemoveOperation(operationId) {
+            const op = this.core.store.getOperation(operationId);
+            const name = op?.file?.name || 'this operation';
+            this.ctrl.confirmDestructive(
+                'Delete operation',
+                `Remove ${name} and everything generated from it? This can't be undone.`,
+                () => this.removeOperation(operationId)
+            );
+        }
+
         removeOperation(operationId) {
             if (this.core.removeOperation(operationId)) {
                 this.navTreePanel?.removeFileNode(operationId);
-                if (this.traceOperationPanel?.currentOperationId && this.traceOperationPanel.currentOperationId !== operationId) {
-                    this.traceOperationPanel.refresh();
+                if (this.traceOperationPanel) {
+                    if (this.traceOperationPanel.currentOperationId === operationId) {
+                        this.traceOperationPanel.clearProperties();
+                        const container = document.getElementById("property-form");
+                        container && (container.innerHTML = '<div class="property-empty">← Select a File Geometry from the OPERATIONS list to show more.</div>');
+                        const titleEl = document.getElementById("inspector-title");
+                        titleEl && (titleEl.textContent = "OP. Parameters");
+                    } else {
+                        this.traceOperationPanel.refresh();
+                    }
                 }
-                this.updateRendererAsync();
+                this.rebuildLayers();
                 this.updateStatistics();
-                this.setStatus('Operation removed', 'info');
+                this.setStatus("Operation removed", "info");
             }
         }
 
         handleOperationSelection(operation, stage) {
             // Collapse the right sidebar controls to make room
-            if (this.controls?.collapseRightSidebar) this.controls.collapseRightSidebar();
+            UIControls.collapseAllIn("#sidebar-right");
             // Tell the TraceOperationPanel to show the properties
             const container = document.getElementById('property-form');
             if (this.traceOperationPanel && container) this.traceOperationPanel.showOperationProperties(container, operation, stage);
@@ -571,12 +587,12 @@
             else layerName = `${geoData.type}_${operation.id}`;
 
             // Delegate data mutation to Core
-            this.core.deleteOperationGeometry(operation.id, geoData.type);
+            this.core.store.deleteOperationGeometry(operation.id, geoData.type);
 
             // Handle UI/renderer restoration after preview deletion
             if (geoData.type === 'preview' && operation.offsets?.length > 0) {
                 // Auto-unhide offsets when CNC preview is deleted
-                const isLaser = this.ctrl.machineClassOf?.(operation) === 'laser';
+                const isLaser = this.core.machineClassOf(operation) === 'laser';
                 const isCombined = operation.offsets[0]?.metadata?.offset?.combined || isLaser;
 
                 // Unhide the specific offset layer(s) in the Renderer
@@ -615,6 +631,13 @@
                 if (geoData.type === 'preview') {
                     delete operation.layerVisibility.offsets;
                     operation.offsets?.forEach((_, pi) => delete operation.layerVisibility[`offset_${pi}`]);
+                }
+            }
+
+            // Invalidate 3D differenced copper when toolpaths or offsets are deleted
+            if ("toolpath" === geoData.type || "preview" === geoData.type || geoData.type.startsWith("offset")) {
+                for (const op of this.core.operations) {
+                    if (op._3dCopperPrimitives) delete op._3dCopperPrimitives;
                 }
             }
             // Remove renderer layer // REVIEW - Useless code now?

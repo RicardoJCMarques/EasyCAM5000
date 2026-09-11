@@ -97,15 +97,23 @@ export function walkPlans(plans, emit) {
     // Axis line at Z = -refRadius (blank top tangent to Z0) and cross
     // offset axisB, matching GeometryLayer3D's developed block exactly.
     let devR = 0, devSwap = false;
-    const wrapPt = (x, y, z) => {
+    // Call-local, not module-level: walkPlans is shared by ToolpathLayer3D
+    // and Simulator3D and two concurrent walks would alias one scratch.
+    // a and b are live at the same time inside seg(), so it takes two.
+    const _wpA = { x: 0, y: 0, z: 0 };
+    const _wpB = { x: 0, y: 0, z: 0 };
+
+    const wrapPt = (x, y, z, out) => {
         if (devR > 0) {
             const th = y / devR;
             const R = devR + z;
             const cross = R * Math.sin(th);
             const zz = R * Math.cos(th);
-            return devSwap ? { x: cross, y: x, z: zz } : { x: x, y: cross, z: zz };
+            if (devSwap) { out.x = cross; out.y = x; out.z = zz; }
+            else { out.x = x; out.y = cross; out.z = zz; }
+            return out;
         }
-        if (!wrapAxis) return { x: x, y: y, z: z };
+        if (!wrapAxis) { out.x = x; out.y = y; out.z = z; return out; }
         // R_axis(-A), matching how a 4th-axis viewer/controller places moves
         // (the table turns +A, so a machine point sits at -A in the part
         // frame) - and matching the export. The slicer captures each face
@@ -125,14 +133,15 @@ export function walkPlans(plans, emit) {
         // be lifted by the apothem.
         const th = -curA * Math.PI / 180, c = Math.cos(th), s = Math.sin(th);
         const dz = z + apothem;
-        return 'y' === wrapAxis ? { x: x * c + dz * s, y: y, z: -x * s + dz * c }
-                                : { x: x, y: y * c - dz * s, z: y * s + dz * c };
+        if (wrapAxis === 'y') { out.x = x * c + dz * s; out.y = y; out.z = -x * s + dz * c; }
+        else { out.x = x; out.y = y * c - dz * s; out.z = y * s + dz * c; }
+        return out;
     };
 
     const seg = (x, y, z, kind, feed) => {
         if (x === pos.x && y === pos.y && z === pos.z) return;   // RAW no-op
-        const a = wrapPt(pos.x, pos.y, pos.z);
-        const b = wrapPt(x, y, z);
+        const a = wrapPt(pos.x, pos.y, pos.z, _wpA);
+        const b = wrapPt(x, y, z, _wpB);
         emit(a.x, a.y, a.z, b.x, b.y, b.z, kind, feed,
              wrapAxis ? curA : null, wrapAxis);
         if (kind === 'cut') {                          // colour maps on DISPLAY Z

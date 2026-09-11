@@ -42,63 +42,41 @@
          */
         constructor(core, options = {}) {
             this.core = core;
-            this.coordXEl = document.getElementById(options.coordXId || 'coord-x');
-            this.coordYEl = document.getElementById(options.coordYId || 'coord-y');
-            this.zoomEl = document.getElementById(options.zoomId || 'zoom-level');
-            this.coordPrecision = options.coordPrecision != null ? options.coordPrecision : 2;
-            this.zoomPrecision = options.zoomPrecision != null ? options.zoomPrecision : 0;
-            this.zoomDisplayFactor = options.zoomDisplayFactor != null ? options.zoomDisplayFactor : 10;
+            this.coordXEl = document.getElementById(options.coordXId || "coord-x");
+            this.coordYEl = document.getElementById(options.coordYId || "coord-y");
+            this.zoomEl = document.getElementById(options.zoomId || "zoom-level");
+            this.coordPrecision = null != options.coordPrecision ? options.coordPrecision : 2;
+            this.zoomPrecision = null != options.zoomPrecision ? options.zoomPrecision : 0;
+            this.zoomDisplayFactor = null != options.zoomDisplayFactor ? options.zoomDisplayFactor : 10;
+            this._lastX = null;
+            this._lastY = null;
+            this._rafId = null;
+            this._pendingData = null;
         }
 
         /**
          * @param {object} data Normalized pointer payload from InputManager.
-         *                      Uses data.canvasX / data.canvasY (physical
-         *                      canvas pixels - matches core.canvasToWorld).
          */
         updatePointer(data) {
-            if (!this.coordXEl || !this.coordYEl) return;
-            let world = this.core.canvasToWorld(data.canvasX, data.canvasY);
-            world = this.applyInverseTransforms(world);
-            this.coordXEl.textContent = world.x.toFixed(this.coordPrecision);
-            this.coordYEl.textContent = world.y.toFixed(this.coordPrecision);
+            this._pendingData = data;
+            if (null === this._rafId) {
+                this._rafId = requestAnimationFrame(() => {
+                    this._rafId = null;
+                    if (!this._pendingData || !this.coordXEl || !this.coordYEl) return;
+                    const pt = this.core.canvasToWorld(this._pendingData.canvasX, this._pendingData.canvasY);
+                    const world = this.core.scene ? this.core.scene.worldToWorkspace(pt) : pt;
+                    const sx = world.x.toFixed(this.coordPrecision);
+                    const sy = world.y.toFixed(this.coordPrecision);
+                    if (this._lastX !== sx) { this.coordXEl.textContent = sx; this._lastX = sx; }
+                    if (this._lastY !== sy) { this.coordYEl.textContent = sy; this._lastY = sy; }
+                });
+            }
         }
 
         updateZoom() {
             if (!this.zoomEl) return;
             const pct = (this.core.viewScale * this.zoomDisplayFactor).toFixed(this.zoomPrecision);
             this.zoomEl.textContent = pct + '%';
-        }
-
-        /**
-         * Maps a canvas-world point back through the user's coordinate
-         * transforms (rotation → mirror → origin) so the chip shows file
-         * coordinates, not raw render-space coordinates. Each inverse
-         * collapses to identity when the corresponding renderer state is
-         * default, so this is safe for EasyShape too.
-         */
-        applyInverseTransforms(p) {
-            let { x, y } = p;
-
-            if (this.core.currentRotation && this.core.rotationCenter) {
-                const c = this.core.rotationCenter;
-                const rad = -(this.core.currentRotation * Math.PI) / 180;
-                const cos = Math.cos(rad), sin = Math.sin(rad);
-                const dx = x - c.x, dy = y - c.y;
-                x = c.x + (dx * cos - dy * sin);
-                y = c.y + (dx * sin + dy * cos);
-            }
-
-            if (this.core.mirrorX || this.core.mirrorY) {
-                const mc = this.core.mirrorCenter || { x: 0, y: 0 };
-                if (this.core.mirrorX) x = 2 * mc.x - x;
-                if (this.core.mirrorY) y = 2 * mc.y - y;
-            }
-
-            const origin = (typeof this.core.getOriginPosition === 'function')
-                ? this.core.getOriginPosition()
-                : { x: 0, y: 0 };
-
-            return { x: x - origin.x, y: y - origin.y };
         }
     }
 

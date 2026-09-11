@@ -34,37 +34,43 @@
         init(containerId) {
             this.treeContainer = document.getElementById(containerId || 'scene-tree-list');
             if (this.treeContainer) {
-                // Keyboard navigation via shared utility
+                // Keyboard navigation via shared utility. The scene tree has
+                // runtime depth (nested groups), not a fixed level list, so
+                // depthOf reads aria-level and the generic ascend/descend in
+                // setupTreeKeyboard works without a per-panel walk.
                 UIControls.setupTreeKeyboard(this.treeContainer, '[role="treeitem"]', {
+                    depthOf: el => parseInt(el.getAttribute('aria-level') || '1', 10) - 1,
                     onSelect: (id, e) => {
                         this.emit('select', { id, shiftKey: e.shiftKey, ctrlKey: e.ctrlKey || e.metaKey });
                     },
                     onDelete: (id) => {
                         this.emit('action', { id, action: 'delete' });
                     },
-                    onExpand: (id, focused) => {
-                        if (focused.classList.contains('group-row')) {
-                            const node = this.sceneRef?.findNode(id);
-                            if (node?.collapsed) { node.collapsed = false; this.refreshTree(); }
-                        }
+                    onKey: (key, id, focused) => {
+                        const sel = (key === 'v' || key === 'V') ? '.path-visibility'
+                                  : (key === 'l' || key === 'L') ? '.path-lock'
+                                  : null;
+                        if (!sel) return;
+                        const btn = focused.querySelector(sel);
+                        if (btn && !btn.disabled) btn.click();
                     },
-                    onCollapse: (id, focused, rows, idx) => {
-                        if (focused.classList.contains('group-row')) {
-                            const node = this.sceneRef?.findNode(id);
-                            if (node && !node.collapsed) { node.collapsed = true; this.refreshTree(); return; }
+                    onExpand: (id, focused) => {
+                        if (!focused.classList.contains('group-row')) return;
+                        const node = this.sceneRef?.findNode(id);
+                        if (node?.collapsed) { node.collapsed = false; this.refreshTree(); }
+                    },
+                    // Close an open group before letting focus leave it. Return
+                    // true when it acted; false hands ArrowLeft back to the
+                    // generic parent walk.
+                    onCollapse: (id, focused) => {
+                        if (!focused.classList.contains('group-row')) return false;
+                        const node = this.sceneRef?.findNode(id);
+                        if (node && !node.collapsed) {
+                            node.collapsed = true;
+                            this.refreshTree();
+                            return true;
                         }
-                        // Navigate to parent level
-                        const level = parseInt(focused.getAttribute('aria-level') || '1');
-                        if (level > 1) {
-                            for (let i = idx - 1; i >= 0; i--) {
-                                if (parseInt(rows[i].getAttribute('aria-level') || '1') < level) {
-                                    focused.setAttribute('tabindex', '-1');
-                                    rows[i].setAttribute('tabindex', '0');
-                                    rows[i].focus();
-                                    break;
-                                }
-                            }
-                        }
+                        return false;
                     }
                 });
 
@@ -112,13 +118,11 @@
          * Updates .selected class on existing rows without a full tree rebuild.
          */
         updateSelectionHighlights(selectedIds) {
-            if (!this.treeContainer) return;
-            this.treeContainer.querySelectorAll('.path-row, .group-row').forEach(row => {
+            this.treeContainer?.querySelectorAll(".path-row, .group-row").forEach(row => {
                 const id = row.dataset.pathId || row.dataset.groupId;
-                const isSelected = id && selectedIds.has(id);
-                row.classList.toggle('selected', isSelected);
-                if (isSelected) row.setAttribute('aria-selected', 'true');
-                else row.removeAttribute('aria-selected');
+                const isSelected = !!id && selectedIds.has(id);
+                row.classList.toggle("selected", isSelected);
+                row.setAttribute("aria-selected", isSelected ? "true" : "false");
             });
         }
 
@@ -188,6 +192,15 @@
         // ═══════════════════════════════════════════════════════════════
 
         refreshTree() {
+            if (!this.treeContainer) return;
+            // Every row is replaced here, including the one holding focus.
+            // ArrowRight lands on a detached node without this wrapper.
+            UIControls.preserveTreeFocus(
+                this.treeContainer, '[role="treeitem"]', () => this._rebuildTree()
+            );
+        }
+
+        _rebuildTree() {
             const list = this.treeContainer;
             if (!list || !this.sceneRef) return;
 
@@ -201,37 +214,43 @@
                 // trip aria-required-children.
                 list.removeAttribute('role');
                 list.removeAttribute('aria-label');
+                list.removeAttribute('aria-multiselectable');
                 return;
             }
             if (emptyState) emptyState.style.display = 'none';
             list.setAttribute('role', 'tree');
             list.setAttribute('aria-label', 'Scene tree');
+            list.setAttribute('aria-multiselectable', 'true');
 
             const selectedIds = this.sceneRef.selection.toSet();
 
-            const renderNode = (node, depth) => {
+            const renderNode = (node, depth, pos, size) => {
                 if (node.kind === 'root') {
-                    for (const child of node.children) renderNode(child, 0);
+                    const kids = node.children;
+                    kids.forEach((child, i) => renderNode(child, 0, i + 1, kids.length));
                     return;
                 }
                 if (node.kind === 'group') {
-                    this.buildGroupRow(node, depth, selectedIds, list);
+                    this.buildGroupRow(node, depth, selectedIds, list, pos, size);
                     if (!node.collapsed) {
-                        for (const child of node.children) renderNode(child, depth + 1);
+                        const kids = node.children;
+                        kids.forEach((child, i) => renderNode(child, depth + 1, i + 1, kids.length));
                     }
                     return;
                 }
-                this.buildShapeRow(node, depth, selectedIds, list);
+                this.buildShapeRow(node, depth, selectedIds, list, pos, size);
             };
 
-            renderNode(this.sceneRef.root, 0);
+            renderNode(this.sceneRef.root, 0, 1, 1);
+
+            UIControls.seedRovingTabindex(list, '[role="treeitem"]');
         }
 
         // ═══════════════════════════════════════════════════════════════
         // Row builders
         // ═══════════════════════════════════════════════════════════════
 
-        buildGroupRow(node, depth, selectedIds, list) {
+        buildGroupRow(node, depth, selectedIds, list, pos = 1, size = 1) {
             const row = document.createElement('div');
             row.className = 'group-row';
             row.style.paddingLeft = `${8 + depth * 14}px`;
@@ -239,7 +258,15 @@
             row.setAttribute('role', 'treeitem');
             row.setAttribute('tabindex', '-1');
             row.setAttribute('aria-level', String(depth + 1));
-            if (selectedIds.has(node.id)) { row.classList.add('selected'); row.setAttribute('aria-selected', 'true'); }
+            // The DOM is flat and indented by padding alone, so position in
+            // the branch has to be stated rather than derived.
+            row.setAttribute('aria-posinset', String(pos));
+            row.setAttribute('aria-setsize', String(size));
+            row.setAttribute('aria-selected', selectedIds.has(node.id) ? 'true' : 'false');
+            if (node.children.length) {
+                row.setAttribute('aria-expanded', node.collapsed ? 'false' : 'true');
+            }
+            if (selectedIds.has(node.id)) row.classList.add('selected');
             if (!node.visible) row.classList.add('is-hidden-shape');
 
             const localLocked = node.locked;
@@ -265,22 +292,23 @@
                 </span>
                 <span class="group-name"></span>
                 <span class="group-count">${node.children.length}</span>
-                <button class="btn btn--icon btn--compact path-lock${lockExtra}" data-action="lock" title="${lockTitle}" ${lockDisabled}>
+                <button class="btn btn--icon btn--compact path-lock${lockExtra}" data-action="lock" title="${lockTitle}" aria-label="${lockTitle}: ${node.label || 'Group'}" ${lockDisabled}>
                     <svg class="cam-icon" width="12" height="12"><use href="#${lockId}"></use></svg>
                 </button>
-                <button class="btn btn--icon btn--compact path-visibility" data-action="visibility" title="${node.visible ? 'Hide' : 'Show'}">
+                <button class="btn btn--icon btn--compact path-visibility" data-action="visibility" title="${node.visible ? 'Hide' : 'Show'}" aria-label="${node.visible ? 'Hide' : 'Show'}: ${node.label || 'Group'}">
                     <svg class="cam-icon" width="12" height="12"><use href="#${visId}"></use></svg>
                 </button>
-                <button class="btn btn--icon btn--compact" data-action="delete" title="Delete group">
+                <button class="btn btn--icon btn--compact" data-action="delete" title="Delete group" aria-label="Delete group: ${node.label || 'Group'}">
                     <svg class="cam-icon" width="12" height="12"><use href="#icon-delete"></use></svg>
                 </button>
             `;
             row.querySelector('.group-name').textContent = node.label || 'Group';
+            row.querySelectorAll('button').forEach(b => b.setAttribute('tabindex', '-1'));
 
             list.appendChild(row);
         }
 
-        buildShapeRow(shape, depth, selectedIds, list) {
+        buildShapeRow(shape, depth, selectedIds, list, pos = 1, size = 1) {
             const row = document.createElement('div');
             row.className = 'path-row';
             row.style.paddingLeft = `${8 + depth * 14}px`;
@@ -289,7 +317,10 @@
             row.setAttribute('role', 'treeitem');
             row.setAttribute('tabindex', '-1');
             row.setAttribute('aria-level', String(depth + 1));
-            if (selectedIds.has(shape.id)) { row.classList.add('selected'); row.setAttribute('aria-selected', 'true'); }
+            row.setAttribute('aria-posinset', String(pos));
+            row.setAttribute('aria-setsize', String(size));
+            row.setAttribute('aria-selected', selectedIds.has(shape.id) ? 'true' : 'false');
+            if (selectedIds.has(shape.id)) row.classList.add('selected');
             if (!shape.isVisible) row.classList.add('is-hidden-shape');
 
             const localLocked = shape.locked;
@@ -312,22 +343,23 @@
                 }
             }
 
-            const lockId = localLocked ? 'icon-lock-locked' : 'icon-lock-unlocked';
-            const visId = shape.visible ? 'icon-eye' : 'icon-eye-off';
+            const lockId = localLocked ? "icon-lock-locked" : "icon-lock-unlocked";
+            const visId = shape.visible ? "icon-eye" : "icon-eye-off";
 
             row.innerHTML = `
                 <span class="path-name"></span>
-                <button class="btn btn--icon btn--compact path-lock${lockExtra}" data-action="lock" title="${lockTitle}" ${lockDisabled}>
+                <button class="btn btn--icon btn--compact path-lock${lockExtra}" data-action="lock" title="${lockTitle}" aria-label="${lockTitle}: ${displayLabel}" ${lockDisabled}>
                     <svg class="cam-icon" width="12" height="12"><use href="#${lockId}"></use></svg>
                 </button>
-                <button class="btn btn--icon btn--compact path-visibility" data-action="visibility" title="${shape.visible ? 'Hide' : 'Show'}">
+                <button class="btn btn--icon btn--compact path-visibility" data-action="visibility" title="${shape.visible ? 'Hide' : 'Show'}" aria-label="${shape.visible ? 'Hide' : 'Show'}: ${displayLabel}">
                     <svg class="cam-icon" width="12" height="12"><use href="#${visId}"></use></svg>
                 </button>
-                <button class="btn btn--icon btn--compact" data-action="delete" title="Remove">
+                <button class="btn btn--icon btn--compact" data-action="delete" title="Remove" aria-label="Remove ${displayLabel}">
                     <svg class="cam-icon" width="12" height="12"><use href="#icon-delete"></use></svg>
                 </button>
             `;
-            row.querySelector('.path-name').textContent = displayLabel;
+            row.querySelector(".path-name").textContent = shape.label || "Shape";
+            row.querySelectorAll('button').forEach(b => b.setAttribute("tabindex", "-1"));
 
             list.appendChild(row);
         }

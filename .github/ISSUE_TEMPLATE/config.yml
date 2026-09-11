@@ -1,5 +1,11 @@
-blank_issues_enabled: false  # Forces users to choose Bug or Feature
+blank_issues_enabled: false
 contact_links:
-  - name: General Questions & Discussions
-    url: https://github.com/RicardoJCMarques/Eltryus_CAM/discussions
-    about: "Questions about machine settings, post-processors, or how to use the tool?"
+  - name: Questions & Discussions
+    url: https://github.com/RicardoJCMarques/EasyCAM5000/discussions
+    about: "Machine settings, post-processors, or how to use the tool? Ask here."
+  - name: Documentation
+    url: https://cam.eltryus.design
+    about: "Workflow guides, operation reference and every parameter explained."
+  - name: Report a security vulnerability
+    url: https://github.com/RicardoJCMarques/EasyCAM5000/security/advisories/new
+    about: "Please do not open a public issue for security problems."

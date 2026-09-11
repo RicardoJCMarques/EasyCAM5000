@@ -11,9 +11,10 @@
 
 (function() {
     'use strict';
+    const ROOT = globalThis;
 
-    const C = window.CAMConfig.constants;
-    const D = window.CAMConfig.defaults;
+    const C = ROOT.CAMConfig.constants;
+    const D = ROOT.CAMConfig.defaults;
     const PRECISION = C.precision.coordinate;
     const debugState = D.debug;
 
@@ -41,6 +42,8 @@
          *        viewer wraps them itself and must not receive A words).
          */
         processPlans(toolpathPlans, context, initialPos, runOpts = {}) {
+            this.warnings = [];
+
             if (!toolpathPlans || toolpathPlans.length === 0) {
                 return { plans: [], endPos: initialPos };
             }
@@ -179,16 +182,16 @@
                     if (!(slotFeed > 0 && slotPlunge > 0 && finalZ !== null)) {
                         // Dropping here removes a slot from the program with nothing
                         // on screen to show for it. Name the value that is missing.
-                        // TODO(processor-warnings) - this belongs on the operation.
-                        // MachineProcessor has no warning channel yet, which is why
-                        // this failure went unnoticed for a whole release.
                         const missing = [
                             slotFeed > 0 ? null : 'feed rate',
                             slotPlunge > 0 ? null : 'plunge rate',
-                            finalZ === null ? 'cut depth' : null
+                            finalZ === null ? 'cut depth' : null,
                         ].filter(Boolean).join(', ');
-                        console.error(`[MachineProcessor] Centerline slot dropped - no ${missing}.`,
-                            { feedRate: strategy.feedRate, plungeRate: strategy.plungeRate, depthPerPass: strategy.depthPerPass, depthLevels: levels });
+                        this.warnings.push(`Centerline slot dropped - no ${missing}. Set it on the operation and regenerate.`);
+                        this.debug(`[MachineProcessor] Centerline slot dropped - no ${missing}.`, {
+                            feedRate: strategy.feedRate, plungeRate: strategy.plungeRate,
+                            depthPerPass: strategy.depthPerPass, depthLevels: levels,
+                        });
                         continue;
                     }
 
@@ -628,7 +631,7 @@
 
             if (entryType === 'helix' && !planMetadata.isSimpleCircle) {
                 this.generateHelixEntry(plan, entryPoint, cutDepth, plungeRate, planMetadata.toolDiameter);
-            // IGNORE RAMP ENTRY UNTIL PROPERLY DEVELOPED AND TESTED
+            // REVIEW - Finish implementing ramp entry
             // } else if (entryType === 'ramp') { 
             //     this.generateRampEntry(plan, planMetadata, cutDepth, plungeRate);
             } else {
@@ -649,12 +652,7 @@
                 return;
             }
 
-            // [METADATA-BLOAT] Last ctx dependency in this stage: winding only
-            // needs ctx.transforms (+ strategy.direction, already mirrored in
-            // metadata). When determineWinding is repointed to
-            // plan.metadata.transforms, delete every `metadata.context = ctx`
-            // stamp in both translators and the retention problem is closed.
-            const arcCW = this.determineWinding(plan.metadata.context);
+            const arcCW = this.determineWinding();
             const angleDir = arcCW ? -1 : 1;
 
             // Per-row cutter, not the operation's. In multi-tool drilling the
@@ -725,7 +723,10 @@
         processPeckMark(purePlan) {
             const machinePlan = new ToolpathPlan(purePlan.operationId);
             Object.assign(machinePlan.metadata, purePlan.metadata);
-            const planContext = purePlan.metadata.context;
+            // The context is the operation's, and processPlans set it for this
+            // batch - every plan here belongs to that operation. Reading it off
+            // the plan retained a full frozen context per plan for nothing.
+            const planContext = this.context;
             const peckData = purePlan.metadata.peckData;
             const position = peckData.position;
             const finalDepth = purePlan.metadata.cutDepth;
@@ -803,7 +804,7 @@
             // Feed Height
             machinePlan.addRapid(null, null, this.FEED_HEIGHT);
 
-            const arcCW = this.determineWinding(purePlan.metadata.context);
+            const arcCW = this.determineWinding();
 
             if (primitiveType === 'obround') {
                 this.generateSlotHelix(machinePlan, purePlan, arcCW);
@@ -861,9 +862,9 @@
             const machinePlan = new ToolpathPlan(purePlan.operationId);
             Object.assign(machinePlan.metadata, purePlan.metadata);
 
-            const rings = purePlan.metadata.concentricRings;      // [innermost, ..., outermost]
+            const rings = purePlan.metadata.concentricRings; // [innermost, ..., outermost]
             const entryType = purePlan.metadata.entryType;
-            const depthLevels = purePlan.metadata.depthLevels;     // [-0.05, -0.10, ...] descending
+            const depthLevels = purePlan.metadata.depthLevels; // [-0.05, -0.10, ...] descending
             const feedRate = purePlan.metadata.feedRate;
             const plungeRate = purePlan.metadata.plungeRate;
             const toolDiameter = purePlan.metadata.toolDiameter;
@@ -884,7 +885,7 @@
             const minHelixDia = this.context.config.drilling.minHelixDiameter;
             const useHelix = entryType === 'helix' && (innerRing.radius * 2) >= minHelixDia;
 
-            const arcCW = this.determineWinding(purePlan.metadata.context);
+            const arcCW = this.determineWinding();
 
             machinePlan.addRapid(initialEntryX, initialEntryY, this.context.machine.travelZ);
             machinePlan.addRapid(null, null, this.FEED_HEIGHT);
@@ -1011,7 +1012,7 @@
             const machinePlan = new ToolpathPlan(purePlan.operationId);
             Object.assign(machinePlan.metadata, purePlan.metadata);
 
-            const rings = purePlan.metadata.obroundRings;      // [innermost, ..., outermost]
+            const rings = purePlan.metadata.obroundRings; // [innermost, ..., outermost]
             const entryType = purePlan.metadata.entryType;
             const depthLevels = purePlan.metadata.depthLevels;
             const feedRate = purePlan.metadata.feedRate;
@@ -1019,7 +1020,7 @@
             const toolDiameter = purePlan.metadata.toolDiameter;
 
             const innerRing = rings[0];
-            const arcCW = this.determineWinding(purePlan.metadata.context);
+            const arcCW = this.determineWinding();
 
             // Plunge exactly where the toolpath begins to avoid flat travel cuts
             const innerEntry = arcCW ? innerRing.pB : innerRing.pC;
@@ -1166,7 +1167,7 @@
             machinePlan.addRetract(this.context.machine.travelZ);
         }
 
-        determineWinding(ctx) {
+        determineWinding() {
             // Drill macros are mirror-agnostic since the geometry translator naturally handles point swapping during mirroring.
             const isClimb = true; // Enforced until UI supports conventional routing
             return isClimb; // Climb milling an internal pocket translates to CW (true)
@@ -1523,5 +1524,5 @@
         }
     }
 
-    window.MachineProcessor = MachineProcessor;
+    ROOT.MachineProcessor = MachineProcessor;
 })();

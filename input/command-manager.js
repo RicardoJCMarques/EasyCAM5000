@@ -301,6 +301,42 @@
     }
 
     /**
+     * Removes N operation buckets and their core operations, keeping both by
+     * reference so undo re-attaches rather than rebuilds. `pruned` carries the
+     * shapeRefs lists that a partial deletion trimmed - those edits are as
+     * destructive as the removals and were previously unrecoverable.
+     * removed: [{ bucketId }]  (token filled in on first execute)
+     * pruned:  [{ bucketId, prevRefs }]
+     */
+    class RemoveBucketsCommand extends Command {
+        constructor(bucketIds, pruned = []) {
+            super();
+            this.bucketIds = [...bucketIds];
+            this.pruned = pruned.map(p => ({ bucketId: p.bucketId, prevRefs: [...p.prevRefs] }));
+            this.tokens = [];
+        }
+        execute(ctrl) {
+            const panel = ctrl.ui.opsPanel;
+            if (!panel) return;
+            for (const p of this.pruned) {
+                const bucket = panel.getBucket(p.bucketId);
+                if (bucket) bucket.shapeRefs = bucket.shapeRefs.filter(ref => ctrl.scene.findShape(ref) !== null);
+            }
+            this.tokens = this.bucketIds.map(id => panel.removeBucket(id, ctrl.core)).filter(Boolean);
+        }
+        undo(ctrl) {
+            const panel = ctrl.ui.opsPanel;
+            if (!panel) return;
+            for (let i = this.tokens.length - 1; i >= 0; i--) panel.restoreBucket(this.tokens[i], ctrl.core);
+            for (const p of this.pruned) {
+                const bucket = panel.getBucket(p.bucketId);
+                if (bucket) bucket.shapeRefs = [...p.prevRefs];
+            }
+        }
+        get label() { return `Remove ${this.bucketIds.length} operation(s)`; }
+    }
+
+    /**
      * Toggles `visible` or `locked` on a set of shapes. Both are simple
      * boolean flips so one command class handles both via a `flag` field.
      */
@@ -368,12 +404,12 @@
         get label() { return 'Edit transform'; }
     }
 
-    window.Command = Command;
     window.CompositeCommand = CompositeCommand;
     window.TranslateCommand = TranslateCommand;
     window.GroupCommand = GroupCommand;
     window.UngroupCommand = UngroupCommand;
     window.DeleteShapesCommand = DeleteShapesCommand;
+    window.RemoveBucketsCommand = RemoveBucketsCommand;
     window.SetNodeFlagCommand = SetNodeFlagCommand;
     window.SetShapeTransformCommand = SetShapeTransformCommand;
     window.CommandManager = CommandManager;
