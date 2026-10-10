@@ -99,9 +99,12 @@
     user-select: none;
 }
 
-/* three.js creates this canvas at mount; it has no id to target. */
+/* three.js creates this canvas at mount; it has no id to target. Layout
+   sizes it; Renderer3D only matches the drawing buffer to it. */
 .viewport-3d canvas {
     display: block;
+    width: 100%;
+    height: 100%;
     touch-action: none;
 }
 
@@ -270,10 +273,6 @@
     font-size: var(--font-size-sm);
     color: var(--color-text-secondary);
     margin-bottom: var(--spacing-xs);
-}
-
-.property-field--disabled label {
-    opacity: 0.55;
 }
 
 .property-actions {

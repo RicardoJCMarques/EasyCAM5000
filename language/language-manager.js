@@ -31,10 +31,7 @@
                     throw new Error(`Failed to load ../language/${lang}.json: ${response.statusText}`);
                 }
                 const data = await response.json();
-                // v2 schema has no `strings` wrapper - the namespaces are top level.
-                // `data.strings` is the v1 shape, kept so a stale file still loads.
-                // REVIEW - Is this fallback still necessary?
-                this.strings = data.strings || data;
+                this.strings = data;
                 this.isLoaded = true;
                 this.debug(`[Lang] Language pack '${lang}' loaded.`);
             } catch (err) {
@@ -45,72 +42,47 @@
         }
 
         /**
+         * Looks a dotted key up in the loaded strings. Sections come in two
+         * shapes - nested (params.toolDiameter, drill.tooling.title) and flat,
+         * where the whole rest of the path is one key (ui, messages and gcode
+         * hold "modals.exporter.zip") - so at each level the rest of the key is
+         * tried whole before descending one segment. Own properties only, so
+         * a key like "toString" misses instead of returning a prototype method.
+         * @returns {*} the value, or undefined on a miss
+         */
+        resolve(key) {
+            const parts = String(key).split('.');
+            let node = this.strings;
+            for (let i = 0; i < parts.length; i++) {
+                if (node === null || typeof node !== 'object') return undefined;
+                const rest = parts.slice(i).join('.');
+                if (Object.hasOwn(node, rest)) return node[rest];
+                if (!Object.hasOwn(node, parts[i])) return undefined;
+                node = node[parts[i]];
+            }
+            return undefined;
+        }
+
+        /**
          * Gets a string by its key.
          */
         get(key, defaultValue = '') {
             if (!this.isLoaded) {
                 console.warn(`[Lang] Tried to get key "${key}" before strings were loaded.`);
             }
-
-            // REVIEW - Can this be optimized?
-            // This reducer handily navigates nested JSON keys 'tooltips.toolDiameter' -> this.strings['tooltips']['toolDiameter']
-            try {
-                const value = key.split('.').reduce((obj, k) => obj[k], this.strings);
-                return value !== undefined ? value : defaultValue;
-            } catch (e) {
-                return defaultValue; // Key path was invalid
-            }
+            const value = this.resolve(key);
+            return value !== undefined ? value : defaultValue;
         }
 
         /**
-         * Checks if a translation key exists.
-         */
-        has(key) {
-            try {
-                // This logic is similar to get(), but returns true/false
-                const value = key.split('.').reduce((obj, k) => obj[k], this.strings);
-                return value !== undefined;
-            } catch (e) {
-                return false; // Key path was invalid
-            }
-        }
-
-       /**
-         * A v2 entry. Objects pass through; a bare string becomes { help }.
-         * Returns {} for a miss so callers can destructure without guarding.
+         * Objects pass through; a bare string becomes { help }. Returns {}
+         * for a miss so callers can destructure without guarding.
          */
         entry(key) {
             const v = this.get(key, null);
             if (v && typeof v === 'object') return v;
             if (typeof v === 'string') return { help: v };
             return {};
-        }
-
-        /**
-         * Returns an entire section as a flat object, or null if not found.
-         * Useful for bulk-loading comment strings for export pipelines.
-         * Example: getSection('gcode.comments') returns { header: "...", date: "...", ... }
-         */
-        getSection(key) {
-            try {
-                const section = key.split('.').reduce((obj, k) => obj[k], this.strings);
-                return (section && typeof section === 'object') ? section : null;
-            } catch (e) {
-                return null;
-            }
-        }
-
-        /**
-         * Gets a string by key and replaces {placeholder} tokens with values.
-         * Example: format('gcode.comments.date', { date: '2025-01-01' })
-         *          → "Date: 2025-01-01"
-         */
-        format(key, replacements = {}) {
-            let str = this.get(key, '');
-            for (const [token, value] of Object.entries(replacements)) {
-                str = str.replace(new RegExp(`\\{${token}\\}`, 'g'), value);
-            }
-            return str;
         }
 
         debug(message, data = null) {

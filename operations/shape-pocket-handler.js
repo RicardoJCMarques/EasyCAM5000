@@ -37,12 +37,6 @@
         }
 
         // Orchestration
-
-        resolveSourceTopology(operation, params) {
-            return this.resolveContourTopology(
-                operation.primitives, { mergeNesting: params.detectNesting === true });
-        }
-
         async orchestrateGeneration(operation, params, core, options = {}) {
             const token = this.beginRun(operation, options, core);
 
@@ -56,15 +50,6 @@
                 return {
                     success: false,
                     message: `${openCount} open path(s) detected. Pocket cutting requires closed shapes. Close paths in your SVG editor (the automated tool may not be implemented yet).`,
-                    status: 'warning'
-                };
-            }
-
-            const strategy = params.pocketStrategy || 'offset';
-            if ('raster' === strategy) {
-                return {
-                    success: false,
-                    message: 'Raster pocket strategy not implemented yet. Use concentric offsets.',
                     status: 'warning'
                 };
             }

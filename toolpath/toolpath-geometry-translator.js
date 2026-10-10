@@ -34,11 +34,10 @@
      *
      *     machineMatrix = T(-origin) ⊗ workspaceMatrix
      *
-     * provided by cam-core's buildToolpathContext as ctx.transforms.
+     * provided by PipelineContextBuilder.buildPipelineContext as ctx.transforms.
      * Everything downstream (ToolpathOptimizer, MachineProcessor,
      * GCodeGenerator) operates in machine coordinates and performs NO
-     * further coordinate math. GCodeGenerator's old per-command origin
-     * subtraction (transformCommand/originOffset) is deleted.
+     * further coordinate math.
      *
      * transforms.machineIsIdentity short-circuits applyTransforms so
      * untransformed jobs (typical EasyShape session with origin at 0,0)
@@ -148,7 +147,7 @@
             const plans = [];
             for (const contour of processable.contours) {
                 const isHole = contour.isHole || false;
-                plans.push(...(isTabbedCutout && this.tabPlanner
+                plans.push(...(isTabbedCutout
                     ? this.processTabbedContour(contour, ctx, isHole, parentShapeKey, featureId, parentPass)
                     : this.processStandardContour(contour, processable, ctx, isHole, parentShapeKey, featureId, parentPass)));
             }
@@ -190,7 +189,7 @@
             }
 
             // Emit circle macro plans
-            for (const [holeIdx, holePrimitives] of circleMillByHole) {
+            for (const holePrimitives of circleMillByHole.values()) {
                 const rings = holePrimitives.map((prim, idx) => {
                     // Clone via transform (or explicit copy on identity) so ring
                     // centers never alias live source-primitive objects.
@@ -242,7 +241,7 @@
             }
 
             // Emit obround macro plans
-            for (const [holeIdx, holePrimitives] of obroundMillByHole) {
+            for (const holePrimitives of obroundMillByHole.values()) {
                 const rings = holePrimitives.map((prim, idx) => {
                     const oData = this.getObroundData(prim);
                     // getObroundData returns fresh objects, so identity
@@ -255,11 +254,8 @@
                     oData.pD = this.applyTransforms(oData.pD, transforms);
 
                     // Normalize the sequence so the macro can remain transform agnostic.
-                    // windingFlipped is det-based (matches the matrix), replacing the
-                    // old mirrorX XOR mirrorY param check - identical result for
-                    // workspace params, but stays correct if the matrix ever carries
-                    // a reflection the params don't describe. // REVIEW - remove fallback? Fix consequences?
-                    const isFlipped = !!(transforms && transforms.windingFlipped);
+                    // windingFlipped is det-based, so it always matches the matrix.
+                    const isFlipped = transforms.windingFlipped;
                     if (isFlipped) {
                         const tempB = oData.pB; oData.pB = oData.pC; oData.pC = tempB;
                         const tempA = oData.pA; oData.pA = oData.pD; oData.pD = tempA;
@@ -609,47 +605,35 @@
          * Processes a contour that has tabConfig attached.
          */
         processTabbedContour(contour, ctx, isHole, parentShapeKey, featureId, parentPass) {
-            const tabConfig = ctx.strategy.cutout; 
-
-            // Generate the tab-sliced path if tabs are requested
-            let commandsToSend = [];
-            if (tabConfig.tabs > 0 && this.tabPlanner) {
-                commandsToSend = this.tabPlanner.calculateTabPositions(contour, ctx);
-            }
-
-            // Fallback to standard generation if tabPlanner is missing or tabs is 0
-            // REVIEW - Why is this necessary?!?
-            if (!commandsToSend || commandsToSend.length === 0) {
+            const tabConfig = ctx.strategy.cutout;
+            let commands = this.tabPlanner.calculateTabPositions(contour, ctx);
+            const tabbed = commands.length > 0;
+            if (!tabbed) {
+                // The planner returns nothing for a contour shorter than its
+                // tabs (each needs tabWidth + tool diameter): cut it untabbed.
+                this.warnOperation(ctx, 'Tabs skipped on contours too short to hold them.');
                 const tempPlan = new ToolpathPlan(ctx.operationId);
                 tempPlan.metadata.transforms = ctx.transforms;
                 tempPlan.metadata.isClosed = true;
                 this.translatePrimitiveToCutting(tempPlan, contour, ctx.cutting.feedRate);
-                commandsToSend = tempPlan.commands;
+                commands = tempPlan.commands;
             }
-
             const plan = this.createPurePlan(contour, ctx, true, isHole, false);
             if (!plan) return [];
-
             plan.metadata.shapeKey = parentShapeKey ?? plan.metadata.shapeKey;
             plan.metadata.featureId = featureId ?? null;
             plan.metadata.pass = parentPass ?? plan.metadata.pass;
-
             // Assign the single source of truth for the optimizer
-            plan.commands = commandsToSend;
-
-            // Flag that this plan has tab segments requiring Z-expansion
-            plan.metadata.isTabbedPass = tabConfig.tabs > 0;
-
+            plan.commands = commands;
+            // Tab segments need Z-expansion; the optimizer also keeps a tabbed
+            // pass's entry point fixed.
+            plan.metadata.isTabbedPass = tabbed;
             // Calculate tab top from the absolute bottom machine depth
             const finalDepth = ctx.computed.depthLevels[ctx.computed.depthLevels.length - 1];
             plan.metadata.tabTopZ = finalDepth + tabConfig.tabHeight;
-
-            // Pass the depth levels array
             plan.metadata.depthLevels = ctx.computed.depthLevels;
-
             plan.computeBounds();
             this.enforceClimbMilling(plan, isHole);
-            
             return [plan];
         }
 
@@ -749,7 +733,7 @@
 
         createPurePlan(primitive, ctx, isClosed, isHole, generateCommands = true) {
             // Get all settings from the context
-            const { operationId, operationType, tool, cutting, strategy } = ctx;
+            const { operationId, tool, cutting, strategy } = ctx;
 
             const plan = new ToolpathPlan(operationId);
             plan.metadata.transforms = ctx.transforms;
@@ -791,12 +775,11 @@
             // Analyze primitive sets entry/exit points and metadata
             this.analyzePrimitive(plan, primitive);
 
-            // Apply the machine transform to entry/exit points.
-            // Gate on the MATRIX, not on rotation/mirror params - with origin
-            // folded into machineMatrix, the matrix is non-identity whenever
-            // origin ≠ (0,0), which the old param check missed.
+            // Apply the machine transform to entry/exit points. Gate on the
+            // MATRIX, not on rotation/mirror params: origin is folded into
+            // machineMatrix, so a moved origin alone makes it non-identity.
             const transforms = ctx.transforms;
-            if (!this.isIdentityTransforms(transforms)) {
+            if (!transforms.machineIsIdentity) {
                 // Transform Entry and Exit
                 if (plan.metadata.entryPoint) {
                     const transformed = this.applyTransforms(plan.metadata.entryPoint, transforms);
@@ -918,17 +901,8 @@
                     // Check for arc segments
                     metadata.hasArcs = geometry.arcSegments && geometry.arcSegments.length > 0;
 
-                    // THE decision point. Everything downstream - translatePath,
-                    // enforceClimbMilling, computeBounds, samplePlanPoints,
-                    // rotateCircleEntry, the MachineProcessor entry move - reads
-                    // isSimpleCircle/center/radius and never re-derives.
-                    // center is set UNTRANSFORMED; createPurePlan transforms it
-                    // right after this call, same contract as the circle and
-                    // obround branches above.
-                    // The reconstructor's flag is ground truth and needs no
-                    // measuring. detectClosedArcCircle is the fallback for the
-                    // legacy tessellated shape only.
-                    // REVIEW - Trim comment
+                    // Reconstructor isFullCircle metadata is authoritative;
+                    // detectClosedArcCircle covers contours without that flag.
                     const arc0 = geometry.arcSegments?.[0];
                     const circle = (geometry.isFullCircle && arc0?.center && arc0.radius > 0)
                         ? { center: { x: arc0.center.x, y: arc0.center.y }, radius: arc0.radius }
@@ -944,20 +918,10 @@
         }
 
         /**
-         * LEGACY SHAPE ONLY: GeometryUtils.circleToPath output - N points and N
-         * micro-arcs, one per edge, all about one centre. This still reaches the
-         * translator because translateOperation runs primitiveToPath on analytic
-         * primitives before the contour loop (deliberately: the tab planner
-         * needs the tessellated ring).
-         *
-         * Reconstructor output does NOT come through here - it carries an
-         * explicit contour.isFullCircle, which analyzePrimitive reads first.
-         * Do not add cases to this function; add them to the flag instead.
-         *
-         * The test is structural, not tolerance-based: arc count === point count
-         * means every edge of the closed ring is an arc.
+         * Fallback for untagged circular contours where isFullCircle is absent.
+         * Verifies all arcSegments share identical center and radius across all
+         * contour vertices.
          */
-        // REVIEW - This sounds like a legacy safeguard? why not guaranteed circleToPath is processed correctly before reaching this stage?
         detectClosedArcCircle(points, arcSegments, isClosedLoop) {
             if (!isClosedLoop || !points || !arcSegments || arcSegments.length < 3) return null;
             if (arcSegments.length !== points.length) return null;
@@ -984,9 +948,9 @@
             const type = geometry.type || 'path'; 
 
             if (type === 'circle') {
-                this.translateCircle(plan, geometry, feedRate, false);
+                this.translateCircle(plan, geometry, feedRate);
             } else if (type === 'obround') {
-                this.translateObround(plan, geometry, feedRate, false);
+                this.translateObround(plan, geometry, feedRate);
             } else if (type === 'arc') {
                 this.translateArc(plan, geometry, feedRate);
             } else if (type === 'path') {
@@ -997,12 +961,11 @@
         /**
          * Translate circle to cutting commands
          */
-        translateCircle(plan, primitive, feedRate, clockwise) {
+        translateCircle(plan, primitive, feedRate) {
             const transforms = plan.metadata.transforms;
 
             // Transform the Center
             const center = this.applyTransforms(primitive.center, transforms);
-            const radius = primitive.radius;
 
             // Determine the Transformed Start Point
             // The primitive "starts" at 3 o'clock (0 radians) in local space.
@@ -1033,7 +996,7 @@
         /**
          * Translate obround to cutting commands (2 lines, 2 arcs)
          */
-        translateObround(plan, primitive, feedRate, clockwise) {
+        translateObround(plan, primitive, feedRate) {
             const transforms = plan.metadata.transforms;
             const slotRadius = Math.min(primitive.width, primitive.height) / 2;
             const isHorizontal = primitive.width > primitive.height;
@@ -1341,14 +1304,9 @@
 
             const wantCW = !isHole; // External = CW (climb), Hole = CCW (climb)
 
-            // A circle is ONE arc command, so the endpoint-winding scan below
-            // has nothing to measure and used to bail - which left every
-            // circular hole cutting conventional. Direction is declarative
-            // here: flipping a 2*PI arc keeps the same start point and the same
-            // I/J, only the opcode changes. This is also correct under mirror,
-            // where the point scan measures post-transform winding but hole-ness
-            // is invariant.
-            // REVIEW - Trim comment
+            // A circle is ONE arc command, so the winding scan below has nothing
+            // to measure: set the opcode directly. Flipping a full arc keeps the
+            // start point and I/J, and hole-ness survives a mirror.
             if (plan.metadata.isSimpleCircle && plan.commands.length === 1) {
                 const cmd = plan.commands[0];
                 if (cmd.type !== 'ARC_CW' && cmd.type !== 'ARC_CCW') return false;
@@ -1434,35 +1392,15 @@
         }
 
         /**
-         * True when ctx.transforms carries no machine transform - i.e. the
-         * combined machineMatrix (origin + workspace) is identity. Falls
-         * back to the legacy param check if the context predates the
-         * machineMatrix field (older saved contexts, tests).
-         */
-        // REVIEW - Remove fallback?
-        isIdentityTransforms(transforms) {
-            if (!transforms) return true;
-            if (transforms.machineIsIdentity !== undefined) {
-                return transforms.machineIsIdentity === true;
-            }
-            // Legacy fallback: param-based gate + origin
-            return !transforms.mirrorX && !transforms.mirrorY && !transforms.rotation &&
-                   (!transforms.origin || (transforms.origin.x === 0 && transforms.origin.y === 0));
-        }
-
-        /**
          * THE single pipeline→machine coordinate mapping.
          * Identity transforms return the input point UNCHANGED (no clone) -
          * callers must treat the result as read-only, or clone explicitly
          * when storing it into mutable metadata (see extractDrillMacros).
          */
-        applyTransforms(point, transforms) {
-            if (this.isIdentityTransforms(transforms)) return point;
+         applyTransforms(point, transforms) {
+            if (transforms.machineIsIdentity) return point;
             // machineMatrix = T(-origin) ⊗ workspaceMatrix.
-            // Fall back to the workspace-only matrix for legacy contexts
-            // (origin then still handled by GCodeGenerator, if present).
-            const m = transforms.machineMatrix || transforms.matrix;
-            return TransformMath.applyToPoint(m, point);
+            return TransformMath.applyToPoint(transforms.machineMatrix, point);
         }
 
         debug(message, data = null) {

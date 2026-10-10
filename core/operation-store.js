@@ -1,6 +1,6 @@
 /*!
  * @file        core/operation-store.js
- * @description 
+ * @description Operation lifecycle, revision stamps, artifact staleness, and toolpath caching
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
  * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
@@ -46,10 +46,7 @@
             this.toolpaths = new Map();
             this.registry = null;
 
-            this.stats = {
-                totalPrimitives: 0, operations: 0, layers: 0, holes: 0, analyticPrimitives: 0,
-                polygonizedPrimitives: 0, strokesConverted: 0, toolpaths: 0,
-            };
+            this.stats = { totalPrimitives: 0, operations: 0 };
 
             this._settingsRevision = hooks.settingsRevision || (() => 0);
             this._machineClassOf = hooks.machineClassOf || (() => 'router');
@@ -81,33 +78,25 @@
                 id: 'op_' + this.nextOperationId++,
                 type: operationType,
                 file: {
-                    name: isFile ? source.name : (source?.label || operationType),
+                    name: isFile ? source.name : source?.label || operationType,
                     content: null,
                     size: isFile ? source.size : 0,
                     lastModified: isFile ? source.lastModified : Date.now(),
                 },
-                parsed: null,
                 primitives: isFile ? null : [],
                 bounds: null,
                 error: null,
                 warnings: null,
-                expanded: false,
                 machineClass: this.machineClassForType(operationType),
-
                 // Bumped by the panel when a parameter in that stage changes.
                 // Artifacts record the values they were built from.
                 revisions: { geometry: 0, strategy: 0, machine: 0, output: 0 },
                 stamps: {},
-                processed: false,
-                geometricContext: {
-                    hasArcs: false, hasCircles: false, analyticCount: 0,
-                    preservedShapes: [], hasStrokes: false, strokeCount: 0,
-                },
                 offsets: [],
                 layerVisibility: {},
             };
             this.operations.push(operation);
-            this.indexOperation(operation);
+            this.operationIndex.set(operation.id, operation);
             return operation;
         }
 
@@ -121,7 +110,7 @@
             if (index === -1) return null;
             const operation = this.operations[index];
             const toolpaths = this.toolpaths.get(operationId) || null;
-            this.unindexOperation(operationId);
+            this.operationIndex.delete(operationId);
             this.operations.splice(index, 1);
             this.toolpaths.delete(operationId);
             this.updateStatistics();
@@ -132,18 +121,8 @@
             if (!token?.operation) return false;
             const { operation, index, toolpaths } = token;
             this.operations.splice(Math.min(index, this.operations.length), 0, operation);
-            this.indexOperation(operation);
+            this.operationIndex.set(operation.id, operation);
             if (toolpaths) this.toolpaths.set(operation.id, toolpaths);
-            this.updateStatistics();
-            return true;
-        }
-
-        removeOperation(operationId) {
-            const index = this.operations.findIndex((op) => op.id === operationId);
-            if (index === -1) return false;
-            this.unindexOperation(operationId);
-            this.operations.splice(index, 1);
-            this.toolpaths.delete(operationId);
             this.updateStatistics();
             return true;
         }
@@ -153,8 +132,6 @@
             if (!operation) return false;
             operation.offsets = [];
             operation.preview = null;
-            operation.exportReady = false;
-            delete operation.exportMetadata;
             operation.stamps = {};
             this.toolpaths.delete(operationId);
             operation.isInvalidated = false;
@@ -165,16 +142,6 @@
         // O(1) operation lookup by ID. Returns undefined if not found.
         getOperation(id) {
             return this.operationIndex.get(id);
-        }
-
-        // Call whenever an operation is added to the array.
-        indexOperation(operation) {
-            this.operationIndex.set(operation.id, operation);
-        }
-
-        // Call whenever an operation is removed from the array.
-        unindexOperation(operationId) {
-            this.operationIndex.delete(operationId);
         }
 
         /**
@@ -278,25 +245,20 @@
         }
 
         /**
-         * Stages an artifact was built from. Artifact i is produced by the
-         * action on stages[i], so it depends on stages[0..i] and on nothing
-         * after it: a feed-rate edit cannot move an offset.
+         * Unstamped counts as stale: unknown must never read as fresh.
+         * Artifact i is produced by the action on stages[i], so it depends on
+         * stages[0..i] and on nothing after it: a feed-rate edit cannot move
+         * an offset.
          */
-        artifactDependencies(operation, name) {
-            const cls = this.machineClassOf(operation);
-            const stages = this.registry?.stagesFor(operation?.type, cls) || [];
-            const artifacts = this.registry?.artifactsFor(operation?.type, cls) || [];
-            const idx = artifacts.indexOf(name);
-            return idx === -1 ? stages : stages.slice(0, idx + 1);
-        }
-
-        // Unstamped counts as stale: unknown must never read as fresh.
         isArtifactStale(operation, name) {
             const stamp = operation?.stamps?.[name];
             if (!stamp) return true;
             if ((this._settingsRevision() || 0) > (stamp.__settings || 0)) return true;
+            const cls = this.machineClassOf(operation);
+            const stages = this.registry?.stagesFor(operation.type, cls) || [];
+            const idx = (this.registry?.artifactsFor(operation.type, cls) || []).indexOf(name);
             const revisions = operation.revisions || {};
-            for (const stage of this.artifactDependencies(operation, name)) {
+            for (const stage of idx === -1 ? stages : stages.slice(0, idx + 1)) {
                 if ((revisions[stage] || 0) > (stamp[stage] || 0)) return true;
             }
             return false;
@@ -319,42 +281,39 @@
                 if (op.stamps?.[name] && this.isArtifactStale(op, name)) {
                     delete op.stamps[name];
                     if (name === 'toolpath') this.toolpaths.delete(op.id);
-                    if (name === 'preview') {
-                        op.preview = null;
-                        op.exportReady = false;
-                    }
+                    if (name === 'preview') op.preview = null;
                 }
             }
 
             if (!this.isArtifactStale(op, artifacts[0])) return false;
-            if (op.isInvalidated) return false;
-            this.invalidateOperationState(operationId);
-            op.isInvalidated = true;
-            op.invalidatedReason = reason || 'Parameters changed after generation - regenerate before exporting.';
-            return true;
+            return this.invalidateOperationState(
+                operationId,
+                reason || 'Parameters changed after generation - regenerate before exporting.',
+            );
         }
 
         /**
-         * Invalidates generated geometry when parameters change.
-         * Marks the operation as not-export-ready without deleting data.
+         * Marks generated offsets stale and retires everything downstream of
+         * them: the preview stops counting as ready and the toolpaths are
+         * dropped. The offsets stay, struck through, until regenerated.
+         * @returns {boolean} true only on the fresh → stale transition
          */
-        invalidateOperationState(operationId) {
+        invalidateOperationState(operationId, reason) {
             const operation = this.getOperation(operationId);
-            if (!operation) return false;
-            operation.exportReady = false;
+            if (!operation?.offsets?.length || operation.isInvalidated) return false;
             if (operation.preview) operation.preview.ready = false;
-
             // Downstream artifacts can never outlive an invalidated upstream.
             if (operation.stamps) {
                 delete operation.stamps.preview;
                 delete operation.stamps.toolpath;
             }
             this.toolpaths.delete(operationId);
+            operation.isInvalidated = true;
+            operation.invalidatedReason = reason;
             return true;
         }
 
         /** Marks generated indexed 3+1 operations stale after a post change. */
-        // REVIEW - Might as well check if the post-processor supports a-word first?
         invalidateIndexedOperations(postProcessor) {
             for (const op of this.operations) {
                 if (op.offsets?.length && op.offsets[0].metadata?.indexed === true) {
@@ -375,13 +334,15 @@
             if (geometryType === 'offsets_combined' || geometryType.startsWith('offset_')) {
                 if (geometryType === 'offsets_combined') operation.offsets = [];
                 else if (operation.offsets) operation.offsets.splice(parseInt(geometryType.split('_')[1]), 1);
+                // Preview and toolpaths were built from the offsets that just changed.
                 if (!operation.offsets?.length) this.resetOperationState(operationId);
+                else if (operation.preview) this.deleteOperationGeometry(operationId, 'preview');
+                else this.clearToolpaths(operationId);
                 return true;
             }
 
             if ("preview" === geometryType) {
                 operation.preview = null;
-                operation.exportReady = false;
                 operation.stamps && delete operation.stamps.preview;
                 // Restore offsets visibility when preview is deleted
                 if (operation.layerVisibility) {
@@ -407,8 +368,7 @@
             // Same contract as the preview above. On a 3D chain the offsets ARE
             // the toolpath chains in the same frame, so both drawn is
             // overplotting; on 2D/2.5D the preview is the swath the toolpath
-            // walks. Either way the operator can turn them back on, which the
-            // old implicit suppression in _push3DLayers never allowed.
+            // walks.
             op.layerVisibility.toolpath = true;
             op.layerVisibility.preview = false;
             const dim = this.registry?.dimensionFor(op.type, this.machineClassOf(op));
@@ -428,44 +388,27 @@
         /* Queries & statistics */
 
         /**
-         * Terminal artifact present and not stale. Was
-         * `exportReady || preview.ready`, a single boolean that could not
-         * express "geometry done, toolpaths not calculated".
+         * Terminal artifact present and not stale: toolpaths for a chain that
+         * ends in G-code, offsets for one that ends in a vector file. One rule
+         * for both, so a machine setting that moves geometry asks a laser or
+         * knife job to regenerate the way it asks a CNC job to recalculate.
+         * TODO(settings-scope) - settingsRevision is global: a CNC-only edit
+         * (post, start code, safe Z) also stales laser and knife offsets, and
+         * a stale terminal only drops out of the Export Manager list, with no
+         * mark in the tree. Per-category revisions, then a stale mark.
          */
         isExportReady(op) {
-            if (!op) return false;
-            if (op.isInvalidated) return false;
-            const cls = this.machineClassOf(op);
-            const artifacts = this.registry?.artifactsFor(op.type, cls) || [];
-            const terminal = artifacts[artifacts.length - 1];
-
-            // Laser and stencil terminate at offsets; CNC at toolpath. The
-            // legacy flags stay authoritative for offsets/preview because
-            // nothing stamps them before Part 1 lands on an existing project.
-            if (terminal === 'toolpath') return this.toolpaths.has(op.id) && !this.isArtifactStale(op, 'toolpath');
-            if (terminal === 'preview') return !!op.preview?.ready;
-            return !!op.offsets?.length || !!op.exportReady;
-        }
-
-        hasValidOperations() {
-            return this.operations.some((op) => op.primitives && op.primitives.length > 0);
+            if (!op || op.isInvalidated) return false;
+            const artifacts = this.registry?.artifactsFor(op.type, this.machineClassOf(op)) || [];
+            if ('toolpath' === artifacts[artifacts.length - 1]) {
+                return this.toolpaths.has(op.id) && !this.isArtifactStale(op, 'toolpath');
+            }
+            return op.offsets?.length > 0 && !this.isArtifactStale(op, 'offsets');
         }
 
         updateStatistics() {
             this.stats.operations = this.operations.length;
-            this.stats.totalPrimitives = this.operations.reduce((sum, op) => sum + (op.primitives ? op.primitives.length : 0), 0);
-            this.stats.layers = this.operations.filter((op) => op.primitives && op.primitives.length > 0).length;
-            this.stats.holes = this.operations
-                .filter((op) => op.type === 'drill')
-                .reduce((sum, op) => sum + (op.primitives ? op.primitives.length : 0), 0);
-            this.stats.toolpaths = Array.from(this.toolpaths.values()).reduce((sum, data) => sum + (data.plans?.length || 0), 0);
-        }
-
-        /** Parse-time accumulators. The parser owns the counts; the store owns the totals. */
-        recordParseStats(analyticCount, polygonizedCount, strokeCount) {
-            this.stats.analyticPrimitives += analyticCount;
-            this.stats.polygonizedPrimitives += polygonizedCount;
-            this.stats.strokesConverted += strokeCount;
+            this.stats.totalPrimitives = this.operations.reduce((sum, op) => sum + (op.primitives?.length || 0), 0);
         }
 
         getStats() {

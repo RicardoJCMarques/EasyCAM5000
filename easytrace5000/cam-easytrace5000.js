@@ -13,14 +13,21 @@
     'use strict';
 
     const C = window.CAMConfig.constants;
-    const D = window.CAMConfig.defaults;
     const PRECISION = C.precision.coordinate;
-    const debugState = D.debug;
+
+    const escapeHTML = s => String(s).replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`);
 
     class EasyTraceController extends CamController {
+        // 3D copper: types drawn as copper, and types whose previews cut it
+        // (clearing is both).
+        static COPPER_TYPES = new Set(['isolation', 'clearing']);
+        static CUTTER_TYPES = new Set(['drill', 'clearing']);
+
         constructor() {
             super();
-            this.pendingOperations = [];
+            // Copper drawn in 3D with every cutter removed, keyed by operation
+            // id; `inputs` are the arrays it was computed from.
+            this.copper3D = { inputs: null, byOp: new Map(), pending: null };
         }
 
         // ════════════════════════════════════════════════════════════════
@@ -56,111 +63,6 @@
         }
 
         /**
-         * Generates a 2D differenced copper layer (Copper - Drill Holes) for 3D rendering.
-         * Without arc reconstruction.
-         */
-        async compute3DSubtractedCopper() {
-            const isolationOp = this.core.operations.find(o => "isolation" === o.type && o.primitives?.length > 0);
-            const drillOp = this.core.operations.find(o => "drill" === o.type && this.core.store.toolpaths.has(o.id));
-            if (!isolationOp || !drillOp || !this.core.geometryProcessor) return null;
-
-            // Standardize copper traces and pads into filled polygons
-            const copperPolys = [];
-            for (const prim of isolationOp.primitives) {
-                const res = this.core.geometryProcessor.standardizePrimitive(prim, prim.curveIds || []);
-                if (res) Array.isArray(res) ? copperPolys.push(...res) : copperPolys.push(res);
-            }
-            if (0 === copperPolys.length) return null;
-
-            // Build cut footprint polygons based on drill strategy and hole sizes
-            const holePolys = [];
-            const drillRows = drillOp.drillTable?.rows || {};
-            const drillParams = this.parameterStore.getAllParameters(drillOp.id);
-            const opToolDia = parseFloat(drillParams.toolDiameter) || 0;
-            const minMillMargin = D.toolpath?.generation?.drilling?.millMargin ?? 0.05;
-
-            const createSlotPoly = (p1, p2, r) => {
-                const dx = p2.x - p1.x, dy = p2.y - p1.y;
-                const len = Math.hypot(dx, dy);
-                if (len < 1e-6) {
-                    return GeometryTessellation.circleToPath({ center: p1, radius: r, properties: { polarity: "dark" } });
-                }
-                const angle = Math.atan2(dy, dx);
-                const segs = 16;
-                const pts = [];
-                for (let i = 0; i <= segs; i++) {
-                    const a = angle - Math.PI / 2 + (i / segs) * Math.PI;
-                    pts.push({ x: p2.x + r * Math.cos(a), y: p2.y + r * Math.sin(a) });
-                }
-                for (let i = 0; i <= segs; i++) {
-                    const a = angle + Math.PI / 2 + (i / segs) * Math.PI;
-                    pts.push({ x: p1.x + r * Math.cos(a), y: p1.y + r * Math.sin(a) });
-                }
-                return new PathPrimitive([{ points: pts, isHole: false, nestingLevel: 0, parentId: null, arcSegments: [], curveIds: [] }], { polarity: "dark", closed: true, fill: true });
-            };
-
-            for (const prim of drillOp.primitives || []) {
-                const role = prim.properties?.role;
-                if ("drill_hole" !== role && "drill_slot" !== role) continue;
-
-                const holeDia = prim.properties?.diameter || (prim.radius ? 2 * prim.radius : 0);
-                if (!(holeDia > 0)) continue;
-
-                const dKey = Number(holeDia).toFixed(3);
-                const row = drillRows[dKey];
-                const toolDia = (row && row.toolDiameter > 0) ? row.toolDiameter : opToolDia;
-                const strategy = row?.strategy || (drillParams.millHoles ? "mill" : "peck");
-
-                const diff = holeDia - toolDia;
-                const canMill = diff >= minMillMargin - 1e-9;
-                const isMilled = "mill" === strategy;
-
-                if ("drill_hole" === role && prim.center) {
-                    // Milled -> removes hole diameter; Pecked -> removes tool diameter
-                    const cutRadius = (isMilled && canMill || Math.abs(diff) < PRECISION ? holeDia : toolDia) / 2;
-                    if (cutRadius > 0) {
-                        const path = GeometryTessellation.circleToPath({
-                            center: prim.center,
-                            radius: cutRadius,
-                            properties: { polarity: "dark" }
-                        });
-                        path && holePolys.push(path);
-                    }
-                } else if ("drill_slot" === role && prim.properties?.originalSlot) {
-                    const slot = prim.properties.originalSlot;
-                    if (isMilled) {
-                        // Milled or centerline slot -> continuous cut along the line
-                        const r = (canMill || Math.abs(diff) < PRECISION ? holeDia : toolDia) / 2;
-                        if (r > 0) {
-                            const poly = createSlotPoly(slot.start, slot.end, r);
-                            poly && holePolys.push(poly);
-                        }
-                    } else {
-                        // Pecked at slot endpoints
-                        const r = toolDia / 2;
-                        if (r > 0) {
-                            const p1 = GeometryTessellation.circleToPath({ center: slot.start, radius: r, properties: { polarity: "dark" } });
-                            const p2 = GeometryTessellation.circleToPath({ center: slot.end, radius: r, properties: { polarity: "dark" } });
-                            p1 && holePolys.push(p1);
-                            p2 && holePolys.push(p2);
-                        }
-                    }
-                }
-            }
-
-            if (0 === holePolys.length) return null;
-
-            // Single WASM Clipper difference (Copper - Drill Cutters)
-            const differenced = await this.core.geometryProcessor.difference(copperPolys, holePolys);
-            if (differenced && differenced.length > 0) {
-                isolationOp._3dCopperPrimitives = differenced;
-                return differenced;
-            }
-
-            return null;
-        }
-
-        /**
          * PCB slab: board bounds in machine space, thickness from settings.
          */
         get3DStockBox(w2m) {
@@ -175,32 +77,89 @@
             return {
                 width: w,
                 depth: d,
-                thickness: thickness,
-                topZ: topZ,
+                thickness,
+                topZ,
+                surfaceZ: topZ,
                 centerX: (b.minX + b.maxX) / 2,
                 centerY: (b.minY + b.maxY) / 2,
                 matrix: machineMatrix
             };
         }
 
+        /**
+         * Starts the 3D copper subtraction when its inputs change. Keyed on
+         * input-array identity: regenerating, deleting or removing an operation
+         * replaces or drops its array, so no result outlives its inputs and
+         * nothing has to invalidate it.
+         */
         refresh3DModel(ctx) {
-            const isolationOp = this.core.operations.find(o => "isolation" === o.type);
-            const drillOp = this.core.operations.find(o => "drill" === o.type);
-            // Require valid drill toolpaths before punching holes in 3D copper
-            const hasDrillToolpaths = drillOp && this.core.store.toolpaths.has(drillOp.id) && !this.core.store.isArtifactStale(drillOp, "toolpath");
-
-            if (isolationOp && hasDrillToolpaths && !isolationOp._3dCopperPrimitives && !this._computingHoles) {
-                this._computingHoles = true;
-                this.compute3DSubtractedCopper().then(diff => {
-                    this._computingHoles = false;
-                    if (diff) this.render3D();
-                }).catch(() => { this._computingHoles = false; });
-            } else if (isolationOp?._3dCopperPrimitives && !hasDrillToolpaths) {
-                // If drill toolpaths were deleted or invalidated, restore solid copper
-                delete isolationOp._3dCopperPrimitives;
-                this.render3D();
+            const ops = this.core.operations;
+            const copperOps = ops.filter((op) => EasyTraceController.COPPER_TYPES.has(op.type) && op.primitives?.length > 0);
+            // A stale preview (ready === false) cuts nothing.
+            const cutterOps = ops.filter(
+                (op) => EasyTraceController.CUTTER_TYPES.has(op.type) && op.preview?.ready && op.preview.primitives?.length > 0,
+            );
+            const inputs = [...copperOps.map((op) => op.primitives), ...cutterOps.map((op) => op.preview.primitives)];
+            const cache = this.copper3D;
+            const current = cache.inputs?.length === inputs.length && inputs.every((ref, i) => ref === cache.inputs[i]);
+            if (current || cache.pending) return null;
+            if (0 === copperOps.length || 0 === cutterOps.length || !this.core.geometryProcessor) {
+                cache.inputs = inputs;
+                cache.byOp = new Map();
+                return null;
             }
+            cache.pending = this.subtractCutters3D(copperOps, cutterOps)
+                .then((byOp) => {
+                    cache.byOp = byOp;
+                })
+                .catch((err) => {
+                    console.error('[EasyTrace] 3D copper subtraction failed:', err);
+                    cache.byOp = new Map();
+                })
+                .finally(() => {
+                    cache.inputs = inputs;
+                    cache.pending = null;
+                    this.render3D();
+                });
             return null;
+        }
+
+        /**
+         * Each copper operation's source minus every cutter. Each handler says
+         * what its own preview primitives cut, so drill tooling, millHoles and
+         * slot strategy are never re-derived here.
+         * @returns {Promise<Map<string, Array>>} differenced primitives by operation id
+         */
+        async subtractCutters3D(copperOps, cutterOps) {
+            const gp = this.core.geometryProcessor;
+            const pieces = [];
+            for (const op of cutterOps) {
+                const handler = this.core.getHandler(op.type);
+                for (const prim of op.preview.primitives) {
+                    for (const piece of handler.previewCutArea(prim)) pieces.push(piece);
+                }
+            }
+            const cutters = pieces.length > 0 ? await gp.unionGeometry(pieces) : [];
+            const byOp = new Map();
+            for (const op of copperOps) {
+                const copper = [];
+                for (const prim of op.primitives) {
+                    const standardized = gp.standardizePrimitive(prim, prim.curveIds || []);
+                    if (Array.isArray(standardized)) {
+                        for (const s of standardized) copper.push(s);
+                    } else if (standardized) {
+                        copper.push(standardized);
+                    }
+                }
+                if (copper.length > 0) byOp.set(op.id, await gp.difference(copper, cutters));
+            }
+            return byOp;
+        }
+
+        /** Copper source layers draw with every cutter removed once the subtraction lands. */
+        layerPrimitives3D(layer, op) {
+            if ('source' !== layer.role || !op) return layer.primitives;
+            return this.copper3D.byOp.get(op.id) || layer.primitives;
         }
 
         registerAppShortcuts() {
@@ -212,10 +171,13 @@
                         t.dispatchEvent(new Event('change', { bubbles: true }));
                     }
                 },
-                deleteSelection: () => this.removeSelectedOperation(),
+                deleteSelection: () => {
+                    const node = this.ui.navTreePanel.selectedNode;
+                    if (node?.type === 'file' && node.operation) this.ui.promptRemoveOperation(node.operation.id);
+                },
                 addFiles: () => this.modalManager.showModal('quickstart'),
                 bottomLeftOrigin: () => this.ui.bottomLeftOrigin(),
-                offsetOrigin: () => this.ui.applyOffsetAndSetOrigin(),
+                offsetOrigin: () => this.ui.commitOrigin(),
                 centerOrigin: () => this.ui.centerOrigin(),
                 cycleCategory: (e, opType) => {
                     this.ui.navTreePanel.cycleOperationCategory(opType);
@@ -223,6 +185,7 @@
                     this.ui.setStatus(`${label} category`, 'info', true);
                 },
                 pan: (e, mx, my) => {
+                    if (this.renderMode === '3d') return; // Pan does nothing in 3D
                     if (document.activeElement?.closest('#sidebar-left, #sidebar-right')) return;
                     const amount = e.shiftKey ? 100 : 25;
                     this.ui.renderer.pan(mx * amount, my * amount);
@@ -243,132 +206,44 @@
         }
 
         onBindEvents() {
-            this.setupFileDrops();
-            this.setupToolbar();
-        }
-
-        onFinalize() {
-            this.processPendingOperations();
-
-            const hash = window.location.hash.substring(1);
-            const deepLinkModals = ['support', 'welcome', 'quickstart'];
-            if (deepLinkModals.includes(hash)) {
-                if (hash === 'support') this.modalManager.showModal('welcome');
-                this.modalManager.showModal(hash);
-                history.replaceState(null, null, window.location.pathname);
-            } else {
-                this.modalManager.showModal('welcome');
-            }
-        }
-
-        // ════════════════════════════════════════════════════════════════
-        // Toolbar
-        // ════════════════════════════════════════════════════════════════
-
-        setupToolbar() {
-            this.setupToolbarDropdown('quick-actions-btn', 'quick-actions-menu');
-
+            // A file dropped anywhere outside the quickstart drop zones loads
+            // straight into the workspace.
+            window.addEventListener('dragover', e => {
+                e.preventDefault();
+                if (this.modalManager.activeModal) e.dataTransfer.dropEffect = 'none';
+            });
+            window.addEventListener('drop', async e => {
+                e.preventDefault();
+                if (this.modalManager.activeModal) return;
+                if (e.target.closest('.file-drop-zone') || e.target.closest('#file-drop-zone')) return;
+                // filesFromDrop reads the DataTransfer before this handler yields.
+                await this.handleGlobalFileDrop(await UIControls.filesFromDrop(e.dataTransfer));
+            });
             document.getElementById('toolbar-add-files')?.addEventListener('click', () => {
                 this.modalManager.showModal('quickstart');
                 this.closeDropdown();
             });
-
-            document.getElementById('toolbar-manage-toolpaths')?.addEventListener('click', () => {
-                const readyOps = this.core.operations.filter(op => this.core.store.isExportReady(op));
-                if (readyOps.length === 0) {
-                    this.ui.setStatus('No operations ready for export. Finish each operation through its Toolpaths stage first.', 'warning');
-                    return;
-                }
-                this.modalManager.showModal('exportManager', { operations: readyOps });
-                this.closeDropdown();
-            });
-
-            document.getElementById('toolbar-export-canvas')?.addEventListener('click', async () => {
-                if (!this.ui.canvasExporter) {
-                    this.ui.setStatus('Canvas exporter not available', 'error');
-                    return;
-                }
-                try {
-                    this.ui.canvasExporter.exportCanvasSVG();
-                    this.ui.setStatus('Canvas exported successfully', 'success');
-                } catch (error) {
-                    console.error('Canvas export error:', error);
-                    this.ui.setStatus('Canvas export failed: ' + error.message, 'error');
-                }
-                this.closeDropdown();
-            });
-
-            document.getElementById('btn-toggle-3d')?.addEventListener('click', () => this.toggle3DMode()); // REVIEW - Is this in the right place?
-            this.setupSharedToolbarButtons();
         }
 
-        // ════════════════════════════════════════════════════════════════
-        // Setup Handlers
-        // ════════════════════════════════════════════════════════════════
-
-        setupFileDrops() {
-            window.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                if (this.modalManager?.activeModal) { e.dataTransfer.dropEffect = 'none'; }
-            });
-
-            window.addEventListener('drop', async (e) => {
-                e.preventDefault();
-                if (this.modalManager?.activeModal) return;
-                if (!e.target.closest('.file-drop-zone') && !e.target.closest('#file-drop-zone')) {
-                    await this.handleGlobalFileDrop(e.dataTransfer.files);
-                }
-            });
+        onFinalize() {
+            this.modalManager.showStartupModal();
         }
 
         returnFocusToTree() {
-            const selected = document.querySelector('.file-node-content.selected, .geometry-node-content.selected, .geometry-node.selected');
-            if (selected) {
-                const focusTarget = selected.classList.contains('selected') ? selected : selected.querySelector('.file-node-content, .geometry-node-content');
-                if (focusTarget) { focusTarget.setAttribute('tabindex', '0'); focusTarget.focus(); }
-            } else {
-                document.querySelector('.category-header')?.focus();
-            }
+            const selected = document.querySelector('.file-node-content.selected, .geometry-node.selected');
+            // A geometry node is selected on its wrapper; the treeitem is its content row.
+            const target = selected?.matches('.geometry-node') ? selected.querySelector('.geometry-node-content') : selected;
+            if (target) this.ui.navTreePanel.setFocusOnItem(document.querySelector('#operations-tree [tabindex="0"]'), target);
+            else document.querySelector('.category-header')?.focus();
         }
 
         // ════════════════════════════════════════════════════════════════
         // File Processing
         // ════════════════════════════════════════════════════════════════
 
-        async loadExample(exampleId) {
-            const examples = this.getExamples();
-            const select = document.getElementById("pcb-example-select");
-            const id = exampleId || select?.value || Object.keys(examples || {})[0];
-            const example = examples?.[id];
-
-            if (!example) {
-                this.ui.setStatus(`Example not found: ${id}`, "error");
-                return;
-            }
-
-            this.ui.setStatus(`Loading example: ${example.name}...`, "info");
-            this.core?.clearAll();
-            this.ui.navTreePanel?.refreshTree();
-
-            for (const [type, filepath] of Object.entries(example.files || {})) {
-                try {
-                    const response = await fetch(filepath);
-                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-                    const content = await response.text();
-                    const fileName = filepath.split("/").pop();
-                    await this.processFile(new File([content], fileName, { type: "text/plain" }), type);
-                } catch (e) {
-                    console.error(`Failed to load example file ${filepath}:`, e);
-                    this.ui.setStatus(`Failed to load ${filepath.split("/").pop()}: ${e.message}`, "error");
-                }
-            }
-
-            this.core.updateBoardBounds();
-            this._hasFitted3DOnce = false;
-            this.ui.setStatus(`Example '${example.name}' loaded successfully.`, "success");
-            await this.ui.rebuildLayers();
-            this.ui.zoomFit();
-            this.ui.renderer.render();
+        clearWorkspace() {
+            this.core.clearAll();
+            this.ui.navTreePanel.refreshTree();
         }
 
         async processFile(file, type) {
@@ -379,62 +254,50 @@
             if (!operation) { console.error('Failed to create operation'); return; }
             this.ui.navTreePanel.addFileNode(operation);
             this.ui.setStatus(`${this.appProfile.ui.text.statusLoading || 'Loading...'} ${file.name}...`, 'info', true);
-            const reader = new FileReader();
-
-            return new Promise((resolve) => {
-                reader.onload = async (e) => {
-                    operation.file.content = e.target.result;
-                    const success = await this.core.ingest.parseOperation(operation);
-
-                    if (success) {
-                        const count = operation.primitives.length;
-                        if (operation.geometricContext?.hasArcs && debugState.enabled) {
-                            let arcCount = 0;
-                            operation.primitives.forEach(p => { if (p.type === 'arc') arcCount++; if (p.contours) p.contours.forEach(c => { if (c.arcSegments) arcCount += c.arcSegments.length; }); });
-                            console.log(`Preserved ${arcCount} arcs for potential reconstruction`);
-                        }
-
-                        if (operation.needsClosurePrompt && operation.closureInfo) {
-                            setTimeout(() => this.handleClosurePrompt(operation), 200);
-                        }
-
-                        if (operation.type === 'drill' && operation.drillRecoverable) {
-                            setTimeout(() => this.handleDrillRecovery(operation), 250);
-                        }
-
-                        let finalStatusMsg = `Loaded ${operation.file.name}: ${count} primitives`;
-                        let finalStatusType = 'success';
-                        if (operation.warnings?.length > 0) {
-                            for (const w of operation.warnings) {
-                                const msg = typeof w === 'string' ? w : w.message;
-                                const severity = (typeof w === 'object' && w.severity) || 'warning';
-                                this.ui.setStatus(`${operation.file.name}: ${msg}`, severity);
-                                if (msg.includes('No explicit format found')) {
-                                    finalStatusMsg = `Loaded ${operation.file.name}: ${count} drills (Guessed Format!)`;
-                                    finalStatusType = 'warning';
-                                }
+            try {
+                operation.file.content = await file.text();
+            } catch (err) {
+                operation.error = 'Failed to read file';
+                this.ui.setStatus(`Failed to read ${file.name}`, 'error');
+                return;
+            }
+            try {
+                const success = await this.core.ingest.parseOperation(operation);
+                if (success) {
+                    const count = operation.primitives.length;
+                    if (operation.needsClosurePrompt && operation.closureInfo) {
+                        setTimeout(() => this.handleClosurePrompt(operation), 200);
+                    }
+                    if (operation.type === 'drill' && operation.drillRecoverable) {
+                        setTimeout(() => this.handleDrillRecovery(operation), 250);
+                    }
+                    let finalStatusMsg = `Loaded ${operation.file.name}: ${count} primitives`;
+                    let finalStatusType = 'success';
+                    if (operation.warnings?.length > 0) {
+                        for (const w of operation.warnings) {
+                            const msg = typeof w === 'string' ? w : w.message;
+                            const severity = (typeof w === 'object' && w.severity) || 'warning';
+                            this.ui.setStatus(`${operation.file.name}: ${msg}`, severity);
+                            if (msg.includes('No explicit format found')) {
+                                finalStatusMsg = `Loaded ${operation.file.name}: ${count} drills (Guessed Format!)`;
+                                finalStatusType = 'warning';
                             }
                         }
-                        this.ui.setStatus(finalStatusMsg, finalStatusType);
-                        this.core.updateBoardBounds();
-                    } else {
-                        this.ui.setStatus(`Error processing ${operation.file.name}: ${operation.error}`, 'error');
                     }
-
-                    if (this.ui.navTreePanel) {
-                        const fileNode = this.ui.navTreePanel.getNodeByOperationId(operation.id);
-                        if (fileNode) this.ui.navTreePanel.updateFileGeometries(fileNode.id, operation);
-                    }
-
-                    await this.ui.rebuildLayers();
-
-                    if (this.core.operations.length <= 1) this.ui.zoomFit();
-                    this.ui.updateStatistics();
-                    resolve();
-                };
-                reader.onerror = () => { operation.error = 'Failed to read file'; this.ui.setStatus(`Failed to read ${file.name}`, 'error'); resolve(); };
-                reader.readAsText(file);
-            });
+                    this.ui.setStatus(finalStatusMsg, finalStatusType);
+                    this.core.updateBoardBounds();
+                } else {
+                    this.ui.setStatus(`Error processing ${operation.file.name}: ${operation.error}`, 'error');
+                }
+            } catch (err) {
+                console.error(`[EasyTrace] Failed to process ${file.name}:`, err);
+                this.ui.setStatus(`Error processing ${file.name}: ${err.message}`, 'error');
+            }
+            const fileNode = this.ui.navTreePanel.getNodeByOperationId(operation.id);
+            if (fileNode) this.ui.navTreePanel.updateFileGeometries(fileNode.id, operation);
+            await this.ui.rebuildLayers();
+            if (this.core.operations.length <= 1) this.ui.zoomFit();
+            this.ui.updateStatistics();
         }
 
         handleClosurePrompt(operation) {
@@ -443,13 +306,11 @@
             const actualGaps = [...(info.gaps?.length > 0 ? info.gaps : GeometryTopology.analyzeSegmentGaps(info.rawPrimitives))].reverse();
             const suggestedTol = (Math.max(...actualGaps) + PRECISION).toFixed(3);
             let lastProbeResult = null;
-
             const runProbe = (tol) => {
                 const { loops, orphans } = GeometryTopology.extractClosedLoops(info.rawPrimitives, tol);
                 return { success: orphans.length === 0 && loops.length > 0, loops, chainedCount: info.rawPrimitives.length - orphans.length, totalSegments: info.rawPrimitives.length, unchainedCount: orphans.length, testedTol: tol };
             };
             lastProbeResult = runProbe(parseFloat(suggestedTol));
-
             const gapTextList = actualGaps.length > 0 ? actualGaps.slice(0, 3).map(g => g.toFixed(4) + 'mm').join(', ') : 'Unknown';
             const formatResult = (result) => {
                 if (!result) return '<span style="color:var(--color-error);">Probe failed.</span>';
@@ -461,13 +322,10 @@
                 else { html += `<br><span style="color:var(--color-error);">${result.unchainedCount} segment(s) remain disconnected.</span>`; html += `<br><span style="color:var(--color-text-secondary);">Increase tolerance to bridge larger gaps.</span>`; }
                 return html;
             };
-
             const extractedCount = operation.extractedLoops ? operation.extractedLoops.length : 0;
-            let introHTML = `<p>The cutout geometry in <strong>${operation.file.name}</strong> contains disconnected segments.</p>`;
+            let introHTML = `<p>The cutout geometry in <strong>${escapeHTML(operation.file.name)}</strong> contains disconnected segments.</p>`;
             if (extractedCount > 0) introHTML = `<p><strong>${extractedCount}</strong> closed loop(s) were extracted successfully, but <strong>${info.rawPrimitives.length}</strong> segment(s) remain disconnected.</p>`;
-
             const bodyHTML = `${introHTML}<div class="closure-gaps"><strong>Detected Gaps:</strong> ${gapTextList}</div><p>Set a tolerance large enough to bridge the maximum gap:</p><div class="closure-controls"><label for="closure-tolerance">Tolerance:</label><div class="input-unit"><input type="number" id="closure-tolerance" value="${suggestedTol}" min="0.001" max="5.0" step="0.001"><span class="unit">mm</span></div><button id="closure-test-btn" class="btn btn--secondary btn--compact">Test</button></div><div class="closure-results" id="closure-probe-results">${formatResult(lastProbeResult)}</div>`;
-
             this.modalManager.showWarning('Open Cutout Path Detected', null, {
                 bodyHTML,
                 confirmText: 'Close path',
@@ -475,43 +333,66 @@
                 onConfirm: async () => {
                     const resolvedLoops = lastProbeResult?.loops;
                     if (resolvedLoops?.length > 0) {
-                        const allLoops = operation.extractedLoops ? [...operation.extractedLoops, ...resolvedLoops] : resolvedLoops;
+                        const allLoops = operation.extractedLoops
+                            ? [...operation.extractedLoops, ...resolvedLoops]
+                            : resolvedLoops;
                         const topology = GeometryTopology.classifyCutoutTopology(allLoops);
                         const compounds = GeometryTopology.assembleCutoutCompounds(topology);
                         operation.primitives = compounds.length > 0 ? compounds : allLoops;
                         delete operation.extractedLoops;
                         operation.bounds = this.core.ingest.recalculateBounds(operation.primitives);
-                        this.core.ingest.analyzeGeometricContext(operation, operation.primitives);
-                        delete operation.needsClosurePrompt; delete operation.closureInfo;
-                        if (operation.warnings) operation.warnings = operation.warnings.filter(w => !(typeof w === 'string' ? w : w.message).includes('do not form closed loops'));
-                        if (this.ui.navTreePanel) { const fn = this.ui.navTreePanel.getNodeByOperationId(operation.id); if (fn) this.ui.navTreePanel.updateFileGeometries(fn.id, operation); }
+                        delete operation.needsClosurePrompt;
+                        delete operation.closureInfo;
+                        if (operation.warnings)
+                            operation.warnings = operation.warnings.filter(
+                                (w) => !(typeof w === 'string' ? w : w.message).includes('do not form closed loops'),
+                            );
+                        if (this.ui.navTreePanel) {
+                            const fn = this.ui.navTreePanel.getNodeByOperationId(operation.id);
+                            if (fn) this.ui.navTreePanel.updateFileGeometries(fn.id, operation);
+                        }
                         await this.ui.rebuildLayers();
                         this.ui.setStatus('Cutout paths automatically closed.', 'success');
-                    } else { this.ui.setStatus('Cannot close - test with a higher tolerance first.', 'error'); }
+                    } else {
+                        this.ui.setStatus('Cannot close - test with a higher tolerance first.', 'error');
+                    }
                 },
                 onCancel: () => {
-                    delete operation.needsClosurePrompt; delete operation.closureInfo; delete operation.extractedLoops;
-                    this.ui.setStatus(operation.primitives?.length > 0 ? 'Orphan segments discarded. Board outlines preserved.' : 'Cutout left as open path.', 'info');
-                }
-            });
-
-            requestAnimationFrame(() => {
-                const testBtn = document.getElementById('closure-test-btn');
-                const tolInput = document.getElementById('closure-tolerance');
-                const resultsDiv = document.getElementById('closure-probe-results');
-                const confirmBtn = document.querySelector('#warning-modal .warning-confirm');
-                if (testBtn && tolInput && resultsDiv) {
+                    delete operation.needsClosurePrompt;
+                    delete operation.closureInfo;
+                    delete operation.extractedLoops;
+                    this.ui.setStatus(
+                        operation.primitives?.length > 0
+                            ? 'Orphan segments discarded. Board outlines preserved.'
+                            : 'Cutout left as open path.',
+                        'info',
+                    );
+                },
+                // The controls exist only once this prompt is on screen; a queued
+                // prompt shows after the one before it closes.
+                onShow: (modal) => {
+                    const testBtn = modal.querySelector('#closure-test-btn');
+                    const tolInput = modal.querySelector('#closure-tolerance');
+                    const resultsDiv = modal.querySelector('#closure-probe-results');
+                    const confirmBtn = modal.querySelector('.warning-confirm');
+                    if (!testBtn || !tolInput || !resultsDiv) return;
                     const doTest = () => {
                         const rawTol = parseFloat(tolInput.value);
-                        if (!rawTol || rawTol <= 0) { resultsDiv.innerHTML = '<span style="color:var(--color-error);">Enter a positive tolerance value.</span>'; return; }
+                        if (!rawTol || rawTol <= 0) {
+                            resultsDiv.innerHTML =
+                                '<span style="color:var(--color-error);">Enter a positive tolerance value.</span>';
+                            return;
+                        }
                         lastProbeResult = runProbe(Math.min(5.0, Math.max(0.001, rawTol)));
                         resultsDiv.innerHTML = formatResult(lastProbeResult);
-                        if (confirmBtn) confirmBtn.disabled = !lastProbeResult?.success;
+                        confirmBtn.disabled = !lastProbeResult?.success;
                     };
                     testBtn.addEventListener('click', doTest);
-                    tolInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') doTest(); });
-                    if (confirmBtn) confirmBtn.disabled = !lastProbeResult?.success;
-                }
+                    tolInput.addEventListener('keypress', (e) => {
+                        if (e.key === 'Enter') doTest();
+                    });
+                    confirmBtn.disabled = !lastProbeResult?.success;
+                },
             });
         }
 
@@ -534,7 +415,8 @@
             const obroundCount = rec.obrounds?.length || 0;
             const gridClass = (circleCount > 0 && obroundCount > 0) ? 'drill-recovery-grid' : 'drill-recovery-grid drill-recovery-single';
 
-            const bodyHTML = `<p>The SVG file <strong>${operation.file.name}</strong> contains ${circleCount + obroundCount} compound path(s) that match known drill shapes.</p><div class="${gridClass}">${circleCount > 0 ? `<div class="drill-recovery-column"><h4>Circle Candidates (${circleCount})</h4><p>Compound paths that form complete circles.</p>${buildSizeList(rec.circles, 'circle')}</div>` : ''}${obroundCount > 0 ? `<div class="drill-recovery-column"><h4>Obround Candidates (${obroundCount})</h4><p>Compound paths that form stadium/capsule shapes.</p>${buildSizeList(rec.obrounds, 'obround')}</div>` : ''}</div><p class="drill-recovery-question">Convert these into valid hole and slot geometry for the drill operation?</p>`;
+            // TODO - Unminify this?
+            const bodyHTML = `<p>The SVG file <strong>${escapeHTML(operation.file.name)}</strong> contains ${circleCount + obroundCount} compound path(s) that match known drill shapes.</p><div class="${gridClass}">${circleCount > 0 ? `<div class="drill-recovery-column"><h4>Circle Candidates (${circleCount})</h4><p>Compound paths that form complete circles.</p>${buildSizeList(rec.circles, 'circle')}</div>` : ''}${obroundCount > 0 ? `<div class="drill-recovery-column"><h4>Obround Candidates (${obroundCount})</h4><p>Compound paths that form stadium/capsule shapes.</p>${buildSizeList(rec.obrounds, 'obround')}</div>` : ''}</div><p class="drill-recovery-question">Convert these into valid hole and slot geometry for the drill operation?</p>`;
 
             this.modalManager.showWarning('Recoverable Drill Geometry', null, {
                 bodyHTML,
@@ -550,58 +432,54 @@
             });
         }
 
+        /**
+         * Loads every dropped file whose extension maps to an operation type.
+         * The rest are counted, not ignored: a dropped folder brings whatever
+         * sits beside the CAM files (job files, masks, silkscreen, readmes).
+         */
         async handleGlobalFileDrop(files) {
-            if (!this.ui) return;
-            let totalWarnings = 0, formatGuessed = false, fileCount = 0;
-            for (let file of files) {
+            let totalWarnings = 0, formatGuessed = false, fileCount = 0, skipped = 0;
+            for (const file of files) {
                 const ext = file.name.toLowerCase().split('.').pop();
-                const opType = this.getOperationTypeFromExtension(ext);
-                if (opType) {
-                    if (this.initState.fullyReady) {
-                        await this.processFile(file, opType);
-                        fileCount++;
-                        const lastOp = this.core.operations[this.core.operations.length - 1];
-                        if (lastOp?.warnings?.length > 0) {
-                            totalWarnings += lastOp.warnings.length;
-                            if (lastOp.warnings.some(w => (typeof w === 'string' ? w : w.message).includes('No explicit format found'))) formatGuessed = true;
-                        }
-                    } else {
-                        this.pendingOperations.push({ file, opType });
-                    }
+                const opType = this.registry.typeForExtension(ext);
+                if (!opType) { skipped++; continue; }
+                await this.processFile(file, opType);
+                fileCount++;
+                const lastOp = this.core.operations[this.core.operations.length - 1];
+                if (lastOp?.warnings?.length > 0) {
+                    totalWarnings += lastOp.warnings.length;
+                    if (
+                        lastOp.warnings.some(w =>
+                            (typeof w === 'string' ? w : w.message).includes('No explicit format found')
+                        )
+                    )
+                        formatGuessed = true;
                 }
             }
-            if (this.pendingOperations.length === 0 && this.initState.fullyReady) {
+            if (fileCount > 0) {
                 this.core.updateBoardBounds();
                 this._hasFitted3DOnce = false;
                 await this.ui.rebuildLayers();
                 this.ui.zoomFit();
                 this.ui.renderer.render();
-                if (fileCount > 1) {
-                    if (formatGuessed) this.ui.setStatus(`Loaded ${fileCount} files. Warning: Excellon format guessed! See log.`, 'warning');
-                    else if (totalWarnings > 0) this.ui.setStatus(`Loaded ${fileCount} files with ${totalWarnings} warning(s). See log.`, 'warning');
-                    else this.ui.setStatus(`Successfully loaded ${fileCount} files.`, 'success', true);
-                }
             }
-            if (this.pendingOperations.length > 0 && !this.initState.fullyReady) {
-                this.ui.setStatus(this.appProfile.ui.text.statusLoading || 'Loading...');
-            }
-        }
-
-        getOperationTypeFromExtension(ext) {
-            return this.registry?.typeForExtension(ext) || null;
-        }
-
-        async processPendingOperations() {
-            if (this.pendingOperations.length === 0) return;
-            this.debug(`Processing ${this.pendingOperations.length} pending files...`);
-            for (let op of this.pendingOperations) await this.processFile(op.file, op.opType);
-            this.pendingOperations = [];
-        }
-
-        removeSelectedOperation() {
-            const selectedNode = this.ui.navTreePanel.selectedNode;
-            if (selectedNode?.type === 'file' && selectedNode.operation) {
-                this.ui.promptRemoveOperation(selectedNode.operation.id);
+            const skipNote = skipped > 0 ? ` Skipped ${skipped} file(s) with no matching operation type.` : '';
+            if (fileCount === 0) {
+                this.ui.setStatus(`No loadable files in the drop.${skipNote}`, 'warning');
+            } else if (formatGuessed) {
+                this.ui.setStatus(
+                    `Loaded ${fileCount} file(s). Warning: Excellon format guessed! See log.${skipNote}`,
+                    'warning'
+                );
+            } else if (totalWarnings > 0) {
+                this.ui.setStatus(
+                    `Loaded ${fileCount} file(s) with ${totalWarnings} warning(s). See log.${skipNote}`,
+                    'warning'
+                );
+            } else if (skipped > 0) {
+                this.ui.setStatus(`Loaded ${fileCount} file(s).${skipNote}`, 'info');
+            } else if (fileCount > 1) {
+                this.ui.setStatus(`Successfully loaded ${fileCount} files.`, 'success', true);
             }
         }
 
@@ -620,10 +498,6 @@
         }
 
         getTreeFocusSelector() { return '#operations-tree [tabindex="0"]'; }
-
-        getStats() {
-            return { ...super.getStats(), toolLibrary: this.toolLibrary?.getStats?.() || null };
-        }
     }
 
     // ════════════════════════════════════════════════════════════════

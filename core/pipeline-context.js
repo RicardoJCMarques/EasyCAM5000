@@ -1,6 +1,6 @@
 /*!
  * @file        core/pipeline-context.js
- * @description 
+ * @description Tool descriptors, compiled parameters, depth ladders, and frozen pipeline contexts
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
  * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
@@ -35,7 +35,6 @@
     const C = ROOT.CAMConfig.constants;
     const D = ROOT.CAMConfig.defaults;
     const EPSILON = C.precision.epsilon;
-    const PRECISION = C.precision.coordinate;
     const debugState = D.debug;
 
     class PipelineContextBuilder {
@@ -67,7 +66,7 @@
          * @param {Object} params merged parameterStore values
          */
         resolveToolDescriptor(operation, params) {
-            const record = this.core.toolLibrary?.getTool?.(params.tool) || null;
+            const record = this.core.toolLibrary.getTool(params.tool) || null;
             const pick = value => {
                 const n = Number(value);
                 return Number.isInteger(n) && n > 0 ? n : null;
@@ -81,42 +80,33 @@
                 spindleSpeed: params.spindleSpeed,
                 spindleDwell: params.spindleDwell,
                 operationId: operation.id,
-                operationLabel: `${operation.type}: ${operation.file?.name || operation.id}`
+                operationLabel: `${operation.type}: ${operation.file?.name || operation.id}`,
+                cutsWithOwnTool: true
             };
-
-            // Drill: one physical bit per feature size. The map key is the SAME
-            // string DrillHandler.diameterKey produces, so the export table, the
+            // Multi-tool drilling: generation is refused until every active row
+            // has its own cutter and T number, so the operation's tool cuts
+            // nothing and claims no number. The map key is the string
+            // DrillHandler.diameterKey produces, so the export table, the
             // split-drill path and the descriptor agree without re-deriving it.
-            // Only in multi-tool mode. Single-tool drilling cuts everything with
-            // the operation's own number, and a drillMap that repeats that number
-            // once per diameter reports itself to describeToolSharing as a
-            // collision between a tool and itself.
+            // Single-tool drilling cuts everything with the operation's number;
+            // a drillMap repeating it per diameter would report a tool colliding
+            // with itself in describeToolSharing.
             if (operation.type === 'drill' && DrillHandler.isMultiTool(params)) {
+                descriptor.cutsWithOwnTool = false;
                 const active = Object.values(operation.drillTable?.rows || {}).filter(row => row.strategy !== 'skip');
-
-                // The operation's own tool cuts only the rows that inherit it.
-                // With none, it makes no claim on a number and cannot collide
-                // with the bits it is not holding.
-                descriptor.cutsWithOwnTool = active.some(row => !(row.toolId || row.toolDiameter > 0));
-
                 if (active.length > 0) {
                     descriptor.drillMap = {};
                     for (const row of active) {
-                        const assigned = pick(row.toolNumber);
                         const effectiveDiam = row.toolDiameter > 0 ? row.toolDiameter : row.diameter;
                         descriptor.drillMap[row.key] = {
-                            number: assigned ?? descriptor.number,
-                            inherited: assigned == null,
+                            number: pick(row.toolNumber),
                             diameter: effectiveDiam,
                             strategy: row.strategy,
                             name: row.toolId || `${row.strategy === 'mill' ? 'Mill' : 'Drill'} ${effectiveDiam}mm`
                         };
                     }
                 }
-            } else {
-                descriptor.cutsWithOwnTool = true;
             }
-
             return descriptor;
         }
 
@@ -140,34 +130,26 @@
             // hand-entered diameter.
             const DIAMETER_TOLERANCE = 0.01;
             const byNumber = new Map();
-
             const record = (label, number, diameter) => {
-                if (null == number || !(diameter > 0)) return;
+                if (number == null || !(diameter > 0)) return;
                 let entries = byNumber.get(number);
-                if (!entries){
+                if (!entries) {
                     entries = [];
-                    byNumber.set(number, entries)
+                    byNumber.set(number, entries);
                 }
-                entries.some(e => Math.abs(e.diameter - diameter) < DIAMETER_TOLERANCE) || entries.push({
-                    label: label,
-                    diameter: diameter
+                if (!entries.some(e => Math.abs(e.diameter - diameter) < DIAMETER_TOLERANCE)) {
+                    entries.push({ label, diameter });
                 }
-            )};
-
+            };
             for (const d of descriptors) {
-                if (d.cutsWithOwnTool !== false) {
-                    record(d.drillMap ? `${d.operationLabel} (milled holes)` : d.operationLabel, d.number, d.diameter);
-                }
-                if (d.drillMap) {
-                    for (const [key, entry] of Object.entries(d.drillMap)) {
-                        record(`${d.operationLabel} — ${key}mm holes`, entry.number, entry.diameter);
-                    }
+                if (d.cutsWithOwnTool) record(d.operationLabel, d.number, d.diameter);
+                for (const [key, entry] of Object.entries(d.drillMap || {})) {
+                    record(`${d.operationLabel} - ${key}mm holes`, entry.number, entry.diameter);
                 }
             }
-
             const shared = [];
             for (const [number, entries] of byNumber) {
-                if (entries.length > 1) shared.push({ number: number, entries: entries });
+                if (entries.length > 1) shared.push({ number, entries });
             }
             return shared.sort((a, b) => a.number - b.number);
         }
@@ -200,61 +182,66 @@
 
         /**
          * Everything the export modal needs to know about tooling.
+         * `fileGroups` lists the operation ids written into each output file;
+         * without it every operation is its own file. A file that holds more
+         * than one T number is the one case that needs the changer.
          */
-        describeExportTooling(operationIds, parameterStore) {
+        describeExportTooling(operationIds, parameterStore, fileGroups = null) {
             const staged = this.stageToolDescriptors(operationIds, parameterStore);
-            let hasMultiToolFile = false;
-            for (const { tool } of staged) {
+            const numbersOf = new Map();
+            for (const { opId, tool } of staged) {
                 const numbers = new Set();
                 if (tool.cutsWithOwnTool !== false && tool.number > 0) numbers.add(tool.number);
                 for (const entry of Object.values(tool.drillMap || {})) {
                     if (entry.number > 0) numbers.add(entry.number);
                 }
-                if (numbers.size > 1) { hasMultiToolFile = true; break; }
+                numbersOf.set(opId, numbers);
             }
-            return {
-                shared: this.describeToolSharing(staged.map(s => s.tool)),
-                hasMultiToolFile,
-                staged
-            };
+            const groups = fileGroups || staged.map((s) => [s.opId]);
+            const hasMultiToolFile = groups.some((ids) => {
+                const inFile = new Set();
+                for (const id of ids) {
+                    for (const n of numbersOf.get(id) || []) inFile.add(n);
+                }
+                return inFile.size > 1;
+            });
+            return { shared: this.describeToolSharing(staged.map((s) => s.tool)), hasMultiToolFile, staged };
         }
 
         /**
          * Whether this job can use tool changes, and what to tell the operator if
          * not.
          * Returns a decision, not markup: the caller writes the DOM.
-         * @param {Object} intent {operationIds, toolChanges, singleFile}
+         * @param {Object} intent {operationIds}
          * @param {ParameterStore} parameterStore
+         * @param {Object} [tooling] describeExportTooling's answer for the planned files
          * @returns {{supported:boolean, tlcMode:string, hint:?string,
-         *             warnings:Array<string>, shared:Array}}
+         *  warnings:Array<string>, shared:Array}}
          */
         describeToolChangeSupport(intent, parameterStore, tooling = null) {
             const post = this.core.gcodeGenerator.getProcessorInfo(this.core.settings.gcode.postProcessor);
             const caps = post?.capabilities || {};
             if (!tooling) {
                 const routerIds = (intent.operationIds || []).filter(
-                    id => this.core.machineClassOf(this.core.store.getOperation(id)) === 'router');
+                    (id) => this.core.machineClassOf(this.core.store.getOperation(id)) === 'router',
+                );
                 tooling = routerIds.length
                     ? this.describeExportTooling(routerIds, parameterStore)
                     : { shared: [], hasMultiToolFile: false, staged: [] };
             }
-
             const warnings = [];
             for (const group of tooling.shared) {
                 warnings.push(
-                    `T${group.number} is used by ${group.entries.map(e => `${e.label} (⌀${e.diameter})`).join(' and ')}`
-                    + ' - same slot, different cutters.');
+                    `T${group.number} is used by ${group.entries.map((e) => `${e.label} (⌀${e.diameter})`).join(' and ')}` +
+                        ' - same slot, different cutters.',
+                );
             }
-
-            // A single-file job with more than one number in it is the only case
-            // that actually needs the changer. Everything else runs either way.
-            const needsChange = intent.singleFile && tooling.hasMultiToolFile;
             const supported = caps.supportsToolChange !== false;
             let hint = null;
-            if (needsChange && !supported) {
-                hint = `${post?.label || 'This post'} has no tool change. Export one file per operation, or assign one number.`;
+            if (tooling.hasMultiToolFile && !supported) {hint =
+                `${post?.label || 'This post'} has no tool change, but a file in this job holds more than one tool. ` +
+                'Turn off single-file export, split the drill files, or give those operations one tool number.';
             }
-
             return {
                 supported,
                 tlcMode: this.core.settings.gcode?.toolLengthCompMode || 'none',
@@ -262,18 +249,6 @@
                 warnings,
                 shared: tooling.shared
             };
-        }
-
-        /**
-         * Flattens a resolved descriptor's drillMap to the plain
-         * diameterKey → number lookup the translator wants on the context.
-         * Entries stay null when unassigned.
-         */
-        flattenDrillMap(descriptor) {
-            if (!descriptor.drillMap) return null;
-            const flat = {};
-            for (const [key, entry] of Object.entries(descriptor.drillMap)) flat[key] = entry.number;
-            return flat;
         }
 
         /**
@@ -301,13 +276,13 @@
          */
         compileOperationParams(operation, params) {
             const core = this.core;
-            const isLaser = core.isLaserOperation(operation);
+            const isLaser = core.machineClassOf(operation) === 'laser';
             const exportFormat = isLaser ? core.settings.laser.exportFormat : null;
             const isPNG = exportFormat === 'png';
             const resolveDrillAlias = (a, b) => this.resolveDrillAlias(operation, params, a, b);
 
             // Tool dimension
-            const toolDiameter = isLaser ? params.laserSpotSize || core.settings.laser.spotSize : params.toolDiameter;
+            const toolDiameter = isLaser ? core.settings.laser.spotSize : params.toolDiameter;
 
             // Step distance
             let stepDistance = null;
@@ -490,7 +465,6 @@
 
             // The machine matrix: T(-origin) x workspace. The only transform
             // the toolpath pipeline applies, once, in GeometryTranslator.
-            // GCodeGenerator no longer subtracts origin.
             const machineMatrix = TransformMath.multiply(
                 TransformMath.translation(-t.origin.x, -t.origin.y),
                 wsMatrix
@@ -558,7 +532,6 @@
 
             // Indexed 3+1 needs a REAL rotary word: there is no arc to
             // substitute, so 'wrapped-linear' is not a valid encoding for it.
-            // REVIEW - this sounds like an overcomplication?
             const isIndexedOp = operation.offsets?.[0]?.metadata?.indexed === true;
             const preferred = isIndexedOp && rotaryCaps.routes.includes('a-word') ? 'a-word' : rotaryCaps.routes[0] || 'off';
             const wantRoute = gcode.rotaryRoute || '';
@@ -577,7 +550,7 @@
 
             // Laser context (null for CNC pipeline)
             let laserContext = null;
-            if (core.isLaserOperation(operation)) {
+            if (core.machineClassOf(operation) === 'laser') {
                 const laserMachine = core.settings.laser;
                 const strategy = this.compileOperationParams(operation, params);
                 let computedPasses = 0;
@@ -630,7 +603,10 @@
                         diameter: params.toolDiameter,
                         spindleSpeed: params.spindleSpeed,
                         spindleDwell: params.spindleDwell,
-                        drillNumbers: this.flattenDrillMap(t),
+                        // diameterKey → T number; unassigned rows stay null
+                        drillNumbers: t.drillMap
+                            ? Object.fromEntries(Object.entries(t.drillMap).map(([key, entry]) => [key, entry.number]))
+                            : null,
                         // False when the operation mills nothing of its own, so
                         // tool batching can sort it by the bits it actually calls
                         // rather than by a number no move in it ever uses.
@@ -691,15 +667,10 @@
                 // Transform Values
                 transforms: transforms,
 
-                // Config References
-                // REVIEW - Are these still relevant? Do they still need to be linked like this?
+                // Config the machine processor reads off the context
                 config: {
                     entry: D.toolpath.generation.entry,
-                    drilling: D.toolpath.generation.drilling,
-                    tabs: D.toolpath.tabs,
-                    optimization: D.gcode.optimization,
-                    precision: PRECISION,
-                    offsettingEpsilon: EPSILON
+                    drilling: D.toolpath.generation.drilling
                 },
 
                 // Laser-specific (only populated in laser/hybrid pipeline)

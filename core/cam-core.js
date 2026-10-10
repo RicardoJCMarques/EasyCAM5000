@@ -13,10 +13,8 @@
     'use strict';
     const ROOT = globalThis;
 
-    const C = ROOT.CAMConfig.constants;
     const D = ROOT.CAMConfig.defaults;
     const MP = ROOT.CAMConfig.machineParameters;
-    const PRECISION = C.precision.coordinate;
     const debugState = D.debug;
 
     class CamCore {
@@ -51,17 +49,18 @@
             this.handlers = new Map();
 
             // Pipeline components (engine-owned)
-            this.geometryTranslator = null;
-            this.toolpathOptimizer = null;
-            this.machineProcessor = null;
+            this.geometryTranslator = new GeometryTranslator(this);
+            this.toolpathOptimizer = new ToolpathOptimizer();
+            this.machineProcessor = new MachineProcessor(this);
             this.gcodeGenerator = null;
             this.graphicsExporter = null;
 
-            // Operation registry - installed by CamController.loadProfile
+            // Operation registry and app profile - installed by CamController.loadProfile
             this.registry = null;
-
+            this.appProfile = null;
             // Settings - populated by controller via loadSettings(storageKey)
             this.settings = JSON.parse(JSON.stringify(D));
+            this.settingsStorageKey = null;
 
             // Universal workspace state
             // Scene owns the geometry tree, selection, the global workspace
@@ -96,7 +95,6 @@
             this.geometryProcessor = null;
             this.ingest = new OperationIngest(this);
             this.geometryOffsetter = null;
-            this.processorInitialized = false;
             this.initializationPromise = null;
 
             // Computed export programs, keyed by exportIntentKey. Reuse is a
@@ -105,19 +103,10 @@
             this.exportPrograms = { key: null, results: null };
         }
 
-        // Stock getter/setter - canonical location is settings.machine.stock.
-        // Direct property mutations (core.stock.width = 600) work because the
-        // getter returns the settings reference. Full replacement (core.stock = {...})
-        // goes through the setter.
+        // Read-only view of settings.machine.stock. Writes go through
+        // setSetting, which bumps the settings revision.
         get stock() {
             return this.settings?.machine?.stock || null;
-        }
-
-        set stock(val) {
-            if (this.settings?.machine) {
-                this.settings.machine.stock = val;
-                this.bumpSettingsRevision();
-            }
         }
 
         /**
@@ -162,64 +151,23 @@
                 return false;
             }
 
-            this.geometryProcessor = new GeometryProcessor({
-                preserveOriginals: true,
-                clipper2scale: scale
-            });
+            this.geometryProcessor = new GeometryProcessor({ clipper2scale: scale });
 
-            // Initialize GeometryOffsetter
-            this.geometryOffsetter = new GeometryOffsetter({
-                precision: PRECISION,
-                miterLimit: D.geometry.offsetting.miterLimit
-            });
-            // Link processor for union operations
-            this.geometryOffsetter.setGeometryProcessor(this.geometryProcessor);
+            this.geometryOffsetter = new GeometryOffsetter(this.geometryProcessor);
             // Wait for Clipper2 WASM
             this.initializationPromise = this.geometryProcessor.initPromise;
 
             try {
-                await this.initializationPromise;
-                this.processorInitialized = true;
-                this.isInitialized = true;
-                this.debug('Clipper2 initialized');
-                return true;
+                // initialize() reports a failed WASM load by resolving false.
+                this.isInitialized = (await this.initializationPromise) === true;
+                if (this.isInitialized) this.debug('Clipper2 initialized');
+                return this.isInitialized;
             } catch (error) {
                 console.error('Clipper2 initialization failed:', error);
-                this.processorInitialized = false;
                 return false;
             } finally {
                 this.isInitializing = false;
             }
-        }
-
-        /**
-         * Pipeline Component Initialization
-         *
-         * The core owns the translate → optimize → machine pipeline.
-         * Called by the application controller after core construction
-         * so that pipeline components exist before any toolpath work.
-         */
-
-        initializePipeline() {
-            this.geometryTranslator = new GeometryTranslator(this);
-            this.toolpathOptimizer = new ToolpathOptimizer();
-            this.machineProcessor = new MachineProcessor(this);
-            this.debug('Pipeline components initialized');
-        }
-
-        setGCodeGenerator(generator) {
-            this.gcodeGenerator = generator;
-            this.debug('G-code generator set');
-        }
-
-        setGraphicsExporter(exporter) {
-            this.graphicsExporter=exporter;
-            this.debug("Graphics exporter set")
-        }
-
-        setToolLibrary(toolLibrary) {
-            this.toolLibrary = toolLibrary;
-            this.debug('Tool library set');
         }
 
         /**
@@ -247,10 +195,6 @@
         machineClassForType(type) {
             const preferred = (type && this.classByType?.[type]) || this.machineClass;
             return this.registry?.resolveMachineClass(type, preferred) || preferred;
-        }
-
-        isLaserOperation(operation) {
-            return this.machineClassOf(operation) === 'laser';
         }
 
         // Settings
@@ -373,7 +317,7 @@
 
             // The renderer still needs the event; only the revision is held
             // back, so nothing is marked stale by a change nothing reads.
-            if (CamCore.PRESENTATION_SETTINGS.has(path)) {
+            if (CamCore.PRESENTATION_SETTINGS.has(path) || category === 'laserSettings') {
                 this._emit?.('settingschange', { category, path, presentation: true });
             } else if (category !== 'pipeline') {
                 this.bumpSettingsRevision({ category });
@@ -391,11 +335,19 @@
 
         // Revisions & artifact stamps
 
-        /*Setting paths that no pipeline stage reads.*/
+        /**
+         * Setting paths that no pipeline stage reads: the stock rectangle is
+         * only drawn, and the laser profile only styles the exported file, as
+         * does every laserSettings.* parameter (setSetting checks that prefix).
+         * laser.exportFormat is not one of them: PNG switches generation to
+         * filled regions.
+         */
         static PRESENTATION_SETTINGS = new Set([
             'machine.stock.width',
             'machine.stock.length',
-            'machine.stock.margin'
+            'machine.stock.margin',
+            'laser.activeProfile',
+            'laser.exportDPI'
         ]);
 
         /**
@@ -484,10 +436,6 @@
          * @returns {{ plans: Array, endPos: {x,y,z} }}
          */
         async runStages(operationContextPairs, options = {}) {
-            if (!this.geometryTranslator || !this.machineProcessor) {
-                throw new Error('Pipeline components not initialized - call initializePipeline() first');
-            }
-
             const optimize = options.optimize !== false;
             const allMachineReadyPlans = [];
 
@@ -544,7 +492,7 @@
 
                 // Optimize
                 let plansToProcess = opPlans;
-                if (optimize && this.toolpathOptimizer) {
+                if (optimize) {
                     this.debug(`Optimizing ${opPlans.length} plans...`);
                     plansToProcess = this.toolpathOptimizer.optimize(opPlans, currentMachinePos);
                 }
@@ -591,26 +539,12 @@
         }
 
         /**
-         * State & Query Methods
-         */
-
-        getPreprocessedPrimitives() {
-            if (!this.geometryProcessor) return [];
-            return this.geometryProcessor.getCachedState('preprocessedGeometry') || [];
-        }
-
-        /**
          * Not delegators: each keeps the aggregate board AABB in step with the
-         * store's operation list. Calling store.removeOperation directly leaves
+         * store's operation list. Detaching through the store directly leaves
          * the workspace rect on the bounds of geometry that is gone, and every
-         * fit-to-content read after it is wrong.
+         * fit-to-content read after it is wrong. A caller that drops the
+         * returned token has removed the operation for good.
          */
-        removeOperation(operationId) {
-            if (!this.store.removeOperation(operationId)) return false;
-            this.updateBoardBounds();
-            return true;
-        }
-
         detachOperation(operationId) {
             const token = this.store.detachOperation(operationId);
             if (token) this.updateBoardBounds();
@@ -642,29 +576,139 @@
         }
 
         /**
-         * Generates CNC toolpath results (G-code strings + metrics) without downloading.
-         *
-         * @param {Object} intent
-         * @param {string[]} intent.operationIds
-         * @param {boolean} [intent.singleFile]
-         * @param {string[]} [intent.splitDrillOpIds]
-         * @param {boolean} [intent.optimize]
-         * @param {boolean} [intent.includeComments]
-         * @param {boolean} [intent.toolChanges]
+         * How one operation is written: 'gcode', 'png' or 'svg'. A PNG laser job
+         * rasterizes only work that does not cut through - a raster cannot cut,
+         * so outlines and holes stay vector beside it.
+         */
+        exportFormatOf(operation) {
+            const cls = this.machineClassOf(operation);
+            if (cls === 'router') return 'gcode';
+            const raster =
+                cls === 'laser' &&
+                this.settings.laser?.exportFormat === 'png' &&
+                !this.registry?.cutsThrough(operation.type);
+            return raster ? 'png' : 'svg';
+        }
+
+        /**
+         * Every file an export intent writes - route, format, the operations in
+         * it and its final name - decided without generating anything. The
+         * modal lists it, generation follows it and delivery names files from
+         * it, so the list the user reads is the list that gets written.
+         * Stencils never combine: they are cut from different stock.
+         * @param {Object} intent {operations, singleFile, splitDrillOpIds, baseName}
+         * @returns {{baseName: string, canCombine: boolean, files: Array<{key: string,
+         *  route: string, format: string, filename: string, operationIds: string[],
+         *  splitKey?: string, detail?: string}>}}
+         */
+        planExportFiles(intent) {
+            // One filename part: letters and digits in any script plus . _ -.
+            // Everything else becomes _, path separators included - a zip entry
+            // named "a/b" unpacks into a folder.
+            const safe = (text) =>
+                String(text ?? '')
+                    .trim()
+                    .replace(/[^\p{L}\p{N}._-]+/gu, '_')
+                    .replace(/^[._]+|_+$/g, '');
+            const stemOf = (op) => safe(op.file?.name?.replace(/\.[^.]+$/, '')) || op.id;
+            const baseName = safe(intent.baseName) || safe(this.settings.export?.defaultBaseName) || 'export';
+            const ops = intent.operations || [];
+            const drafts = [];
+            const ownFile = (op, route) =>
+                drafts.push({
+                    key: op.id,
+                    route,
+                    format: this.exportFormatOf(op),
+                    operationIds: [op.id],
+                    parts: [op.type, stemOf(op)],
+                });
+            const sharedFile = (key, route, format, group, parts) =>
+                drafts.push({ key, route, format, operationIds: group.map((op) => op.id), parts });
+
+            const router = ops.filter((op) => this.machineClassOf(op) === 'router');
+            const board = router.filter((op) => op.type !== 'stencil');
+            const splitIds = new Set(intent.splitDrillOpIds || []);
+            if (intent.singleFile && board.length > 0) {
+                sharedFile('__combined__', 'router', 'gcode', board, []);
+            } else {
+                for (const op of board) {
+                    const splits = splitIds.has(op.id) ? DrillHandler.splitDrillFiles(op) : [];
+                    if (splits.length < 2) {
+                        ownFile(op, 'router');
+                        continue;
+                    }
+                    for (const split of splits) {
+                        drafts.push({
+                            key: `${op.id}_${split.key}`,
+                            route: 'router',
+                            format: 'gcode',
+                            operationIds: [op.id],
+                            splitKey: split.key,
+                            parts: [split.key.replace(/_/g, '-'), stemOf(op)],
+                        });
+                    }
+                }
+            }
+            for (const op of router) {
+                if (op.type === 'stencil') ownFile(op, 'router');
+            }
+
+            const laser = ops.filter((op) => this.machineClassOf(op) === 'laser');
+            const raster = laser.filter((op) => this.exportFormatOf(op) === 'png');
+            const vector = laser.filter((op) => this.exportFormatOf(op) === 'svg');
+            if (intent.singleFile) {
+                if (raster.length > 0) sharedFile('__laser_png__', 'laser', 'png', raster, []);
+                if (vector.length > 0) {
+                    sharedFile('__laser_svg__', 'laser', 'svg', vector, raster.length > 0 ? ['vectors'] : []);
+                }
+            } else {
+                for (const op of laser) ownFile(op, 'laser');
+            }
+
+            // Knife and drag cutters: plain vector, one file per operation.
+            for (const op of ops) {
+                const cls = this.machineClassOf(op);
+                if (cls !== 'router' && cls !== 'laser') ownFile(op, 'vector');
+            }
+
+            const extension = {
+                gcode: this.gcodeGenerator?.getProcessorInfo(this.settings.gcode.postProcessor)?.fileExtension || '.nc',
+                png: '.png',
+                svg: '.svg',
+            };
+            // Case-insensitive: Windows and macOS filesystems, and most unzippers,
+            // treat names that differ only in case as one file.
+            const taken = new Set();
+            const files = drafts.map(({ parts, ...file }) => {
+                const stem = [baseName, ...parts].join('-');
+                const ext = extension[file.format];
+                let filename = stem + ext;
+                for (let n = 2; taken.has(filename.toLowerCase()); n++) filename = `${stem}-${n}${ext}`;
+                taken.add(filename.toLowerCase());
+                return { ...file, filename };
+            });
+            return {
+                baseName,
+                canCombine: board.length > 1 || raster.length > 1 || vector.length > 1,
+                files,
+            };
+        }
+
+        /**
+         * G-code for each planned router file, keyed by file key.
+         * @param {Array} files planExportFiles entries; other routes are skipped
+         * @param {Object} intent {singleFile, optimize, includeComments, toolChanges, groupByTool}
          * @param {parameterStore} parameterStore
          * @returns {Object} keyed results: { [key]: { gcode, lineCount, planCount, estimatedTime, totalDistance, label } }
          */
-        async generateGCodeResults(intent, parameterStore) {
+        async generateGCodeResults(files, intent, parameterStore) {
             if (!this.gcodeGenerator) {
-                throw new Error('G-code generator not set - call setGCodeGenerator() first');
+                throw new Error('G-code generator not set');
             }
-
             const gcodeConfig = this.settings.gcode;
-
             // The post's own settings, already seeded from its declared parameters
             // and namespaced by post id.
             const postSettings = this.settings.processorSettings?.[gcodeConfig.postProcessor] || {};
-
             const genOptions = {
                 postProcessor: gcodeConfig.postProcessor,
                 includeComments: intent.includeComments,
@@ -683,68 +727,38 @@
                 maxSafeDepth: this.settings.machine.heights.maxSafeDepth,
                 maxFeed: this.settings.machine.speeds.maxFeed,
                 coolant: this.settings.machine.coolant,
-                vacuum: this.settings.machine.vacuum
+                vacuum: this.settings.machine.vacuum,
             };
-
+            const optimize = intent.optimize !== false;
             const results = {};
-
-            if (intent.singleFile) {
-                const result = await this.generateGCode(intent.operationIds, intent.optimize !== false, genOptions, parameterStore);
-                results['__combined__'] = result;
-            } else {
-                for (const opId of intent.operationIds) {
-                    const op = this.store.getOperation(opId);
-                    if (!op) continue;
-
-                    if (!this.store.isExportReady(op)) {
-                        this.debug(`Skipping ${op.sourceLabel || op.file?.name || op.id}: not export ready`);
-                        continue;
+            for (const file of files) {
+                if (file.route !== 'router') continue;
+                let result;
+                if (file.splitKey) {
+                    const op = this.store.getOperation(file.operationIds[0]);
+                    const split = op && DrillHandler.splitDrillFiles(op).find((s) => s.key === file.splitKey);
+                    if (!split) continue;
+                    // The pipeline reads geometry off the operation, so the subset
+                    // is swapped in for this one run and always restored.
+                    const savedPreview = op.preview;
+                    const savedOffsets = op.offsets;
+                    op.preview = { ...savedPreview, primitives: split.primitives, ready: true };
+                    op.offsets = [{ ...savedOffsets[0], primitives: split.primitives }];
+                    try {
+                        result = await this.generateGCode([op.id], optimize, genOptions, parameterStore);
+                    } finally {
+                        op.preview = savedPreview;
+                        op.offsets = savedOffsets;
                     }
-
-                    const isDrill = op.type === 'drill';
-                    const shouldSplitDrill = isDrill && true === intent.splitDrillOpIds?.includes(opId);
-
-                    if (shouldSplitDrill) {
-                        const runWithPrimitives = async (primitives, resultKey, label) => {
-                            const savedPreview = op.preview;
-                            const savedOffsets = op.offsets;
-                            op.preview = { ...savedPreview, primitives, ready: true };
-                            op.offsets = [{ ...savedOffsets[0], primitives }];
-                            try {
-                                const result = await this.generateGCode([op.id], intent.optimize !== false, genOptions, parameterStore);
-                                if (result?.gcode) {
-                                    results[resultKey] = { ...result, label };
-                                } else {
-                                    console.warn(`[Core] no G-code produced for ${resultKey} - operation omitted from the export.`);
-                                }
-                            } finally {
-                                op.preview = savedPreview;
-                                op.offsets = savedOffsets;
-                            }
-                        };
-
-                        // One file per BIT. DrillHandler.splitDrillFiles owns the
-                        // decision - the modal's enable gate calls the same
-                        // method, so the toggle can never offer a split the
-                        // export then declines to make.
-                        for (const file of DrillHandler.splitDrillFiles(op)) {
-                            await runWithPrimitives(
-                                file.primitives,
-                                `${opId}_${file.key}`,
-                                `${file.label}: ${op.file.name} (${file.primitives.length} features)`
-                            );
-                        }
-                    } else {
-                        const result = await this.generateGCode([op.id], intent.optimize !== false, genOptions, parameterStore);
-                        if (result?.gcode) {
-                            results[opId] = { ...result, label: `${op.type}: ${op.file.name}` };
-                        } else {
-                            console.warn(`[Core] no G-code produced for ${opId} - operation omitted from the export.`);
-                        }
-                    }
+                } else {
+                    result = await this.generateGCode(file.operationIds, optimize, genOptions, parameterStore);
+                }
+                if (result?.gcode) {
+                    results[file.key] = { ...result, label: file.filename };
+                } else {
+                    console.warn(`[Core] no G-code produced for ${file.filename} - omitted from the export.`);
                 }
             }
-
             return results;
         }
 
@@ -759,13 +773,13 @@
             const ids = intent.operationIds || [];
             return JSON.stringify({
                 // Order is meaningful: the drag order is the cut order.
-                ops: ids.map(id => `${id}:${JSON.stringify(this.store.currentStamp(id))}`),
+                ops: ids.map((id) => `${id}:${JSON.stringify(this.store.currentStamp(id))}`),
                 singleFile: !!intent.singleFile,
                 splitDrillOpIds: [...(intent.splitDrillOpIds || [])].sort(),
                 optimize: intent.optimize ?? true,
                 includeComments: !!intent.includeComments,
                 toolChanges: !!intent.toolChanges,
-                groupByTool: !!intent.groupByTool
+                groupByTool: !!intent.groupByTool,
             });
         }
 
@@ -775,68 +789,106 @@
          * controls, a script passes one as a literal.
          * The router filter, the readiness gate and the split-drill narrowing
          * live here because they are decisions about the job, not about the panel
-         * showing it. Rendering the result is the caller's problem, and so is
+         * showing it; which operations share a program is planExportFiles'
+         * answer. Rendering the result is the caller's problem, and so is
          * deciding what to say about a refusal - this returns the reason, not a
          * status string.
          * @param {Object} intent {operations, operationIds, singleFile,
-         *         splitDrillOpIds, toolChanges, groupByTool, includeComments, ...}
+         *  splitDrillOpIds, toolChanges, groupByTool, includeComments, ...}
          * @param {ParameterStore} parameterStore
          * @returns {Promise<{ok:boolean, reason:?string, notReady:Array,
-         *         intent:?Object, key:?string, results:?Object}>}
+         *  intent:?Object, key:?string, results:?Object, files:Array}>}
          */
-        // REVIEW - Outdated comment?
         async computeExportPrograms(intent, parameterStore) {
-            const cncOps = (intent.operations || []).filter(op => "router" === this.machineClassOf(op));
-            if (0 === cncOps.length) return { ok: false, reason: "no-cnc-operations", notReady: [], intent: null, key: null, results: null };
-            const notReady = cncOps.filter(op => !this.store.isExportReady(op));
-            if (notReady.length > 0) return { ok: false, reason: "not-ready", notReady: notReady, intent: null, key: null, results: null };
-
-            const ids = cncOps.map(op => op.id);
+            const refuse = (reason, notReady = []) => ({
+                ok: false,
+                reason,
+                notReady,
+                intent: null,
+                key: null,
+                results: null,
+                files: [],
+            });
+            const cncOps = (intent.operations || []).filter((op) => this.machineClassOf(op) === 'router');
+            if (cncOps.length === 0) return refuse('no-cnc-operations');
+            const notReady = cncOps.filter((op) => !this.store.isExportReady(op));
+            if (notReady.length > 0) return refuse('not-ready', notReady);
+            const ids = cncOps.map((op) => op.id);
             const cncIntent = {
                 ...intent,
                 operations: cncOps,
                 operationIds: ids,
-                splitDrillOpIds: (intent.splitDrillOpIds || []).filter(id => ids.includes(id))
+                splitDrillOpIds: (intent.splitDrillOpIds || []).filter((id) => ids.includes(id)),
             };
-
+            const files = this.planExportFiles(cncIntent).files;
             const key = this.exportIntentKey(cncIntent);
-            if (this.exportPrograms.key === key && this.exportPrograms.results) {
-                return { ok: true, reason: null, notReady: [], intent: cncIntent, key: key, results: this.exportPrograms.results };
+            if (this.exportPrograms.key !== key || !this.exportPrograms.results) {
+                const results = await this.generateGCodeResults(files, cncIntent, parameterStore);
+                this.exportPrograms = { key, results };
             }
+            return {
+                ok: true,
+                reason: null,
+                notReady: [],
+                intent: cncIntent,
+                key,
+                results: this.exportPrograms.results,
+                files,
+            };
+        }
 
-            let results = {};
-            // Stencils use separate physical material/setup. In single-file mode,
-            // combine board operations only; stencils are always generated individually.
-            const isStencil = op => "stencil" === op.type;
-            const boardOps = cncOps.filter(op => !isStencil(op));
-            const stencilOps = cncOps.filter(isStencil);
+        /**
+         * Generates every planned file without delivering it - the headless
+         * counterpart of the Export button. A file that fails is reported in
+         * `failures` and does not take the rest of the job down with it.
+         * @returns {Promise<{plan: Object, files: Array<{filename: string, blob: Blob}>,
+         *  failures: Array<{filename: string, reason: string}>}>}
+         */
+        async buildExportFiles(intent, parameterStore) {
+            const plan = this.planExportFiles(intent);
+            const planned = (route) => plan.files.filter((file) => file.route === route);
+            const blobs = new Map();
+            const failures = [];
 
-            if (intent.singleFile && boardOps.length > 0) {
-                const boardIntent = {
-                    ...cncIntent,
-                    operations: boardOps,
-                    operationIds: boardOps.map(op => op.id),
-                    singleFile: true
-                };
-                const boardResults = await this.generateGCodeResults(boardIntent, parameterStore);
-                Object.assign(results, boardResults);
-
-                if (stencilOps.length > 0) {
-                    const stencilIntent = {
-                        ...cncIntent,
-                        operations: stencilOps,
-                        operationIds: stencilOps.map(op => op.id),
-                        singleFile: false
-                    };
-                    const stencilResults = await this.generateGCodeResults(stencilIntent, parameterStore);
-                    Object.assign(results, stencilResults);
+            const routerFiles = planned('router');
+            if (routerFiles.length > 0) {
+                const job = await this.computeExportPrograms(intent, parameterStore);
+                for (const file of routerFiles) {
+                    const gcode = job.ok ? job.results[file.key]?.gcode : null;
+                    if (gcode) {
+                        blobs.set(file.filename, new Blob([gcode], { type: 'text/plain' }));
+                    } else {
+                        failures.push({
+                            filename: file.filename,
+                            reason: job.reason === 'not-ready' ? 'toolpaths not calculated' : 'no G-code produced',
+                        });
+                    }
                 }
-            } else {
-                results = await this.generateGCodeResults(cncIntent, parameterStore);
             }
-
-            this.exportPrograms = { key: key, results: results };
-            return { ok: true, reason: null, notReady: [], intent: cncIntent, key: key, results: results };
+            const render = async (files, overrides) => {
+                if (files.length === 0) return;
+                const result = await this.generateLaserExportFiles(files, {
+                    includeComments: intent.includeComments,
+                    ...overrides,
+                });
+                for (const file of result.files) blobs.set(file.filename, file.blob);
+                failures.push(...result.failures);
+            };
+            await render(planned('laser'), { padding: intent.laserPadding });
+            // Knife and drag cutters: plain vector, none of the laser profile's styling.
+            await render(planned('vector'), {
+                layerColors: { stencil: '#000000' },
+                padding: intent.stencilPadding ?? 5,
+                heatManagement: 'off',
+                reverseCutOrder: false,
+                svgGrouping: 'layer',
+                colorPerPass: false,
+            });
+            // Plan order, so loose downloads and archive entries read the same way.
+            const files = plan.files
+                .filter((file) => blobs.has(file.filename))
+                .map((file) => ({ filename: file.filename, blob: blobs.get(file.filename) }));
+            return { plan, files, failures };
         }
 
         /**
@@ -886,14 +938,12 @@
                 groupByTool: genOptions?.groupByTool === true && genOptions?.singleFile === true,
                 warnLabel: 'CNC'
             });
-            if (pairs.length === 0) {
-                return { gcode: '; No valid operations to process', lineCount: 1, planCount: 0, estimatedTime: 0, totalDistance: 0 };
-            }
             if (warnings.length) {
                 // runStages collects these (dropped rotary plans, etc.)
                 console.warn(`[Core] Pipeline warnings:\n  ${warnings.join('\n  ')}`);
             }
-
+            // Nothing reached the stages: the caller omits this file and reports it.
+            if (pairs.length === 0) return { gcode: null };
             const gcode = this.gcodeGenerator.generate(plans, genOptions);
             const lineCount = typeof gcode === 'string' && gcode.length > 0 ? gcode.trim().split('\n').length : 0;
             return {
@@ -903,30 +953,32 @@
                 estimatedTime: metrics.estimatedTime,
                 totalDistance: metrics.totalDistance,
                 toolChanges: this.gcodeGenerator.lastToolChangeCount || 0,
-                warnings: [...warnings, ...this.gcodeGenerator.lastWarnings || []]
+                warnings: [...warnings, ...(this.gcodeGenerator.lastWarnings || [])]
             };
         }
 
         /**
-         * Vector/raster export. The engine supplies the session facts; the
-         * exporter owns the mapping and the rendering.
+         * Renders planned laser or plain-vector files. The engine supplies the
+         * session facts; the exporter maps operations to layers and renders.
+         * @param {Array} files planExportFiles entries of one route
          */
-        generateLaserExportFiles(operations, parameterStore, exportOverrides = {}) {
-            return this.graphicsExporter.exportOperations(operations, {
-                laser: this.settings.laser,
-                profile: this.graphicsExporter.resolveOptions(this.settings),
-                transforms: this.pipelineContext.getTransforms(),
-                bounds: this.scene.boardBounds,
-                appName: this.appProfile.meta.app,
-                spotSizeFor: op => {
-                    try {
-                        return this.pipelineContext.buildPipelineContext(op.id, parameterStore).laser?.spotSize ?? null;
-                    } catch (e) {
-                        this.debug(`buildPipelineContext failed for ${op.id}, using global spotSize: ${e.message}`);
-                        return null;
-                    }
-                }
-            }, exportOverrides);
+        generateLaserExportFiles(files, exportOverrides = {}) {
+            const groups = files.map(file => ({
+                filename: file.filename,
+                format: file.format,
+                operations: file.operationIds.map(id => this.store.getOperation(id)).filter(Boolean)
+            }));
+            return this.graphicsExporter.exportGroups(
+                groups,
+                {
+                    laser: this.settings.laser,
+                    profile: this.graphicsExporter.resolveOptions(this.settings),
+                    transforms: this.pipelineContext.getTransforms(),
+                    bounds: this.scene.boardBounds,
+                    appName: this.appProfile.meta.app
+                },
+                exportOverrides
+            );
         }
 
         debug(message, data = null) {

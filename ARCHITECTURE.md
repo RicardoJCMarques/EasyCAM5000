@@ -6,7 +6,7 @@ Repository layout, local setup, and debugging. For what the apps *do*, see the
 ## Shape of the project
 
 One shared engine at the repository root. Each app is a thin directory that
-supplies a UI, an operation set, and a profile JSON — no app owns any geometry,
+supplies a UI, an operation set, and a profile JSON - no app owns any geometry,
 toolpath or export code.
 
 A job moves through five stages, and every stage's output is a renderer layer
@@ -117,7 +117,6 @@ defaults), `tools.json` (the default tool library), and the two profile JSONs.
 │   ├── trace-stencil-handler.js            # Solder stencil apertures with drill-pad exclusion
 │   ├── shape-profile-handler.js            # Profile cut - cut side and holding tabs
 │   ├── shape-pocket-handler.js             # Pocket clearing - internal offsets by stepover
-│   ├── shape-drill-handler.js              # Drill for EasyShape5000 - thin extension of DrillHandler
 │   ├── shape-engrave-handler.js            # Zero-offset centerline engraving, open and closed paths
 │   ├── shape-vcarve-handler.js             # V-Carve - medial-axis paths with multi-region worker fan-out
 │   ├── shape-relief-handler.js             # Relief - heightmap-driven roughing and finishing rasters
@@ -166,11 +165,10 @@ defaults), `tools.json` (the default tool library), and the two profile JSONs.
 │
 ├── ui/
 │   ├── ui-operation-registry.js            # Single source of truth for what an operation TYPE is
-│   ├── ui-input-renderer.js                # 
+│   ├── ui-input-renderer.js                # Schema-driven parameter form rendering, visibility, and option gates
 │   ├── ui-base-app.js                      # Shared app UI base - renderer, viewport, status, theme
 │   ├── ui-base-operation-panel.js          # Shared parameter panel - stage dispatch, generation, actions
 │   ├── ui-modal-manager.js                 # All modals - export, drill tooling, welcome, quickstart, help
-│   ├── ui-machine-settings.js              # Post-processor selection, Roland profiles, laser and CNC settings
 │   ├── ui-status-manager.js                # Status bar, log panel, progress overlay and footer bar
 │   ├── ui-controls.js                      # Focus zones, collapsibles, sidebar nav, visualization toggles
 │   ├── ui-tooltip.js                       # Tooltip system (exports a singleton, not a class)
@@ -221,7 +219,9 @@ defaults), `tools.json` (the default tool library), and the two profile JSONs.
 │       ├── index.html                      # Documentation entry
 │       ├── guide.html                      # Workflow guide
 │       ├── operations.html                 # Operation reference
-│       └── parameters.html                 # Parameter reference
+│       ├── parameters.html                 # Parameter reference
+│       ├── accessibility.html              # Generated from ACCESSIBILITY.md
+│       └── ACCESSIBILITY.md                # Keyboard controls, screen readers, WCAG status
 │
 ├── css/
 │   ├── base.css                            # Reset, variables, typography, utilities
@@ -281,7 +281,7 @@ Then open `easytrace5000/` or `easyshape5000/` under the served address. A
 [Five Server](https://github.com/yandeu/five-server-vscode) config
 (`fiveserver.config.js`) is included for VS Code and serves on `:5500`.
 
-There is no build step for development — the apps load the source files
+There is no build step for development - the apps load the source files
 directly, so a plain refresh picks up every change.
 
 ## Production build

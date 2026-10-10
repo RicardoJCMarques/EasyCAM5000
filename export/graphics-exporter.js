@@ -23,6 +23,7 @@
             this.DECIMAL = 4;
             this.HAIRLINE_STROKE = .01; // mm - standard svg hairline
             this.MAX_CANVAS_DIM = 16000;
+            this.MAX_CANVAS_PIXELS = 8192 * 8192; // 256 MB as RGBA
             this.profiles = new Map;
         }
 
@@ -60,31 +61,23 @@
         }
 
         /**
-         * Operations → files. Owns the operation-to-layer mapping, the
-         * PNG/SVG group split and the filenames; generate() below owns the
+         * Planned groups → files. Each group is { operations, format, filename }
+         * from CamCore.planExportFiles, which decides grouping and names; this
+         * owns the operation-to-layer mapping, and generate() below owns the
          * rendering.
-         *
          * `ctx` carries the session facts this class must not go looking for:
-         *   laser        settings.laser
-         *   transforms   the workspace matrix set
-         *   bounds       scene board bounds
-         *   appName      for the comment block
-         *   spotSizeFor  (op) => number|null, per-operation stroke width
-         *
-         * @returns {Promise<{success: boolean, files: Array<{blob: Blob, filename: string}>}>}
+         *  laser        settings.laser
+         *  profile      the resolved laser profile
+         *  transforms   the workspace matrix set
+         *  bounds       scene board bounds
+         *  appName      for the comment block
+         * A group that fails is reported and does not take its siblings down.
+         * @returns {Promise<{files: Array<{blob: Blob, filename: string}>,
+         *  failures: Array<{filename: string, reason: string}>}>}
          */
-        async exportOperations(operations, ctx, overrides = {}) {
-            if (!operations || operations.length === 0) return { success: false, files: [] };
-
+        async exportGroups(groups, ctx, overrides = {}) {
             const laser = ctx.laser;
             const profile = ctx.profile;
-
-            const format = overrides.format || laser.exportFormat;
-            const dpi = overrides.dpi || laser.exportDPI;
-            const padding = overrides.padding ?? laser.exportPadding;
-            const singleFile = overrides.singleFile !== false;
-            const baseName = overrides.baseName || D.export.defaultBaseName;
-
             // The profile answers for everything the target software dictates.
             // `??`, not `||`: the plain-vector route overrides reverseCutOrder
             // and colorPerPass to false, and those must beat a profile's true.
@@ -95,39 +88,23 @@
                 colorPerPass: overrides.colorPerPass ?? profile.colorPerPass,
                 palette: overrides.palette ?? profile.palette,
                 paletteLumping: overrides.paletteLumping ?? profile.paletteLumping,
-                layerColors: overrides.layerColors ?? profile.layerColors
+                layerColors: overrides.layerColors ?? profile.layerColors,
             };
             const layerColors = style.layerColors;
-
-            const commonOptions = {
-                dpi,
-                padding,
+            const baseOptions = {
+                dpi: overrides.dpi || laser.exportDPI,
+                padding: overrides.padding ?? laser.exportPadding,
                 transforms: ctx.transforms,
                 bounds: ctx.bounds,
-                // PNG has no per-pass colour channel, so heat management has
-                // nothing to sequence against.
-                heatManagement: format === 'png' ? 'off' : style.heatManagement,
                 reverseCutOrder: style.reverseCutOrder,
                 svgGrouping: style.svgGrouping,
                 colorPerPass: style.colorPerPass,
                 palette: style.palette,
                 paletteLumping: style.paletteLumping,
-                includeComments: overrides.includeComments
+                includeComments: overrides.includeComments,
             };
-
-            // REVIEW - these should come from the language file.
-            if (overrides.includeComments) {
-                commonOptions.commentBlock = [
-                    `${ctx.appName} SVG Export`,
-                    `Date: ${new Date().toLocaleString()}`,
-                    `Operations ${operations.length}:`,
-                    ...operations.map(op => `  - ${op.type}: ${op.file.name}`)
-                ];
-            }
-
             const buildLayer = (op) => {
                 if (!op.offsets || op.offsets.length === 0) return null;
-
                 const passes = op.offsets.map((offset, idx) => ({
                     passIndex: idx + 1,
                     type: offset.type || 'offset',
@@ -135,78 +112,72 @@
                     metadata: {
                         ...(offset.metadata || {}),
                         offsetType: offset.offsetType || 'external',
-                        thermalGroup: offset.metadata?.thermalGroup || offset.thermalGroup || 'shell',
+                        thermalGroup: offset.metadata?.thermalGroup || 'shell',
                         pass: offset.pass || idx + 1,
-                        distance: offset.distance
-                    }
+                        distance: offset.distance,
+                    },
                 }));
-
                 let layerName = op.type;
                 if (op.type === 'stencil') {
                     const cleanName = op.file.name.replace(/\.[^.]+$/, '').replace(/[^a-zA-Z0-9_-]/g, '_');
                     layerName = `Stencil_${cleanName}`;
                 }
-
                 return {
                     operationId: op.id,
                     operationType: op.type,
                     fileName: op.file.name,
                     baseColor: layerColors[op.type] || '#000000',
                     layerName,
-                    strokeWidth: ctx.spotSizeFor(op) ?? laser.spotSize,
-                    passes
+                    strokeWidth: laser.spotSize,
+                    passes,
                 };
             };
-
-            const isPNGFormat = format === 'png';
-            const rasterTypes = ['isolation', 'clearing'];
-            let layerGroups = [];
-
-            if (isPNGFormat) {
-                const rasterLayers = [], vectorLayers = [];
-                for (const op of operations) {
-                    const layer = buildLayer(op);
-                    if (!layer) continue;
-                    (rasterTypes.includes(op.type) ? rasterLayers : vectorLayers).push(layer);
-                }
-                if (rasterLayers.length > 0) layerGroups.push({ layers: rasterLayers, format: 'png', suffix: '' });
-                if (vectorLayers.length > 0) layerGroups.push({ layers: vectorLayers, format: 'svg', suffix: '-vectors' });
-            } else if (singleFile) {
-                const allLayers = operations.map(buildLayer).filter(Boolean);
-                if (allLayers.length > 0) layerGroups.push({ layers: allLayers, format: 'svg', suffix: '' });
-            } else {
-                for (const op of operations) {
-                    const layer = buildLayer(op);
-                    if (!layer) continue;
-                    layerGroups.push({ layers: [layer], format: 'svg', suffix: `-${op.type}` });
-                }
-            }
-
-            if (layerGroups.length === 0) return { success: false, files: [] };
-
             const files = [];
-            try {
-                for (const group of layerGroups) {
-                    const ext = group.format === 'png' ? '.png' : '.svg';
-                    const result = await this.generate(group.layers, { ...commonOptions, format: group.format });
-                    if (result?.blob) {
-                        files.push({ blob: result.blob, filename: `${baseName}${group.suffix}${ext}` });
-                    }
+            const failures = [];
+            for (const group of groups) {
+                const layers = group.operations.map(buildLayer).filter(Boolean);
+                if (layers.length === 0) {
+                    failures.push({ filename: group.filename, reason: 'no generated geometry' });
+                    continue;
                 }
-            } catch (error) {
-                console.error('[GraphicsExporter] Export generation failed:', error);
-                return { success: false, files: [] };
+                const options = {
+                    ...baseOptions,
+                    format: group.format,
+                    // PNG has no per-pass colour channel, so heat management has
+                    // nothing to sequence against.
+                    heatManagement: group.format === 'png' ? 'off' : style.heatManagement,
+                };
+                // REVIEW - these should come from the language file.
+                if (overrides.includeComments) {
+                    options.commentBlock = [
+                        `${ctx.appName} SVG Export`,
+                        `Date: ${new Date().toLocaleString()}`,
+                        `Operations ${group.operations.length}:`,
+                        ...group.operations.map((op) => `  - ${op.type}: ${op.file.name}`),
+                    ];
+                }
+                try {
+                    const result = await this.generate(layers, options);
+                    if (result?.blob) {
+                        files.push({ blob: result.blob, filename: group.filename });
+                    } else {
+                        failures.push({ filename: group.filename, reason: 'renderer returned no data' });
+                    }
+                } catch (error) {
+                    console.error(`[GraphicsExporter] ${group.filename} failed:`, error);
+                    failures.push({ filename: group.filename, reason: error.message });
+                }
             }
-
-            return { success: files.length > 0, files };
+            return { files, failures };
         }
 
         async generate(layers, options) {
             // Fuse colinear hatch segments across operation layers before export
             this.fuseColinearSegments(layers);
 
-            // Build user-transform matrix (rotation, mirror, origin - no bounds shift or Y-flip)
-            const userMat = this.buildUserTransformMatrix(options.transforms);
+            // User-transform matrix (rotation, mirror, origin - no bounds shift or
+            // Y-flip): the pipeline's own, so export cannot disagree with toolpaths.
+            const userMat = options.transforms?.matrix ?? { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 };
 
             // Apply userMat to all geometry to find the TRUE output bounds.
             // This prevents the white-PNG / clipped-SVG bug where rotated or mirrored geometry extends beyond the raw board bounds used for the viewBox.
@@ -240,30 +211,26 @@
         }
 
         /**
-         * User-space transform as a matrix: delegates to WorkspaceTransform
-         * so the exporter can never disagree with the toolpath pipeline.
-         * Bounds-shift and Y-flip are composed on top in buildOutputMatrix.
-         */
-        buildUserTransformMatrix(transforms) {
-            if (!transforms) return { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 };
-            return transforms.matrix;
-        }
-
-        /**
          * Scans all geometry through the user-transform matrix to find the true bounding box of the output.
          */
         computeTransformedBounds(layers, userMat) {
             let minX = Infinity, minY = Infinity;
             let maxX = -Infinity, maxY = -Infinity;
-
             const expand = (x, y) => {
-                const p = this.tx(x, y, userMat);
+                const p = TransformMath.applyToPoint(userMat, { x, y });
                 if (p.x < minX) minX = p.x;
                 if (p.x > maxX) maxX = p.x;
                 if (p.y < minY) minY = p.y;
                 if (p.y > maxY) maxY = p.y;
             };
-
+            // The point of a circle furthest along output axis e sits at
+            // center + r * normalize(L^T e), L being the matrix's linear part.
+            const axisDirs = [[1, 0], [0, 1], [-1, 0], [0, -1]].map(([ex, ey]) => {
+                const ux = userMat.a * ex + userMat.b * ey;
+                const uy = userMat.c * ex + userMat.d * ey;
+                const len = Math.hypot(ux, uy) || 1;
+                return { x: ux / len, y: uy / len, angle: Math.atan2(uy, ux) };
+            });
             for (const layer of layers) {
                 for (const pass of layer.passes) {
                     if (!pass.primitives) continue;
@@ -276,19 +243,25 @@
                             expand(prim.center.x - r, prim.center.y + r);
                             expand(prim.center.x + r, prim.center.y - r);
                         }
-                        // Paths: expand by every vertex
+                        // Paths: expand by every vertex, then by the extremes each arc
+                        // reaches between its endpoints (chord arcs store only those).
                         if (prim.contours) {
                             for (const c of prim.contours) {
                                 if (!c.points) continue;
                                 for (const pt of c.points) {
                                     expand(pt.x, pt.y);
                                 }
+                                for (const arc of this.buildArcMap(c, prim.arcSegments).values()) {
+                                    for (const dir of axisDirs) {
+                                        if (!GeometryPoints.arcPassesAngle(arc.startAngle, arc.endAngle, arc.clockwise, dir.angle)) continue;
+                                        expand(arc.center.x + arc.radius * dir.x, arc.center.y + arc.radius * dir.y);
+                                    }
+                                }
                             }
                         }
                     }
                 }
             }
-
             if (!isFinite(minX)) {
                 return { minX: 0, minY: 0, maxX: 100, maxY: 100 };
             }
@@ -299,48 +272,16 @@
          * Builds the final output matrix by composing: boundsShift (using TRUE post-transform bounds) → Y-flip on top of the pre-built user-transform matrix.
          */
         buildOutputMatrix(userMat, trueBounds, padding) {
-            const widthMm  = (trueBounds.maxX - trueBounds.minX) + (padding * 2);
-            const heightMm = (trueBounds.maxY - trueBounds.minY) + (padding * 2);
-
-            // Start from the user matrix
-            let m = userMat;
-
+            const widthMm = trueBounds.maxX - trueBounds.minX + padding * 2;
+            const heightMm = trueBounds.maxY - trueBounds.minY + padding * 2;
             // Bounds shift using TRUE bounds → geometry min lands at (padding, padding)
-            m = this.matMul({
-                a: 1, b: 0, c: 0, d: 1,
-                e: -trueBounds.minX + padding,
-                f: -trueBounds.minY + padding
-            }, m);
-
+            let m = TransformMath.multiply(
+                TransformMath.translation(padding - trueBounds.minX, padding - trueBounds.minY),
+                userMat,
+            );
             // Y-flip: SVG/Canvas Y-down, CAM Y-up → y' = heightMm - y
-            m = this.matMul({
-                a: 1, b: 0, c: 0, d: -1,
-                e: 0, f: heightMm
-            }, m);
-
+            m = TransformMath.multiply({ a: 1, b: 0, c: 0, d: -1, e: 0, f: heightMm }, m);
             return { mat: m, widthMm, heightMm };
-        }
-
-        /**
-         * Multiplies two affine matrices: result = m1 ∘ m2 (m1 applied after m2 to a point)
-         */
-        matMul(m1, m2) {
-            return {
-                a: m1.a * m2.a + m1.c * m2.b,
-                b: m1.b * m2.a + m1.d * m2.b,
-                c: m1.a * m2.c + m1.c * m2.d,
-                d: m1.b * m2.c + m1.d * m2.d,
-                e: m1.a * m2.e + m1.c * m2.f + m1.e,
-                f: m1.b * m2.e + m1.d * m2.f + m1.f
-            };
-        }
-
-        /** Applies pre-computed affine matrix to a point. */
-        tx(x, y, m) {
-            return {
-                x: m.a * x + m.c * y + m.e,
-                y: m.b * x + m.d * y + m.f
-            };
         }
 
         /**
@@ -696,20 +637,23 @@
         async generatePNG(layers, options, renderCtx) {
             const { mat, widthMm, heightMm } = renderCtx;
             const dpi = options.dpi || 1000;
-
             const pxPerMm = dpi / 25.4;
-
             let pxW = Math.ceil(widthMm * pxPerMm);
             let pxH = Math.ceil(heightMm * pxPerMm);
 
-            // Safety clamp
-            if (pxW > this.MAX_CANVAS_DIM || pxH > this.MAX_CANVAS_DIM) {
-                const s = Math.min(this.MAX_CANVAS_DIM / pxW, this.MAX_CANVAS_DIM / pxH);
-                pxW = Math.floor(pxW * s);
-                pxH = Math.floor(pxH * s);
-                console.warn(`[graphicsExporter] Canvas clamped to ${pxW}x${pxH}. Effective DPI reduced.`);
+            // Browsers cap both side length and total area; past either the
+            // canvas fails to allocate or renders blank.
+            const fit = Math.min(
+                1,
+                this.MAX_CANVAS_DIM / pxW,
+                this.MAX_CANVAS_DIM / pxH,
+                Math.sqrt(this.MAX_CANVAS_PIXELS / (pxW * pxH))
+            );
+            if (fit < 1) {
+                pxW = Math.max(1, Math.floor(pxW * fit));
+                pxH = Math.max(1, Math.floor(pxH * fit));
+                console.warn(`[graphicsExporter] Canvas clamped to ${pxW}x${pxH} - effective DPI ${Math.floor(dpi * fit)}.`);
             }
-
             const scaleX = pxW / widthMm;
             const scaleY = pxH / heightMm;
 
@@ -725,30 +669,30 @@
                 throw new Error('[graphicsExporter] PNG export needs OffscreenCanvas or a DOM canvas; neither is available in this host. Export SVG instead.');
             }
 
+            // Null when the browser cannot back a canvas this large.
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+                throw new Error(`[graphicsExporter] Could not allocate a ${pxW}x${pxH} canvas. Lower the export DPI.`);
+            }
+
             // White background
             ctx.fillStyle = '#FFFFFF';
             ctx.fillRect(0, 0, pxW, pxH);
-
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
 
             // Minimum line width: 1px in device space (sub-pixel protection)
             const minLineWidthMm = 1 / Math.min(scaleX, scaleY);
-
             for (const layer of layers) {
                 // Use spot size for PNG raster strokes, but at least 1px
                 const lineWidthMm = Math.max(layer.strokeWidth, minLineWidthMm);
-
                 for (let i = 0; i < layer.passes.length; i++) {
                     const pass = layer.passes[i];
                     if (!pass.primitives || pass.primitives.length === 0) continue;
-
                     const isFilled = pass.type === 'filled';
                     const color = layer.baseColor;
-
                     ctx.beginPath();
                     this.traceTransformedPrimitives(ctx, pass.primitives, mat, scaleX, scaleY);
-
                     if (isFilled) {
                         ctx.fillStyle = color;
                         ctx.fill('evenodd');
@@ -760,17 +704,19 @@
                 }
             }
 
-            return new Promise((resolve, reject) => {
-                canvas.toBlob(blob => {
-                    // Force cleanup
-                    ctx.clearRect(0, 0, pxW, pxH);
-                    canvas.width = 0;
-                    canvas.height = 0;
-
-                    if (blob) resolve({ blob });
-                    else reject(new Error('Canvas toBlob returned null'));
-                }, 'image/png');
-            });
+            // OffscreenCanvas encodes with convertToBlob(); toBlob() exists only on the DOM canvas.
+            let blob;
+            try {
+                blob = typeof canvas.convertToBlob === 'function'
+                    ? await canvas.convertToBlob({ type: 'image/png' })
+                    : await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+            } finally {
+                // Free the backing store now rather than at the next GC.
+                canvas.width = 0;
+                canvas.height = 0;
+            }
+            if (!blob) throw new Error('[graphicsExporter] PNG encoding returned no data.');
+            return { blob };
         }
 
         // ────────────────────────────────────────────────────────────
@@ -887,13 +833,13 @@
          * Traces pre-transformed primitives into a Canvas path.
          */
         traceTransformedPrimitives(ctx, primitives, mat, scaleX, scaleY) {
-            const det = mat.a * mat.d - mat.b * mat.c;
+            const det = TransformMath.det(mat);;
             const scaleFactor = Math.sqrt(mat.a * mat.a + mat.b * mat.b);
             const rScale = Math.min(scaleX, scaleY);
 
             for (const prim of primitives) {
                 if (prim.type === 'circle' && prim.center && prim.radius) {
-                    const c = this.tx(prim.center.x, prim.center.y, mat);
+                    const c = TransformMath.applyToPoint(mat, prim.center);
                     const rPx = prim.radius * scaleFactor * rScale;
                     const cx = c.x * scaleX;
                     const cy = c.y * scaleY;
@@ -910,7 +856,7 @@
 
                     const arcMap = this.buildArcMap(contour, prim.arcSegments);
 
-                    const p0 = this.tx(pts[0].x, pts[0].y, mat);
+                    const p0 = TransformMath.applyToPoint(mat, pts[0]);
                     ctx.moveTo(p0.x * scaleX, p0.y * scaleY);
 
                     let i = 1;
@@ -919,14 +865,14 @@
 
                         if (arc && arc.endIndex < pts.length && arc.endIndex > i - 1) {
                             // Transform center and compute pixel-space values
-                            const tc = this.tx(arc.center.x, arc.center.y, mat);
+                            const tc = TransformMath.applyToPoint(mat, arc.center);
                             const rPx = arc.radius * scaleFactor * rScale;
                             const tcx = tc.x * scaleX;
                             const tcy = tc.y * scaleY;
 
                             // Compute angles in transformed space from actual points
-                            const tStart = this.tx(pts[i - 1].x, pts[i - 1].y, mat);
-                            const tEnd = this.tx(pts[arc.endIndex].x, pts[arc.endIndex].y, mat);
+                            const tStart = TransformMath.applyToPoint(mat, pts[i - 1]);
+                            const tEnd = TransformMath.applyToPoint(mat, pts[arc.endIndex]);
                             const sa = Math.atan2(tStart.y * scaleY - tcy, tStart.x * scaleX - tcx);
                             const ea = Math.atan2(tEnd.y * scaleY - tcy, tEnd.x * scaleX - tcx);
 
@@ -955,7 +901,7 @@
 
                             i = arc.endIndex + 1;
                         } else {
-                            const pt = this.tx(pts[i].x, pts[i].y, mat);
+                            const pt = TransformMath.applyToPoint(mat, pts[i]);
                             ctx.lineTo(pt.x * scaleX, pt.y * scaleY);
                             i++;
                         }
@@ -974,7 +920,9 @@
 
         /**
          * Merges colinear/overlapping hatch line segments across all layers.
-         * Only operates on hatch passes. Modifies passes in-place.
+         * Only operates on hatch passes. Rewrites pass.primitives on the
+         * export's own pass objects; the primitives themselves are never
+         * modified - the unfused ones belong to the operation.
          */
         fuseColinearSegments(layers) {
             const scanLines = new Map();
@@ -1020,7 +968,7 @@
             const fusedByPass = new Map();
             const newPrimitivesByPass = new Map();
 
-            for (const [key, segments] of scanLines) {
+            for (const segments of scanLines.values()) {
                 if (segments.length < 2) continue;
 
                 segments.sort((a, b) => a.xMin - b.xMin);
@@ -1094,61 +1042,56 @@
                     totalAdded += newPrims.length;
                 }
 
-                // Restore Zig-Zag order for the pass
+                // Restore the zig-zag for the pass: scanlines ascend, even ones
+                // run L→R, odd ones R→L. Direction is set from position, never
+                // by flipping - generation already drew odd lines R→L, fused
+                // lines arrive L→R - and a segment that has to turn is redrawn
+                // as a NEW primitive. The unfused ones are the operation's own
+                // objects (buildLayer passes offset.primitives by reference),
+                // so nothing here writes to them.
                 if (pass.metadata?.isHatch) {
                     const angle = pass.metadata.angle || 0;
-                    const rad = -angle * Math.PI / 180;
+                    const rad = (-angle * Math.PI) / 180;
                     const cosA = Math.cos(rad);
                     const sinA = Math.sin(rad);
-
-                    // Sort by perpendicular distance, then parallel distance
+                    const par = (p) => p.x * cosA - p.y * sinA;
+                    const perp = (p) => p.x * sinA + p.y * cosA;
+                    const ends = (prim) => prim.contours[0].points;
+                    const oriented = (prim, leftToRight) => {
+                        const [p0, p1] = ends(prim);
+                        return par(p0) <= par(p1) === leftToRight
+                            ? prim
+                            : this.createLinePrimitive(p1, p0, prim.properties);
+                    };
+                    // By scanline, then along it from each segment's left end,
+                    // whichever way the segment is drawn.
+                    const left = (prim) => Math.min(par(ends(prim)[0]), par(ends(prim)[1]));
                     pass.primitives.sort((a, b) => {
-                        const pA = a.contours[0].points[0];
-                        const pB = b.contours[0].points[0];
-                        const perpA = pA.x * sinA + pA.y * cosA;
-                        const perpB = pB.x * sinA + pB.y * cosA;
-                        if (Math.abs(perpA - perpB) > PRECISION) {
-                            return perpA - perpB;
-                        }
-                        const parA = pA.x * cosA - pA.y * sinA;
-                        const parB = pB.x * cosA - pB.y * sinA;
-                        return parA - parB;
+                        const dPerp = perp(ends(a)[0]) - perp(ends(b)[0]);
+                        return Math.abs(dPerp) > PRECISION ? dPerp : left(a) - left(b);
                     });
-
-                    // Re-apply alternating Zig-Zag direction and segment order
-                    let currentPerp = null;
-                    let scanlineStart = 0;
-                    let scanlineIndex = -1;
-
-                    for (let si = 0; si <= pass.primitives.length; si++) {
-                        const prim = si < pass.primitives.length ? pass.primitives[si] : null;
-                        const pts = prim ? prim.contours[0].points : null;
-                        const perp = pts ? pts[0].x * sinA + pts[0].y * cosA : null;
-
-                        const isNewScanline = prim === null || currentPerp === null || 
-                            Math.abs(perp - currentPerp) > PRECISION;
-
-                        if (isNewScanline) {
-                            // Process previous scanline group
-                            if (scanlineIndex >= 0 && scanlineIndex % 2 === 1) {
-                                // Odd scanlines: reverse segment order AND flip each segment's direction
-                                const group = pass.primitives.slice(scanlineStart, si);
-                                group.reverse();
-                                for (const g of group) {
-                                    g.contours[0].points.reverse();
-                                }
-                                pass.primitives.splice(scanlineStart, group.length, ...group);
-                            } else if (scanlineIndex >= 0) {
-                                // Even scanlines: ensure L→R (already sorted ascending, no-op)
-                            }
-
-                            if (prim) {
-                                scanlineStart = si;
-                                scanlineIndex++;
-                                currentPerp = perp;
-                            }
+                    const ordered = [];
+                    let line = [];
+                    let lineIndex = 0;
+                    const flush = () => {
+                        if (line.length === 0) return;
+                        const leftToRight = lineIndex % 2 === 0;
+                        if (!leftToRight) line.reverse();
+                        for (const prim of line) ordered.push(oriented(prim, leftToRight));
+                        line = [];
+                        lineIndex++;
+                    };
+                    let linePerp = null;
+                    for (const prim of pass.primitives) {
+                        const p = perp(ends(prim)[0]);
+                        if (linePerp === null || Math.abs(p - linePerp) > PRECISION) {
+                            flush();
+                            linePerp = p;
                         }
+                        line.push(prim);
                     }
+                    flush();
+                    pass.primitives = ordered;
                 }
             }
 

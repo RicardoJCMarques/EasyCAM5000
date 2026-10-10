@@ -61,6 +61,33 @@
                 : null;
         },
 
+        /**
+         * True when a circular arc from startAngle to endAngle passes through
+         * `angle` (radians). Y-up: clockwise runs toward decreasing angles.
+         * Equal start and end angles are a full circle - the arc reconstructor
+         * stores circular contours inside a compound that way.
+         */
+        arcPassesAngle(startAngle, endAngle, clockwise, angle) {
+            const TAU = 2 * Math.PI;
+            const a = ((angle % TAU) + TAU) % TAU;
+            const s = ((startAngle % TAU) + TAU) % TAU;
+            const e = ((endAngle % TAU) + TAU) % TAU;
+            if (clockwise) return s > e ? (a <= s && a >= e) : (a <= s || a >= e);
+            return s < e ? (a >= s && a <= e) : (a >= s || a <= e);
+        },
+
+        /**
+         * Grows bounds `b` in place to the axis extremes a circular arc
+         * reaches. The endpoints are not added - callers already hold them.
+         */
+        growBoundsByArc(b, center, radius, startAngle, endAngle, clockwise) {
+            const passes = angle => this.arcPassesAngle(startAngle, endAngle, clockwise, angle);
+            if (passes(0)) b.maxX = Math.max(b.maxX, center.x + radius);
+            if (passes(Math.PI / 2)) b.maxY = Math.max(b.maxY, center.y + radius);
+            if (passes(Math.PI)) b.minX = Math.min(b.minX, center.x - radius);
+            if (passes(3 * Math.PI / 2)) b.minY = Math.min(b.minY, center.y - radius);
+        },
+
         /** Signed area of a closed point ring. Y-up: positive = CCW = outer. */
         calculateWinding(points) {
             if (!points || points.length < 3) return 0;
@@ -76,6 +103,15 @@
 
         isClockwise(points) {
             return this.calculateWinding(points) < 0;
+        },
+
+        /** XY length of an open polyline. */
+        polylineLength(points) {
+            let length = 0;
+            for (let i = 1; i < points.length; i++) {
+                length += Math.hypot(points[i].x - points[i - 1].x, points[i].y - points[i - 1].y);
+            }
+            return length;
         },
 
         /** Squared perpendicular distance from point p to line segment p1→p2. */

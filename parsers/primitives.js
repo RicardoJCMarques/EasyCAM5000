@@ -26,11 +26,6 @@
             this.properties = properties;
             this.bounds = null;
             this.id = `prim_${nextPrimitiveId++}`;
-            this.geometricContext = {
-                originalType: type,
-                isAnalytic: false,
-                metadata: {}
-            };
         }
 
         getBounds() {
@@ -50,14 +45,6 @@
                 x: (bounds.minX + bounds.maxX) / 2,
                 y: (bounds.minY + bounds.maxY) / 2
             };
-        }
-
-        canOffsetAnalytically() {
-            return this.geometricContext.isAnalytic;
-        }
-
-        getGeometricMetadata() {
-            return this.geometricContext;
         }
     }
 
@@ -106,64 +93,34 @@
          */
 
         calculateBounds() {
-            if (!this.contours || this.contours.length === 0) {
-                this.bounds = { minX: 0, minY: 0, maxX: 0, maxY: 0 };
-                return;
-            }
-
-            let minX = Infinity, minY = Infinity;
-            let maxX = -Infinity, maxY = -Infinity;
-
-            this.contours.forEach(contour => {
+            const b = { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity };
+            for (const contour of this.contours || []) {
                 // Calculate bounds from outer contours only (skip holes)
-                if (!contour.isHole) {
-                    if (contour.points) {
-                        const b = GeometryUtils.boundsOfPoints(contour.points);
-                        if (b) {
-                            b.minX < minX && (minX = b.minX);
-                            b.minY < minY && (minY = b.minY);
-                            b.maxX > maxX && (maxX = b.maxX);
-                            b.maxY > maxY && (maxY = b.maxY);
-                        }
-                    }
-
-                    // Expand bounds for arc segments
-                    if (contour.arcSegments && contour.arcSegments.length > 0) {
-                        contour.arcSegments.forEach(seg => {
-                            const { center, radius, startAngle, endAngle, clockwise } = seg;
-                            const checkCrossing = angle => {
-                                const norm = angle % (2 * Math.PI);
-                                let start = startAngle % (2 * Math.PI);
-                                let end = endAngle % (2 * Math.PI);
-                                start < 0 && (start += 2 * Math.PI);
-                                end < 0 && (end += 2 * Math.PI);
-                                return clockwise
-                                    ? (start > end ? norm <= start && norm >= end : norm <= start || norm >= end)
-                                    : (start < end ? norm >= start && norm <= end : norm >= start || norm >= end);
-                            };
-                            checkCrossing(0) && (maxX = Math.max(maxX, center.x + radius));
-                            checkCrossing(Math.PI / 2) && (maxY = Math.max(maxY, center.y + radius));
-                            checkCrossing(Math.PI) && (minX = Math.min(minX, center.x - radius));
-                            checkCrossing(3 * Math.PI / 2) && (minY = Math.min(minY, center.y - radius));
-                        });
-                    }
+                if (contour.isHole) continue;
+                const pointBounds = contour.points ? GeometryPoints.boundsOfPoints(contour.points) : null;
+                if (pointBounds) {
+                    b.minX = Math.min(b.minX, pointBounds.minX);
+                    b.minY = Math.min(b.minY, pointBounds.minY);
+                    b.maxX = Math.max(b.maxX, pointBounds.maxX);
+                    b.maxY = Math.max(b.maxY, pointBounds.maxY);
                 }
-            });
-
-            if (!isFinite(minX)) {
+                // Expand bounds for arc segments
+                for (const seg of contour.arcSegments || []) {
+                    GeometryPoints.growBoundsByArc(b, seg.center, seg.radius, seg.startAngle, seg.endAngle, seg.clockwise);
+                }
+            }
+            if (!Number.isFinite(b.minX)) {
                 this.bounds = { minX: 0, minY: 0, maxX: 0, maxY: 0 };
                 return;
             }
-
             if (this.properties.stroke && this.properties.strokeWidth) {
                 const halfStroke = this.properties.strokeWidth / 2;
-                minX -= halfStroke;
-                minY -= halfStroke;
-                maxX += halfStroke;
-                maxY += halfStroke;
+                b.minX -= halfStroke;
+                b.minY -= halfStroke;
+                b.maxX += halfStroke;
+                b.maxY += halfStroke;
             }
-
-            this.bounds = { minX, minY, maxX, maxY };
+            this.bounds = b;
         }
     }
 
@@ -175,12 +132,6 @@
             super('circle', properties);
             this.center = center;
             this.radius = radius;
-
-            this.geometricContext.isAnalytic = true;
-            this.geometricContext.metadata = { 
-                center: { ...center }, 
-                radius: radius 
-            };
         }
 
         calculateBounds() {
@@ -201,6 +152,17 @@
         }
     }
 
+    // Bottom-left position + size, grown by half the stroke when stroked.
+    function boxBounds(prim) {
+        const half = prim.properties.stroke && prim.properties.strokeWidth ? prim.properties.strokeWidth / 2 : 0;
+        return {
+            minX: prim.position.x - half,
+            minY: prim.position.y - half,
+            maxX: prim.position.x + prim.width + half,
+            maxY: prim.position.y + prim.height + half
+        };
+    }
+
     /**
      * RectanglePrimitive - analytic rectangle
      */
@@ -210,34 +172,10 @@
             this.position = position; // Bottom-left corner
             this.width = width;
             this.height = height;
-
-            this.geometricContext.isAnalytic = true;
-            this.geometricContext.metadata = { 
-                position: { ...position }, 
-                width, 
-                height 
-            };
         }
 
         calculateBounds() {
-            let { x, y } = this.position;
-            let w = this.width;
-            let h = this.height;
-
-            if (this.properties.strokeWidth && this.properties.stroke) {
-                const halfStroke = this.properties.strokeWidth / 2;
-                x -= halfStroke;
-                y -= halfStroke;
-                w += this.properties.strokeWidth;
-                h += this.properties.strokeWidth;
-            }
-
-            this.bounds = {
-                minX: x,
-                minY: y,
-                maxX: x + w,
-                maxY: y + h
-            };
+            this.bounds = boxBounds(this);
         }
     }
 
@@ -252,36 +190,10 @@
             this.height = height;
 
             this.isCircular = Math.abs(width - height) < C.precision.coordinate;
-
-            this.geometricContext.isAnalytic = true;
-            this.geometricContext.metadata = {
-                position: { ...position },
-                width,
-                height,
-                isCircular: this.isCircular,
-                cornerRadius: Math.min(width, height) / 2
-            };
         }
 
         calculateBounds() {
-            let { x, y } = this.position;
-            let w = this.width;
-            let h = this.height;
-
-            if (this.properties.strokeWidth && this.properties.stroke) {
-                const halfStroke = this.properties.strokeWidth / 2;
-                x -= halfStroke;
-                y -= halfStroke;
-                w += this.properties.strokeWidth;
-                h += this.properties.strokeWidth;
-            }
-
-            this.bounds = {
-                minX: x,
-                minY: y,
-                maxX: x + w,
-                maxY: y + h
-            };
+            this.bounds = boxBounds(this);
         }
     }
 
@@ -296,16 +208,6 @@
             this.startAngle = startAngle;
             this.endAngle = endAngle;
             this.clockwise = clockwise;
-
-            this.geometricContext.isAnalytic = true;
-            this.geometricContext.metadata = {
-                center,
-                radius,
-                startAngle,
-                endAngle,
-                clockwise
-            };
-
             this.startPoint = {
                 x: center.x + radius * Math.cos(startAngle),
                 y: center.y + radius * Math.sin(startAngle)
@@ -317,50 +219,22 @@
         }
 
         calculateBounds() {
-            let minX = Math.min(this.startPoint.x, this.endPoint.x);
-            let minY = Math.min(this.startPoint.y, this.endPoint.y);
-            let maxX = Math.max(this.startPoint.x, this.endPoint.x);
-            let maxY = Math.max(this.startPoint.y, this.endPoint.y);
-
-            // Check if arc crosses cardinal directions
-            const checkCrossing = (angle) => {
-                const normalizedAngle = angle % (2 * Math.PI);
-                let start = this.startAngle % (2 * Math.PI);
-                let end = this.endAngle % (2 * Math.PI);
-
-                if (start < 0) start += 2 * Math.PI;
-                if (end < 0) end += 2 * Math.PI;
-
-                if (this.clockwise) {
-                    if (start > end) {
-                        return normalizedAngle <= start && normalizedAngle >= end;
-                    } else {
-                        return normalizedAngle <= start || normalizedAngle >= end;
-                    }
-                } else {
-                    if (start < end) {
-                        return normalizedAngle >= start && normalizedAngle <= end;
-                    } else {
-                        return normalizedAngle >= start || normalizedAngle <= end;
-                    }
-                }
+            const b = {
+                minX: Math.min(this.startPoint.x, this.endPoint.x),
+                minY: Math.min(this.startPoint.y, this.endPoint.y),
+                maxX: Math.max(this.startPoint.x, this.endPoint.x),
+                maxY: Math.max(this.startPoint.y, this.endPoint.y)
             };
-
-            if (checkCrossing(0)) maxX = Math.max(maxX, this.center.x + this.radius);
-            if (checkCrossing(Math.PI / 2)) maxY = Math.max(maxY, this.center.y + this.radius);
-            if (checkCrossing(Math.PI)) minX = Math.min(minX, this.center.x - this.radius);
-            if (checkCrossing(3 * Math.PI / 2)) minY = Math.min(minY, this.center.y - this.radius);
-
+            GeometryPoints.growBoundsByArc(b, this.center, this.radius, this.startAngle, this.endAngle, this.clockwise);
             // Expand by stroke width if stroked
             if (this.properties.stroke && this.properties.strokeWidth) {
                 const halfStroke = this.properties.strokeWidth / 2;
-                minX -= halfStroke;
-                minY -= halfStroke;
-                maxX += halfStroke;
-                maxY += halfStroke;
+                b.minX -= halfStroke;
+                b.minY -= halfStroke;
+                b.maxX += halfStroke;
+                b.maxY += halfStroke;
             }
-
-            this.bounds = { minX, minY, maxX, maxY };
+            this.bounds = b;
         }
     }
 
@@ -378,17 +252,6 @@
             this.phi = params.phi;
             this.fA = params.fA === 1; // Large arc flag
             this.fS = params.fS === 1; // Sweep flag
-
-            this.geometricContext.isAnalytic = true;
-            this.geometricContext.metadata = {
-                ...params,
-                startPoint,
-                endPoint
-            };
-        }
-
-        canOffsetAnalytically() {
-            return false;
         }
 
         calculateBounds() {
@@ -417,16 +280,6 @@
         constructor(points, properties = {}) {
             super('bezier', properties);
             this.points = points; // [p0, p1, p2] or [p0, p1, p2, p3]
-
-            this.geometricContext.isAnalytic = true;
-            this.geometricContext.metadata = {
-                points: [...points],
-                degree: points.length - 1
-            };
-        }
-
-        canOffsetAnalytically() {
-            return false;
         }
 
         calculateBounds() {
@@ -458,7 +311,7 @@
      * Polyline3DPrimitive - packed 3D toolpath chain (V-Carve, Relief).
      *
      * Stores one open polyline as xyz triplets in a single Float32Array:
-     *   [x0,y0,z0, x1,y1,z1, ...]
+     *  [x0,y0,z0, x1,y1,z1, ...]
      *
      * Why packed: a relief finishing pass can carry 10^5..10^6 points.
      * Object points cost ~50-80 bytes each and hammer the GC; triplets
@@ -466,13 +319,12 @@
      * BufferGeometry position attribute with zero conversion.
      *
      * Contract:
-     *   - type === 'path3d' (routing), properties.is3DContour === true
+     *  - type === 'path3d' (routing), properties.is3DContour === true
      *     (kept so all existing property-based dispatch still works).
-     *   - Always open, never a hole, no arcSegments - toolpath output,
-     *     not boolean-pipeline geometry. canOffsetAnalytically() = false.
-     *   - Consumers should read positions directly (translator delegate,
-     *     renderers). toContourView() exists as a legacy escape hatch
-     *     but materializes object points - avoid it in hot paths.
+     *  - Always open, never a hole, no arcSegments - toolpath output,
+     *     not boolean-pipeline geometry.
+     *  - Consumers read positions directly (translator delegate,
+     *    renderers).
      */
     class Polyline3DPrimitive extends RenderPrimitive {
         constructor(positions, properties = {}) {
@@ -513,17 +365,6 @@
             return new Polyline3DPrimitive(arr, properties);
         }
 
-        get pointCount() {
-            return (this.positions.length / 3) | 0;
-        }
-
-        /** Reads point i. Pass an out-object in loops to avoid allocation. */
-        getPoint(i, out) {
-            const b = i * 3, p = this.positions;
-            if (out) { out.x = p[b]; out.y = p[b + 1]; out.z = p[b + 2]; return out; }
-            return { x: p[b], y: p[b + 1], z: p[b + 2] };
-        }
-
         calculateBounds() {
             const p = this.positions;
             if (p.length < 3) {
@@ -541,31 +382,6 @@
             }
             this.bounds = { minX, minY, maxX, maxY };
             this.bounds3D = { minX, minY, minZ, maxX, maxY, maxZ };
-        }
-
-        getBounds3D() {
-            if (!this.bounds3D) this.calculateBounds();
-            return this.bounds3D;
-        }
-
-        canOffsetAnalytically() {
-            return false;
-        }
-
-        /**
-         * Legacy escape hatch: materializes a contour-shaped object with
-         * {x,y,z} points for code that only speaks PathPrimitive contours.
-         * O(n) allocation - do NOT call per frame or per generation.
-         */
-        toContourView() {
-            const n = this.pointCount;
-            const points = new Array(n);
-            for (let i = 0; i < n; i++) points[i] = this.getPoint(i);
-            return {
-                points, closed: false, isHole: false,
-                nestingLevel: 0, parentId: null,
-                arcSegments: [], curveIds: []
-            };
         }
     }
 

@@ -137,7 +137,7 @@
         _get() {
             if (this._pool !== null) return this._pool;
             try {
-                const url = ROOT.CAMConfig.paths.fieldWorker;
+                const url = '../geometry/field-worker.js';
                 const n = this._poolSize();
                 this._pool = [];
                 for (let i = 0; i < n; i++) this._pool.push(this._spawn(url));
@@ -255,13 +255,13 @@
          * Each end resolves to TWO independent facts:
          *
          // REVIEW - These termination comments are a bit confusinng.
-         *   material - what the target holds PAST the model edge.
-         *     'stub'  the drive cylinder ('stop'); the zone is never
+         * material - what the target holds PAST the model edge.
+         *  'stub'     the drive cylinder ('stop'); the zone is never
          *             machined, the low target just stops the compensator
          *             ramping off phantom stock.
-         *     'lip'   per-line edge value - mm (mm is a DEPTH): an explicit
+         *  'rollover' per-line edge value - mm (mm is a DEPTH): an explicit
          *             separation groove past the edge.
-         *     'free'  ('taper' mode) no band at all - the window extends
+         *  'free'     ('taper' mode) no band at all - the window extends
          *             kernelR + mm and the waste floor + tool profile form
          *             the falloff.
          *
@@ -272,18 +272,18 @@
          *     positive machines further out into the waste. Never re-floor
          *     it - that discards the whole negative half of the parameter.
          *
-         * There is no 'blank' material. It meant "real stock continues here,
-         * leave it", which on a between-centers job resolved for BOTH ends
-         * and left everything past the model at full stock radius - the tool
-         * snapping out to the blank instead of terminating.
+         * No material may mean "real stock continues here, leave it": on a
+         * between-centers job it applies to BOTH ends and leaves everything
+         * past the model at full stock radius - the tool snaps out to the
+         * blank instead of terminating.
          */
         // REVIEW - Some branch combinations generate perfectly acceptable
         //          geometry; only the ones that deform should be documented
         //          as incompatible rather than removed.
         /**
-         * TODO(workholding-solid) - 'stop', 'lip' and 'taper' should stop being
-         * three branches and become one synthetic end solid (cylinder / cone /
-         * prism) composed into the target before rasterization, the way
+         * TODO(workholding-solid) - 'stop', 'rollover' and 'taper' should stop
+         * being three branches and become one synthetic end solid (cylinder /
+         * cone / prism) composed into the target before rasterization, the way
          * commercial rotary CAM expects a fixture stub to already be in the
          * model. The stub then defines the end, a base that is neither flat nor
          * perpendicular stops mattering, and the workholding is visible in the
@@ -293,39 +293,31 @@
         //          Confirm in the future if it's worth implementing as an extra strategy.
         workholding(p) {
             const holdingMode = p.rotaryHoldingMode ?? 'between_centers';
-            const toolD = Math.max(0.02, p.toolDiameter || 3);
+            const toolD = Math.max(0.02, p.toolDiameter);
             const kernelR = toolD / 2;
-            // Tool-derived: a lip of 0 makes 'lip' indistinguishable
-            // from an outward extension of the model's edge.
-            const autoLip = toolD *
-                (ROOT.CAMConfig?.constants?.rotary?.autoLipFraction ?? 0.1);
-
+            // Tool-derived: a 0 mm rollover would be indistinguishable from an
+            // outward extension of the model's edge.
+            const autoLip = toolD * ROOT.CAMConfig.constants.rotary.autoLipFraction;
             const end = (mode, mm) => {
-                // profile-shape.json labels this end mode 'rollover'; the
-                // pipeline calls the material it composes 'lip'. Renaming the
-                // profile value would invalidate every saved parameter state
-                // holding 'rollover', so the translation lives here.
-                // REVIEW - Sounds like this is an easy syntax problem to fix somewhere else? Either rollover or lip should take precedence and all other mentions updated/removed?
-                let m = mode || 'stop';
-                if (m === 'rollover') m = 'lip';
+                const m = mode || 'stop';
                 const raw = Number(mm) || 0;
                 const len = Math.abs(raw);
                 let material, reach, amount;
-                if (m === 'lip') {
-                    material = 'lip';
-                    amount = (len > 0) ? len : autoLip;
+                if (m === 'rollover') {
+                    material = 'rollover';
+                    amount = len > 0 ? len : autoLip;
                     reach = kernelR + amount;
                 } else if (m === 'taper') {
                     // FREE END. No composed band: the window runs one
                     // cutting radius (+mm) past the model and the target out
                     // there is the waste floor, so the taper is the tool
                     // profile eroding the end wall - stub radius on radial,
-                    // severance plane on indexed. Larger and smoother than
-                    // the old explicit cone, which this replaces.
+                    // severance plane on indexed.
                     material = 'free';
                     amount = len;
                     reach = kernelR + len;
-                } else { // 'stop'
+                } else {
+                    // 'stop'
                     material = 'stub';
                     amount = 0;
                     // NO tool-radius allowance: the window ends at the
@@ -338,13 +330,12 @@
                 }
                 return { mode: m, mm: amount, material, reach };
             };
-
             return {
                 holdingMode,
                 coreRadius: p.rotaryMinRadius ?? 2,
                 ends: {
                     chuck: end(p.rotaryChuckEndMode, p.rotaryChuckEndMm),
-                    tail:  end(p.rotaryTailEndMode,  p.rotaryTailEndMm)
+                    tail: end(p.rotaryTailEndMode, p.rotaryTailEndMm)
                 }
             };
         },
@@ -445,9 +436,9 @@
     // so the per-face extremes can be accumulated alongside the bounds
     // that define the centre, instead of in a second pass after it.
     //
-    // Nothing here returns a sentinel. Infinity (blankCircumRadius) and
-    // null (facetHalfWidth) both used to escape into `> 0` tests
-    // downstream and read as "disabled".
+    // Nothing here returns a sentinel: Infinity (blankCircumRadius) or
+    // null (facetHalfWidth) escapes into `> 0` tests downstream and reads
+    // as "disabled".
     // ════════════════════════════════════════════════════════════════
     const IndexedBlank = {
 

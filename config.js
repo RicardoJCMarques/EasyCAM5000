@@ -15,8 +15,7 @@
  *   config.constants - Frozen at runtime (Object.freeze). Algorithmic thresholds,
  *                      format specs, engine limits, UI schema. Never saved or exported.
  *   config.defaults  - Factory-reset values for all user-facing settings. Cloned by
- *                      SettingsManager on startup, overridable via JSON import.
- *   config.*()       - Helper methods (root level, read from both sections).
+ *                      CamCore.loadSettings which merges saved settings over the clone.
  */
 
 // `window` does not exist in a Web Worker. field-worker.js does NOT load this
@@ -24,15 +23,6 @@
 // payload as self.CAMConfig before importScripts, so the worker-clean modules
 // bind to a live object. The deep-freeze tail below resolves via globalThis.
 (typeof self !== 'undefined' ? self : window).CAMConfig = {
-
-
-    // ╔═══════════════════════════════════════════════════════════════════════╗
-    // ║  ASSET PATHS                                                          ║
-    // ╚═══════════════════════════════════════════════════════════════════════╝
-    // REVIEW - field-worker likely won't change places, why keep this here?
-    paths: {
-        fieldWorker: '../geometry/field-worker.js'
-    },
 
     // ╔═══════════════════════════════════════════════════════════════════════╗
     // ║ MACHINE PARAMETERS                                                    ║
@@ -99,9 +89,9 @@
     },
 
     // ╔═══════════════════════════════════════════════════════════════════════╗
-    // ║  CONSTANTS                                                            ║
-    // ║  Frozen at runtime. Changing these breaks math, crashes WASM, or      ║
-    // ║  violates file format specs. Never persisted, exported, or imported.  ║
+    // ║ CONSTANTS                                                             ║
+    // ║ Frozen at runtime. Changing these breaks math, crashes WASM, or       ║
+    // ║ violates file format specs. Never persisted, exported, or imported.   ║
     // ╚═══════════════════════════════════════════════════════════════════════╝
     constants: {
 
@@ -115,8 +105,7 @@
         // ====================================================================
         precision: {
             epsilon: 1e-9, // Floating-point near-zero. Guard divisions, cross-product zero checks.
-            collinear: 1e-12, // Stricter near-zero for geometric collinearity where even tiny deviations matter.
-            coordinate: 0.001, // Coordinate quantization grid. All coordinates snap to this resolution.
+            coordinate: 0.001, // Coordinate tolerance (mm): closer than this is the same point. Booleans quantize separately, at 1/clipper2scale.
             rdpSimplification: 1e-4, // 2D polyline RDP tolerance.
             scalarField: 1e-4 // Height/radius comparison threshold for Float32 terrain fields.
         },
@@ -125,7 +114,7 @@
         // 4TH AXIS
         // ====================================================================
         rotary: {
-            // ── Generator tuning (ships in genOptions.tuning) ──
+            // ── Generator tuning (read as constants.rotary) ──
             edgeRunCells: 2, // Consecutive covered cells before a row's inward scan calls it the model edge. Rejects single-cell pinholes without trimming genuinely thin tips.
             minRadiusClip: 0.01, // Smallest radius any radial target holds.
             stubDefaultMm: 0.5, // Drive core radius when none is resolved.
@@ -245,28 +234,12 @@
             excellon: {
                 defaultFormat: { integer: 2, decimal: 4 },
                 defaultUnits: 'mm',
-                defaultToolDiameter: 1.0,
-                minToolDiameter: 0.1,
-                maxToolDiameter: 10.0,
                 toolKeyPadding: 2
             },
             gerber: {
                 defaultFormat: { integer: 3, decimal: 3 },
                 defaultUnits: 'mm',
-                defaultAperture: 0.1,
-                minAperture: 0.01,
-                maxAperture: 10.0
-            },
-            svg: {
-                defaultStyles: {
-                    fill: 'black',
-                    fillOpacity: 1.0,
-                    stroke: 'none',
-                    strokeWidth: 1.0,
-                    strokeOpacity: 1.0,
-                    display: 'inline',
-                    visibility: 'visible'
-                }
+                defaultAperture: 0.1
             }
         },
 
@@ -281,7 +254,6 @@
             lodThreshold: 1,
             zoom: {
                 fitPadding: 1.1,
-                fitPaddingWithOrigin: 1.35,
                 factor: 1.2,
                 min: 0.01,
                 max: 3000
@@ -292,38 +264,24 @@
                 defaultScale: 10
             },
             overlay: {
-                gridLineWidth: 0.1,
                 originStrokeWidth: 3,
                 originOutlineWidth: 1,
                 boundsLineWidth: 1,
                 boundsDash: [2, 2],
                 boundsMarkerSize: 5,
                 boundsMarkerWidth: 2,
-                rulerLineWidth: 1,
                 rulerFont: '11px Arial',
                 rulerCornerFont: '9px Arial',
                 rulerCornerText: 'mm',
-                rulerMinPixelStep: 50,
-                rulerAlpha: 'CC',   // ruler backdrop opacity, hex 00-FF
+                rulerAlpha: 'CC', // ruler backdrop opacity, hex 00-FF
                 scaleIndicatorPadding: 10,
-                scaleIndicatorBarHeight: 4,
                 scaleIndicatorYOffset: 20,
-                scaleIndicatorTargetPixels: 100,
                 scaleIndicatorMinPixels: 50,
-                scaleIndicatorEndCapWidth: 2,
-                scaleIndicatorEndCapHeight: 4,
-                scaleIndicatorFont: '11px Arial',
                 statsX: 10,
                 statsY: 50,
                 statsLineHeight: 16,
                 statsBGWidth: 200,
                 statsFont: '12px monospace'
-            },
-            interaction: {
-                cursorGrabbing: 'grabbing',
-                cursorGrab: 'grab',
-                coordPrecision: 2,
-                zoomPrecision: 0
             },
             primitives: {
                 offsetStrokeWidth: 1,
@@ -336,11 +294,9 @@
                 peckMarkMarkRatio: 0.4,
                 peckMarkDash: [0.15, 0.15],
                 peckMarkRingFactor: 1.3,
-                peckMarkLabelOffset: 0.3,
                 reconstructedStrokeWidth: 2,
                 reconstructedCenterSize: 2,
                 reconstructedPathDash: [5, 5],
-                defaultStrokeWidth: 0.1,
                 debugPointSize: 4,
                 debugFont: '11px monospace',
                 debugLabelLineWidth: 2,
@@ -357,17 +313,13 @@
         storageKeys: {
             // Shared across all apps on this domain
             theme: 'cam-theme',
-            machine: 'cam-machine-settings',
-
             // App-specific - call with app name from profile
-            // e.g. storageKeys.forApp('easyshape5000').parameters
+            // e.g. storageKeys.forApp('easyshape5000').settings
             forApp: function(appName) {
                 const prefix = appName.toLowerCase().replace(/[^a-z0-9]/g, '');
                 return {
                     settings: `${prefix}-settings`,
-                    parameters: `${prefix}-parameters`,
-                    pipeline: `${prefix}-pipeline`,
-                    hideWelcome: `${prefix}-hide-welcome`
+                    hideWelcome: `${prefix}-hide-welcome`,
                 };
             },
         },
@@ -376,14 +328,13 @@
 
 
     // ╔═══════════════════════════════════════════════════════════════════════╗
-    // ║  DEFAULTS                                                             ║
-    // ║  Factory-reset values for all user-facing settings. SettingsManager   ║
-    // ║  deep-clones this on startup, then merges localStorage and any        ║
-    // ║  imported JSON over the clone. A bad value here produces suboptimal   ║
-    // ║  but recoverable results - it never crashes the engine.               ║
+    // ║ DEFAULTS                                                              ║
+    // ║ Factory-reset values for all user-facing settings.                    ║
+    // ║ CamCore.loadSettings deep-clones them at startup and merges the saved ║
+    // ║ settings over the clone. A bad value here produces suboptimal but     ║
+    // ║ recoverable results - it never crashes the engine.                    ║
     // ╚═══════════════════════════════════════════════════════════════════════╝
     defaults: {
-        // REVIEW - Is this really necessary? Seems like an over complication?
         pipeline: { machineClass: 'router', classByType: null },
 
         // ====================================================================
@@ -409,7 +360,6 @@
         // each registered post-processor and laser profile - the device owns
         // its own settings, so adding one must not need an edit here. The empty
         // objects are the roots setSetting writes into.
-        // REVIEW - Why not default these next to setSetting directly?
         processorSettings: {},
         laserSettings: {},
 
@@ -432,15 +382,18 @@
         // ====================================================================
         // LASER PIPELINE
         // ====================================================================
+        // Root only: laser.* machine settings come from machineParameters, and
+        // per-type laser defaults from each operation's profile entry.
         laser: {
-        // Global Machine & Pipeline Settings
-            // Operation-Specific Overrides
-            operations: {
-                isolation: { laserIsolationWidth: 0.4, laserStepOver: 10, laserClearStrategy: 'offset', laserHatchAngle: 0 },
-                clearing: { laserClearingPadding: 1.0, laserStepOver: 10, laserClearStrategy: 'offset', laserHatchAngle: 0 },
-                cutout: { laserCutSide: 'outside' },
-                drill:  { laserCutSide: 'inside' }
-            }
+        // REVIEW - Make sure the new logic for laser defaults applies these values properly
+        // // Global Machine & Pipeline Settings
+        //     // Operation-Specific Overrides
+        //     operations: {
+        //         isolation: { laserIsolationWidth: 0.4, laserStepOver: 10, laserClearStrategy: 'offset', laserHatchAngle: 0 },
+        //         clearing: { laserClearingPadding: 1.0, laserStepOver: 10, laserClearStrategy: 'offset', laserHatchAngle: 0 },
+        //         cutout: { laserCutSide: 'outside' },
+        //         drill:  { laserCutSide: 'inside' }
+        //     }
         },
 
         // ====================================================================
@@ -449,9 +402,6 @@
         geometry: {
             decimals: {
                 coordinates: 3
-            },
-            offsetting: {
-                miterLimit: 2.0
             }
         },
 
@@ -466,7 +416,6 @@
                         pitch: 0.5,
                         segmentsPerRevolution: 16
                     },
-                    // REVIEW - MachineProcessor tries to look up context.strategy.entryRampAngle? Disconnected for now anyway
                     ramp: {
                         defaultAngle: 10,
                         shallowDepthFactor: 0.1
@@ -545,14 +494,7 @@
         export: {
             defaultBaseName: 'pcb-output',
             svg: {
-                padding: 5,
-                includeMetadata: true,
-                useViewBox: true,
-                embedStyles: true,
-                styles: {
-                    wireframeStrokeWidth: 0.05,
-                    cutoutStrokeWidth: 0.1
-                }
+                padding: 5
             }
         },
 
@@ -583,8 +525,7 @@
             },
             // 3D preview (renderer3d/*). Those modules are ESM and
             // dynamically imported, so they read window.CAMConfig at module
-            // load with this value duplicated as an inline fallback - keep
-            // the two in sync the same way the worker-clean modules do.
+            // load with this value.
             preview3D: {
                 // mm per chord when linearizing an arc command or wrapping a
                 // developed rotary segment. Preview fidelity and simulator
@@ -593,12 +534,13 @@
                 // Max deviation from the true arc, mm. Baked line geometry
                 // cannot re-flatten on zoom the way ctx.arc() does, so this
                 // is what stops circles reading as polygons when zoomed in.
-                arcSagitta: 0.02
+                arcSagitta: 0.02,
+                // WebGPURenderer construction.
+                antialias: true,
+                forceWebGL: false // Force Three's WebGL2 rendering pipeline instead of WebGPU
             },
             canvas: {
                 defaultZoom: 10,
-                zoomStep: 1.2,
-                panSensitivity: 1.0,
                 wheelZoomSpeed: 0.002,
                 rulerSize: 20,
                 rulerTickLength: 5,
@@ -668,16 +610,11 @@
 
             timing: {
                 statusMessageDuration: 5000,
-                modalAnimationDuration: 300,
-                inputDebounceDelay: 300,
-                renderThrottle: 16,
-                propertyDebounce: 500,
-                uiTransitionDelay: 125
+                propertyDebounce: 500
             },
 
             tooltips: {
                 enabled: true,
-                positionPadding: 8,
                 delayShow: 300,
                 delayHide: 150
             },
@@ -689,32 +626,9 @@
         // DEBUG & DEVELOPMENT
         // ====================================================================
         debug: {
-            enabled: false,
-            // REVIEW - Many are disconnected? Worth connecting?
-            logging: {
-                operations: false,
-                toolpaths: false,
-                rendering: false,
-                interactions: false,
-                cache: false
-            },
-            visualization: {
-                // REVIEW - Disconnected? Worth connecting?
-                showBounds: false,
-                showStats: false,
-            }
+            enabled: false
         }
-    },
-
-
-    // ╔═══════════════════════════════════════════════════════════════════════╗
-    // ║  HELPER METHODS                                                       ║
-    // ║  Use explicit CAMConfig reference instead of 'this' to prevent        ║
-    // ║  context loss if a module destructures the method off the object.     ║
-    // ╚═══════════════════════════════════════════════════════════════════════╝
-
-    // Currently empty
-
+    }
 };
 
 
@@ -722,8 +636,8 @@
 // RUNTIME FREEZE
 //
 // Deep-freeze the constants subtree. Accidental mutation throws in strict mode
-// and silently fails in sloppy mode. Defaults are left mutable because
-// SettingsManager clones and overrides them at startup.
+// and silently fails in sloppy mode. Defaults stay mutable: the debug toggle
+// writes D.debug.enabled at runtime, and CamCore.loadSettings works on a clone.
 //
 // Uses globalThis for cross-environment compatibility (browser + Node/test).
 // ════════════════════════════════════════════════════════════════════════════

@@ -1,5 +1,5 @@
 /*!
- * @file        figures.js
+ * @file        images/figures.js
  * @description Inlines standalone SVG files so they inherit the page theme
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
@@ -26,7 +26,9 @@
 (function () {
     'use strict';
 
-    const DEFAULT_BASE = '../../images/doc/';
+    // fetch() resolves against the PAGE, not this file. currentScript is only
+    // set while this file's top level runs, so the base is captured here.
+    const DEFAULT_BASE = new URL('doc/', document.currentScript.src).href;
     const SELECTOR = '[data-figure]';
 
     /**
@@ -59,7 +61,7 @@
             if (!svg || doc.querySelector("parsererror")) throw new Error("not a valid SVG");
             svg.removeAttribute("width");
             svg.removeAttribute("height");
-            host.appendChild(sanitize(document.importNode(svg, !0)));
+            host.appendChild(sanitize(document.importNode(svg, true)));
             host.removeAttribute("data-figure-pending");
         } catch (error) {
             host.setAttribute("data-figure-failed", "");

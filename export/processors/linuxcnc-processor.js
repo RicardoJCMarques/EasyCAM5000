@@ -16,7 +16,7 @@
     class LinuxCNCPostProcessor extends BasePostProcessor {
         constructor() {
             super('LinuxCNC', {
-                label: 'LinuxCNC (Experimental)',
+                label: 'LinuxCNC (Less Experimental)',
                 fileExtension: '.ngc',
                 supportsToolChange: true,
                 supportsArcCommands: true,

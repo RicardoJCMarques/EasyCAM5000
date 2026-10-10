@@ -83,7 +83,6 @@
             // init positioning and the final retract have to clear the swept
             // corner. Per-face traverses do not (see the 3D branch);
             // insertIndexMoves owns the rotation height.
-            // REVIEW - Is this comment appropriate? Outdated or wrong?
             const indexedBatch = toolpathPlans.filter(p => p.metadata?.indexedA != null);
             const indexedCornerZ = indexedBatch.length > 0
                 ? Math.max(0, (indexedBatch[0].metadata.indexedClearRadius || 0) -
@@ -516,7 +515,14 @@
             // (drill peck marks, one per hole diameter) are left alone and
             // still hand their tool to the moves that lead into them.
             if (context.tool) {
-                let pendingTool = context.tool;
+                let lastCuttingTool = null;
+                for (let i = machineReadyPlans.length - 1; i >= 0; i--) {
+                    if (machineReadyPlans[i].metadata?.tool) {
+                        lastCuttingTool = machineReadyPlans[i].metadata.tool;
+                        break;
+                    }
+                }
+                let pendingTool = lastCuttingTool || context.tool;
                 for (let i = machineReadyPlans.length - 1; i >= 0; i--) {
                     const md = machineReadyPlans[i].metadata;
                     if (md.tool) pendingTool = md.tool;
@@ -686,10 +692,10 @@
             const surfaceZ = this.context.machine.surfaceZ || 0;
             plan.addLinear(null, null, surfaceZ, plungeRate);
 
-            const rampAngle = this.context.strategy.entryRampAngle;
+            const rampAngle = this.context.config.entry.ramp.defaultAngle;
             const rampSlope = Math.tan(rampAngle * Math.PI / 180);
             const rampLength = Math.abs(targetDepth) / rampSlope;
-            const shallowDepth = targetDepth * 0.1;
+            const shallowDepth = this.context.config.entry.ramp.shallowDepthFactor;
 
             if (purePlan.metadata.primitiveType === 'path' && purePlan.commands && purePlan.commands.length > 2) {
                 let accumulatedLength = 0;
@@ -1042,14 +1048,14 @@
 
             // Single-ring shortcut
             if (rings.length === 1 && useHelix) {
-                this.helixDownObround(machinePlan, innerRing, surfaceZ, finalDepth, plungeRate, feedRate, toolDiameter, arcCW);
+                this.helixDownObround(machinePlan, innerRing, surfaceZ, finalDepth, feedRate, toolDiameter, arcCW);
                 this.obroundLoopAtDepth(machinePlan, innerRing, finalDepth, feedRate, arcCW);
             } else {
                 // Multi-ring depth-staged loop
                 for (let d = 0; d < depthLevels.length; d++) {
                     const targetZ = depthLevels[d];
                     if (useHelix) {
-                        this.helixDownObround(machinePlan, innerRing, currentZ, targetZ, plungeRate, feedRate, toolDiameter, arcCW);
+                        this.helixDownObround(machinePlan, innerRing, currentZ, targetZ, feedRate, toolDiameter, arcCW);
                     } else {
                         machinePlan.addLinear(innerEntry.x, innerEntry.y, targetZ, plungeRate);
                     }
@@ -1081,7 +1087,7 @@
          * Helical descent along an obround ring between two Z levels.
          * Z change is distributed across the two cap arcs; linear segments stay flat.
          */
-        helixDownObround(machinePlan, ring, fromZ, toZ, plungeRate, feedRate, toolDiameter, arcCW) {
+        helixDownObround(machinePlan, ring, fromZ, toZ, feedRate, toolDiameter, arcCW) {
             const deltaZ = Math.abs(toZ - fromZ);
             if (deltaZ < 1e-6) return;
 
@@ -1161,7 +1167,7 @@
             machinePlan.addRapid(entryPt.x, entryPt.y, null);
             machinePlan.addLinear(entryPt.x, entryPt.y, surfaceZ, plungeRate);
 
-            this.helixDownObround(machinePlan, od, surfaceZ, finalDepth, plungeRate, feedRate, toolDiameter, arcCW);
+            this.helixDownObround(machinePlan, od, surfaceZ, finalDepth, feedRate, toolDiameter, arcCW);
             this.obroundLoopAtDepth(machinePlan, od, finalDepth, feedRate, arcCW);
 
             machinePlan.addRetract(this.context.machine.travelZ);
@@ -1272,7 +1278,7 @@
             // shape-indexed-handler.js. Destination (config vs user-
             // exposed) decided after bench.
             const ANGLE_EPS_DEG = 1e-6;
-            const INDEX_CLEAR_MM = C.rotary.indexClearance;;   // gap above the swept corner
+            const INDEX_CLEAR_MM = C.rotary.indexClearance; // gap above the swept corner
 
             const indexed = plans.filter(p => p.metadata?.indexedA != null);
             if (indexed.length === 0) return 0;

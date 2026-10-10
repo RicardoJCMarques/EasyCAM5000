@@ -32,8 +32,6 @@
         onPointerMove(data, ctx) { return false; }
         onPointerUp(data, ctx)   { return false; }
         onWheel(data, ctx)       { return false; }
-        onKeyDown(data, ctx)     { return false; }
-        onKeyUp(data, ctx)       { return false; }
         getOverlayState(ctx)     { return null; }
     }
 

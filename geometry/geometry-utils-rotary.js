@@ -29,7 +29,7 @@
     'use strict';
 
     const ROOT = (typeof self !== 'undefined') ? self : window;
-    const debugState = ROOT.CAMConfig?.defaults?.debug || { enabled: false };
+    const debugState = ROOT.CAMConfig.defaults.debug;
 
     const RotaryGenerator = {
 
@@ -52,15 +52,10 @@
          *        finishes as a sandable nib.
          * @param {string} [o.stockShape]                - 'square' → roughing
          *        starts at the corner radius refR·√2 and turns the stock round.
-         * @param {Object}  o.tuning                     - REQUIRED
-         *        Unused since the worker gained CAMConfig - the generator
-         *        reads constants.rotary directly. Kept for direct API
-         *        callers that want to override edgeRunCells / minRadiusClip
-         *        / stubDefaultMm.
          * @param {Object}  o.ends                       - REQUIRED, per-end
          *        policy from resolveWorkholding:
          *        { chuck: { mode, mm, material, reach }, tail: {...} }.
-         *        material 'stub' | 'lip' | 'free'; reach is the mm the tool
+         *        material 'stub' | 'rollover' | 'free'; reach is the mm the tool
          *        CENTRE may pass the model edge and is RESOLVER-OWNED -
          *        never re-floored here.
          * @param {boolean}[o.roughing=true], [o.finishing=true]
@@ -83,7 +78,6 @@
                 (cm.meta.warnings || (cm.meta.warnings = [])).push(msg);
             };
 
-            // REVIEW - all of these checks to CAMConfig should just be setup before the classes.
             const T = ROOT.CAMConfig.constants.rotary;
             const ends = o.ends;
             if (!ends?.chuck || !ends?.tail) {
@@ -150,9 +144,9 @@
                 return [];
             }
 
-            // Every non-lip end lands ON the stub: stop's window ends
-            // against it, free falls to it (waste fill = stubR).
-            const formsStub = (e) => e.material !== 'lip';
+            // Every non-rollover end lands ON the stub against it, free
+            // falls to it (waste fill = stubR).
+            const formsStub = e => e.material !== 'rollover';
             if ((formsStub(ends.chuck) || formsStub(ends.tail)) && stubR < cutR - 1e-9) {
                 warn(`Drive stub radius ${stubR.toFixed(2)}mm is below the tool's ` +
                     `reach ${cutR.toFixed(2)}mm - the stub is formed as the tool's ` +
@@ -164,12 +158,12 @@
             // explicit depth (or a mesh that is actually round about the
             // axis), not compute.
             if (!(o.totalDepth > 0) && depthFloorR <= Math.max(stubR * 2, refR * 0.05)) {
-                const msg = `Auto carve depth reaches near the centerline ` +
+                warn(
+                    `Auto carve depth reaches near the centerline ` +
                     `(floor R=${depthFloorR.toFixed(2)}mm of blank R=${refR.toFixed(2)}mm) - ` +
                     `set an explicit rotary depth; generation slows sharply near the ` +
-                    `axis and the mesh may not be round about it.`;
-                console.warn(`[RotaryGenerator] ${msg}`);
-                warn(msg);
+                    `axis and the mesh may not be round about it.`
+                );
             }
 
             const space = ROOT.FieldSpace.cylindrical(cm, { minValue: T.minRadiusClip });
@@ -184,10 +178,10 @@
                 // The drive stub is a PHYSICAL floor for every cell, not
                 // just for waste. Step 2's lip zones are exempt from the
                 // depth-window floor by design (a lip is a cut past the
-                // edge) and clamp only at tuning.minRadiusClip, so a
-                // rollover end deeper than (edgeR - stubR) writes a target
-                // below the core and the tool drives into the part the
-                // chuck is gripping. It also drags deepestFrom:'target'
+                // edge) and clamp only at constants.rotary..minRadiusClip,
+                // so a rollover end deeper than (edgeR - stubR) writes a
+                // target below the core and the tool drives into the part
+                // the chuck is gripping. It also drags deepestFrom:'target'
                 // down to 0.01mm, which opens the compensator's angular
                 // window to a quarter turn.
                 // No-op for 'stop' and 'free' ends - their waste is
@@ -270,11 +264,11 @@
          *
          * 'spiral' - one continuous helix: single entry, no stepover witness
          *   lines, A-axis continuity by construction. Closing revolutions go
-         *   at the MODEL EDGE as well as the window edge: with a 'lip' end
-         *   the window runs a full tool diameter past the part, so a ring out
-         *   there rides the lip flat while the model's own base edge - the
-         *   line the job is parted on - keeps the helix crossing it at the
-         *   spiral angle.
+         *   at the MODEL EDGE as well as the window edge: with a 'rollover'
+         *   end the window runs a full tool diameter past the part, so a ring
+         *   out there rides the lip flat while the model's own base edge -
+         *   the line the job is parted on - keeps the helix crossing it at
+         *   the spiral angle.
          * 'along'  - lines are θ positions, samples sweep the axis. An
          *   in-surface connector here would be a full-depth sweep around the
          *   part, so splitLines is mandatory; the 3D macro hop-links.

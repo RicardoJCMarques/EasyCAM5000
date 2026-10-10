@@ -12,7 +12,6 @@
 (function() {
     'use strict';
 
-    const C = window.CAMConfig.constants;
     const D = window.CAMConfig.defaults;
     const debugState = D.debug;
 
@@ -22,29 +21,18 @@
          * kept as a second name for it only because this file reads it ~40 times
          * and the shorter name is what the drawing code was written against.
          */
-        // REVIEW - Use shorter names in more places?
         constructor(renderer) {
             this.renderer = renderer;
             this.svgNS = 'http://www.w3.org/2000/svg';
 
-            // REVIEW - Check these fallbacks, are they dead/useless?
             this.options = {
                 decimals: 3,
-                padding: D.export.svg.padding ?? 5,
-                includeMetadata: D.export.svg.includeMetadata ?? true,
-                useViewBox: D.export.svg.useViewBox ?? true,
-                embedStyles: D.export.svg.embedStyles ?? true
+                padding: D.export.svg.padding
             };
         }
 
         // Color System
-        /**
-         * Export palette, resolved from RendererCore's theme cache. `source`
-         * and `geometry` were previously read off an object that never had
-         * them, so eight colours were pinned to these fallbacks in both
-         * themes. Fallbacks now exist only for a renderer that has not
-         * resolved yet - they are not a second palette.
-         */
+        /** Export palette from RendererCore's resolved theme colours. */
         getColors() {
             const c = this.renderer.colors;
             const src = c.source;
@@ -73,7 +61,6 @@
         /**
          * Get status color based on tool relation
          */
-        // REVIEW - Isn't this duplicated somewhere?
         getStatusColor(toolRelation) {
             const colors = this.getColors();
             return window.resolveToolRelationColor(toolRelation, {
@@ -135,29 +122,19 @@
             return { geometryColor, geometryFill, markColor };
         }
 
+        
         // Main Export
-        exportCanvasSVG(options = {}) {
-            const exportConfig = { ...this.options, ...options };
-            const filename = exportConfig.filename || 'EasyCAM5000-CanvasContents.svg';
-
+        /** Serialized SVG of the visible layers, or null when the canvas is empty. */
+        buildCanvasSVG() {
+            const config = this.options;
             this.renderer.calculateOverallBounds();
             const bounds = this.renderer.bounds;
-
-            if (!bounds || !isFinite(bounds.width)) {
-                console.warn('[CanvasExporter] No content to export');
-                return null;
-            }
-
-            const svg = this.createSVGRoot(bounds, exportConfig);
-            // Unconditionally append the canvas export comment
+            if (!bounds || !isFinite(bounds.width)) return null;
+            const svg = this.createSVGRoot(bounds, config);
             svg.appendChild(this.createExportComment());
-            // REVIEW - is the if (exportConfig.embedStyles) check doing anything or can it be removed?
-            if (exportConfig.embedStyles) svg.appendChild(this.createDefs());
-
-            const mainGroup = this.createMainGroup(exportConfig);
-            svg.appendChild(mainGroup);
-
-            return this.serializeAndDownload(svg, filename);
+            svg.appendChild(this.createDefs());
+            svg.appendChild(this.createMainGroup(config));
+            return '<?xml version="1.0" encoding="UTF-8"?>\n' + new XMLSerializer().serializeToString(svg);
         }
 
         createExportComment() {
@@ -178,10 +155,8 @@
             svg.setAttribute('width', `${fmt(w)}mm`);
             svg.setAttribute('height', `${fmt(h)}mm`);
 
-            if (config.useViewBox) {
-                const viewY = -(bounds.maxY + p);
-                svg.setAttribute('viewBox', `${fmt(bounds.minX - p)} ${fmt(viewY)} ${fmt(w)} ${fmt(h)}`);
-            }
+            const viewY = -(bounds.maxY + p);
+            svg.setAttribute('viewBox', `${fmt(bounds.minX - p)} ${fmt(viewY)} ${fmt(w)} ${fmt(h)}`);
             return svg;
         }
 
@@ -470,8 +445,8 @@
             const props = primitive.properties || {};
             const colors = this.getColors();
 
-            // Get Unified Colors // REVIEW - geometryFill: geometryFill is useless?
-            const {geometryColor: geometryColor, geometryFill: geometryFill, markColor: markColor } = this.getDrillElementColors(primitive, layer);
+            // Get Unified Colors
+            const { geometryColor, markColor } = this.getDrillElementColors(primitive, layer);
 
             // State Flags
             const isPreview = layer.isPreview || "preview" === layer.type;
@@ -529,7 +504,7 @@
 
             } else {
                 // Fallback for complex paths
-                const pathData = this.buildPathData(primitive, prec, config);
+                const pathData = this.buildPathData(primitive, prec);
                 if (pathData) {
                     mainEl = document.createElementNS(this.svgNS, 'path');
                     mainEl.setAttribute('d', pathData);
@@ -614,7 +589,7 @@
                 case 'arc':
                 case 'bezier': 
                     el = document.createElementNS(this.svgNS, 'path');
-                    const pathData = this.buildPathData(primitive, prec, config);
+                    const pathData = this.buildPathData(primitive, prec);
                     if (!pathData) return null;
                     el.setAttribute('d', pathData);
                     if (primitive.contours?.some(c => c.isHole)) {
@@ -677,7 +652,7 @@
         }
 
         // Path Data Building
-        buildPathData(prim, prec, config) {
+        buildPathData(prim, prec) {
             if (prim.type === 'obround') return this.obroundToD(prim, prec);
             if (prim.type === 'arc') return this.arcToD(prim, prec);
             if (!prim.contours?.length) return '';
@@ -821,28 +796,9 @@
 
         // Utilities
 
-        serializeAndDownload(svg, filename) {
-            const serializer = new XMLSerializer();
-            const svgString = '<?xml version="1.0" encoding="UTF-8"?>\n' + serializer.serializeToString(svg);
-            this.downloadSVG(svgString, filename);
-            return svgString;
-        }
-
         formatNumber(value, precision) {
             const s = parseFloat(value.toFixed(precision)).toString();
             return s.startsWith('0.') ? s.substring(1) : (s.startsWith('-0.') ? '-' + s.substring(2) : s);
-        }
-
-        downloadSVG(svgString, filename) {
-            const blob = new Blob([svgString], { type: 'image/svg+xml' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = filename;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            setTimeout(() => URL.revokeObjectURL(url), 5000);
         }
 
         debug(message) {

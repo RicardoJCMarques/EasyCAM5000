@@ -88,7 +88,7 @@ Row buttons are reachable by their shortcut key rather than by `Tab`, so a hundr
 
 ### Operations Panel (Left Sidebar, lower panel)
 
-Each operation is a bucket. Its header is a tree item, and every artifact it has produced — Offsets, Preview, Toolpaths — is a child tree item with its own visibility toggle.
+Each operation is a bucket. Its header is a tree item, and every artifact it has produced - Offsets, Preview, Toolpaths - is a child tree item with its own visibility toggle.
 
 | Key | Action |
 | :--- | :--- |
@@ -147,7 +147,7 @@ The camera is fully keyboard-operable once the viewport has focus. Press `F2` to
 | `Home` / `F` | Fit the model to the view |
 | `F2` | Return to the 2D canvas |
 
-The viewport is exposed as a labelled region so its purpose and its key bindings are announced on entry. What it does not yet have is a text equivalent of what it draws — see [Known Limitations](#known-limitations).
+The viewport is exposed as a labelled region so its purpose and its key bindings are announced on entry. What it does not yet have is a text equivalent of what it draws - see [Known Limitations](#known-limitations).
 
 ---
 
@@ -226,7 +226,7 @@ EasyShape5000 targets **WCAG 2.1 Level AA** compliance. While the application is
 | **1.3.2** | Meaningful Sequence | ✓ | DOM order matches the visual layout; focus order flows logically through sidebars and canvas. |
 | **1.4.1** | Use of Color | ✓ | Invalidated stages carry a strikethrough and hidden text alongside the colour change; status messages use text labels as well as colour. |
 | **1.4.13**| Content on Hover/Focus| ✓ | Tooltips are persistent on focus, hoverable, dismissible with `Escape`, and do not obscure active content. |
-| **2.1.1** | Keyboard | ✓ | All interactive elements — buttons, inputs, both trees, the 2D canvas and the 3D camera — are keyboard accessible. |
+| **2.1.1** | Keyboard | ✓ | All interactive elements - buttons, inputs, both trees, the 2D canvas and the 3D camera - are keyboard accessible. |
 | **2.1.2** | No Keyboard Trap | ✓ | Modal dialogs trap focus intentionally while open but release it correctly upon closing. |
 | **2.1.4** | Character Key Shortcuts| ✓ | Single-key shortcuts are scoped to the region that owns them and are disabled entirely inside forms and text entry. |
 | **2.2.2** | Pause, Stop, Hide | ✓ | No content moves or auto-updates indefinitely; motion is suppressed under `prefers-reduced-motion`. |
@@ -247,7 +247,7 @@ EasyShape5000 targets **WCAG 2.1 Level AA** compliance. While the application is
 
 | Guideline | Description | Status | Notes |
 |-----------|-------------|--------|-------|
-| **1.1.1** | Non-text Content (3D view) | Partial | The 3D view is a WebGPU canvas with no non-visual equivalent. A text readout of toolpath metrics on each stage node — depth range, bounding box, pass count, travel distance, estimated time — is planned and matters more here than in EasyTrace5000, because three operation types render only in 3D. |
+| **1.1.1** | Non-text Content (3D view) | Partial | The 3D view is a WebGPU canvas with no non-visual equivalent. A text readout of toolpath metrics on each stage node - depth range, bounding box, pass count, travel distance, estimated time - is planned and matters more here than in EasyTrace5000, because three operation types render only in 3D. |
 | **1.4.3** | Contrast (Minimum) | Partial | Most default text meets 4.5:1, but some secondary and hint text in both themes does not. Dedicated high-contrast themes are in development. |
 | **1.4.10**| Reflow | Partial | The workspace is laid out for a landscape viewport and does not reflow to a single column; below roughly 768 CSS pixels a warning bar appears instead. Because browser zoom narrows the viewport as it magnifies, this is reached at high zoom on a wide display. Collapsible side panels are planned. In the meantime, text-only zoom or operating-system display scaling magnifies without narrowing the viewport. |
 | **1.4.11**| Non-text Contrast | Partial | Some UI borders and disabled states in the default themes may fall below 3:1. |

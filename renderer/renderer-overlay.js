@@ -205,9 +205,8 @@
             // Hex-only concatenation broke on any non-hex palette value, and
             // the palette already carries rgba() for the scrims. Composition
             // alpha belongs on the context, not glued onto a colour string.
-            // REVIEW - is this commentary necessary? Only stencil geometry fill has inherent transparancy.
             this.ctx.save();
-            this.ctx.globalAlpha = parseInt(overlayConfig.rulerAlpha ?? 'CC', 16) / 255;
+            this.ctx.globalAlpha = parseInt(overlayConfig.rulerAlpha, 16) / 255;
             this.ctx.fillStyle = colors.background;
             this.ctx.fillRect(0, 0, this.canvas.width, rulerSize);
             this.ctx.fillRect(0, 0, rulerSize, this.canvas.height);
@@ -311,13 +310,13 @@
             this.ctx.textBaseline = 'middle';
 
             // Parse the corner font settings too if present, or scale default
-            const cornerFont = overlayConfig.rulerCornerFont || '9px Arial';
+            const cornerFont = overlayConfig.rulerCornerFont;
             const cornerMatch = cornerFont.match(/(\d+)px/);
             const cornerSize = (cornerMatch ? parseInt(cornerMatch[1]) : 9) * uiScale;
 
             this.ctx.font = `${cornerSize}px system-ui, sans-serif`;
 
-            const unitText = overlayConfig.rulerCornerText || 'mm';
+            const unitText = overlayConfig.rulerCornerText;
             this.ctx.fillText(unitText, rulerSize/2, rulerSize/2);
         }
 
@@ -335,16 +334,16 @@
                 return;
             }
 
-            const uiScale = this.core.devicePixelRatio || 1;
+            const uiScale = this.core.devicePixelRatio;
 
             // Dimensions
-            const padding = (overlayConfig.scaleIndicatorPadding || 10) * uiScale;
+            const padding = (overlayConfig.scaleIndicatorPadding) * uiScale;
             const barHeight = 2 * uiScale; 
             const capHeight = 8 * uiScale; 
             const capWidth = 1 * uiScale; 
 
-            const yOffset = (overlayConfig.scaleIndicatorYOffset || 25) * uiScale;
-            const minPixels = (overlayConfig.scaleIndicatorMinPixels || 100) * uiScale;
+            const yOffset = (overlayConfig.scaleIndicatorYOffset) * uiScale;
+            const minPixels = (overlayConfig.scaleIndicatorMinPixels) * uiScale;
 
             const y = this.canvas.height - padding - yOffset;
 
@@ -477,7 +476,7 @@
 
             // Text
             this.ctx.fillStyle = colors.rulerText;
-            this.ctx.font = overlayConfig.statsFont || '12px monospace';
+            this.ctx.font = overlayConfig.statsFont;
             this.ctx.textAlign = 'left';
             this.ctx.textBaseline = 'top';
 

@@ -113,7 +113,7 @@ body:
       label: Console Logs
       description: |
         Press **F12**, open the **Console** tab, and run the line for your app:
-        `enableTraceDebug()` — EasyTrace5000
-        `enableShapeDebug()` — EasyShape5000
+        `enableTraceDebug()` - EasyTrace5000
+        `enableShapeDebug()` - EasyShape5000
         Then reproduce the problem and paste the output below (red errors especially).
       render: shell

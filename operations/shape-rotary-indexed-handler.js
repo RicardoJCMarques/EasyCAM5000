@@ -116,30 +116,6 @@
             return null;
         }
 
-        // Frame math
-
-        /**
-         * Which GRID direction is the rotary axis in the sliced frame.
-         *
-         * HeightmapBuilder maps cols→x, rows→y with NO swap - unlike
-         * CylMapBuilder, which remaps the rotary axis onto its internal
-         * axial X. buildFaceSliceOptions composes rotAboutAxis(machineAxis,
-         * θk) · visualOrient(machineAxis, upright); rotating ABOUT an axis
-         * leaves that axis fixed, and visualOrient already put it on its own
-         * world axis, so:
-         *
-         *   machineAxis 'x' (A word) → axis lies along grid x → COLUMNS
-         *   machineAxis 'y' (B word) → axis lies along grid y → ROWS
-         *
-         * Every direction-sensitive option - the boundary band, the raster
-         * direction - resolves through this. A literal 'x' here is always a
-         * bug that only shows on B-axis jobs.
-         */
-        // Direction keys are semantic ('axial' / 'cross'); the machine axis they land on is resolved here.
-        static axialGridAxis(machineAxis) {
-            return (machineAxis === 'y') ? 'y' : 'x';
-        }
-
         // Parameter resolution
 
         /**
@@ -196,7 +172,7 @@
          */
         buildHolder(settings) {
             if (settings.indexedCollisionGuard !== true) return null; // Inert until a rotary tool select exists: the guard needs settings.tool.
-            const tool = this.core?.toolLibrary?.getTool?.(settings.tool);
+            const tool = this.core?.toolLibrary.getTool(settings.tool);
             const g = tool?.geometry;
             if (!g) {
                 this.debug('collisionGuard on but tool record unavailable - guard skipped');
@@ -239,13 +215,14 @@
             const capWarn = this.postCapabilityWarning(machineAxis);
             if (capWarn) warnings.push(capWarn);
 
-            const axialAxis = ShapeIndexedHandler.axialGridAxis(machineAxis);
+            // HeightmapBuilder maps cols→x, rows→y unswapped. In indexed slicing,
+            // the 2D grid's axial direction (axialAxis) maps 1:1 to the physical
+            // machine axis (machineAxis). They remain separate: machineAxis drives
+            // A/B words, axialAxis drives grid stride in FieldSpace.
+            const axialAxis = machineAxis;
             const crossAxis = (axialAxis === 'x') ? 'y' : 'x';
-            // Raster direction is SEMANTIC ('axial' | 'cross'); legacy
-            // 'x'/'y' saved values map onto the same two intents.
-            const rasterMode = s.indexedRasterAxis ?? 'axial';
-            const rasterAxis = (rasterMode === 'cross' || rasterMode === 'y')
-                ? crossAxis : axialAxis;
+            // Raster direction is SEMANTIC: 'axial' or 'cross'.
+            const rasterAxis = s.indexedRasterAxis === 'cross' ? crossAxis : axialAxis;
 
             const toolDiameter = s.toolDiameter || 3;
             const wh = FieldParams.workholding(s);
@@ -282,25 +259,6 @@
                 operation._stickyBlankWidth = Math.max(sticky, prism.blankWidth);
             }
             for (const issue of prism.issues) warnings.push(issue);
-
-            // The severance over-cut lives OUTSIDE the silhouette and only
-            // roughing masks that band, so a finishing-only job emits the
-            // model surface and nothing else - which reads as "the faces
-            // never separated".
-            // TODO(rotary-mode-default) - 'finishing' is right for radial and
-            // wrong for indexed, so this warning fires on every default
-            // indexed job. A per-kinematics default needs getDefaults() to
-            // take more than an operation type; splitting the key would
-            // violate the profile's SPLIT RULE (pass mode does not differ in
-            // kind between the two engines).
-            // REVIEW - Default is set to finishing to help see toolpaths that follow the surface of the mesh with tool compensation as expected. Comment may be wrong, actual default can be changed?
-            const mode = s.rotaryMode ?? 'finishing';
-            if (mode === 'finishing') {
-                warnings.push(`Finishing-only: the ${prism.overcut.toFixed(2)}mm ` +
-                    `severance over-cut is never emitted - only roughing masks the ` +
-                    `stock outside the silhouette. The faces will meet at the axis ` +
-                    `instead of overlapping. Set the mode to roughing or both.`);
-            }
 
             const holder = this.buildHolder(s);
             if (holder && holder.fluteLength < prism.apothem + prism.overcut - 1e-9) {
@@ -354,13 +312,13 @@
                 holdingMode: wh.holdingMode, ends: wh.ends,
                 faceOrder: s.indexedFaceOrder ?? 'sequential', // | 'phase'
                 toolDiameter,
-                toolShape: s.rotaryToolShape ?? 'ball',
-                cornerRadius: s.rotaryCornerRadius ?? 0.5,
-                mode,
-                roughStepdown: s.indexedRoughStepdown ?? 1.5,
-                roughStepoverPct: s.rotaryRoughStepoverPct ?? 45,
-                roughStock: s.rotaryRoughStock ?? 0.3,
-                finishStepoverPct: s.rotaryFinishStepoverPct ?? 10,
+                toolShape: s.rotaryToolShape,
+                cornerRadius: s.rotaryCornerRadius ,
+                mode: s.rotaryMode,
+                roughStepdown: s.indexedRoughStepdown,
+                roughStepoverPct: s.rotaryRoughStepoverPct,
+                roughStock: s.rotaryRoughStock,
+                finishStepoverPct: s.rotaryFinishStepoverPct,
                 crossFinish: s.indexedCrossFinish === true,
                 rasterAxis,
                 cellSize: lockedCell,

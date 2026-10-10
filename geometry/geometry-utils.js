@@ -531,7 +531,7 @@
         /**
          * This is the central tessellation point for the GeometryProcessor.
          */
-        primitiveToPath(primitive, curveIds = []) {
+        primitiveToPath(primitive) {
             if (primitive.type === 'path' && !primitive.properties?.isStroke) {
                 return primitive;
             }
@@ -772,11 +772,6 @@
             if (TransformMath.isIdentity(matrix)) {
                 return primitive;
             }
-            // REVIEW - this is the old version. Is it better or worse to double check identity? It does seem slower but are there any advantages?
-            // if (matrix.a === 1 && matrix.b === 0 && matrix.c === 0 &&
-            //     matrix.d === 1 && matrix.e === 0 && matrix.f === 0) {
-            //     return primitive;
-            // }
 
             const applyPt = (p) => TransformMath.applyToPoint(matrix, p);
 
@@ -853,7 +848,7 @@
                     const newArc = {
                         ...a,
                         center: applyPt(a.center),
-                        radius: a.radius * scale, // exact: UI scale is always uniform (sx===sy); elliptical (non-uniform) arcs are intentionally unsupported — see transformPrimitive header
+                        radius: a.radius * scale, // exact: UI scale is always uniform (sx===sy); elliptical (non-uniform) arcs are intentionally unsupported - see transformPrimitive header
                         startPoint: a.startPoint ? applyPt(a.startPoint) : undefined,
                         endPoint: a.endPoint ? applyPt(a.endPoint) : undefined
                     };

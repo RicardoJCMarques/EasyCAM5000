@@ -13,10 +13,6 @@
     'use strict';
 
     class TraceOperationPanel extends BaseOperationPanel {
-        constructor(ui) {
-            super(ui);
-        }
-
         // ═══════════════════════════════════════════════════════════════
         // Hook Overrides
         // ═══════════════════════════════════════════════════════════════
@@ -42,17 +38,6 @@
             const container = this.getFormContainer();
             if (container && operation) {
                 this.showOperationProperties(container, operation, this.currentStage);
-            }
-        }
-
-        returnFocusToTree() {
-            const selected = document.querySelector(
-                '.file-node-content.selected, .geometry-node-content.selected, .geometry-node.selected'
-            );
-            if (selected) {
-                const focusTarget = selected.querySelector('.file-node-content, .geometry-node-content') || selected;
-                focusTarget.setAttribute('tabindex', '0');
-                focusTarget.focus();
             }
         }
 
@@ -121,7 +106,6 @@
             // Conditionals cross stages: drill's strategy controls are gated on
             // millHoles, which lives in the geometry bag. A stage-scoped read
             // resolves the gate to undefined and hides every dependent field.
-            // Use getAllParameters so cross-stage conditionals (e.g. millHoles gating drillMultiDepth) evaluate correctly
             const values = this.parameterStore.getAllParameters(operation.id);
             this.renderParameterForm(container, operation.type, stage, values);
 
@@ -130,7 +114,8 @@
             // allowed to run at all. Field visibility is the profile's job
             // (conditional "!drillMultiTool"), not this method's.
             if ('drill' === operation.type && ('geometry' === stage || 'strategy' === stage) && this.supportsDrillTooling()) {
-                container.appendChild(this.createDrillToolingCard(operation, values, stage));
+                const card = this.createDrillToolingCard(operation, values, stage);
+                if (card) container.appendChild(card);
             }
 
             // Add action button
@@ -158,10 +143,6 @@
 
         resolveCurrentOperation() {
             return this.core.store.getOperation(this.currentOperationId);
-        }
-
-        resolveOperationType(operation) {
-            return operation?.type || '';
         }
 
         getSpinnerLabel(stage, opType) {
@@ -211,49 +192,16 @@
             await this.ui.rebuildLayers();
         }
 
-        // REVIEW - Why doesn't EasyShape5000 need this?
-        onStageTransition(newStage) {
-            const operation = this.resolveCurrentOperation();
-            const container = this.getFormContainer();
-            if (container && operation) {
-                this.showOperationProperties(container, operation, newStage);
-            }
-        }
-
         async onToolpathSuccess(opId, operation) {
             if (this.ui.navTreePanel) {
                 const fileNode = this.ui.navTreePanel.getNodeByOperationId(opId);
                 if (fileNode) {
                     this.ui.navTreePanel.updateFileGeometries(fileNode.id, operation);
+                    // selectGeometryByType dispatches to selectGeometry, which already enters 3D mode
                     this.ui.navTreePanel.selectGeometryByType(opId, 'toolpath');
                 }
             }
             await this.ui.rebuildLayers();
-            await this.ui.ctrl.setViewportForNode('toolpath', operation);
-        }
-
-        onExportStage(opId, operation) {
-            const ctrl = this.ui.ctrl;
-            if (ctrl?.modalManager) {
-                const readyOps = this.core.operations.filter(o => this.core.store.isExportReady(o));
-                if (readyOps.length === 0) {
-                    this.ui.setStatus('No operations ready. Generate paths first.', 'warning');
-                    return;
-                }
-                ctrl.modalManager.showModal('exportManager', {
-                    operations: readyOps,
-                    highlightOperationId: operation.id
-                });
-            }
-        }
-
-        switchToStageAndRender(newStage) {
-            this.currentStage = newStage;
-            const operation = this.resolveCurrentOperation();
-            const container = this.getFormContainer();
-            if (container && operation) {
-                this.showOperationProperties(container, operation, newStage);
-            }
         }
 
         // ═══════════════════════════════════════════════════════════════
@@ -299,36 +247,16 @@
         // Panels
         // ═══════════════════════════════════════════════════════════════
 
-        createInvalidationPanel(operation) {
-            const template = document.getElementById('invalidation-panel-template');
-            // REVIEW - What is this checking for?
-            if (!template) return document.createElement('div');
-
-            const panelNode = template.content.cloneNode(true);
-            const panel = panelNode.querySelector('.invalidation-panel');
-            const msg = panel.querySelector('.warning-message');
-            const redoBtn = panel.querySelector('.invalidation-redo-btn');
-
-            msg.textContent = operation.invalidatedReason || 'Global machine settings have changed. Existing geometry must be regenerated.';
-
-            redoBtn.onclick = async () => {
-                this.core.store.resetOperationState(operation.id);
-
-                const layerKeys = Array.from(this.ui.renderer.layers.keys())
-                    .filter(key => key.includes(`_${operation.id}_`));
-                layerKeys.forEach(key => this.ui.renderer.layers.delete(key));
-
-                if (this.ui.navTreePanel) {
-                    const fileNode = this.ui.navTreePanel.getNodeByOperationId(operation.id);
-                    if (fileNode) this.ui.navTreePanel.updateFileGeometries(fileNode.id, operation);
-                }
-
-                await this.ui.rebuildLayers();
-                this.switchToStageAndRender('geometry');
-                this.ui.setStatus('Invalid geometry cleared. Ready to regenerate.', 'success');
-            };
-
-            return panel;
+        /** Drops the stale geometry, then shows the source form. */
+        async discardInvalidGeometry(operation) {
+            this.core.store.resetOperationState(operation.id);
+            // The stencil source was hidden behind the offsets this removed.
+            if (operation.type === 'stencil') delete operation.layerVisibility.source;
+            const fileNode = this.ui.navTreePanel.getNodeByOperationId(operation.id);
+            if (fileNode) this.ui.navTreePanel.updateFileGeometries(fileNode.id, operation);
+            await this.ui.rebuildLayers();
+            this.currentStage = 'geometry';
+            this.refresh();
         }
 
         /**
@@ -468,7 +396,7 @@
 
         renderExportSummary(container, operation) {
             const title = document.getElementById('inspector-title');
-            if (!container || !title) return;
+            if (!title) return;
 
             title.textContent = operation.file.name;
             container.innerHTML = '';

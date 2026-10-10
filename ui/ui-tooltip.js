@@ -16,7 +16,10 @@
 
     class TooltipManager {
         constructor() {
-            this.tooltip = null;
+            this.tooltip = document.createElement('div');
+            this.tooltip.className = 'tooltip';
+            this.tooltip.innerHTML = '<div class="tooltip-content"></div>';
+            document.body.appendChild(this.tooltip);
             this.currentTarget = null;
             this.showTimeout = null;
             this.hideTimeout = null;
@@ -24,7 +27,6 @@
             this.delayHide = D.ui.tooltips.delayHide;
             this._seq = 0;
             this._suppressUntilMove = false;
-            this.createTooltip();
 
             // Content shown on hover must be dismissible without moving the
             // pointer or focus (WCAG 1.4.13). currentTarget is what tracks the
@@ -44,13 +46,6 @@
             // read one that overflows its trigger.
             this.tooltip.addEventListener('mouseenter', () => clearTimeout(this.hideTimeout));
             this.tooltip.addEventListener('mouseleave', () => this.hide());
-        }
-
-        createTooltip() {
-            this.tooltip = document.createElement('div');
-            this.tooltip.className = 'tooltip';
-            this.tooltip.innerHTML = '<div class="tooltip-content"></div>';
-            document.body.appendChild(this.tooltip);
         }
 
         show(target, content, options = {}) {

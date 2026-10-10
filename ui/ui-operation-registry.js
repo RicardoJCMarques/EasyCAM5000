@@ -14,25 +14,20 @@
 
     /**
      * OperationRegistry - reads the `operations` block of an app profile and
-     * answers every question the rest of the app used to answer with a
-     * hardcoded list: which types exist, which handler class backs a type,
-     * which extensions it accepts, its default tool, its icon and label,
-     * whether it gets a tab, and whether it gets a viz toggle.
-     *
+     * answers what an operation type is: which types exist, which handler
+     * class backs a type, which extensions it accepts, its default tool, its
+     * icon and label, whether it gets a tab or a viz toggle, and its machine
+     * classes, dimension and stages.
      * Declaration ORDER in the JSON is the UI order. Object key order is
      * stable for string keys, so the tab strip and the viz list follow the
      * profile without a separate ordering field.
-     *
-     * Everything here is READ-ONLY at runtime. Batch B extends the same
-     * entries with machineClasses / dimensionality / stages; nothing in this
-     * class should grow state.
+     * Read-only at runtime; nothing in this class holds state.
      */
     class OperationRegistry {
         constructor(profile) {
             this.entries = profile?.operations || {};
             this.aux = profile?.auxHandlers || {};
             this.chains = profile?.chains || {};
-            this.stageMeta = profile?.ui?.stages || {};
             this.artifactMeta = profile?.ui?.artifacts || {};
 
             // Extension → type. Built once.
@@ -178,20 +173,12 @@
 
         // Labels
 
-        stageLabel(stage, dimension) {
-            const m = this.stageMeta[stage];
-            if (!m) return stage;
-            return (dimension === '3d' && m.label3d) || m.label || stage;
-        }
-
-        stageIcon(stage)    { return this.stageMeta[stage]?.icon || `icon-${stage}-stage`; }
-
         artifactLabel(a, dimension) {
             const m = this.artifactMeta[a];
             return m && ('3d' === dimension && m.label3d || m.label) || a;
         }
 
-        artifactIcon(a)     { return this.artifactMeta[a]?.icon || `icon-${a}-stage`; }
+        artifactIcon(a)     { return this.artifactMeta[a]?.icon || `icon-stage-${a}`; }
 
         /**
          * Startup sanity. The chain invariant is what makes node → form

@@ -43,10 +43,9 @@
         }
 
         /**
-         * Both tiers: compounds (glyphs, nested fills) + separate loops
-         * (multi-polygon pour fragments that contain each other). Without
-         * this, internal offsets collapse inner shapes that should act as
-         * holes, producing false "tool too large" errors.
+         * Both tiers: pour fragments contain each other, and an inner fragment
+         * left unmerged collapses under the internal offset instead of acting as
+         * a hole - reported as a false "tool too large".
          */
         resolveSourceTopology(operation) {
             return this.resolveContourTopology(operation.primitives, { mergeNesting: true });

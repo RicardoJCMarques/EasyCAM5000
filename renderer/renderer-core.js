@@ -32,7 +32,6 @@
         shape: (shapeId) => `shape_${shapeId}`,
         batch: (opType) => `batch_${opType}`,
         bucketOffset: (bucketId) => `bucket_offset_${bucketId}`,
-        // REVIEW - why no (parenthesis)? this used to be bucketPreview: (bucketId) => `bucket_preview_${bucketId}`,
         bucketPreview: bucketId => `bucket_preview_${bucketId}`,
 
         // Shared
@@ -65,8 +64,7 @@
             this.originIncludedInFit = false;
 
             // All origin/rotation/mirror state lives on scene.transform. The
-            // getters below delegate to it. Renderer never caches.
-            // REVIEW - Would it make sense for rendering to cache it some way or are there other caches at play now?
+            // getters below delegate to it.
             this.scene = appCore ? appCore.scene : null;
 
             this.bounds = null;
@@ -74,35 +72,19 @@
             this.layers = new Map();
             this.devicePixelRatio = 1;
 
+            this.suspended = false;
+            this.paintPending = false;
+
             // Overlay hook, set by the app. Read by the pass runner.
             this.onRenderOverlay = null;
 
             this.options = {
-                showWireframe: renderingOptions.showWireframe,
-                showGrid: renderingOptions.showGrid,
-                showOrigin: renderingOptions.showOrigin,
-                showBounds: renderingOptions.showBounds,
-                showRulers: renderingOptions.showRulers,
-                showPads: renderingOptions.showPads,
-                showRegions: renderingOptions.showRegions,
-                showTraces: renderingOptions.showTraces,
-                showDrills: renderingOptions.showDrills,
-                showCutouts: renderingOptions.showCutouts,
-                fuseGeometry: renderingOptions.fuseGeometry,
-                showOffsets: renderingOptions.showOffsets,
-                showPreviews: renderingOptions.showPreviews,
-                showPreprocessed: renderingOptions.showPreprocessed,
-                enableArcReconstruction: renderingOptions.enableArcReconstruction,
-                blackAndWhite: renderingOptions.blackAndWhite,
-                debugPoints: renderingOptions.debugPoints,
-                debugArcs: renderingOptions.debugArcs,
-                theme: 'dark', // replaced by BaseAppUI.initRenderer
-                showStats: renderingOptions.showStats,
+                ...renderingOptions,
                 primitiveFilter: null
             };
 
             // LOD threshold (screen pixels)
-            this.lodThreshold = C.renderer.lodThreshold ?? 0.5;
+            this.lodThreshold = C.renderer.lodThreshold;
 
             // Geometry colors are managed by the UI via options.resolveLayerColor,
             // but structural colors (canvas, grid, rulers) are handled here.
@@ -132,7 +114,53 @@
         }
 
         render() {
+            if (this.suspended) {
+                this.paintPending = true;
+                return;
+            }
             this.passes.render();
+        }
+
+        /**
+         * Paints in this call and drops any frame already queued. For callers
+         * that run after this frame's rAF callbacks (ResizeObserver): a queued
+         * render would show the reallocated, blank bitmap for one frame.
+         */
+        renderNow() {
+            if (this.suspended) {
+                this.paintPending = true;
+                return;
+            }
+            const passes = this.passes;
+            if (passes.renderQueued) {
+                cancelAnimationFrame(passes.renderHandle);
+                passes.renderQueued = false;
+            }
+            passes.actualRender();
+        }
+
+        /**
+         * Stops painting while another view owns the viewport (3D). Layers and
+         * view state stay current; the canvas size and one repaint catch up on
+         * resume.
+         */
+        setSuspended(suspended) {
+            if (suspended === this.suspended) return;
+            this.suspended = suspended;
+            const passes = this.passes;
+            if (suspended) {
+                if (passes.renderQueued) {
+                    cancelAnimationFrame(passes.renderHandle);
+                    passes.renderQueued = false;
+                    this.paintPending = true;
+                }
+                return;
+            }
+            // A resize skipped while hidden needs a paint as well.
+            if (this.resizeCanvas() || this.paintPending) {
+                this.paintPending = false;
+                passes.render();
+            }
         }
 
         updateThemeColors() {
@@ -163,7 +191,7 @@
                     reconstructed: read('--color-primitive-reconstructed'),
                     reconstructedPath: read('--color-primitive-reconstructed-path')
                 },
-                // Consumed by renderer-layer (laser fills) and CanvasExporter.
+                // Consumed by CanvasExporter.
                 geometry: {
                     preview: read('--color-geometry-preview'),
                     selection: read('--color-geometry-selection'),
@@ -171,9 +199,6 @@
                         external: read('--color-geometry-offset-external'),
                         internal: read('--color-geometry-offset-internal'),
                         on: read('--color-geometry-offset-on')
-                    },
-                    laser: {
-                        filled: read('--color-geometry-laser-filled')
                     }
                 },
                 // EasyTrace source-layer fills, read by CanvasExporter's <style>.
@@ -346,20 +371,6 @@
             return true;
         }
 
-        invalidateLayerCache(layerName) {
-            const layer = this.layers.get(layerName);
-            if (layer && layer.renderCache) {
-                layer.renderCache.valid = false;
-            }
-        }
-
-        rebuildLayerCache(layerName) {
-            const layer = this.layers.get(layerName);
-            if (layer) {
-                this.buildLayerBoundsCache(layer);
-            }
-        }
-
         clearLayers() {
             this.layers.clear();
             this.overallBounds = null;
@@ -441,13 +452,6 @@
             return {
                 x: (canvasX - this.viewOffset.x) / this.viewScale,
                 y: -(canvasY - this.viewOffset.y) / this.viewScale
-            };
-        }
-
-        worldToScreen(worldX, worldY) {
-            return {
-                x: this.worldToCanvasX(worldX),
-                y: this.worldToCanvasY(worldY)
             };
         }
 
@@ -647,42 +651,42 @@
         // Canvas Management
         // ========================================================================
 
+        /**
+         * Matches the bitmap to the container in device pixels; returns true when
+         * the caller has to repaint. Any write to canvas.width/height clears the
+         * bitmap and resets the context state, even with the same value, so the
+         * bitmap is only touched on a real change.
+         */
         resizeCanvas() {
+            if (this.suspended) return false; // Skip if hidden behind the 3D view
             const container = this.canvas.parentElement;
-            if (!container) return;
-
+            if (!container) return false;
             const rect = container.getBoundingClientRect();
+            if (rect.width === 0 || rect.height === 0) return false;
             const dpr = window.devicePixelRatio || 1;
-
-            const newWidth = rect.width * dpr;
-            const newHeight = rect.height * dpr;
-
-            // Keep geometry anchored to the center during CSS transitions/resizes
-            if (this.canvas.width > 0 && this.canvas.height > 0 && this.viewOffset) {
-                const dw = newWidth - this.canvas.width;
-                const dh = newHeight - this.canvas.height;
-                this.viewOffset.x += dw / 2;
-                this.viewOffset.y += dh / 2;
+            // canvas.width truncates, so the test and the centring delta both use
+            // the integer the bitmap actually gets.
+            const width = Math.round(rect.width * dpr);
+            const height = Math.round(rect.height * dpr);
+            const sizeChanged = width !== this.canvas.width || height !== this.canvas.height;
+            // Browser zoom can change the ratio and leave the device-pixel size as
+            // it was; rulers, LOD and line widths still have to pick it up.
+            if (!sizeChanged && dpr === this.devicePixelRatio) return false;
+            if (sizeChanged) {
+                // Keep geometry anchored to the center during CSS transitions/resizes
+                this.viewOffset.x += (width - this.canvas.width) / 2;
+                this.viewOffset.y += (height - this.canvas.height) / 2;
+                this.canvas.width = width;
+                this.canvas.height = height;
+                this.ctx.imageSmoothingEnabled = true;
+                this.ctx.imageSmoothingQuality = 'high';
+                // Opaque context (alpha: false): a cleared bitmap shows black
+                // until the next paint.
+                this.ctx.fillStyle = this.colors.render2d.background;
+                this.ctx.fillRect(0, 0, width, height);
             }
-
-            this.canvas.width = newWidth;
-            this.canvas.height = newHeight;
-            this.canvas.style.width = rect.width + 'px';
-            this.canvas.style.height = rect.height + 'px';
-
             this.devicePixelRatio = dpr;
-
-            this.ctx.imageSmoothingEnabled = true;
-            this.ctx.imageSmoothingQuality = 'high';
-
-            this.ctx.fillStyle = this.colors.render2d.background;
-            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-        }
-
-        clearCanvas() {
-            this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-            this.ctx.fillStyle = this.colors.render2d.background;
-            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+            return true; // REVIEW - the !container check is useless, returning false is useless so returning true is too? Nothing should be looking for it?
         }
 
         // ========================================================================
@@ -702,42 +706,16 @@
         setOptions(options) {
             const oldOptions = { ...this.options };
             Object.assign(this.options, options);
-            const changed = Object.keys(options).some(k => oldOptions[k] !== options[k]);
-            if (changed) {
-                this.renderStats.lastSignificantChange = options.theme ? 'theme-changed' : 'options-changed';
-            }
+            const changed = Object.keys(options).some((k) => oldOptions[k] !== options[k]);
+            if (changed) this.renderStats.lastSignificantChange = 'options-changed';
             this.render();
         }
-
-        setScene(scene) { this.scene = scene; }
 
         // ========================================================================
         // Origin Position
         // ========================================================================
         get originPosition() {
             return this.scene ? this.scene.transform.origin : { x: 0, y: 0 };
-        }
-
-        // ========================================================================
-        // View State
-        // ========================================================================
-
-        /**
-         * View state is camera state only (pan + zoom). Rotation lives on
-         * scene.transform; the old getViewState returned both but that
-         * conflated "where am I looking" with "what is the workspace doing".
-         */
-        getViewState() {
-            return {
-                offset: { ...this.viewOffset },
-                scale: this.viewScale,
-                bounds: this.bounds ? { ...this.bounds } : null
-            };
-        }
-
-        setViewState(state) {
-            if (state.offset) this.viewOffset = { ...state.offset };
-            if (state.scale !== undefined) this.viewScale = state.scale;
         }
 
         // ========================================================================
@@ -751,28 +729,24 @@
             this.renderStats.culledViewport = 0;
             this.renderStats.culledLOD = 0;
             this.renderStats.drawCalls = 0;
-
             // Pre-calculate frame constants ONCE
             const dpr = this.devicePixelRatio || 1;
             this.frameCache.invScale = 1 / this.viewScale;
             this.frameCache.minWorldWidth = dpr / this.viewScale;
-
             // Get view bounds in screen-world space
             let viewBounds = this.getViewBounds();
-
             // Transform view bounds into source-geometry space (inverse of
-            // the global workspace transform) so culling compares like-for-
-            // like. Single matrix op replaces the mirror+rotation passes.
+            // the global workspace transform) so culling compares like-for-like.
             if (this.scene) {
                 const inv = this.scene.getWorkspaceInverse();
                 if (!TransformMath.isIdentity(inv)) {
                     viewBounds = TransformMath.transformBounds(inv, viewBounds);
                 }
             }
-
             this.frameCache.viewBounds = viewBounds;
-
-            this.clearCanvas();
+            this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+            this.ctx.fillStyle = this.colors.render2d.background;
+            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
             return performance.now();
         }
 

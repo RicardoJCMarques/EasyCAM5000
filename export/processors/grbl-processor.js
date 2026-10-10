@@ -18,7 +18,7 @@
             super('GRBL', {
                 label: 'Grbl',
                 fileExtension: '.nc',
-                supportsToolChange: false, // REVIEW - Consider a manual tool change macro. Stops spindle, goes to origin, raises Z, allows change, probe? raise again, finally allows resume? Makera has a similar system?
+                supportsToolChange: false, // TODO - Consider a manual tool change macro. Stops spindle, goes to origin, raises Z, allows change, probe? raise again, finally allows resume? Makera has a similar system?
                 supportsArcCommands: true,
                 supportsCannedCycles: false,
                 // 4th axis: classic Grbl 1.1 is strictly XYZ - no A word, no

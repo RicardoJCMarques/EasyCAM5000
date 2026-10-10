@@ -336,11 +336,11 @@
             const scanlines = [];
             const mergeThreshold = 2 * PRECISION;
 
-            // Active edge table. Every scanline used to reject the full pool one
-            // edge at a time: 10k edges x 500 lines is 5M tests to find a few
-            // hundred crossings. Sorted by yMin, a cursor admits edges as the
-            // sweep reaches them and the emit pass compacts expired ones out.
-            // Active means yMin <= y < yMax, the same window the reject tested.
+            // Active edge table. Rejecting the full pool per scanline is 5M
+            // tests for 10k edges x 500 lines, to find a few hundred crossings.
+            // Sorted by yMin, a cursor admits edges as the sweep reaches them
+            // and the emit pass compacts expired ones out.
+            // Active means yMin <= y < yMax.
             const pool = edges.slice().sort((a, b) => a.yMin - b.yMin);
             const poolCount = pool.length;
             let cursor = 0;

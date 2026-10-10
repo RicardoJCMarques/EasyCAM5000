@@ -21,12 +21,6 @@
     class ShapeProfileHandler extends OffsetOperationHandler {
 
         // Orchestration
-
-        resolveSourceTopology(operation, params) {
-            return this.resolveContourTopology(
-                operation.primitives, { mergeNesting: params.detectNesting === true });
-        }
-
         async orchestrateGeneration(operation, params, core, options = {}) {
             const token = this.beginRun(operation, options, core);
 

@@ -19,34 +19,15 @@
     class ExcellonParser extends ParserCore {
         constructor(options = {}) {
             super({
-                units: 'mm',
-                format: { integer: 2, decimal: 4 },
+                units: formatConfig.defaultUnits,
+                format: { ...formatConfig.defaultFormat },
+                zeroSuppression: 'leading',
                 ...options
             });
-
-            this.tools = new Map();
-            this.currentTool = null;
-            this.inHeader = false;
-            this.headerEnded = false;
-
-            // Core coordinate state: tracks the tool's absolute position
-            this.state = {
-                position: { x: 0, y: 0 }
-            };
-
-            // Modal state for M15/M16 slot processing
-            this.slotState = {
-                inSlot: false,
-                startPos: null
-            };
-
-            this.drillData = {
-                units: 'mm',
-                format: this.options.format,
-                tools: [],
-                holes: [],
-                bounds: null,
-                stats: {}
+            this.initialOptions = {
+                units: this.options.units,
+                format: { ...this.options.format },
+                zeroSuppression: this.options.zeroSuppression
             };
         }
 
@@ -103,39 +84,22 @@
         }
 
         reset() {
-            this.tools.clear();
+            super.reset();
+            if (this.initialOptions) {
+                this.options = {
+                    ...this.initialOptions,
+                    format: { ...this.initialOptions.format }
+                };
+            }
+            this.tools = new Map();
             this.currentTool = null;
             this.inHeader = false;
             this.headerEnded = false;
-
             this.formatExplicitlySet = false;
-
-            this.errors = [];
-            this.warnings = [];
-
-            this.state = {
-                position: { x: 0, y: 0 }
-            };
-
-            this.slotState = {
-                inSlot: false,
-                startPos: null
-            };
-
-            this.stats = {
-                linesProcessed: 0,
-                objectsCreated: 0,
-                coordinatesParsed: 0,
-                commandsProcessed: 0
-            };
-
-            this.coordinateValidation = {
-                coordinateRange: { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity },
-                suspiciousCoordinates: []
-            };
-
+            this.state = { position: { x: 0, y: 0 } };
+            this.slotState = { inSlot: false, startPos: null };
             this.drillData = {
-                units: 'mm',
+                units: this.options.units,
                 format: this.options.format,
                 tools: [],
                 holes: [],
@@ -165,51 +129,28 @@
             } else if (line === 'M30' || line === 'M00') {
                 this.debug('End of file');
                 return;
-            } else if (line.startsWith('METRIC') || line === 'M71') {
-                this.options.units = 'mm';
-                this.drillData.units = 'mm';
-
+            } else if (line.startsWith('METRIC') || line === 'M71' || line.startsWith('INCH') || line === 'M72') {
+                const metric = line.startsWith('METRIC') || line === 'M71';
+                this.options.units = metric ? 'mm' : 'inch';
+                this.drillData.units = this.options.units;
                 // Catch suppression mode
                 if (line.includes('LZ')) this.options.zeroSuppression = 'trailing';
                 else if (line.includes('TZ')) this.options.zeroSuppression = 'leading';
-
                 // Catch explicit format definitions like "000.000"
                 const formatMatch = line.match(/(0+)\.(0+)/);
                 if (formatMatch) {
-                    this.options.format = { 
-                        integer: formatMatch[1].length, 
-                        decimal: formatMatch[2].length 
-                    };
+                    this.options.format = { integer: formatMatch[1].length, decimal: formatMatch[2].length };
                     this.drillData.format = this.options.format;
                     this.formatExplicitlySet = true;
                     this.debug(`Explicit format extracted: ${this.options.format.integer}.${this.options.format.decimal}`);
                 } else if (!this.formatExplicitlySet) {
-                    this.options.format = { integer: 3, decimal: 3 };
+                    this.options.format = metric ? { integer: 3, decimal: 3 } : { integer: 2, decimal: 5 };
                     this.drillData.format = this.options.format;
-                    const warnMsg = "No explicit format found. Defaulting to 3.3 (Metric). If holes/slots are misaligned, the file might use a different format.";
+                    const warnMsg = `No explicit format found. Defaulting to ${metric ? '3.3 (Metric)' : '2.5 (Inch)'}. If holes/slots are misaligned, the file might use a different format.`;
                     this.warnings.push(warnMsg);
                     console.warn(`[ExcellonParser] Line ${lineNumber}: ${warnMsg}`);
                 }
-
-                this.debug('Units: mm');
-                return;
-            } else if (line.startsWith('INCH') || line === 'M72') {
-                this.options.units = 'inch';
-                this.drillData.units = 'inch';
-
-                // Catch suppression mode
-                if (line.includes('LZ')) this.options.zeroSuppression = 'trailing';
-                else if (line.includes('TZ')) this.options.zeroSuppression = 'leading';
-
-                if (!this.formatExplicitlySet) {
-                    this.options.format = { integer: 2, decimal: 5 };
-                    this.drillData.format = this.options.format;
-                    const warnMsg = "No explicit format found. Defaulting to 2.5 (Inch). If holes/slots are misaligned, the file might use a different format.";
-                    this.warnings.push(warnMsg);
-                    console.warn(`[ExcellonParser] Line ${lineNumber}: ${warnMsg}`);
-                }
-
-                this.debug('Units: inch');
+                this.debug(`Units: ${this.options.units}`);
                 return;
             } else if (line.startsWith('FMAT')) {
                 this.parseFormat(line, lineNumber);

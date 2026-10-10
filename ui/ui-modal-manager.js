@@ -8,41 +8,39 @@
  * SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
-/* TODO(modal-split) - ModalManager is a lifecycle plus three content panels
-   sharing one class. The lifecycle half is correct here: showModal/closeModal,
-   the stack, hash routing, MODAL_POLICY, the focus trap, field navigation and
-   showWarning. The three content clusters each own a modal element and their
-   own state, and should be separate files the way NavTreePanel and
-   NavScenePanel already are:
-     - drill tooling (showDrillToolingHandler..afterDrillToolingEdit, ~160
-       lines, 3 state fields, touches nothing else) - do this one first, it
-       is the template.
-     - export manager (readExportIntent..runToolpathOrchestration, ~600 lines)
-     - onboarding (welcome / laserConfig / quickstart / support / help, ~400)
-   The orchestration that used to live here is gone: intent reading is the
-   documented DOM boundary, the program cache is on CamCore, and the tool-change
-   decision is PipelineContext.describeToolChangeSupport - what is left in
-   updateToolChangeVisibility and renderToolNotice is DOM writing, which
-   belongs here. */
+/* TODO(modal-split) - ModalManager holds the modal lifecycle and, beside it,
+ * what each modal shows and does. The lifecycle belongs here: showModal/
+ * closeModal, the stack, hash routing, MODAL_POLICY, the focus trap, field
+ * navigation and showWarning. The rest splits by concern, not into one file
+ * per modal:
+ * - Markup: a modal's static DOM (headers, buttons, notices, table heads and
+ *   the column set per stage) belongs in index.html, as markup or a
+ *   <template>; script fills rows and values only. Drill tooling builds all
+ *   of it as strings today.
+ * - Rules: the module that owns the data owns its rules. Drill tooling's row
+ *   patching, input validation and presets belong to DrillHandler, beside
+ *   buildDrillTable/updateDrillRow/applyDrillPreset. Export planning, the
+ *   program cache and the tool-change decision already live on CamCore and
+ *   PipelineContext.
+ * - Orchestration: of the export run (readExportIntent..runToolpathOrchestration),
+ *   only the DOM read and the progress display belong here.
+ * - Onboarding (welcome, laserConfig, quickstart, support, help) is mostly
+ *   markup plus file intake the controllers already own.
+ * What stays per modal is thin view binding. New files only for a concern
+ * above that has no home yet, never one per modal.
+ */
 
 (function() {
     'use strict';
 
-    const C = window.CAMConfig.constants;
-    const D = window.CAMConfig.defaults;
-    const storageKeys = C.storageKeys;
-
     /**
-     * Modal policy as data. This lived as five separate literals and
-     * switches inside the lifecycle methods: hashableModals in showModal, an
-     * allowList in checkHash, a welcome special case in closeModal, a switch
-     * in handleEscapeKey and a welcome/laserConfig branch in
-     * handleClickOutside. A new app declares a table; it does not edit five
-     * methods.
-     * hashable  - pushes #name while open
-     * hashOpen  - safe to open directly from the URL (needs no app state)
-     * onEscape  - name of the modal to fall back to, or null to close
-     * onDismiss - click-outside behaviour; runs before the fallback
+     * Modal policy as data. A new app declares a table; it does not edit
+     * the lifecycle methods.
+     *   hashable  - pushes #name while open
+     *   hashOpen  - safe to open directly from the URL (needs no app state)
+     *   onEscape  - name of the modal to fall back to, or null to close
+     *   onDismiss - click-outside behaviour; runs before the fallback
+     *   opensOver - modal a deep link opens underneath this one
      */
     const MODAL_POLICY = {
         welcome: {hashable: false, hashOpen: true, onEscape: "quickstart", onDismiss: "quickstart"},
@@ -50,7 +48,7 @@
         laserConfig: {hashable: false, hashOpen: false, onEscape: null, onDismiss: "quickstart",
                     // Dismissing without choosing means the default UV pipeline.
                     commit: ctrl => ctrl.applyPipelineChoice("uv")},
-        support: {hashable: true, hashOpen: true, onEscape: null, onDismiss: null},
+        support: { hashable: true, hashOpen: true, onEscape: null, onDismiss: null, opensOver: 'welcome' },
         help: {hashable: false, hashOpen: true, onEscape: null, onDismiss: null},
         exportManager: {hashable: false, hashOpen: false, onEscape: null, onDismiss: null},
         drillTooling: {hashable: false, hashOpen: false, onEscape: null, onDismiss: null},
@@ -65,6 +63,8 @@
             this.text = ctrl.appProfile.ui.text;
             this.activeModal = null;
             this.modalStack = [];
+            this.activeWarningCallbacks = null;
+            this.warningQueue = []; // prompts waiting for the warning modal
 
             // Modal references
             this.modals = {
@@ -84,8 +84,7 @@
             // Quickstart drop-zone state. Zone ids are app-owned - EasyTrace
             // maps one gerber layer per zone, EasyShape uses a single drop
             // target it wires itself.
-            // REVIEW - Double check consistency, both apps have drop zones, initialization should be consistent now and for future apps.
-            this.quickstartOpTypes = ctrl.getQuickstartOpTypes?.() || [];
+            this.quickstartOpTypes = ctrl.getQuickstartOpTypes();
             this.quickstartFiles = {};
 
             // Focus management for accessibility
@@ -94,11 +93,11 @@
 
             // Toolpath-specific state
             this.selectedOperations = [];
-            this.highlightedOpId = null;
             this.drillToolingOpId = null;
             this.drillToolingOnChange = null;
             this.drillToolingStage = "geometry";
             this.currentModalFocusables = null;
+             this.exporterModalTooltipsProcessed = new Set();
 
             this.init();
         }
@@ -117,9 +116,10 @@
 
             window.addEventListener('hashchange', () => this.checkHash());
 
-            window.addEventListener("settingschange", () => {
+            window.addEventListener('settingschange', () => {
                 this.invalidateCalculated();
-                if (this.getActiveModalName() === "exportManager") this.clearExportPreview();
+                // The post decides the G-code extension, the laser format the PNG/SVG split.
+                if (this.getActiveModalName() === 'exportManager') this.refreshExportState();
             });
         }
 
@@ -139,14 +139,30 @@
             this.activeModal?.classList.remove("active");
             this.activeModal = null;
             this.modalStack = [];
-            if (!localStorage.getItem(storageKeys.hideWelcome)) this.showModal(policy.onDismiss);
+            if (!localStorage.getItem(this.ctrl.storageKeys.hideWelcome)) this.showModal(policy.onDismiss);
         }
 
+        /**
+         * Opens the modal the URL hash names, when its policy allows a deep
+         * link. @returns {boolean} whether one opened
+         */
         checkHash() {
             const hash = window.location.hash.substring(1);
-            if (!MODAL_POLICY[hash]?.hashOpen) return;
+            const policy = MODAL_POLICY[hash];
+            if (!policy?.hashOpen) return false;
+            if (policy.opensOver) this.showModal(policy.opensOver);
             this.showModal(hash);
-            history.replaceState(null, null, window.location.pathname); // This removes #modifier from the URL bar without reloading
+            // Removes the #fragment from the URL bar without reloading
+            history.replaceState(null, null, window.location.pathname);
+            return true;
+        }
+
+        /**
+         * First modal of a session: the URL's deep link if it has one, else
+         * welcome - the landing modal, the only one no click, shortcut or link opens.
+         */
+        showStartupModal() {
+            if (!this.checkHash()) this.showModal('welcome');
         }
 
         updateCopyButtonScrollbar() {
@@ -214,117 +230,195 @@
         }
 
         /**
-         * The ONE place export state is read out of the DOM. Five methods used
-         * to derive this independently and had to agree by hand; they did not -
-         * split-drill state and the tool-change gate were computed from the same
-         * checkboxes and never composed.
+         * Router drills whose preview holds more than one bit. One predicate
+         * for the field's visibility, its gate and the intent.
+         */
+        splittableDrills(operations) {
+            const core = this.ctrl.core;
+            return operations.filter(op => op.type === 'drill'
+                && core.machineClassOf(op) === 'router'
+                && DrillHandler.splitDrillFiles(op).length > 1);
+        }
+
+        /**
+         * The ONE place export state is read out of the DOM. A disabled toggle
+         * reads as off: its gate has decided it cannot apply to this job.
          */
         readExportIntent() {
-            const list = document.getElementById("exporter-operation-order");
-            const checked = (id) => document.getElementById(id)?.checked === true;
-
+            const list = document.getElementById('exporter-operation-order');
+            const byId = (id) => document.getElementById(id);
+            const on = (id) => byId(id)?.checked === true && !byId(id).disabled;
+            const number = (id) => {
+                const value = parseFloat(byId(id)?.value);
+                return Number.isFinite(value) ? value : undefined;
+            };
             // Document order IS the cut order. Do not sort.
             const rows = [];
-            list?.querySelectorAll(".file-node-content").forEach(item => {
-                if (!item.querySelector(".exporter-op-checkbox")?.checked) return;
-                const op = this.selectedOperations.find(o => o.id === item.dataset.operationId);
+            list?.querySelectorAll('.file-node-content').forEach((item) => {
+                if (!item.querySelector('.exporter-op-checkbox')?.checked) return;
+                const op = this.selectedOperations.find((o) => o.id === item.dataset.operationId);
                 if (op) rows.push(op);
             });
-
-            const singleFile = checked("exporter-single-file");
-            const splitDrills = checked("exporter-split-drills") && !singleFile;
-
+            const singleFile = on('exporter-single-file');
             // A split drill file holds one bit by construction, so splitting
             // and the multi-tool gate are the same question asked twice.
-            const splitDrillOpIds = splitDrills
-                ? rows.filter(op => op.type === "drill"
-                    && op.preview?.ready === true
-                    && DrillHandler.splitDrillFiles(op).length > 1).map(op => op.id)
+            const splitDrillOpIds = on('exporter-split-drills') && !singleFile
+                ? this.splittableDrills(rows).map(op => op.id)
                 : [];
-
-            const toolChangeToggle = document.getElementById("exporter-tool-changes");
-
+            const nameInput = byId('exporter-filename');
             return {
                 operations: rows,
-                operationIds: rows.map(op => op.id),
+                operationIds: rows.map((op) => op.id),
                 singleFile,
                 splitDrillOpIds,
-                optimize: document.getElementById("exporter-optimize-paths")?.checked ?? true,
-                includeComments: checked("exporter-include-comments"),
-                toolChanges: toolChangeToggle?.checked === true && !toolChangeToggle.disabled,
-                groupByTool: checked("exporter-group-by-tool"),
-                baseName: (document.getElementById("exporter-filename")?.value || "pcb-output")
-                    .replace(/\.[^/.]+$/, ""),
-                laserPadding: parseFloat(document.getElementById("laser-exporter-padding")?.value),
-                stencilPadding: parseFloat(document.getElementById("stencil-exporter-padding")?.value)
+                optimize: byId('exporter-optimize-paths')?.checked ?? true,
+                includeComments: on('exporter-include-comments'),
+                toolChanges: on('exporter-tool-changes'),
+                groupByTool: on('exporter-group-by-tool'),
+                zip: on('exporter-zip'),
+                baseName: (nameInput?.value.trim() || nameInput?.placeholder || '').replace(/\.[^/.]+$/, ''),
+                laserPadding: number('laser-exporter-padding'),
+                stencilPadding: number('stencil-exporter-padding'),
             };
         }
 
         /**
-         * Both gates from ONE staging pass. describeToolChangeSupport would
-         * re-stage every descriptor if it were handed only the intent, so the
-         * tooling it already produced is passed in. Split drills put one bit
-         * per file, so a job that is being split never needs the swap path.
+         * Re-derives the panel from one intent and one plan. Which options are
+         * on screen is showExportManagerHandler's call, made once per open;
+         * this only enables and disables, so ticking an option never moves the
+         * rest of the panel.
+         * Gates run in dependency order, each on the intent the ones before it
+         * settled, because readExportIntent reads a disabled toggle as off. An
+         * option that cannot apply is unticked as well as greyed - what is
+         * ticked is what gets written - and its row says why. The user's own
+         * choice is kept in data-wanted and returns when the gate opens; it
+         * starts from the markup default, not from whatever state the browser
+         * restored on reload.
          */
-        refreshToolingGates() {
-            const intent = this.readExportIntent();
-            const routerIds = intent.operations.filter(op => this.ctrl.core.machineClassOf(op) === 'router').map(op => op.id);
+        refreshExportState() {
+            const core = this.ctrl.core;
+            const ps = this.ctrl.parameterStore;
+            const byId = (id) => document.getElementById(id);
+            const gate = (id, reason) => {
+                const input = byId(id);
+                if (!input) return;
+                input.dataset.wanted ??= String(input.defaultChecked);
+                input.disabled = reason !== null;
+                input.checked = !input.disabled && input.dataset.wanted === 'true';
+                const note = input.closest('label')?.querySelector('.option-reason');
+                if (note) note.textContent = reason ?? '';
+            };
+            const caps = core.gcodeGenerator.getProcessorInfo(core.settings.gcode.postProcessor)?.capabilities || {};
+            let intent = this.readExportIntent();
+            gate('exporter-single-file', core.planExportFiles(intent).canCombine ? null : 'Nothing to combine');
+            intent = this.readExportIntent();
+            const drills = intent.operations.filter(op => op.type === 'drill' && core.machineClassOf(op) === 'router');
+            gate('exporter-split-drills', intent.singleFile ? 'Single file is on'
+                : drills.length === 0 ? 'No drill selected'
+                : this.splittableDrills(drills).length > 0 ? null
+                : 'One bit only');
+            intent = this.readExportIntent();
+            const plan = core.planExportFiles(intent);
+            gate('exporter-zip', plan.files.length > 1 ? null : 'Only one file');
+            // Every SVG carries the comment block; G-code only where the post
+            // can hold comments.
+            const commented =
+                plan.files.length === 0 ||
+                plan.files.some(
+                    (file) => file.format === 'svg' || (file.format === 'gcode' && caps.supportsComments !== false),
+                );
+            gate('exporter-include-comments', commented ? null : 'Not on this post');
+            // Never closed - passed through so it too starts from the markup default.
+            gate('exporter-optimize-paths', null);
+            // A split file holds one bit by construction; only whole-operation
+            // files can need a swap.
+            const routerIds = intent.operations.filter((op) => core.machineClassOf(op) === 'router').map((op) => op.id);
+            const fileGroups = plan.files
+                .filter((file) => file.route === 'router' && !file.splitKey)
+                .map((file) => file.operationIds);
             const tooling = routerIds.length
-                ? this.ctrl.core.pipelineContext.describeExportTooling(routerIds, this.ctrl.parameterStore)
+                ? core.pipelineContext.describeExportTooling(routerIds, ps, fileGroups)
                 : { shared: [], hasMultiToolFile: false, staged: [] };
-            const splitCoversAll = intent.splitDrillOpIds.length > 0
-                && routerIds.every(id => intent.splitDrillOpIds.includes(id));
-
-            this.updateToolChangeVisibility(intent, tooling, tooling.hasMultiToolFile && !splitCoversAll);
-            this.renderToolNotice(tooling.shared);
-            this.updateSplitDrillVisibility(intent);
+            const support = core.pipelineContext.describeToolChangeSupport(intent, ps, tooling);
+            gate(
+                'exporter-tool-changes',
+                !support.supported ? 'Not on this post' : tooling.hasMultiToolFile ? null : 'One tool per file',
+            );
+            gate(
+                'exporter-group-by-tool',
+                !intent.singleFile ? 'Single file only' : tooling.hasMultiToolFile ? null : 'One tool in file',
+            );
+            intent = this.readExportIntent();
+            // A shared T number only matters where a T word picks the cutter.
+            this.renderToolNotice(support.hint, intent.toolChanges ? tooling.shared : []);
+            // Order only matters inside a file that holds several operations.
+            byId('exporter-operation-order')?.classList.toggle(
+                'is-orderable',
+                plan.files.some((file) => file.operationIds.length > 1),
+            );
+            this.updateExportBlocksVisibility(intent);
+            this.renderExportSummary(plan, intent);
         }
 
         /**
-         * needsSwap false disables the toggle even on a post that supports it:
-         * nothing in the job holds two tools in one file.
+         * One line naming what Export writes - the archive, or the count per
+         * format - with every file name in its tooltip. A full list would
+         * reflow the panel on every toggle, and the G-code names are already
+         * in the preview selector.
          */
-        updateToolChangeVisibility(intent, tooling = null, needsSwap = !0) {
-            const gate = this.ctrl.core.pipelineContext.describeToolChangeSupport(intent, this.ctrl.parameterStore, tooling);
-            const toggle = document.getElementById("exporter-tool-changes");
-            toggle && (toggle.disabled = !gate.supported || !needsSwap);
-            const hintEl = document.getElementById("exporter-tool-changes-hint") || document.getElementById("exporter-tool-change-hint");
-            if (hintEl) {
-                hintEl.textContent = gate.hint || '';
-                hintEl.classList.toggle('hidden', !gate.hint);
+        renderExportSummary(plan, intent) {
+            const line = document.getElementById('exporter-summary');
+            if (!line) return;
+            const { files } = plan;
+            line.title = files.map((file) => file.filename).join('\n');
+            if (files.length < 2) {
+                line.textContent = files[0]?.filename || 'No operations selected';
+                return;
             }
-            return gate;
+            const counts = new Map();
+            for (const file of files) {
+                const ext = file.filename.split('.').pop().toUpperCase();
+                counts.set(ext, (counts.get(ext) || 0) + 1);
+            }
+            const kinds = [...counts].map(([ext, n]) => `${n} ${ext}`).join(', ');
+            line.textContent = intent.zip ? `${plan.baseName}.zip - ${kinds}` : `${files.length} files - ${kinds}`;
         }
 
         /**
-         * Note about T numbers shared by tools of different sizes.
-         *
-         * Advisory only and silent unless tool changes are on: with them off
-         * exactly one T word is emitted, nothing swaps, and the number is
-         * decorative - warning then is noise during a geometry check.
-         *
-         * Grouped by number so three operations on T1 read as one thing to
-         * look at, not three problems.
+         * Tooling notes, last in the CNC block so appearing pushes nothing the
+         * user is about to click. `hint` is a real problem - a file needs a
+         * swap the post cannot make - and always shows. `shared` lists T
+         * numbers carried by different sizes; the caller passes it only while
+         * tool changes are on, because with them off one T word is emitted,
+         * nothing swaps and the number is decorative. Grouped by number, so
+         * three operations on T1 read as one thing to look at, not three
+         * problems. Text nodes only: the labels carry file names.
          */
-        renderToolNotice(shared = []) {
-            const panel = document.getElementById("exporter-tool-warning");
+        renderToolNotice(hint, shared) {
+            const panel = document.getElementById('exporter-tool-warning');
             if (!panel) return;
-            const hide = () => { panel.className = "is-hidden"; panel.innerHTML = ""; };
-            const toolChangesOn = document.getElementById("exporter-tool-changes")?.checked === true;
-            if (!toolChangesOn) return hide();
-            if (shared.length === 0) return hide();
-            const mm = d => `${d.toFixed(2)} mm`;
-            panel.className = 'export-gate export-gate--warning';
-            panel.innerHTML =
-                '<strong>Some tool numbers are shared by different sizes</strong>' +
-                '<ul>' + shared.map(s =>
-                    `<li>T${s.number} is called once for ` +
-                    s.entries.map(e => `${mm(e.diameter)} (${e.label})`).join(' and ') +
-                    '</li>').join('') + '</ul>' +
-                '<p>Fine if that is one physical tool - EasyCAM compares sizes, not tool ' +
-                'library names. If they are different cutters, give each its own Tool ' +
-                'Number in the Tool section of the geometry stage.</p>';
-        }
+            const el = (tag, text) => Object.assign(document.createElement(tag), { textContent: text });
+            panel.textContent = '';
+            panel.className = hint || shared.length > 0 ? 'export-gate' : 'is-hidden';
+            if (hint) panel.appendChild(el('p', hint));
+            if (shared.length === 0) return;
+            const mm = (d) => `${d.toFixed(2)} mm`;
+            const list = document.createElement('ul');
+            for (const s of shared) {
+                const sizes = s.entries.map((e) => `${mm(e.diameter)} (${e.label})`).join(' and ');
+                list.appendChild(el('li', `T${s.number} is called once for ${sizes}`));
+            }
+            panel.append(
+                el('strong', 'Some tool numbers are shared by different sizes'),
+                list,
+                el(
+                    'p',
+                    'Fine if that is one physical tool - EasyCAM compares sizes, not tool library names. ' +
+                        'If they are different cutters, give each its own Tool Number in the Tool section ' +
+                        'of the geometry stage.',
+                ),
+            );
+        }      
 
         /**
          * Per-diameter drill tooling. operation.drillTable is the source of
@@ -381,7 +475,7 @@
                 ? '<th scope="col">Size</th><th scope="col">Features</th><th scope="col">Strategy</th><th scope="col">Tool &#8960; (mm)</th><th scope="col">T#</th>'
                 : '<th scope="col">Size</th><th scope="col">Strategy</th><th scope="col">Tool &#8960; (mm)</th><th scope="col">T#</th><th scope="col">Feed</th><th scope="col">Plunge</th><th scope="col">RPM</th><th scope="col">Peck</th>';
 
-            const sizeCell = row => `<td class="drill-tooling-size">&#8960;${row.diameter.toFixed(3)}<span>mm</span>${row.nativeTools?.length ? `<em>${row.nativeTools.join(', ')}</em>` : ''}</td>`;
+            const sizeCell = row => `<td class="drill-tooling-size" title="${row.nativeTools?.length ? `Excellon code: ${row.nativeTools.join(', ')}` : ''}">&#8960;${row.diameter.toFixed(3)}<span>mm</span></td>`;
 
             // A column header names a CELL, never a control inside it, so every
             // input needs the hole size spelled into its own name.
@@ -393,9 +487,9 @@
                                 <option value="skip"${'skip' === row.strategy ? ' selected' : ''}>Skip</option>
                             </select></td>`;
 
-            const diameterCell = row => `<td><input type="number" min="0.01" step="0.01" data-field="toolDiameter" aria-label="Tool diameter in mm for ${named(row)}" value="${row.toolDiameter ?? ''}" placeholder="${'peck' === row.strategy ? row.diameter.toFixed(3) : 'op'}"${'skip' !== row.strategy && geo ? '' : ' disabled'}></td>`;
+            const diameterCell = row => `<td><input type="number" min="0.01" step="0.001" data-field="toolDiameter" aria-label="Tool diameter in mm for ${named(row)}" value="${+(row.toolDiameter ?? row.diameter).toFixed(3)}" placeholder="${+row.diameter.toFixed(3)}"${row.strategy !== 'skip' && geo ? '' : ' disabled'}></td>`;
 
-            const numberCell = row => `<td><input type="number" min="1" step="1" data-field="toolNumber" aria-label="Tool number for ${named(row)}" value="${row.toolNumber ?? ''}" placeholder="&mdash;"${ro}></td>`;
+            const numberCell = row => `<td><input type="number" min="1" step="1" data-field="toolNumber" aria-label="Tool number for ${named(row)}" value="${row.toolNumber ?? ''}" placeholder="T#" required${ro}></td>`;
 
             const cells = row => geo
                 ? sizeCell(row) + `<td>${features(row)}</td>` + strategyCell(row) + diameterCell(row) + numberCell(row)
@@ -409,15 +503,12 @@
                 <div class="drill-tooling-presets"${geo ? '' : ' hidden'}>
                     <button class="btn btn--secondary btn--compact" data-preset="flatten">Reset to Defaults</button>
                     <button class="btn btn--secondary btn--compact" data-preset="match">Auto-match Tool Library</button>
-                    <button class="btn btn--secondary btn--compact" id="drill-tooling-native" title="Excellon header numbers are file indices, not magazine slots. Check them against the machine before running.">Copy Excellon T numbers</button>
                 </div>
                 <table class="drill-tooling-table">
                     <thead><tr>${head}</tr></thead>
                     <tbody>${entries.map(row => `<tr data-key="${row.key}">${cells(row)}</tr>`).join('')}</tbody>
                 </table>
-                <p class="modal-notice">${geo
-                    ? 'Pick a cutter and a T number for every size you are not skipping. The T number is the slot your controller receives - check it against the machine\'s magazine, not against the file. Changing a cutter discards generated paths; a T number does not.'
-                    : 'Feeds and peck depth only. Leave a field empty to inherit the operation\'s value. Cutter and T number are set at the geometry stage.'}</p>
+                <p class="modal-notice">${geo ? 'Pick a cutter and enter a tool number (T#) for every hole size. The T number cannot be zero or empty. Changing a cutter discards generated paths; a T number does not.' : 'Feeds and peck depth only. Leave a field empty to inherit the operation\'s value. Cutter and T number are set at the geometry stage.'}</p>
             `;
             this.setupDrillToolingHandlers(operation);
         }
@@ -431,51 +522,42 @@
                 btn.onclick = () => {
                     // Read on click, not at render: millHoles can change behind
                     // the modal and the presets seed from it.
-                    const settings = this.ctrl.parameterStore.getAllParameters(operation.id) || {};
-                    handler.applyDrillPreset(operation, settings, btn.dataset.preset);
+                    handler.applyDrillPreset(operation, btn.dataset.preset);
                     this.afterDrillToolingEdit(operation, true);
                     this.renderDrillToolingModal();
                 };
             });
 
-            const native = document.getElementById('drill-tooling-native');
-            native && (native.onclick = () => {
-                const { applied, ambiguous } = handler.constructor.applyNativeToolNumbers(operation);
-                this.afterDrillToolingEdit(operation, false);
-                let msg = applied > 0
-                    ? `Copied ${applied} Excellon tool number(s) - verify them against the machine's magazine.`
-                    : "This file carries no Excellon tool numbers.";
-                if (ambiguous > 0) msg += ` ${ambiguous} size(s) list more than one T code; only the first was used.`;
-                this.ui.setStatus(msg, applied > 0 ? "info" : "warning");
-                this.renderDrillToolingModal();
-            });
-
             body.querySelectorAll('[data-field]').forEach(input => {
+                const tr = input.closest('tr');
+                const key = tr?.dataset.key;
+                const row = operation.drillTable?.rows?.[key];
+                if (!row) return;
                 input.onchange = () => {
-                    const key = input.closest('tr')?.dataset.key;
-                    const row = operation.drillTable?.rows?.[key];
-                    if (!row) return;
                     const field = input.dataset.field;
                     const raw = String(input.value).trim();
-                    // toolNumber is a slot index. parseFloat accepted 3.7 and
-                    // the Number.isInteger test below then cleared it silently.
-                    const value = '' === raw
-                        ? null
-                        : ('toolNumber' === field ? parseInt(raw, 10) : parseFloat(raw));
+                    const value = raw === '' ? null : field === 'toolNumber' ? parseInt(raw, 10) : parseFloat(raw);
                     let patch;
-
                     if (field === 'strategy') {
                         patch = { strategy: input.value };
+                        if (input.value === 'peck' && (!row.toolDiameter || row.toolDiameter <= 0)) {
+                            patch.toolDiameter = row.diameter;
+                        }
                     } else if (field === 'toolDiameter') {
-                        patch = { toolDiameter: (value !== null && value > 0) ? value : null };
+                        // Empty or <= 0 falls back to the hole size the placeholder
+                        // shows; every value snaps to the 0.001 mm coordinate grid.
+                        const validDiam = +(value !== null && value > 0 ? value : row.diameter).toFixed(3);
+                        if (validDiam !== value) input.value = validDiam;
+                        patch = { toolDiameter: validDiam };
                     } else if (field === 'toolNumber') {
-                        patch = { toolNumber: Number.isInteger(value) && value > 0 ? value : null };
+                        const validNum = Number.isInteger(value) && value > 0 ? value : null;
+                        input.value = validNum !== null ? validNum : '';
+                        patch = { toolNumber: validNum };
                     } else if (field === 'peckDepth') {
                         patch = { peck: { ...(row.peck || {}), peckDepth: value } };
                     } else {
                         patch = { cutting: { ...(row.cutting || {}), [field]: value } };
                     }
-
                     const stales = handler.updateDrillRow(operation, key, patch);
                     this.afterDrillToolingEdit(operation, stales);
                     if (field === 'strategy') this.renderDrillToolingModal();
@@ -490,74 +572,43 @@
          */
         afterDrillToolingEdit(operation, stales) {
             this.drillToolingOnChange?.();
-            if (!stales || !operation.offsets?.length || operation.isInvalidated) return;
-            this.ctrl.core.store.invalidateOperationState(operation.id);
-            operation.isInvalidated = true;
-            operation.invalidatedReason = 'Drill tooling changed after generation - regenerate before exporting.';
-            this.ui.setStatus(operation.invalidatedReason, 'warning');
+            const reason = 'Drill tooling changed after generation - regenerate before exporting.';
+            if (stales && this.ctrl.core.store.invalidateOperationState(operation.id, reason)) {
+                this.ui.setStatus(reason, 'warning');
+            }
         }
 
         /**
-         * Enables the master toggle only when a split has a decision in it.
-         * "Splittable" is DrillHandler.splitDrillFiles' answer, not a count of
-         * peck diameters: milled sizes are one bit each in multi-tool mode, so
-         * counting pecks disabled the toggle in exactly the job that needs it.
-         * The reason rides on the FIELD's title, not a dedicated element: a
-         * disabled input does not fire hover in every browser, and the static
-         * help already has a tooltip. State and documentation stay separate.
+         * Back to the uncalculated state: empty preview, zeroed stats, no
+         * warnings and no program selector - that only appears once a
+         * calculation returns more than one program. The prompt is the
+         * textarea's placeholder, never its value, so it cannot be copied as
+         * if it were G-code.
          */
-        updateSplitDrillVisibility(intent = this.readExportIntent()) {
-            const checkbox = document.getElementById('exporter-split-drills');
-            const field = document.getElementById('exporter-split-drills-field');
-            if (!checkbox) return;
-
-            // readExportIntent already walks the list in document order; a
-            // second querySelectorAll causes the gate and the exported set
-            // to disagree.
-            const isSingleFile = intent.singleFile;
-            let anyDrill = false, anyUnpreviewed = false, anySplittable = false;
-            for (const op of intent.operations) {
-                if (op.type !== "drill") continue;
-                anyDrill = true;
-                if (op.preview?.ready === true) {
-                    if (DrillHandler.splitDrillFiles(op).length > 1) anySplittable = true;
-                } else {
-                    anyUnpreviewed = true;
-                }
+        resetExportPreview() {
+            const byId = (id) => document.getElementById(id);
+            const setText = (id, text) => {
+                const el = byId(id);
+                if (el) el.textContent = text;
+            };
+            const previewText = byId('exporter-preview-text');
+            if (previewText) {
+                previewText.value = '';
+                if (this.text.gcodePlaceholder) previewText.placeholder = this.text.gcodePlaceholder;
             }
-
-            checkbox.disabled = isSingleFile || !anySplittable;
-            if (checkbox.disabled) checkbox.checked = false;
-
-            const reason = isSingleFile
-                ? 'Disable "Export as single file" first.'
-                : !anyDrill ? 'No drill operations selected.'
-                : anyUnpreviewed ? 'Generate the drill previews first.'
-                : anySplittable ? 'Writes one file per bit. Sizes sharing a cutter stay together.'
-                : 'Every size in this job uses the same bit - nothing to split.';
-            if (field) field.title = reason;
-            checkbox.title = reason;
-        }
-
-        clearExportPreview() {
-            const previewText = document.getElementById('exporter-preview-text');
-            if (previewText) previewText.value = '';
-
-            const lineCount = document.getElementById('exporter-line-count');
-            if (lineCount) lineCount.textContent = '0';
-
-            const opCount = document.getElementById('exporter-op-count');
-            if (opCount) opCount.textContent = '0';
-
-            const estTime = document.getElementById('exporter-est-time');
-            if (estTime) estTime.textContent = '--:--';
-
-            const distance = document.getElementById('exporter-distance');
-            if (distance) distance.textContent = '0mm';
-
-            const warn = document.getElementById('exporter-warnings');
-            if (warn) { warn.style.display = 'none'; warn.innerHTML = ''; }
-
+            setText('exporter-line-count', '0');
+            setText('exporter-op-count', '0');
+            setText('exporter-est-time', '--:--');
+            setText('exporter-distance', '0mm');
+            const warn = byId('exporter-warnings');
+            if (warn) {
+                warn.style.display = 'none';
+                warn.innerHTML = '';
+            }
+            const select = byId('exporter-preview-select');
+            if (select) select.innerHTML = '';
+            const selector = byId('exporter-operation-selector');
+            if (selector) selector.style.display = 'none';
             this.updateCopyButtonScrollbar();
         }
 
@@ -567,23 +618,7 @@
          */
         invalidateCalculated() {
             this.ctrl.core.exportPrograms = { key: null, results: null };
-            this.showPlaceholderPreview();
-        }
-
-        showPlaceholderPreview() {
-            const previewText = document.getElementById('exporter-preview-text');
-            if (previewText) {
-                previewText.value = this.text.gcodePlaceholder;
-            }
-
-            // Reset stats
-            document.getElementById('exporter-line-count').textContent = '0';
-            const opCountEl = document.getElementById('exporter-op-count');
-            if(opCountEl) opCountEl.textContent = this.selectedOperations.length;
-            document.getElementById('exporter-est-time').textContent = '--:--';
-            document.getElementById('exporter-distance').textContent = '0mm';
-
-            this.updateCopyButtonScrollbar();
+            this.resetExportPreview();
         }
 
         // Generic modal methods
@@ -658,35 +693,34 @@
 
         closeModal() {
             if (!this.activeModal) return;
-
+            const closing = this.getActiveModalName();
             this.removeFocusTrap();
             this.activeModal.classList.remove('active');
-
             if (this.modalStack.length > 0) {
                 // Returning to previous modal
                 this.activeModal = this.modalStack.pop();
                 this.activeModal.classList.add('active');
                 this.setupFocusTrap(this.activeModal);
-
                 // Update hash to reflect the modal being returning to
                 const returnModalName = this.getActiveModalName();
-                    if (returnModalName && MODAL_POLICY[returnModalName]?.hashable) {
-                        history.replaceState(null, null, `#${returnModalName}`);
-                    } else {
-                        // Nothing hashable underneath - clean the URL to root
-                        history.replaceState(null, null, window.location.pathname);
-                    }
+                if (returnModalName && MODAL_POLICY[returnModalName]?.hashable) {
+                    history.replaceState(null, null, `#${returnModalName}`);
+                } else {
+                    // Nothing hashable underneath - clean the URL to root
+                    history.replaceState(null, null, window.location.pathname);
+                }
             } else {
                 // Fully closing removes hash
                 this.activeModal = null;
                 if (window.location.hash) {
                     history.replaceState(null, null, window.location.pathname);
                 }
-
                 // Restore focus - but never to canvas
-                if (this.previousActiveElement && 
+                if (
+                    this.previousActiveElement &&
                     document.body.contains(this.previousActiveElement) &&
-                    this.previousActiveElement.id !== 'preview-canvas') {
+                    this.previousActiveElement.id !== 'preview-canvas'
+                ) {
                     this.previousActiveElement.focus();
                 } else {
                     // Jump back to the app's tree or else focus lands on <body> and
@@ -696,6 +730,7 @@
                 }
                 this.previousActiveElement = null;
             }
+            if ('warning' === closing && this.warningQueue.length > 0) this.showWarning(...this.warningQueue.shift());
         }
 
         handleEscapeKey() {
@@ -866,18 +901,22 @@
         showWelcomeHandler() {
             const modal = this.modals.welcome;
             modal?.querySelectorAll(".pipeline-card[data-pipeline]").forEach(card => {
+                // The controller performs the app-specific side effect and returns
+                // the modal to advance to, or null to land straight in the workspace.
                 card.onclick = e => {
                     e.preventDefault();
-                    this.selectPipeline(card.dataset.pipeline);
+                    this.selectedPipeline = card.dataset.pipeline;
+                    const next = this.ctrl.onPipelineSelected(card.dataset.pipeline) ?? 'quickstart';
+                    this.closeModal();
+                    if (next && !localStorage.getItem(this.ctrl.storageKeys.hideWelcome)) this.showModal(next);
                 };
             });
 
-            // Sponsor slots and CTA
+            // Sponsor slots and CTA (only open support modal on empty placeholder slots)
             ['sponsor-slot-1', 'sponsor-slot-2', 'sponsor-slot-3', 'sponsor-contact-cta'].forEach(id => {
                 const el = document.getElementById(id);
-                if (el) {
-                    el.onclick = (e) => {
-                        e.preventDefault();
+                if (el && !el.classList.contains('sponsor-slot--filled')) {
+                    el.onclick=e=>{e.preventDefault();
                         this.showModal('support');
                     };
                 }
@@ -897,18 +936,6 @@
             if (closeBtn) {
                 closeBtn.onclick = () => this.handleClickOutside('welcome');
             }
-        }
-
-        /**
-         * Single entry point for welcome-modal pipeline choices. The
-         * controller performs the app-specific side effect and returns the
-         * modal to advance to, or null to land straight in the workspace.
-         */
-        selectPipeline(pipelineId) {
-            this.selectedPipeline = pipelineId;
-            const next = this.ctrl.onPipelineSelected(pipelineId) ?? "quickstart";
-            this.closeModal();
-            next && !localStorage.getItem(storageKeys.hideWelcome) && this.showModal(next);
         }
 
         showQuickstartHandler() {
@@ -931,12 +958,12 @@
             // Initialize "don't show again" checkbox from stored preference
             const dontShowCheckbox = document.getElementById('dont-show-quickstart');
             if (dontShowCheckbox) {
-                const hideWelcome = localStorage.getItem(storageKeys.hideWelcome);
+                const hideWelcome = localStorage.getItem(this.ctrl.storageKeys.hideWelcome);
                 dontShowCheckbox.checked = !!hideWelcome;
 
                 dontShowCheckbox.onchange = (e) => {
                     if (!e.target.checked) {
-                        localStorage.removeItem(storageKeys.hideWelcome);
+                        localStorage.removeItem(this.ctrl.storageKeys.hideWelcome);
                         this.ui.setStatus('Quickstart will show on next visit', 'info');
                     }
                 };
@@ -967,7 +994,7 @@
             const loadExampleBtn = document.getElementById('load-example-btn');
             if (loadExampleBtn) loadExampleBtn.onclick = async () => {
                 const selectedExample = select?.value;
-                if (!selectedExample || !this.ctrl.loadExample || this._loadingExample) return;
+                if (!selectedExample || this._loadingExample) return;
 
                 // The fetch is not instant off localhost. Hold the modal open,
                 // disable its inputs and say what is happening - closing first
@@ -1125,7 +1152,7 @@
             const dontShowCheckbox = document.getElementById('dont-show-quickstart');
             if (dontShowCheckbox && dontShowCheckbox.checked) {
                 // Save preference to localStorage
-                localStorage.setItem(storageKeys.hideWelcome, 'true');
+                localStorage.setItem(this.ctrl.storageKeys.hideWelcome, 'true');
             }
 
             // Actually close the modal
@@ -1133,130 +1160,56 @@
         }
 
         // Toolpath modal handler
-        async showExportManagerHandler(options = {}) {
+        showExportManagerHandler(options = {}) {
             const operations = options.operations || [];
-            const highlightOperationId = options.highlightOperationId || null;
-
             this.debug(`Opening Export Manager with ${operations.length} operation(s)`);
-
-            // Sync all toggle visibility with current DOM state
-            const selectorDiv = document.getElementById('exporter-operation-selector');
-            const singleFileCheck = document.getElementById('exporter-single-file');
-            if (selectorDiv) {
-                selectorDiv.style.display = (singleFileCheck && singleFileCheck.checked) ? 'none' : '';
+            const core = this.ctrl.core;
+            const sortOrder = { isolation: 1, clearing: 2, drill: 3, cutout: 4, stencil: 99 };
+            this.selectedOperations = [...operations].sort((a, b) => (sortOrder[a.type] ?? 5) - (sortOrder[b.type] ?? 5));
+            const all = this.selectedOperations;
+            const classes = new Set(all.map(op => core.machineClassOf(op)));
+            const hasCNC = classes.has('router');
+            const hasLaser = classes.has('laser');
+            const hasVector = [...classes].some(cls => cls !== 'router' && cls !== 'laser');
+            const board = all.filter(op => core.machineClassOf(op) === 'router' && op.type !== 'stencil');
+            const splittable = this.splittableDrills(board).length > 0;
+            const byId = id => document.getElementById(id);
+            const show = (id, visible) => byId(id)?.classList.toggle('is-hidden', !visible);
+            // What is on screen is decided here, once, from what this job could
+            // ever use; refreshExportState only enables and disables after this.
+            // Class toggles, not inline display, so the CSS grid stays in control.
+            show('exporter-cnc-options', hasCNC);
+            show('exporter-cnc-preview', hasCNC);
+            show('exporter-calculate-btn', hasCNC);
+            show('exporter-laser-options', hasLaser);
+            show('exporter-stencil-options', hasVector);
+            show('exporter-single-file-field', core.planExportFiles({ operations: all }).canCombine);
+            show('exporter-split-drills-field', splittable);
+            show('exporter-zip-field', all.length > 1 || splittable);
+            show('exporter-group-by-tool-field', board.length > 1);
+            // Without CNC work the preview column is gone and the options take its width.
+            document.querySelector('.gcode-options')?.classList.toggle('is-full-width', !hasCNC);
+            // Laser and vector work only exist in apps that keep the laser settings.
+            if (hasLaser) {
+                const paddingInput = byId('laser-exporter-padding');
+                if (paddingInput) paddingInput.value = core.settings.laser.exportPadding;
+                const activeProfile = core.graphicsExporter.getProfileInfo(core.settings.laser.activeProfile);
+                const summaryLabel = byId('laser-profile-summary-label');
+                if (summaryLabel && activeProfile) summaryLabel.textContent = activeProfile.label;
             }
-
-            const getSortOrder = (opType) => {
-                switch (opType) {
-                    case 'isolation': return 1;
-                    case 'laser_isolation': return 1;
-                    case 'clearing':  return 2;
-                    case 'drill':     return 3;
-                    case 'cutout':    return 4;
-                    case 'stencil':   return 99;
-                    default:          return 5;
-                }
-            };
-
-            this.selectedOperations = operations.sort((a, b) => getSortOrder(a.type) - getSortOrder(b.type));
-            this.highlightedOpId = highlightOperationId;
-
-            // Check which operations actually exist in this job
-            this.jobHasLaser = this.selectedOperations.some(op => this.ctrl.core.machineClassOf(op) === 'laser');
-            this.jobHasCNC = this.selectedOperations.some(op => this.ctrl.core.machineClassOf(op) === 'router');
-            this.jobHasVector = this.selectedOperations.some(op => this.ctrl.core.machineClassOf(op) === 'knife');
-
-            const laserOptions = document.getElementById('exporter-laser-options');
-            const cncOptions = document.getElementById('exporter-cnc-options');
-            const cncPreview = document.getElementById('exporter-cnc-preview');
-            const stencilOptions = document.getElementById('exporter-stencil-options');
-            const leftColumnWrapper = document.querySelector('.gcode-options');
-
-            // Set the MACRO layout based on the job contents.
-            // Use class toggles instead of inline display so the CSS grid layout stays in control.
-            if (laserOptions) laserOptions.classList.toggle('is-hidden', !this.jobHasLaser);
-            if (cncOptions) cncOptions.classList.toggle('is-hidden', !this.jobHasCNC);
-            if (cncPreview) cncPreview.classList.toggle('is-hidden', !this.jobHasCNC);
-            if (stencilOptions) stencilOptions.classList.toggle('is-hidden', !this.jobHasVector);
-            
-
-            // Update the calculate button text and visibility based on job contents
-            const calcBtn = document.getElementById('exporter-calculate-btn');
-            if (calcBtn) {
-                calcBtn.textContent = this.jobHasCNC ? 'Calculate Toolpaths' : 'Preview Export';
-                calcBtn.classList.toggle('is-hidden', !this.jobHasCNC);
+            if (hasVector) {
+                const stencilPaddingInput = byId('stencil-exporter-padding');
+                if (stencilPaddingInput) stencilPaddingInput.value = core.settings.laser.exportPadding;
             }
-
-            // Fix the grid sizing if CNC preview is completely gone
-            if (leftColumnWrapper) {
-                leftColumnWrapper.classList.toggle('is-full-width', !this.jobHasCNC);
-            }
-
-            this.populateExportOperationsList();
-
-            const orderList = document.getElementById('exporter-operation-order');
-            const isSingleFile = document.getElementById('exporter-single-file')?.checked === true;
-            if (orderList) {
-                orderList.classList.toggle('is-orderable', isSingleFile);
-            }
-
-            // Hide split-drills field entirely in laser-only jobs
-            const splitDrillsField = document.getElementById('exporter-split-drills-field');
-            if (splitDrillsField) {
-                splitDrillsField.style.display = this.jobHasCNC ? '' : 'none';
-            }
-
-            this.updateExportBlocksVisibility();
-            this.refreshToolingGates();
-            this.setupExportHandlers();
-
-            // Laser specific init (only if laser ops present)
-            if (this.jobHasLaser) {
-                const laserSettings = this.ctrl.core.settings.laser;
-
-                // Populate the per-job padding input from persisted settings
-                const paddingInput = document.getElementById('laser-exporter-padding');
-                if (paddingInput) {
-                    paddingInput.value = laserSettings.exportPadding ?? D.laser.exportPadding;
-                }
-
-                // Update profile summary label in the modal
-                const activeProfile = this.ctrl.graphicsExporter.getProfileInfo(laserSettings.activeProfile);
-                const summaryLabel = document.getElementById("laser-profile-summary-label");
-                if (summaryLabel && activeProfile) {
-                    summaryLabel.textContent = activeProfile.label;
-                }
-            }
-
-            // Stencil specific init (only if stencil ops present)
-            if (this.jobHasVector) {
-                const stencilPaddingInput = document.getElementById('stencil-exporter-padding');
-                if (stencilPaddingInput) {
-                    const laserSettings = this.ctrl.core.settings.laser;
-                    stencilPaddingInput.value = laserSettings.exportPadding ?? D.laser.exportPadding;
-                }
-            }
-
-            // Update filename input with the correct extension for immediate visual feedback
-            const filenameInput = document.getElementById('exporter-filename');
+            // The field holds the base name only; the summary line shows the final names.
+            const filenameInput = byId('exporter-filename');
             if (filenameInput) {
-                // CNC wins when a job mixes routes: the G-code is the file the
-                // operator loads, the vectors ride along beside it.
-                let ext = '.svg';
-                if (this.jobHasCNC) {
-                    const processorInfo = this.ctrl.gcodeGenerator
-                        .getProcessorInfo(this.ctrl.core.settings.gcode.postProcessor);
-                    ext = processorInfo.fileExtension;
-                } else if (this.jobHasLaser) {
-                    ext = this.ctrl.core.settings.laser.exportFormat === 'png' ? '.png' : '.svg';
-                }
-
-                const defaultBaseName = this.ctrl.core.settings.export.defaultBaseName;
-                const currentName = filenameInput.value || defaultBaseName;
-                const baseName = currentName.replace(/\.[^/.]+$/, ''); // Strip old extension if present
-                filenameInput.value = `${baseName}${ext}`;
+                filenameInput.value = filenameInput.value.trim().replace(/\.[^/.]+$/, '') || filenameInput.placeholder;
             }
-
+            this.populateExportOperationsList();
+            this.setupExportHandlers();
+            this.resetExportPreview();
+            this.refreshExportState();
             this.attachExporterModalTooltips();
         }
 
@@ -1264,209 +1217,158 @@
             const list = document.getElementById('exporter-operation-order');
             if (!list) return;
             list.innerHTML = '';
-
+            const core = this.ctrl.core;
+            const postInfo = core.gcodeGenerator.getProcessorInfo(core.settings.gcode.postProcessor);
+            const cncExt = (postInfo?.fileExtension || '.nc').replace('.', '').toUpperCase();
+            const badgeClass = { router: 'cnc', laser: 'laser' };
             for (const op of this.selectedOperations) {
                 const item = document.createElement('div');
                 item.className = 'file-node-content';
                 item.dataset.operationId = op.id;
-
-                // Three-way route badge with format indicator
-                const route = this.ctrl.core.machineClassOf(op);
-                let routeBadge;
-                if (route === 'laser') {
-                    const laserFormat = this.ctrl.core.settings.laser.exportFormat.toUpperCase();
-                    routeBadge = `<span class="exporter-route-badge exporter-route-badge--laser">${laserFormat}</span>`;
-                } else if (route === 'router') {
-                    const processorInfo = this.ctrl.gcodeGenerator
-                        .getProcessorInfo(this.ctrl.core.settings.gcode.postProcessor);
-                    const ext = (processorInfo?.fileExtension).replace('.', '').toUpperCase();
-                    routeBadge = `<span class="exporter-route-badge exporter-route-badge--cnc">${ext}</span>`;
-                } else {
-                    routeBadge = '<span class="exporter-route-badge exporter-route-badge--stencil">SVG</span>';
-                }
-
-                // REVIEW - Consider moving the operation drag-handler icon to the right so that there aren't layout shifts when toggling them on/off?
+                // The badge is the format the operation is written in. In a PNG
+                // laser job that differs per operation: cut-through work stays SVG.
+                const format = core.exportFormatOf(op);
+                const route = badgeClass[core.machineClassOf(op)] || 'stencil';
                 item.innerHTML = `
                     <input type="checkbox" class="exporter-op-checkbox" id="exp-check-${op.id}" checked>
                     <label for="exp-check-${op.id}">
-                        ${op.type}: ${op.file.name}
-                        ${routeBadge}
+                        <span class="exporter-op-name"></span>
+                        <span class="exporter-route-badge exporter-route-badge--${route}">${format === 'gcode' ? cncExt : format.toUpperCase()}</span>
                     </label>
                 `;
-
-                // Re-evaluate visibility when checkboxes change
-                const checkbox = item.querySelector("input");
-                checkbox.addEventListener("change", () => {
-                    this.updateExportBlocksVisibility();
-                    this.refreshToolingGates();
+                item.querySelector('.exporter-op-name').textContent = `${op.type}: ${op.file.name}`;
+                item.querySelector('input').addEventListener('change', () => {
+                    this.refreshExportState();
                     this.invalidateCalculated();
                 });
-
                 // A stencil is its own job on its own material, so it is never part
                 // of the board's processing order.
-                if ('stencil' === op.type) {
+                if (op.type === 'stencil') {
                     item.dataset.locked = 'true';
                     item.title = 'Exported as a separate file - stencil stock is a different setup.';
                 }
-
                 list.appendChild(item);
             }
-
-            UIControls.makeSortable(list, '.file-node-content', (msg, level) => this.ui.setStatus(msg, level));
+            UIControls.makeSortable(
+                list,
+                '.file-node-content',
+                (msg, level) => this.ui.setStatus(msg, level),
+                () => {
+                    this.refreshExportState();
+                    this.invalidateCalculated();
+                },
+            );
         }
 
-        updateExportBlocksVisibility() {
-            const cncOptions = document.getElementById('exporter-cnc-options');
-            const cncPreview = document.getElementById('exporter-cnc-preview');
-            const calcBtn = document.getElementById('exporter-calculate-btn');
-            const laserOptions = document.getElementById('exporter-laser-options');
-            const stencilOptions = document.getElementById('exporter-stencil-options');
-            const list = document.getElementById('exporter-operation-order');
-
-            let hasCheckedLaser = false;
-            let hasCheckedCNC = false;
-            let hasCheckedVector = false;
-
-            // Check what the user currently has checked
-            if (list) {
-                list.querySelectorAll('.file-node-content').forEach(item => {
-                    const checkbox = item.querySelector('input[type="checkbox"]');
-                    if (checkbox && checkbox.checked) {
-                        const op = this.selectedOperations.find(o => o.id === item.dataset.operationId);
-                        if (op) {
-                            const route = this.ctrl.core.machineClassOf(op);
-                            if (route === 'laser') hasCheckedLaser = true;
-                            else if (route === 'router') hasCheckedCNC = true;
-                            else hasCheckedVector = true;
-                        }
-                    }
-                });
-            }
-
-            // MICRO STATE: Disable (gray out) blocks if their corresponding ops are unchecked
-            if (cncOptions) cncOptions.classList.toggle('is-disabled', !hasCheckedCNC);
-            if (cncPreview) cncPreview.classList.toggle('is-disabled', !hasCheckedCNC);
-            if (laserOptions) laserOptions.classList.toggle('is-disabled', !hasCheckedLaser);
-            if (stencilOptions) stencilOptions.classList.toggle('is-disabled', !hasCheckedVector);
-
-            if (calcBtn) calcBtn.disabled = !hasCheckedCNC;
+        /**
+         * Dims each route's options when none of its operations are checked.
+         */
+        updateExportBlocksVisibility(intent) {
+            const classes = new Set(intent.operations.map((op) => this.ctrl.core.machineClassOf(op)));
+            const hasCNC = classes.has('router');
+            const hasVector = [...classes].some((cls) => cls !== 'router' && cls !== 'laser');
+            const byId = (id) => document.getElementById(id);
+            byId('exporter-cnc-options')?.classList.toggle('is-disabled', !hasCNC);
+            byId('exporter-cnc-preview')?.classList.toggle('is-disabled', !hasCNC);
+            byId('exporter-laser-options')?.classList.toggle('is-disabled', !classes.has('laser'));
+            byId('exporter-stencil-options')?.classList.toggle('is-disabled', !hasVector);
+            const calcBtn = byId('exporter-calculate-btn');
+            if (calcBtn) calcBtn.disabled = !hasCNC;
         }
 
         setupExportHandlers() {
-            const cancelBtn = document.getElementById('exporter-cancel-btn');
-            const executeBtn = document.getElementById('exporter-execute-btn');
-            const calcBtn = document.getElementById('exporter-calculate-btn');
+            const byId = (id) => document.getElementById(id);
+            // .onchange / .onclick throughout: this re-runs on every modal open,
+            // and addEventListener on a static element stacks a new listener
+            // each time.
             const closeBtn = this.modals.exportManager?.querySelector('.modal-close');
-
-            if (cancelBtn) cancelBtn.onclick = () => this.closeModal();
             if (closeBtn) closeBtn.onclick = () => this.closeModal();
-
-            if (calcBtn) {
-                calcBtn.onclick = () => this.runToolpathOrchestration(calcBtn);
+            const cancelBtn = byId('exporter-cancel-btn');
+            if (cancelBtn) cancelBtn.onclick = () => this.closeModal();
+            const calcBtn = byId('exporter-calculate-btn');
+            if (calcBtn) calcBtn.onclick = () => this.runToolpathOrchestration(calcBtn);
+            // A tick is recorded as data-wanted before anything reads it: a
+            // gate may untick an option that cannot apply, and
+            // refreshExportState gives the choice back once it can.
+            const wire = (id, after) => {
+                const toggle = byId(id);
+                if (!toggle) return;
+                toggle.onchange = () => {
+                    toggle.dataset.wanted = String(toggle.checked);
+                    after();
+                };
+            };
+            // These change which files exist or which tools a file holds.
+            for (const id of ['exporter-single-file', 'exporter-split-drills', 'exporter-tool-changes']) {
+                wire(id, () => {
+                    this.refreshExportState();
+                    this.invalidateCalculated();
+                });
             }
-
-            const singleFileToggle = document.getElementById("exporter-single-file");
-            singleFileToggle && (singleFileToggle.onchange = e => {
-                const orderList = document.getElementById("exporter-operation-order");
-                orderList && orderList.classList.toggle("is-orderable", e.target.checked);
-                this.refreshToolingGates();
-                this.invalidateCalculated();
-            });
-
-            // .onchange, like every sibling control here: setupExportHandlers
-            // re-runs on every modal open, and addEventListener on a static
-            // element stacks a new listener each time.
-            const splitDrillsToggle = document.getElementById("exporter-split-drills");
-            splitDrillsToggle && (splitDrillsToggle.onchange = () => {
-                this.refreshToolingGates();
-                this.invalidateCalculated();
-            });
-
-            const toolChangeToggle = document.getElementById("exporter-tool-changes");
-            toolChangeToggle && (toolChangeToggle.onchange = () => {
-                this.refreshToolingGates();
-                this.invalidateCalculated();
-            });
-
-            const groupByToolToggle = document.getElementById("exporter-group-by-tool");
-            groupByToolToggle && (groupByToolToggle.onchange = () => this.invalidateCalculated());
-
-            // Preview selector: switch displayed G-code when user picks a different operation
-            const previewSelect = document.getElementById('exporter-preview-select');
-            if (previewSelect) {
-                previewSelect.onchange = (e) => this.showGcodeForOperation(e.target.value);
+            // These change the program text only.
+            for (const id of ['exporter-group-by-tool', 'exporter-include-comments', 'exporter-optimize-paths']) {
+                wire(id, () => this.invalidateCalculated());
             }
-
+            // Delivery only - calculated programs stay valid.
+            wire('exporter-zip', () => this.refreshExportState());
+            // The base name only changes file names, so only the summary redraws.
+            const filenameInput = byId('exporter-filename');
+            if (filenameInput) {
+                filenameInput.oninput = () => {
+                    const intent = this.readExportIntent();
+                    this.renderExportSummary(this.ctrl.core.planExportFiles(intent), intent);
+                };
+            }
+            // Preview selector: switch the displayed program
+            const previewSelect = byId('exporter-preview-select');
+            if (previewSelect) previewSelect.onchange = (e) => this.showGcodeForOperation(e.target.value);
             // Copy to Clipboard
-            const copyBtn = document.getElementById('exporter-copy-btn');
+            const copyBtn = byId('exporter-copy-btn');
             if (copyBtn) {
                 copyBtn.onclick = async () => {
-                    const previewText = document.getElementById('exporter-preview-text');
-
-                    if (previewText && previewText.value && previewText.value !== (this.text.gcodePlaceholder)) {
-                        try {
-                            await navigator.clipboard.writeText(previewText.value);
-                            this.ui.setStatus('G-code copied to clipboard!', 'success');
-
-                            // Visual feedback via class toggle
-                            copyBtn.classList.add('copy-success');
-
-                            setTimeout(() => { 
-                                copyBtn.classList.remove('copy-success');
-                            }, 2000);
-
-                        } catch (err) {
-                            console.error('[UI-ModalManager] Failed to copy text:', err);
-                            this.ui.setStatus('Clipboard copy failed. Check browser permissions.', 'error');
-                        }
-                    } else {
+                    const previewText = byId('exporter-preview-text');
+                    if (!previewText?.value) {
                         this.ui.setStatus('No generated G-code to copy.', 'warning');
+                        return;
+                    }
+                    try {
+                        await navigator.clipboard.writeText(previewText.value);
+                        this.ui.setStatus('G-code copied to clipboard!', 'success');
+                        // Visual feedback via class toggle
+                        copyBtn.classList.add('copy-success');
+                        setTimeout(() => copyBtn.classList.remove('copy-success'), 2000);
+                    } catch (err) {
+                        console.error('[UI-ModalManager] Failed to copy text:', err);
+                        this.ui.setStatus('Clipboard copy failed. Check browser permissions.', 'error');
                     }
                 };
             }
-
-            if (executeBtn) {
-                executeBtn.onclick = async () => {
-                    await this.executeUnifiedExport();
-                };
-            }
+            const executeBtn = byId('exporter-execute-btn');
+            if (executeBtn) executeBtn.onclick = () => this.executeUnifiedExport();
         }
 
         async executeUnifiedExport() {
+            const intent = this.readExportIntent();
+            if (intent.operationIds.length === 0) {
+                this.ui.setStatus('No operations selected for export.', 'warning');
+                return;
+            }
             const executeBtn = document.getElementById('exporter-execute-btn');
             const loadingOverlay = document.getElementById('loading-overlay');
             const loadingText = document.getElementById('loading-text');
-
+            // Loose files are paced one by one in WebKit; an archive is one download.
+            const looseFiles = intent.zip ? 0 : this.ctrl.core.planExportFiles(intent).files.length;
+            const paced = looseFiles > 1 && this.ctrl.pacesDownloads;
             if (executeBtn) executeBtn.disabled = true;
-
-            // Trigger the global wait spinner (with webkit delay context)
-            const isWebKit = /AppleWebKit/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
             if (loadingOverlay && loadingText) {
-                loadingText.textContent = isWebKit ? 'Exporting Files - Pacing downloads in webkit...' : 'Exporting Files...';
+                loadingText.textContent = paced ? 'Exporting Files - Pacing downloads in webkit...' : 'Exporting Files...';
                 loadingOverlay.classList.remove('is-hidden');
                 loadingOverlay.focus();
             }
-
             try {
-                // Gather all checked operations
-                const intent = this.readExportIntent();
-
-                // Safeguard: Did users uncheck everything?
-                if (intent.operationIds.length === 0) {
-                    this.ui.setStatus("No operations selected for export.", "warning");
-                    return;
-                }
-
-                // Reuse the calculated program only if nothing that shapes it moved.
-                // The stale case was silent: the file went out built by the previous
-                // post-processor, with the new post's extension on it.
-                const key = this.ctrl.core.exportIntentKey(intent);
-                const cached = this.ctrl.core.exportPrograms.key === key ? this.ctrl.core.exportPrograms.results : null;
-
-                const result = await this.ctrl.executeExports({ ...intent, gcodeResults: cached });
-
+                const result = await this.ctrl.executeExports(intent);
                 if (result.success) {
-                    this.ui.setStatus(result.message, 'success');
+                    this.ui.setStatus(result.message, result.failures.length > 0 ? 'warning' : 'success');
                     this.closeModal();
                 } else {
                     this.ui.setStatus(result.message || 'Export produced no output.', 'warning');
@@ -1481,136 +1383,93 @@
             }
         }
 
+        /**
+         * The (?) help on every export option, from ui.modals.exporter.*: what
+         * the option does and when it applies. Why it is off right now is the
+         * row's own note. Once per element - the modal reopens, its markup
+         * stays.
+         */
         attachExporterModalTooltips() {
             if (!this.lang || !window.TooltipManager) return;
-
-            // Manage Modal box
-            if (!this.exporterModalTooltipsProcessed) {
-                this.exporterModalTooltipsProcessed = new Set();
-            }
-            const processedLabels = this.exporterModalTooltipsProcessed;
-
-            const attachTo = (inputId, tooltipKey) => {
-                const input = document.getElementById(inputId);
-                if (!input) return;
-
-                const label = input.closest('.property-field, .field-group')?.querySelector('label');
-                if (label) {
-                    // Check if modal already has tooltips
-                    if (processedLabels.has(label)) {
-                        return;
-                    }
-                    processedLabels.add(label);
-
-                    const { help } = this.lang.entry(tooltipKey);
-                    const title = label.textContent; // Use the label text as title
-
-                    if (help) {
-                        // This will create the '?' icon
-                        window.TooltipManager.attachWithIcon(label, { title, text: help }, {
-                            showOnFocus: true
-                        });
-                    }
-                }
+            const processed = this.exporterModalTooltipsProcessed;
+            const attachTo = (inputId, key) => {
+                const label = document.getElementById(inputId)?.closest('.property-field')?.querySelector('label');
+                if (!label || processed.has(label)) return;
+                processed.add(label);
+                const { label: title, help } = this.lang.entry(key);
+                if (!help) return;
+                window.TooltipManager.attachWithIcon(
+                    label,
+                    { title: title || label.querySelector('span')?.textContent || label.textContent, text: help },
+                    { showOnFocus: true },
+                );
             };
-
-            // Find the "Processing Order" <h3> and attach a tooltip to its help text
-            const orderHelp = document.querySelector('#exporter-operation-order + .help-text');
-            if (orderHelp) {
-                const { label, help } = this.lang.entry('ui.modals.exporter.order');
-                if (help) {
-                window.TooltipManager.attach(orderHelp,
-                    { title: label || 'Processing Order', text: help },
-                    { immediate: true });
-                orderHelp.classList.add('has-help');
-                }
-            }
-
-            // Attach to checkboxes and inputs
-            attachTo('exporter-include-comments', 'ui.modals.exporter.includeComments');
-            attachTo('exporter-tool-changes', 'ui.modals.exporter.toolChanges');
-            attachTo('exporter-optimize-paths', 'ui.modals.exporter.optimize');
-            attachTo('exporter-single-file', 'ui.modals.exporter.singleFile');
-            attachTo('exporter-split-drills', 'ui.modals.exporter.splitDrills');
-            attachTo('exporter-filename', 'ui.modals.exporter.filename');
+            const hoverHelp = (el, key, fallbackTitle) => {
+                if (!el || processed.has(el)) return;
+                processed.add(el);
+                const { label, help } = this.lang.entry(key);
+                if (help) window.TooltipManager.attach(el, { title: label || fallbackTitle, text: help }, { immediate: true });
+            };
+            const ui = (name) => `ui.modals.exporter.${name}`;
+            attachTo('exporter-filename', ui('filename'));
+            attachTo('exporter-single-file', ui('singleFile'));
+            attachTo('exporter-split-drills', ui('splitDrills'));
+            attachTo('exporter-zip', ui('zip'));
+            attachTo('exporter-include-comments', ui('includeComments'));
+            attachTo('exporter-tool-changes', ui('toolChanges'));
+            attachTo('exporter-group-by-tool', ui('groupByTool'));
+            attachTo('exporter-optimize-paths', ui('optimize'));
             attachTo('laser-exporter-padding', 'params.laserExportPadding');
             attachTo('stencil-exporter-padding', 'params.stencilExportPadding');
-
-            // Attach to calculate button
-            const calcBtn = document.getElementById('exporter-calculate-btn');
-            if (calcBtn) {
-                const { label, help } = this.lang.entry('ui.modals.exporter.calculate');
-                if (help) {
-                window.TooltipManager.attach(calcBtn,
-                    { title: label || 'Calculate Toolpaths', text: help },
-                    { immediate: true });
-                }
-            }
+            hoverHelp(document.getElementById('exporter-order-help'), ui('order'), 'Processing Order');
+            hoverHelp(document.getElementById('exporter-calculate-btn'), ui('calculate'), 'Calculate Toolpaths');
         }
 
         /**
          * Calculate button. Reads intent from the DOM, hands the job to the core,
-         * renders what comes back. Every decision about WHICH operations run and
-         * whether they are ready is in CamCore.computeExportPrograms - the only
+         * renders what comes back. Which operations run, whether they are ready
+         * and how they group into programs are CamCore's decisions - the only
          * thing that belongs here is the panel.
          */
-        async runToolpathOrchestration(btn, explicitOps = null) {
+        async runToolpathOrchestration(btn) {
             const originalText = btn.textContent;
             btn.textContent = 'Calculating...';
             btn.disabled = true;
             try {
-                const intent = this.readExportIntent();
-                if (explicitOps) {
-                    intent.operations = explicitOps;
-                    intent.operationIds = explicitOps.map(o => o.id);
-                }
-                const job = await this.ctrl.core.computeExportPrograms(intent, this.ctrl.parameterStore);
+                const job = await this.ctrl.core.computeExportPrograms(this.readExportIntent(), this.ctrl.parameterStore);
+                this.resetExportPreview();
                 if (!job.ok) {
                     if (job.reason === 'not-ready') {
-                        this.showPlaceholderPreview();
                         this.ui.setStatus(
-                            `Not ready: ${job.notReady.map(o => o.file.name).join(', ')}. Finish each operation's stages first.`,
-                            'warning');
+                            `Not ready: ${job.notReady.map((o) => o.file.name).join(', ')}. Finish each operation's stages first.`,
+                            'warning',
+                        );
                     } else {
                         this.ui.setStatus('No CNC operations selected for calculation', 'info');
                     }
                     return;
                 }
-
-                const previewSelect = document.getElementById("exporter-preview-select");
-                previewSelect && (previewSelect.innerHTML = "");
-                if (job.intent.singleFile) {
-                    const combined = job.results.__combined__;
-                    if (combined) {
-                        this.showGcodeForOperation("__combined__");
-                        const el = document.getElementById("exporter-op-count");
-                        el && (el.textContent = combined.planCount);
-                    } else {
-                        this.showPlaceholderPreview();
-                        this.ui.setStatus("Calculation returned no G-code", "warning");
-                    }
-                } else {
-                    for (const [key, result] of Object.entries(job.results)) {
-                        if (previewSelect) {
-                            const opt = document.createElement("option");
-                            opt.value = key;
-                            opt.textContent = result.label || key;
-                            previewSelect.appendChild(opt);
-                        }
-                    }
-                    if (previewSelect?.options.length > 0) {
-                        previewSelect.value = previewSelect.options[0].value;
-                        this.showGcodeForOperation(previewSelect.value);
-                    } else this.showPlaceholderPreview();
+                const produced = job.files.filter((file) => job.results[file.key]);
+                if (produced.length === 0) {
+                    this.ui.setStatus('Calculation returned no G-code', 'warning');
+                    return;
                 }
-
-                // Show the preview selector whenever multiple programs exist (e.g. combined board + separate stencil)
-                const selectorDiv = document.getElementById("exporter-operation-selector");
-                const hasMultiplePreviews = Object.keys(job.results || {}).length > 1;
-                selectorDiv && (selectorDiv.style.display = hasMultiplePreviews ? "" : "none");
+                const previewSelect = document.getElementById('exporter-preview-select');
+                if (previewSelect) {
+                    for (const file of produced) {
+                        const option = document.createElement('option');
+                        option.value = file.key;
+                        option.textContent = file.filename;
+                        previewSelect.appendChild(option);
+                    }
+                    previewSelect.value = produced[0].key;
+                }
+                const selector = document.getElementById('exporter-operation-selector');
+                if (selector) selector.style.display = produced.length > 1 ? '' : 'none';
+                this.showGcodeForOperation(produced[0].key);
             } catch (error) {
                 console.error('[UI-ModalManager] Orchestration failed:', error);
-                this.showPlaceholderPreview();
+                this.resetExportPreview();
                 this.ui.setStatus(`Failed: ${error.message}`, 'error');
             } finally {
                 btn.textContent = originalText;
@@ -1711,20 +1570,23 @@
 
         // Warning modal
         showWarning(title, message, options = {}) {
-            const { onConfirm, onCancel, confirmText = 'OK', cancelText = 'Cancel', bodyHTML = null } = options;
-
-            // Track active callbacks at the class level for keyboard/backdrop dismissal
-            this.activeWarningCallbacks = { onConfirm, onCancel };
-
             const modal = this.modals.warning;
             if (!modal) {
                 console.error('[ModalManager] Warning modal not found in DOM');
                 return;
             }
-
+            // One element, one set of callbacks: a prompt raised while another
+            // is open or stacked waits until that one closes.
+            if (this.activeModal === modal || this.modalStack.includes(modal)) {
+                this.warningQueue.push([title, message, options]);
+                return;
+            }
+            // onShow(modal) runs once the prompt's markup is on screen.
+            const { onConfirm, onCancel, onShow, confirmText = 'OK', cancelText = 'Cancel', bodyHTML = null } = options;
+            // Track active callbacks at the class level for keyboard/backdrop dismissal
+            this.activeWarningCallbacks = { onConfirm, onCancel };
             // Set content
             modal.querySelector('.warning-title').textContent = title;
-
             const bodyContainer = modal.querySelector('.warning-body');
             if (bodyHTML) {
                 bodyContainer.innerHTML = bodyHTML;
@@ -1735,7 +1597,6 @@
                 p.textContent = message;
                 bodyContainer.appendChild(p);
             }
-
             // Setup buttons
             const confirmBtn = modal.querySelector('.warning-confirm');
             confirmBtn.textContent = confirmText;
@@ -1745,7 +1606,6 @@
                 this.activeWarningCallbacks = null;
                 this.closeModal();
             };
-
             const cancelBtn = modal.querySelector('.warning-cancel');
             if (onCancel) {
                 cancelBtn.style.display = '';
@@ -1758,7 +1618,6 @@
             } else {
                 cancelBtn.style.display = 'none';
             }
-
             const closeBtn = modal.querySelector('.modal-close');
             if (closeBtn) {
                 closeBtn.onclick = () => {
@@ -1767,8 +1626,8 @@
                     this.closeModal();
                 };
             }
-
             this.showModal('warning');
+            onShow?.(modal);
         }
 
         debug(message, data = null) {

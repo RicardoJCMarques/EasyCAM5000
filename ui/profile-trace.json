@@ -26,7 +26,6 @@
     "isolation": {
       "handler": "TraceIsolationHandler",
       "toolSizing": "effective",
-      "optionalHandler": true,
       "label": "Copper Isolation",
       "extensions": [".gbr", ".gbl", ".gtl", ".gbx", ".svg"],
       "defaultTool": "vbit_45deg_0.2mm",
@@ -35,7 +34,6 @@
     "clearing": {
       "handler": "TraceClearingHandler",
       "toolSizing": "effective",
-      "optionalHandler": true,
       "label": "Copper Clearing",
       "extensions": [".gbr", ".gbl", ".gtl", ".gbx", ".svg"],
       "defaultTool": "em_0.8mm_flat",
@@ -43,7 +41,6 @@
     },
     "cutout": {
       "handler": "TraceCutoutHandler",
-      "optionalHandler": true,
       "label": "Board Cutout",
       "extensions": [".gbr", ".gko", ".gml", ".gm1", ".svg"],
       "defaultTool": "em_1.0mm_flat",
@@ -53,17 +50,15 @@
     },
     "drill": {
       "handler": "DrillHandler",
-      "optionalHandler": true,
       "label": "Drill",
       "extensions": [".drl", ".xln", ".txt", ".tap", ".svg"],
       "defaultTool": "em_1.0mm_flat",
-      "machineClasses": {"router": "2.5d", "laser": "2d"},
-      "defaults": {"drillDepthPerPass": 0.5, "drillEntryType": "helix"},
+      "machineClasses": { "router": "2.5d", "laser": "2d" },
+      "defaults": { "laserCutSide": "inside" },
       "cutsThrough": true
     },
     "stencil": {
       "handler": "TraceStencilHandler",
-      "optionalHandler": true,
       "label": "Stencil",
       "extensions": [".gbr", ".gtp", ".gbp", ".svg"],
       "defaultTool": "em_0.5mm_flat",
@@ -107,7 +102,6 @@
       "laser": "Laser Output",
       "stencil": "Stencil Settings",
       "tool": "Tool Selection",
-      "laser_tool": "Laser Tool",
       "offset": "Offset Generation",
       "laser_geometry": "Isolation",
       "laser_strategy": "Clearing Strategy",
@@ -123,28 +117,15 @@
       "general": "General Settings"
     },
     "stages": {
-      "geometry": { "label": "Source Geometry", "icon": "icon-geometry-stage" },
-      "strategy": { "label": "Z Strategy", "icon": "icon-offsets-stage" },
+      "geometry": { "label": "XY Geometry", "icon": "icon-geometry-stage" },
+      "strategy": { "label": "Z Strategy", "icon": "icon-stage-offsets" },
       "machine": { "label": "Feeds & Toolpaths", "icon": "icon-machine-stage" },
       "output": { "label": "Output", "icon": "icon-output-stage" }
     },
     "artifacts": {
-      "offsets": { "label": "Offsets", "label3d": "3D Paths", "icon": "icon-offsets-stage" },
-      "preview": { "label": "Preview", "icon": "icon-preview-stage" },
+      "offsets": { "label": "Offsets", "label3d": "3D Paths", "icon": "icon-stage-offsets" },
+      "preview": { "label": "Preview", "icon": "icon-stage-preview" },
       "toolpath": { "label": "Toolpaths", "icon": "icon-toolpath-stage" }
-    },
-    "icons": {
-      "warning": "icon-warning",
-      "offsetCombined": "icon-offset-combined",
-      "offsetPass": "icon-offset-pass",
-      "preview": "icon-preview",
-      "toolpath": "icon-toolpath",
-      "defaultGeometry": "icon-file",
-      "dragHandle": "icon-drag-handle",
-      "tooltipTrigger": "?",
-      "file": "icon-file",
-      "gear": "icon-gear",
-      "offsetsStage": "icon-offsets-stage"
     },
     "text": {
       "noToolsAvailable": "No tools available",
@@ -217,9 +198,10 @@
       "unit": "mm",
       "min": 0.01,
       "max": 10.0,
-      "step": 0.01,
+      "step": 0.001,
       "stage": "geometry",
       "category": "tool",
+      "conditional": "!drillMultiTool",
       "operationTypes": ["isolation", "clearing", "cutout", "drill", "stencil"]
     },
     "passes": {
@@ -368,8 +350,8 @@
       "default": "helix",
       "conditional": "millHoles",
       "options": [
-        { "value": "plunge", "label": "Plunge (Vertical)" },
-        { "value": "helix", "label": "Helix (Spiral entry)" }
+        { "value": "helix", "label": "Helix (Spiral entry)" },
+        { "value": "plunge", "label": "Plunge (Vertical)" }
       ]
     },
     "peckDepth": {
@@ -500,18 +482,6 @@
       "stage": "machine",
       "category": "feeds"
     },
-    "laserSpotSize": {
-      "type": "number",
-      "label": "Laser Spot Size",
-      "unit": "mm",
-      "step": 0.01,
-      "min": 0.01,
-      "max": 1.0,
-      "stage": "geometry",
-      "category": "laser_tool",
-      "machineClasses": ["laser"],
-      "readOnly": true
-    },
     "laserIsolationWidth": {
       "type": "number",
       "label": "Isolation Width",
@@ -541,16 +511,30 @@
     "laserClearStrategy": {
       "type": "select",
       "label": "Clearing Strategy",
-      "default": "offset",
+      "default": "filled",
       "stage": "geometry",
       "category": "laser_strategy",
       "machineClasses": ["laser"],
       "operationTypes": ["isolation", "clearing"],
       "options": [
-        { "value": "offset", "label": "Offset Paths - Concentric, streak-proof" },
         { "value": "filled", "label": "Filled Polygon - Laser software controls fill" },
+        { "value": "offset", "label": "Offset Paths - Concentric, streak-proof" },
         { "value": "hatch", "label": "Hatch Fill - Directional line coverage" }
       ]
+    },
+    "laserSpotSize": {
+      "type": "number",
+      "label": "Laser Spot Size",
+      "unit": "mm",
+      "step": 0.01,
+      "min": 0.01,
+      "max": 1.0,
+      "stage": "geometry",
+      "category": "laser_strategy",
+      "machineClasses": ["laser"],
+      "operationTypes": ["isolation", "clearing"],
+      "conditional": "laserClearStrategy:offset,hatch",
+      "readOnly": true
     },
     "laserSpacingMode": {
       "type": "select",

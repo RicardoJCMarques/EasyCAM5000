@@ -27,19 +27,18 @@
         }
 
         /**
-         * Parses STL content.
+         * Parses STL content into its solids: an ASCII file can hold several
+         * `solid … endsolid` blocks, a binary file holds one.
          * @param {ArrayBuffer|Uint8Array|string} content
-         *        Binary STL requires an ArrayBuffer (read the file with
-         *        readFileAsArrayBuffer, NOT readFileAsText). ASCII STL
-         *        works from either.
+         *   Binary STL requires an ArrayBuffer (read the file with
+         *   file.arrayBuffer(), NOT file.text()). ASCII STL
+         *   works from either.
          * @returns {{
          *   success: boolean,
          *   format: 'stl',
          *   type: 'mesh',
-         *   triangles: Float32Array,   // 9 floats per triangle (x,y,z x3)
+         *   solids: Array<{name: ?string, triangles: Float32Array, bounds3D: {minX,minY,minZ,maxX,maxY,maxZ}}>,
          *   triangleCount: number,
-         *   bounds: {minX,minY,maxX,maxY},          // XY (for operation.bounds)
-         *   bounds3D: {minX,minY,minZ,maxX,maxY,maxZ},
          *   units: 'mm',
          *   errors: Array, warnings: Array
          * }}
@@ -47,51 +46,40 @@
         parse(content) {
             this.errors = [];
             this.warnings = [];
-
             try {
-                let triangles;
-
+                let solids;
                 if (content instanceof ArrayBuffer || ArrayBuffer.isView(content)) {
-                    const buffer = content instanceof ArrayBuffer
-                        ? content
-                        : content.buffer.slice(content.byteOffset, content.byteOffset + content.byteLength);
-                    triangles = this.isBinarySTL(buffer)
-                        ? this.parseBinary(buffer)
-                        : this.parseASCII(new TextDecoder().decode(buffer));
+                    const buffer =
+                        content instanceof ArrayBuffer
+                            ? content
+                            : content.buffer.slice(content.byteOffset, content.byteOffset + content.byteLength);
+                    solids = this.isBinarySTL(buffer)
+                        ? [{ name: null, triangles: this.parseBinary(buffer) }]
+                        : this.parseASCIISolids(new TextDecoder().decode(buffer));
                 } else if (typeof content === 'string') {
                     if (content.includes('facet') && content.includes('vertex')) {
-                        triangles = this.parseASCII(content);
+                        solids = this.parseASCIISolids(content);
                     } else {
                         throw new Error(
                             'Content looks like binary STL but was read as text. ' +
-                            'Read .stl files with readFileAsArrayBuffer().'
+                                'Read .stl files with file.arrayBuffer().',
                         );
                     }
                 } else {
                     throw new Error('Unsupported STL content type');
                 }
-
-                if (!triangles || triangles.length === 0) {
-                    throw new Error('No triangles found in STL');
-                }
-
-                const bounds3D = this.computeBounds3D(triangles);
-                this.stats.objectsCreated = triangles.length / 9;
-
-                this.debug(`STL parsed: ${this.stats.objectsCreated} triangles, ` +
-                    `Z range ${bounds3D.minZ.toFixed(3)}..${bounds3D.maxZ.toFixed(3)}mm`);
-
+                solids = solids.filter((solid) => solid.triangles.length > 0);
+                if (solids.length === 0) throw new Error('No triangles found in STL');
+                for (const solid of solids) solid.bounds3D = this.computeBounds3D(solid.triangles);
+                const triangleCount = solids.reduce((sum, solid) => sum + solid.triangles.length / 9, 0);
+                this.stats.objectsCreated = triangleCount;
+                this.debug(`STL parsed: ${triangleCount} triangles in ${solids.length} solid(s)`);
                 return {
                     success: true,
                     format: 'stl',
                     type: 'mesh',
-                    triangles,
-                    triangleCount: triangles.length / 9,
-                    bounds: {
-                        minX: bounds3D.minX, minY: bounds3D.minY,
-                        maxX: bounds3D.maxX, maxY: bounds3D.maxY
-                    },
-                    bounds3D,
+                    solids,
+                    triangleCount,
                     units: 'mm',
                     errors: [],
                     warnings: this.warnings
@@ -101,7 +89,7 @@
                 return {
                     success: false,
                     format: 'stl',
-                    triangles: null,
+                    solids: [],
                     errors: this.errors,
                     warnings: this.warnings
                 };
@@ -145,6 +133,19 @@
                 this.stats.coordinatesParsed += 9;
             }
             return triangles;
+        }
+
+        /**
+         * One entry per `solid … endsolid` block; text with no such block is
+         * read as a single unnamed solid.
+         */
+        parseASCIISolids(text) {
+            const blocks = [];
+            const re = /^[ \t]*solid\b([^\r\n]*)$([\s\S]*?)^[ \t]*endsolid\b/gm;
+            let m;
+            while ((m = re.exec(text)) !== null) blocks.push({ name: m[1].trim() || null, text: m[2] });
+            if (blocks.length === 0) blocks.push({ name: null, text });
+            return blocks.map((b) => ({ name: b.name, triangles: this.parseASCII(b.text) }));
         }
 
         parseASCII(text) {

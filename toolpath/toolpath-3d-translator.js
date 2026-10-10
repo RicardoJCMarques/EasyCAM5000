@@ -51,15 +51,15 @@
         translate(primitive, ctx){
             const{ operationId: operationId, tool: tool, cutting: cutting } = ctx;
             const props = primitive.properties || {};
-            const developed = !0 === props.developed;
+            const developed = true === props.developed;
             // [INDEXED] Indexed 3+1 chains are already MACHINE-frame:
             // x = axial along the rotary axis, y = 0 ON the axis line,
             // z = 0 at the blank face top (the handler's offset +
             // surfaceRefZ contract).
-            const indexed = !0 === props.indexed;
+            const indexed = true === props.indexed;
             const machineFrame = developed || indexed;
             const transforms = ctx.transforms;
-            if (machineFrame && transforms && !this.parent.isIdentityTransforms(transforms) && this._warnedOpId !== operationId) {
+            if (machineFrame && !transforms.machineIsIdentity && this._warnedOpId !== operationId) {
                 this._warnedOpId = operationId;
                 console.warn(`[Toolpath3DTranslator] Workspace transforms/origin are ignored for ${developed ? "rotary developed" : "indexed 3+1"} chains (the machine pass owns their frame).`);
             }
@@ -219,7 +219,8 @@
         /**
          * Normalizes both accepted input shapes into read cursors:
          *   - Polyline3DPrimitive: read triplets from .positions directly
-         *   - Legacy PathPrimitive: read {x,y,z} contour points
+         *   - PathPrimitive (FieldPaths.toPrimitive without Polyline3DPrimitive
+         *      loaded): read {x,y,z} contour points
          * Each chain: { count, read(i, out) }.
          */
         extractChains(primitive) {
@@ -234,7 +235,7 @@
                     }
                 }];
             }
-            // Legacy: one chain per contour of object points
+            // PathPrimitive: one chain per contour of object points // REVIEW - Double check this is still a valid structure and not dead code.
             const contours = primitive.contours || [];
             if (contours.length === 0) {
                 console.warn('[Toolpath3DTranslator] is3DContour primitive with no ' +

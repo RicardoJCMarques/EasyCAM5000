@@ -10,11 +10,11 @@
  */
 
 (function() {
-    // WARNING - NOT FULLY UPDATED TO NEW CONFIG STRUCTURE YET
     'use strict';
 
-    const C = window.CAMConfig.constants;
-    const D = window.CAMConfig.defaults;
+    const ROOT = typeof self !== 'undefined' ? self : window;
+    const C = ROOT.CAMConfig.constants;
+    const D = ROOT.CAMConfig.defaults;
     const debugState = D.debug;
 
     /**
@@ -25,9 +25,9 @@
      * (GeometryAnalyticOffsetter) call a single implementation.
      *
      * Dependencies:
-     *   - CAMConfig             (epsilon, minRoundJointSegments)
-     *   - GeometryUtils         (getOptimalSegments - must be loaded first)
-     *   - globalCurveRegistry   (optional, for round-joint curve registration)
+     *  - CAMConfig             (precision.epsilon, segments.defaultMinSegments)
+     *  - GeometryTessellation  (getOptimalSegments)
+     *  - globalCurveRegistry   (optional, for round-joint curve registration)
      */
     const GeometryMath = {
 
@@ -46,7 +46,7 @@
          */
         lineLineIntersection(p1, p2, p3, p4) {
             const den = (p1.x - p2.x) * (p3.y - p4.y) - (p1.y - p2.y) * (p3.x - p4.x);
-            const epsilon = geomConfig.offsetting?.epsilon || 1e-9; // REVIEW - Double check if such a small epsilon is necessary, link is also broken
+            const epsilon = C.precision.epsilon;
             if (Math.abs(den) < epsilon) return null;
 
             const t_num = (p1.x - p3.x) * (p3.y - p4.y) - (p1.y - p3.y) * (p3.x - p4.x);
@@ -267,9 +267,10 @@
                 offsetDistance: distance
             });
 
-            const fullCircleSegments = GeometryUtils.getOptimalSegments(offsetDist, 'circle');
+            const tess = ROOT.GeometryTessellation || ROOT.GeometryUtils; // REVIEW - This doesn't make sense? Shouldn't it be one or the other? Why a fallback?
+            const fullCircleSegments = tess?.getOptimalSegments(offsetDist, 'circle') || 256;
             const proportionalSegments = fullCircleSegments * (Math.abs(angleDiff) / (2 * Math.PI));
-            const minSegments = D.geometry.offsetting.minRoundJointSegments;
+            const minSegments = C.geometry.segments.defaultMinSegments || 16;
             const arcSegments = Math.max(minSegments, Math.ceil(proportionalSegments));
 
             const arcPoints = [];

@@ -102,7 +102,7 @@
         // Tessellation helpers
 
         tessellateCubicBezier(p0, p1, p2, p3) {
-            const a = [], t = C.geometry.tessellation.bezierSegments ?? 32; // 't' is segment count
+            const a = [], t = C.geometry.tessellation.bezierSegments; // 't' is segment count
 
             // This loop starts at 0, so it *includes* the start point
             for (let s = 0; s <= t; s++) {
@@ -116,7 +116,7 @@
         },
 
         tessellateQuadraticBezier(p0, p1, p2) {
-            const a = [], t = C.geometry.tessellation.bezierSegments ?? 32;
+            const a = [], t = C.geometry.tessellation.bezierSegments;
 
             // This loop starts at 0, so it *includes* the start point
             for (let s = 0; s <= t; s++) {
@@ -234,6 +234,7 @@
 
             const contour = {
                 points: points,
+                isFullCircle: true, // REVIEW - Double check this addition doesn't propagate into problems somewhere else. The plan is to make the circle detection pipeline around detectClosedArcCircle more predictable
                 isHole: isHole,
                 nestingLevel: 0,
                 parentId: null,
@@ -475,7 +476,7 @@
 
         /**
          * Expands arc segments in a contour into tessellated polyline points.
-         * Returns a new contour with no arc metadata — pure polygon suitable for Clipper2.
+         * Returns a new contour with no arc metadata - pure polygon suitable for Clipper2.
          * The original contour is not modified.
          *
          * contour.arcSegments carries TWO encodings and they are not
@@ -539,7 +540,7 @@
                     }
 
                     i = arc.endIndex;
-                    if (i === 0) break; // Wrapping arc — point[0] already in newPoints
+                    if (i === 0) break; // Wrapping arc - point[0] already in newPoints
                 } else {
                     newPoints.push(contour.points[i]);
                     i++;

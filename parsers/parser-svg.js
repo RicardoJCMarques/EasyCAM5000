@@ -18,11 +18,6 @@
     const PRECISION = C.precision.coordinate;
 
     class SVGParser extends ParserCore {
-        constructor(options = {}) {
-            super(options);
-            this.reset();
-        }
-
         parse(content) {
             try {
                 this.debug('Starting SVG parse (Analytic-based)');
@@ -78,8 +73,7 @@
         }
 
         reset() {
-            this.errors = [];
-            this.warnings = [];
+            super.reset();
             this.layers = { polarity: 'positive', units: 'mm', bounds: null, apertures: [], objects: [] };
             this.stats = { objectsCreated: 0 };
             this.documentWidth = 0;
@@ -155,7 +149,7 @@
                 this.documentHeight = this.viewBox.height;
                 this.documentWidth = this.viewBox.width;
                 this.unitScale = 1;
-                this.warnings.push('SVG has no explicit dimensions. Assuming viewBox units are mm.'); // REVIEW - Should this be hidden behind this.debug?
+                this.warnings.push('SVG has no explicit dimensions. Assuming viewBox units are mm.');
             }
 
             // Final fallback if still no scale
@@ -690,8 +684,8 @@
             const isReflection = determinant < 0;
             const scale = Math.sqrt(Math.abs(determinant));
 
-            // Check for uniform scaling (no rotation/skew)
-            const isAxisAligned = Math.abs(m.b) < 1e-10 && Math.abs(m.c) < 1e-10; // REVIEW - Change to existing Epsilons? PRECISION maybe?
+            // No rotation or skew: scale and mirror only
+            const isAxisAligned = Math.abs(m.b) < C.precision.epsilon && Math.abs(m.c) < C.precision.epsilon;
 
             if (geom.type === 'circle') {
                 return {

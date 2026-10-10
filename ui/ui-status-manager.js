@@ -40,9 +40,8 @@
             this._rafId = null;
             this.overlayEl = document.getElementById('canvas-loading-overlay');
             this.overlayMsgEl = document.getElementById('canvas-loading-message');
-            // A relief job runs for minutes with the overlay as its only
-            // feedback; without a live region that feedback is visual-only.
-            // REVIEW - all operations take seconds. The slowest operation, currently, is concentric offsets for laser copper isolation and maybe v-carving of very complex geometry with thousands of primitives.
+            /// The overlay is a long task's only feedback; the live region
+            // carries it to screen readers.
             this.overlayMsgEl?.setAttribute('role', 'status');
             this.overlayMsgEl?.setAttribute('aria-live', 'polite');
             this.progressContainerEl = document.getElementById('status-progress');
@@ -61,7 +60,6 @@
 
         tick(id, p) {
             if (!this._task || id !== this._task.id) return; // stale/superseded
-            if (typeof p === 'string') p = { label: p };     // tolerate legacy
             if (p.label != null) this._task.label = p.label;
             if (p.frac != null) this._task.frac = p.frac;
             if (this._rafId !== null) return;
@@ -80,12 +78,8 @@
             this.render();
         }
 
-        /**
-         * Subclasses observe the task lifecycle; the base owns no log view.
-         */
+        /** Subclasses observe the task lifecycle; the base owns no log view. */
         onTaskEvent(evt) {}
-
-        isBusy() { return this._task !== null; }
 
         /**
          * THE one formatter - nothing else stringifies progress.
@@ -192,29 +186,23 @@
 
         addLogEntry(message, type = 'normal') {
             const isDebug = type === 'debug';
-
             // If this is a debug message and the global debug flag is off, skip it.
             if (isDebug && !debugState.enabled) {
                 return;
             }
-
             const timestamp = new Date().toLocaleTimeString();
-            const logEntry = {
-                timestamp,
-                message,
-                type
-            };
-
+            const logEntry = { timestamp, message, type };
             this.logHistory.push(logEntry);
-
             // Keep log from getting too big
             if (this.logHistory.length > D.ui.logHistoryMax) {
                 this.logHistory.shift();
             }
-
-            // If the log is open, append the new message
-            if (this.isExpanded && this.logHistoryContainer) {
-                this.appendLogEntry(logEntry);
+            // An open log follows the new entry only if it was already at the bottom.
+            const box = this.logHistoryContainer;
+            if (this.isExpanded && box) {
+                const atBottom = box.scrollTop + box.clientHeight >= box.scrollHeight - 20;
+                box.appendChild(this.createLogElement(logEntry));
+                if (atBottom) box.scrollTop = box.scrollHeight;
             }
         }
 
@@ -229,15 +217,6 @@
             this.logHistoryContainer.innerHTML = '';
             this.logHistoryContainer.appendChild(fragment);
             this.logHistoryContainer.scrollTop = this.logHistoryContainer.scrollHeight;
-        }
-
-        appendLogEntry(logEntry) {
-            if (!this.logHistoryContainer) return;
-            const shouldScroll = this.logHistoryContainer.scrollTop + this.logHistoryContainer.clientHeight >= this.logHistoryContainer.scrollHeight - 20;
-            this.logHistoryContainer.appendChild(this.createLogElement(logEntry));
-            if (shouldScroll) {
-                this.logHistoryContainer.scrollTop = this.logHistoryContainer.scrollHeight;
-            }
         }
 
         createLogElement(logEntry) {
@@ -281,7 +260,7 @@
                 }
             } else {
                 // Reset to default status
-                const hasOps = this.ui.core.store.hasValidOperations()
+                const hasOps = this.ui.core.store.operations.some(op => op.primitives?.length > 0);
                 let defaultMessage;
                 if (hasOps) {
                     const stats = this.ui.core.store.getStats()

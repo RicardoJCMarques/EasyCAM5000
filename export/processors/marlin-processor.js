@@ -78,43 +78,6 @@
         formatDwell(seconds) {
             return Math.round(seconds * 1000);
         }
-
-        // REVIEW - Useless? Do Marlin CNCs support tool changing?
-        /*
-        generateToolChange(tool, options) {
-            const lines = [];
-            const c = options.comments || {};
-            const safeZ = options.safeZ || this.config.safetyHeight;
-
-            lines.push('');
-            this.pushCommentLine(lines, (c.toolChange || 'Tool change: {name}').replace('{name}', tool.name || tool.id), options);
-            this.pushCommentLine(lines, (c.toolDiameter || 'Diameter: {diameter}mm').replace('{diameter}', tool.diameter), options);
-
-            if (options.useM3) {
-                lines.push(this.appendComment('M5', c.spindleStop, options));
-            } else {
-                lines.push(this.appendComment('M107', c.spindleStop, options));
-            }
-
-            lines.push(this.appendComment(`G0 Z${this.formatCoordinate(safeZ)}`, c.retractSafeZ, options));
-            this.currentPosition.z = safeZ;
-            lines.push(this.appendComment('M0', c.toolChangePause, options));
-            lines.push('');
-
-            const spindleSpeed = tool.spindleSpeed || options.spindleSpeed || 12000;
-            const pwmValue = Math.min(255, Math.round((spindleSpeed / 30000) * 255));
-
-            if (options.useM3) {
-                lines.push(this.appendComment(`M3 S${pwmValue}`, c.spindleStart, options));
-            } else {
-                lines.push(this.appendComment(`M106 S${pwmValue}`, c.spindleStart, options));
-            }
-            lines.push(this.appendComment('G4 P1000', c.spindleDwell, options));
-            lines.push('');
-
-            return lines.join('\n');
-        }
-        */
     }
 
     ROOT.MarlinPostProcessor = MarlinPostProcessor;

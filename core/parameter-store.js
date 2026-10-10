@@ -1,6 +1,6 @@
 /*!
  * @file        core/parameter-store.js
- * @description 
+ * @description Parameter definitions, validation, and per-operation state management
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
  * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
@@ -30,7 +30,8 @@
         'laserStepOver',
         'laserLinesPerCm',
         'laserLinesPerInch',
-        'laserHatchAngle'
+        'laserHatchAngle',
+        'laserSpotSize' // REVIEW - COnsider renaming laserSpotSize to something related to Kerf maybe? More realistic? Would turn offset isolation more manageable maybe? Less overlap though.
     ]);
 
     class ParameterStore {
@@ -86,15 +87,14 @@
          */
         setDefinitions(definitions) {
             this.parameterDefinitions = definitions;
-
+            this.validators = {};
             for (const [name, def] of Object.entries(definitions)) {
                 if (!def) continue;
                 // `.includes()` on a bare string matches substrings, so a future
                 // drill/drillMill pair would silently cross-match.
                 if (typeof def.operationTypes === 'string') def.operationTypes = [def.operationTypes];
+                if (def.type === 'number') this.validators[name] = this.makeNumberValidator(def);
             }
-
-            this.validators = this.initializeValidators();
             this.operationStates.clear();
             this.dirtyFlags.clear();
         }
@@ -133,14 +133,6 @@
                 }
                 return { success: true, value: num };
             };
-        }
-
-        initializeValidators() {
-            const validators = {};
-            for (const [name, def] of Object.entries(this.parameterDefinitions)) {
-                if (def.type === 'number') validators[name] = this.makeNumberValidator(def);
-            }
-            return validators;
         }
 
         /**
@@ -201,10 +193,14 @@
         getAllParameters(operationId) {
             const op = this._getOperation(operationId);
             if (op && !this.operationStates.has(operationId)) this.loadFromOperation(op);
-
             const state = this.getOperationState(operationId);
             const merged = {};
             for (const stageParams of Object.values(state)) Object.assign(merged, stageParams);
+            // A reminder of the Machine Settings value: mirrored on every read and
+            // never persisted, so it cannot go stale.
+            if (this.parameterDefinitions.laserSpotSize) {
+                merged.laserSpotSize = this.readSetting('laser.spotSize');
+            }
             return merged;
         }
 
@@ -288,13 +284,6 @@
                 if (!state[def.stage]) state[def.stage] = {};
                 state[def.stage][name] = finalValue;
             }
-
-            // Laser spot size synchronization
-            if (this.settings?.laser?.spotSize !== undefined) {
-                if (!state.geometry) state.geometry = {};
-                state.geometry.laserSpotSize = this.settings.laser.spotSize;
-            }
-
             this.dirtyFlags.delete(operation.id);
         }
 
@@ -345,13 +334,6 @@
         getArtifacts(operationType, machineClass) {
             const artifacts = this.registry?.artifactsFor(operationType, machineClass);
             return artifacts?.length ? artifacts : ['offsets', 'preview', 'toolpath'];
-        }
-
-        /** Next stage after `currentStage`, or null at the end of the chain. */
-        getNextStage(currentStage, operationType, machineClass) {
-            const stages = this.getStages(operationType, machineClass);
-            const idx = stages.indexOf(currentStage);
-            return idx === -1 || idx >= stages.length - 1 ? null : stages[idx + 1];
         }
 
         /** Reads one dot path out of settings. */

@@ -671,11 +671,8 @@
         }
 
         /**
-         * Obround (stadium) outline into any path sink. ctx and Path2D expose
-         * the same moveTo/lineTo/arc/closePath surface, so the three call sites
-         * that used to spell this out separately share one. Two arcs, not five
-         * calls: canvas joins a new arc to the current subpath with an implicit
-         * line, which IS the straight side.
+         * Obround (stadium) outline into any path sink; ctx and Path2D
+         * share moveTo/lineTo/arc/closePath.
          * TODO(obround-rotation) - ObroundPrimitive is {position,width,height}
          * with no angle, so a rotated pad cannot be represented at all.
          */
@@ -781,8 +778,8 @@
     }
 
     /**
-     * Tool-relation → status color. Single source for the 2D renderer and
-     * the SVG canvas exporter (was duplicated in both).
+     * Tool-relation → status color, shared by the 2D renderer and the SVG
+     * canvas exporter.
      * @param {string} toolRelation - 'oversized' | 'undersized' | 'exact'
      * @param {{error,warn,good}} palette
      * @param {string} [fallback] - returned for unknown relations (renderer

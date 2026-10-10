@@ -922,8 +922,9 @@
    G-CODE / OPERATIONS MODAL
    ============================================================================ */
 
-.modal--exporter .modal-content {
+.modal--exporter {
     max-width: min(900px, 95vw);
+    height: min(var(--modal-max-height), 60rem);
 }
 
 .modal--exporter .modal-body {
@@ -1157,6 +1158,76 @@
 
 .exporter-route-badge--stencil {
     color: var(--color-operation-stencil);
+}
+
+/* Export summary: what Export writes, on one line. Every file name is in
+   its tooltip. */
+.exporter-summary {
+    margin: var(--spacing-xs) 0 0;
+    font-family: var(--font-mono);
+    font-size: var(--font-size-xs);
+    color: var(--color-text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Export options: one compact row each. Why an option is off sits at the
+   end of its own row, so the note appears and clears without reflowing
+   anything around it. */
+.modal--exporter .export-option {
+    margin-bottom: 0;
+}
+
+.option-reason {
+    order: 1;
+    margin-left: auto;
+    padding-left: var(--spacing-sm);
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--font-size-xs);
+    font-weight: 400;
+    color: var(--color-text-secondary);
+}
+
+/* Only the control and its text dim; the reason keeps full contrast. */
+.export-option .checkbox-label:has(input:disabled) {
+    opacity: 1;
+}
+
+.export-option .checkbox-label:has(input:disabled) > input,
+.export-option .checkbox-label:has(input:disabled) > span:not(.tooltip-trigger) {
+    opacity: 0.5;
+}
+
+/* Tooling notes, last in the CNC block. */
+.export-gate {
+    margin-top: var(--spacing-sm);
+    padding: var(--spacing-sm);
+    border-left: 3px solid var(--color-warning);
+    border-radius: var(--radius);
+    background: var(--color-bg-tertiary);
+    font-size: var(--font-size-xs);
+    color: var(--color-text-secondary);
+}
+
+.export-gate > * {
+    margin: 0;
+}
+
+.export-gate > * + * {
+    margin-top: var(--spacing-xs);
+}
+
+.export-gate strong {
+    display: block;
+    color: var(--color-text-primary);
+}
+
+.export-gate ul {
+    padding-left: var(--spacing-lg);
 }
 
 .exporter-op-item {

@@ -166,14 +166,9 @@
         }
 
         // ── Shared statics ──────────────────────────────────────────
-        // These live INSIDE the class. The old
-        // `ToolpathPlan.isClosedPoints = function…` bolted on after the
-        // class body was the same thing written the confusing way.
 
         /**
          * Whether a points array forms a closed loop (first ≈ last).
-         * Single source of truth - replaces duplicated implementations in
-         * GeometryTranslator, ToolpathTabPlanner and ToolpathOptimizer.
          * @param {Array<{x:number,y:number}>} points
          * @param {number} [precision] - distance threshold (default: config)
          */
@@ -188,12 +183,7 @@
         }
 
         /**
-         * Signed arc sweep in radians - THE one implementation.
-         * Replaces the three near-copies in GeometryTranslator
-         * (translateArc / translatePath), ToolpathTabPlanner (getArcData and
-         * GCodeGenerator (linearizeArc), each of which handled full circles
-         * differently. [ARC-NORMALIZATION]
-         *
+         * Signed arc sweep in radians.
          * Precedence:
          *  1. An explicit sweepAngle is ground truth and is returned
          *     verbatim (including 0). The arc reconstructor emits ±2π for
@@ -203,8 +193,8 @@
          *  3. Full-circle rescue, for angle-derived sweeps only: a sweep of
          *     ~0 whose chord is COINCIDENT (not merely short - that would
          *     promote a micro-arc) and whose radius is real is a full
-         *     circle. Without this, translateArc emitted a zero-length
-         *     linear move and the circle vanished from the G-code.
+         *     circle. Without it, a full circle becomes a zero-length linear
+         *     move and vanishes from the G-code.
          *
          * Sign note: callers that only gate on |sweep| may pass a
          * post-mirror `clockwise` alongside pre-transform angles; the

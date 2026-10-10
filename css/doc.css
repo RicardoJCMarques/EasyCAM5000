@@ -28,8 +28,9 @@ html, body {
     overflow: hidden;
 }
 
-h1, h2, h3, h4, h5, h6 {
-    scroll-margin-top: calc(var(--header-layout-height) + 2rem);
+h1, h2, h3, h4, h5, h6,
+section[id] {
+    scroll-margin-top: calc(var(--header-layout-height) + 1.5rem);
 }
 
 /* ============================================================================
@@ -106,7 +107,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 /* ---------------------------------------------------------------
-   Breadcrumb trail — sits immediately right of .doc-brand.
+   Breadcrumb trail - sits immediately right of .doc-brand.
    The brand is rung 1; this element starts at rung 2, so a
    separator is rendered before the first <li> as well.
    --------------------------------------------------------------- */
@@ -512,13 +513,9 @@ tr:last-child td {
 
 .hero {
     text-align: center;
-    padding: 4rem 0;
+    padding: 2rem 0;
     border-bottom: 1px solid var(--color-border-primary);
     margin-bottom: 3rem;
-}
-
-.hero--compact {
-    padding: 2rem 0;
 }
 
 .hero .tagline {
@@ -685,12 +682,6 @@ tr:last-child td {
     margin-bottom: 0.4rem;
     font-size: var(--font-size-sm);
     color: var(--color-text-secondary);
-}
-
-.sponsor-note {
-    font-size: var(--font-size-sm);
-    color: var(--color-text-hint);
-    text-align: center;
 }
 
 /* Figure placeholder. figures.js injects the SVG at runtime; the build

@@ -32,7 +32,7 @@
     'use strict';
 
     const ROOT = (typeof self !== 'undefined') ? self : window;
-    const debugState = ROOT.CAMConfig?.defaults?.debug || { enabled: false };
+    const debugState = ROOT.CAMConfig.defaults.debug;
 
     const ReliefGenerator = {
 
@@ -49,15 +49,12 @@
          *        positive). 0/absent = auto: the full model height.
          * @param {number} [o.startDepth=0]              - surface offset (mm)
          * @param {boolean}[o.invert=false]              - mold mode
-         * @param {string} [o.depthMapping='scaled']     - 'scaled' | 'literal'
-         * // REVIEW - Why have a depthMapping parameter? It seems like everything is literal anyway?
-         *             And it should be literal? Only gray-scale could use this somehow but it's not implemented yet?
+         * @param {string} [o.depthMapping='scaled']     - 'scaled' | 'literal' // Scaled may be necessary in the future for flat reliefs and gray-scale that may want exagerated height.
          * @param {number} [o.surfaceRefZ]               - [INDEXED] shared Z
          *        datum: depth 0 is the blank FACE PLANE, not this view's
          *        model top. Required whenever o.axial is set.
          * @param {Object} [o.boundary]                  - { mode, mm }:
-         *        'stop' (default) | 'rollover' | 'extend'. Superseded by
-         *        o.axial.
+         *        'stop' (default) | 'rollover' | 'extend'. Ignored when o.axial is set.
          * @param {boolean}[o.maskUncovered=false]       - honor the coverage
          *        mask under boundary mode 'stop'.
          * @param {Object} [o.axial]                     - [INDEXED] axial
@@ -70,7 +67,6 @@
          *        may pass the rotation axis. RESOLVER-OWNED; consumed verbatim.
          * @param {number} [o.axialFacetHalfWidth=0]     - [INDEXED] half-width
          *        of the facet this setup clears. 0 = silhouette only.
-         * @param {Object} [o.tuning]                    - required with o.axial
          * @param {boolean}[o.roughing=true], [o.finishing=true]
          * @param {number} [o.roughStepdown=1.5], [o.roughStepover], [o.roughStock=0.3]
          * @param {number} [o.finishStepover]
@@ -83,7 +79,6 @@
          */
         generateReliefPaths(source, o) {
             const hm = source.heightmap || source;
-            const t0 = performance.now();
 
             const FP = ROOT.FieldPaths;
             const FPL = ROOT.FieldPipeline;
@@ -219,8 +214,8 @@
          *
          * The face plane sits at z = +apothem and the rotation axis at
          * z = -apothem in this face's sliced frame, so every value below
-         * is measured from the face plane and converts to a radius through
-         * the space's toRadius/fromRadius pair.
+         * is measured from the face plane and converts from a radius
+         * through the space's fromRadius.
          */
         buildAxialPolicy(o, hm, cutR) {
             const T = ROOT.CAMConfig.constants.rotary; // Field-worker installs self.CAMConfig before importScripts, so this resolves on both threads.
@@ -267,7 +262,7 @@
                 // so its minimum is not a reachable surface.
                 deepestFrom: 'compensated',
                 // Every cell carries a real target after composition, so
-                // "no material here" no longer exists.
+                // no cell reads as "no material here".
                 compensateMasked: false,
                 forceExactLattice: true
             };

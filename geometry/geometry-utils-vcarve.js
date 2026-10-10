@@ -200,7 +200,7 @@
                     if (!loop.isHole) {
                         for (const run of spineRuns) {
                             if (!(run.length < 2 || run._claimed) && this.runInsideLoop(run, denseLoop)) {
-                                run._len = this.polylineLength(run);
+                                run._len = ROOT.GeometryPoints.polylineLength(run);
                                 insideRuns.push(run);
                             }
                         }
@@ -241,7 +241,9 @@
 
         /**
          * Fits a circle to a closed loop and returns it when the loop IS
-         * that circle to within tolerance, else null.
+         * that circle to within tolerance, else null. Single plunge
+         * optimization applies only to closed loops; open arcs and fillets
+         * must traverse medial axis Voronoi ribs.
          * 
          * The fit is algebraic over the loop's own points. A vertex MEAN is
          * the circle centre only for samples uniform in ANGLE, and a
@@ -263,7 +265,6 @@
          * 
          * @param {Array<{x,y}>} points closed loop, no closing duplicate
          */
-        // REVIEW - Could this be expanded to detect/collapse excess geometry in arcs? Semi-circular sections?
         detectCircleLike(points) {
             const n = points.length;
             if (n < 6) return null;
@@ -345,10 +346,7 @@
                 // GeometryTessellation is main-thread-only today: this file runs
                 // both in the worker and as the sync fallback, so the probe is
                 // load-context detection, not a load-order guard.
-                // REVIEW - GeometryTessellation is already worker safe and in the importScripts list
-                const contour = rawContour.arcSegments?.length && typeof GeometryTessellation !== 'undefined' && GeometryTessellation.contourArcsToPath
-                    ? GeometryTessellation.contourArcsToPath(rawContour)
-                    : rawContour;
+                const contour = rawContour.arcSegments?.length ? GeometryTessellation.contourArcsToPath(rawContour) : rawContour;
 
                 let pts = (contour.points || []).map(p => ({ x: p.x, y: p.y }));
                 if (pts.length < 3) continue;
@@ -366,7 +364,7 @@
                 if (pts.length < 3) continue;
 
                 const isHole = true === contour.isHole;
-                const area = this.signedArea(pts);
+                const area = ROOT.GeometryPoints.calculateWinding(pts);
                 if (Math.abs(area) < PRECISION * PRECISION) {
                     this.debug(`prepareContours: dropped ${isHole ? 'HOLE' : 'outer'} contour - degenerate area`);
                     continue;
@@ -381,23 +379,6 @@
                 prepared.push({ points: pts, isHole });
             }
             return prepared;
-        },
-
-        signedArea(pts) {
-            let a = 0;
-            for (let i = 0; i < pts.length; i++) {
-                const p = pts[i], q = pts[(i + 1) % pts.length];
-                a += p.x * q.y - q.x * p.y;
-            }
-            return a / 2;
-        },
-
-        polylineLength(pts) {
-            let l = 0;
-            for (let i = 1; i < pts.length; i++) {
-                l += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y);
-            }
-            return l;
         },
 
         makePath3D: (points, properties) =>

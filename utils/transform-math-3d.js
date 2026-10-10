@@ -102,13 +102,6 @@
             return o;
         },
 
-        /** Left-to-right composition: mulAll(A, B, C) === A*B*C (C first). */
-        mulAll(...ms) {
-            let out = null;
-            for (const m of ms) out = this.mul(out, m);
-            return out;
-        },
-
         /** M * v for v = [x, y, z]. Returns a new array. */
         applyVec(m, v) {
             if (!m) return [v[0], v[1], v[2]];
@@ -119,70 +112,12 @@
             ];
         },
 
-        /** In-place variant. Mutates and returns v. Own the array you pass. */
-        applyVecMut(m, v) {
-            if (!m) return v;
-            const x = v[0], y = v[1], z = v[2];
-            v[0] = m[0] * x + m[1] * y + m[2] * z;
-            v[1] = m[3] * x + m[4] * y + m[5] * z;
-            v[2] = m[6] * x + m[7] * y + m[8] * z;
-            return v;
-        },
-
-        /**
-         * Scalar-in / array-out variant for hot loops that hold x, y, z in
-         * locals and do not want a temporary per vertex. `out` is written
-         * and returned; pass a scratch array you reuse.
-         */
-        applyXYZ(m, x, y, z, out) {
-            const o = out || [0, 0, 0];
-            if (!m) { o[0] = x; o[1] = y; o[2] = z; return o; }
-            o[0] = m[0] * x + m[1] * y + m[2] * z;
-            o[1] = m[3] * x + m[4] * y + m[5] * z;
-            o[2] = m[6] * x + m[7] * y + m[8] * z;
-            return o;
-        },
-
-        transpose(m) {
-            if (!m) return null;
-            return [m[0], m[3], m[6],
-                    m[1], m[4], m[7],
-                    m[2], m[5], m[8]];
-        },
-
         det(m) {
             if (!m) return 1;
             return m[0] * (m[4] * m[8] - m[5] * m[7])
                  - m[1] * (m[3] * m[8] - m[5] * m[6])
                  + m[2] * (m[3] * m[7] - m[4] * m[6]);
         },
-
-        /**
-         * Inverse. For a rotation this is the transpose, which is what the
-         * fast path returns. Falls back to a general 3x3 inverse (used by
-         * nothing in the pipeline today - every matrix here is a rotation -
-         * but a wrong answer for a scaled matrix would be worse than a slow
-         * one). Returns null if singular.
-         */
-        inverse(m) {
-            if (!m) return null;
-            if (this.isRotation(m)) return this.transpose(m);
-            const d = this.det(m);
-            if (Math.abs(d) < 1e-12) return null;
-            const i = 1 / d;
-            return [
-                (m[4] * m[8] - m[5] * m[7]) * i,
-                (m[2] * m[7] - m[1] * m[8]) * i,
-                (m[1] * m[5] - m[2] * m[4]) * i,
-                (m[5] * m[6] - m[3] * m[8]) * i,
-                (m[0] * m[8] - m[2] * m[6]) * i,
-                (m[2] * m[3] - m[0] * m[5]) * i,
-                (m[3] * m[7] - m[4] * m[6]) * i,
-                (m[1] * m[6] - m[0] * m[7]) * i,
-                (m[0] * m[4] - m[1] * m[3]) * i
-            ];
-        },
-
         // ════════════════════════════════════════════════════════════
         // Axis rotations - right-hand rule, angle in degrees
         // ════════════════════════════════════════════════════════════
@@ -225,40 +160,6 @@
                 case 'z': return this.rotZ(deg);
                 default:
                     throw new Error(`Transform3D.rotAboutAxis: unknown axis '${axis}'`);
-            }
-        },
-
-        rotAboutAxisRad(axis, rad) {
-            switch (axis) {
-                case 'x': return this.rotXRad(rad);
-                case 'y': return this.rotYRad(rad);
-                case 'z': return this.rotZRad(rad);
-                default:
-                    throw new Error(`Transform3D.rotAboutAxisRad: unknown axis '${axis}'`);
-            }
-        },
-
-        /** 0 | 1 | 2 for 'x' | 'y' | 'z'. Throws on anything else. */
-        axisIndex(axis) {
-            const i = { x: 0, y: 1, z: 2 }[axis];
-            if (i === undefined) {
-                throw new Error(`Transform3D.axisIndex: unknown axis '${axis}'`);
-            }
-            return i;
-        },
-
-        /**
-         * The two cross-section axes for a given rotation axis, in the
-         * (b, c) order the CylMap records them: b = first cross dim,
-         * c = second. 'x' -> ['y','z'], 'y' -> ['x','z'], 'z' -> ['x','y'].
-         */
-        crossAxes(axis) {
-            switch (axis) {
-                case 'x': return ['y', 'z'];
-                case 'y': return ['x', 'z'];
-                case 'z': return ['x', 'y'];
-                default:
-                    throw new Error(`Transform3D.crossAxes: unknown axis '${axis}'`);
             }
         },
 
@@ -417,40 +318,33 @@
         },
 
         /**
-         * Transforms packed 3D triangle coordinates (Float32Array) by a 2D affine similarity matrix m {a,b,c,d,e,f}.
-         * XY are transformed by m; Z is scaled uniformly by scaleZ (or Math.hypot(a,b)).
+         * Transforms packed 3D triangle coordinates (Float32Array) by a 2D affine
+         * similarity matrix m {a,b,c,d,e,f}: XY by m, Z scaled by scaleZ.
          * Returns { triangles: Float32Array, bounds3D: {minX,minY,minZ,maxX,maxY,maxZ} }.
          */
-        transformTrianglesByAffine2D(src, m, scaleZ = null) {
-            if (!src || 0 === src.length) return { triangles: src, bounds3D: null };
-            const sc = null !== scaleZ ? scaleZ : Math.hypot(m.a, m.b) || 1;
-            const isIdentity = !m || (1 === m.a && 0 === m.b && 0 === m.c && 1 === m.d && 0 === m.e && 0 === m.f && 1 === sc);
+        transformTrianglesByAffine2D(src, m, scaleZ) {
+            if (!src || src.length === 0) return { triangles: src, bounds3D: null };
+            const isIdentity = m.a === 1 && m.b === 0 && m.c === 0 && m.d === 1 && m.e === 0 && m.f === 0 && scaleZ === 1;
             if (isIdentity) return { triangles: src, bounds3D: null };
-
             const out = new Float32Array(src.length);
-            let minX = 1 / 0, minY = 1 / 0, minZ = 1 / 0;
-            let maxX = -1 / 0, maxY = -1 / 0, maxZ = -1 / 0;
-
+            let minX = Infinity, minY = Infinity, minZ = Infinity;
+            let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
             for (let i = 0; i < src.length; i += 3) {
                 const x = src[i], y = src[i + 1], z = src[i + 2];
                 const tx = m.a * x + m.c * y + m.e;
                 const ty = m.b * x + m.d * y + m.f;
-                const tz = z * sc;
+                const tz = z * scaleZ;
                 out[i] = tx;
                 out[i + 1] = ty;
                 out[i + 2] = tz;
-                tx < minX && (minX = tx);
-                tx > maxX && (maxX = tx);
-                ty < minY && (minY = ty);
-                ty > maxY && (maxY = ty);
-                tz < minZ && (minZ = tz);
-                tz > maxZ && (maxZ = tz);
+                if (tx < minX) minX = tx;
+                if (tx > maxX) maxX = tx;
+                if (ty < minY) minY = ty;
+                if (ty > maxY) maxY = ty;
+                if (tz < minZ) minZ = tz;
+                if (tz > maxZ) maxZ = tz;
             }
-
-            return {
-                triangles: out,
-                bounds3D: { minX: minX, minY: minY, minZ: minZ, maxX: maxX, maxY: maxY, maxZ: maxZ }
-            };
+            return { triangles: out, bounds3D: { minX, minY, minZ, maxX, maxY, maxZ } };
         }
     };
 

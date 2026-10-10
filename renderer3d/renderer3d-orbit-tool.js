@@ -34,7 +34,6 @@ const Base = (typeof window !== 'undefined' && window.BaseTool)
         onActivate() {} onDeactivate() {}
         onPointerDown() { return false; } onPointerMove() { return false; }
         onPointerUp() { return false; } onWheel() { return false; }
-        onKeyDown() { return false; } onKeyUp() { return false; }
         getOverlayState() { return null; }
     };
 
@@ -257,6 +256,12 @@ export class Orbit3DTool extends Base {
 
         this.updateCamera();
         return true;
+    }
+
+    /** factor > 1 moves the camera closer, the same sense as RendererCore.zoomIn. */
+    dolly(factor) {
+        this.radius = Math.min(MAX_RADIUS, Math.max(MIN_RADIUS, this.radius / factor));
+        this.updateCamera();
     }
 
     onWheel(data) {

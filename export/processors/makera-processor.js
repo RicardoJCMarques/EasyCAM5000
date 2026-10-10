@@ -26,16 +26,15 @@
      *   - Auto-vacuum: M331 (on) / M332 (off) - not standard M10/M11
      *   - Program end: G28 parks at clearance position (important for ATC magazine)
      */
-    // REVIEW - No Line Numbers, no inches either? Double check/test?
     class MakeraPostProcessor extends BasePostProcessor {
         constructor() {
             super('Makera', {
-                label: 'Makera (Carvera) (Experimental)',
+                label: 'Makera (Carvera) (Less Experimental)',
                 fileExtension: '.cnc',
                 supportsToolChange: true,
                 supportsArcCommands: true,
                 supportsCannedCycles: false,
-                initialToolUsesM6: true,
+                initialToolUsesM6: true, // firmware ignores TLO without an M6 before first motion
                 // Carvera's MTC probes every tool against the fixed setter
                 // (M491) and ATC probes internally on M6. Both own Z; a G43
                 // over a probed offset double-applies it.
@@ -173,23 +172,11 @@
                 c.mtcCalibRun || 'Execute Tool Length Calibration', options));
 
             // G28 homes and M27 parks - all three axes are somewhere this
-            // post's tracker does not know. null forces _motionCoords to
-            // re-emit every word on the next move (it treats null/undefined
-            // as "changed"); leaving stale numbers here silently suppresses
-            // an axis word on the first rapid after the change.
-            // REVIEW - Would it be safer to add a safety Zheight movement to XY before plunging down? Splitting this movement to avoid crashed during a straight line to the previous/next position?
+            // post's tracker does not know. Nulling currentPosition forces
+            // _motionCoords to re-emit explicit G0 Z<travelZ> before XY
+            // motion in the subsequent connectionPlan.
             this.currentPosition = { x: null, y: null, z: null, a: null };
             return lines;
-        }
-
-        generateInitialTool(tool, options = {}) {
-            // Carvera firmware ignores TLO without an M6 before first motion.
-            // The ATC/MTC branch belongs to a CHANGE; the initial load is the
-            // bare selection either way.
-            const n = tool?.number ?? options.toolNumber ?? null;
-            if (n === null) return '';
-            this.currentToolNumber = n;
-            return `M6 T${n}`;
         }
     }
 

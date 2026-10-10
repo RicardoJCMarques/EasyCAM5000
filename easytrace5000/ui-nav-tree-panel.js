@@ -118,15 +118,6 @@
                 const layerName = window.LayerNaming.source(operation.id);
                 visBtn.dataset.layerName = layerName;
 
-                // Paint the ICON, never `is-hidden`. Hiding the button removed
-                // the only control that could bring the source back, and the
-                // stencil block writes that same class for a different reason -
-                // two writers, one class, and neither could tell which meaning
-                // was in effect.
-                const isVisible = operation.layerVisibility?.source !== false;
-                visBtn.title = isVisible ? 'Hide' : 'Show';
-                visBtn.querySelector('use')?.setAttribute('href', isVisible ? '#icon-eye' : '#icon-eye-off');
-
                 visBtn.addEventListener('click', e => {
                     e.stopPropagation();
                     this.emit('action', { id: operation.id, action: 'visibility', artifactKey: 'source', layerName, element: visBtn });
@@ -162,8 +153,15 @@
             category.appendChild(fileNode);
             this.updateFileGeometries(fileId, operation);
 
-            // Schedule onboarding suggestion (resets with each new file to handle multi-file loads)
-            this.scheduleSuggestion();
+            // Onboarding suggestion, restarted by every new file so a
+            // multi-file load waits for the last one.
+            if (!this.suggestionDismissed) {
+                clearTimeout(this.suggestionTimer);
+                this.suggestionTimer = setTimeout(() => {
+                    this.suggestionTimer = null;
+                    this.startSuggestionCycle();
+                }, 12500);
+            }
 
             return fileId;
         }
@@ -171,88 +169,28 @@
         updateFileGeometries(fileId, operation) {
             const fileData = this.nodes.get(fileId);
             if (!fileData) return;
-
             const geometriesContainer = fileData.element.querySelector('.file-geometries');
             if (!geometriesContainer) return;
-
             geometriesContainer.innerHTML = '';
             fileData.geometries.clear();
-
-            const isLaser = this.ui.ctrl.core.machineClassOf(operation) === 'laser';
-
-            // Offset nodes
-            if (operation.offsets && operation.offsets.length > 0) {
-                const strategy = operation.offsets?.[0]?.metadata?.strategy
-                    || operation.settings?.laserClearStrategy
-                    || 'offset';
-
-                    // Look inside the metadata object where cam-core stores the flag
-                if (operation.offsets[0]?.metadata?.offset?.combined || isLaser) {
-                    // Fetch the mathematical pass count, fallback to array length
-                    const passes = operation.offsets[0]?.metadata?.offset?.passes || operation.offsets.length;
-                    const totalPrimitives = operation.offsets.reduce((sum, off) => sum + (off.primitives?.length || 0), 0);
-                    // Dynamically update the label so users know it's a combined multi-pass
-                    const label = isLaser ? 'Laser Paths' : `Offsets (${passes} Passes)`;
-                    this.addGeometryNode(fileId, 'offsets_combined', label, totalPrimitives, {
-                        offset: operation.offsets[0].distance.toFixed(2),
-                        combined: true,
-                        passes: passes
-                    });
-                } else {
-                    operation.offsets.forEach((offset, index) => {
-                        let label;
-                        if (isLaser) {
-                            if (strategy === 'filled') label = 'Filled Region';
-                            else if (strategy === 'hatch') label = `Hatch ${index + 1}`;
-                            else label = `Laser Pass ${index + 1}`;
-                        } else {
-                            label = `Pass ${index + 1}`;
-                        }
-                        const count = offset.primitives?.length || 0;
-                        this.addGeometryNode(fileId, `offset_${index}`, label, count, {
-                            offset: offset.distance.toFixed(2)
-                        });
-                    });
-                }
-            }
-
-            // Preview node - CNC only. In laser mode, offsets are the exportable result.
-            // The preview.ready flag still exists internally for Export Manager compatibility.
-            if (!isLaser && operation.preview && operation.preview.primitives) {
-                this.addGeometryNode(fileId, 'preview', 'Preview',
-                    operation.preview.primitives.length, {
-                    generated: true,
-                    sourceOffsets: operation.preview.metadata?.sourceOffsets || 0
+            const isLaser = this.core.machineClassOf(operation) === 'laser';
+            const mm = (distance) => `${distance.toFixed(2)}mm`;
+            const offsets = operation.offsets || [];
+            // Offset nodes. A laser operation always shows one combined node.
+            if (offsets.length > 0 && (offsets[0].metadata?.offset?.combined || isLaser)) {
+                const passes = offsets[0].metadata?.offset?.passes || offsets.length;
+                const label = isLaser ? 'Laser Paths' : `Offsets (${passes} Passes)`;
+                this.addGeometryNode(fileId, 'offsets_combined', label, mm(offsets[0].distance));
+            } else {
+                offsets.forEach((offset, index) => {
+                    this.addGeometryNode(fileId, `offset_${index}`, `Pass ${index + 1}`, mm(offset.distance));
                 });
             }
-
-            // Toolpath node - ONE per operation. executePipeline returns
-            // machine-ready plans, not primitive groups and a relief job
-            // produces hundreds of them.
-            const toolpaths = this.core.store.getToolpaths(operation.id);
-            if (toolpaths?.plans?.length) {
-                const mins = Math.floor(toolpaths.metrics.estimatedTime / 60);
-                const secs = Math.floor(toolpaths.metrics.estimatedTime % 60);
-                this.addGeometryNode(fileId, 'toolpath', 'Toolpaths',
-                    toolpaths.plans.length, {
-                        estimatedTime: `${mins}:${String(secs).padStart(2, '0')}`,
-                        distance: `${toolpaths.metrics.totalDistance.toFixed(0)}mm`
-                    });
-            }
-
-            // Stencil source visibility
-            const sourceVisBtn = fileData.element.querySelector('.file-node-content .visibility-btn');
-            if (sourceVisBtn && operation.type === 'stencil') {
-                const hasOffsets = operation.offsets && operation.offsets.length > 0;
-                sourceVisBtn.classList.toggle('is-hidden', hasOffsets);
-
-                // Pre-emptively sync the renderer layer to prevent flashing during the transition
-                const layerName = `source_${operation.id}`;
-                if (this.ui.renderer && this.ui.renderer.layers.has(layerName)) {
-                    this.ui.renderer.layers.get(layerName).visible = !hasOffsets;
-                }
-            }
-
+            // Preview node - CNC only. In laser mode, offsets are the exportable result.
+            if (!isLaser && operation.preview?.primitives) this.addGeometryNode(fileId, 'preview', 'Preview');
+            // Toolpath node - one per operation, however many plans it holds.
+            if (this.core.store.getToolpaths(operation.id)?.plans?.length) { this.addGeometryNode(fileId, 'toolpath', 'Toolpaths'); }
+            this.paintEyes(fileId);
             // Update aria-expanded based on populated geometries
             const fileContent = fileData.element.querySelector('.file-node-content');
             if (fileContent) {
@@ -264,128 +202,77 @@
             }
         }
 
-        addGeometryNode(fileId, geometryType, label, count, extraData = {}) {
+        addGeometryNode(fileId, geometryType, label, info = '') {
             const fileData = this.nodes.get(fileId);
             if (!fileData) return;
-
             const template = document.getElementById('geometry-node-template');
             if (!template) return;
-
             const geometryNode = template.content.cloneNode(true);
             const nodeElement = geometryNode.querySelector('.geometry-node');
             const geometryId = `geometry_${this.nextNodeId++}`;
-
             nodeElement.dataset.geometryId = geometryId;
             nodeElement.dataset.geometryType = geometryType;
-
             const content = nodeElement.querySelector('.geometry-node-content');
             const iconEl = nodeElement.querySelector('.geometry-icon');
             const labelEl = nodeElement.querySelector('.geometry-label');
             const infoEl = nodeElement.querySelector('.geometry-info');
             const visBtn = nodeElement.querySelector('.visibility-btn');
             const deleteBtn = nodeElement.querySelector('.delete-geometry-btn');
-
             // ARIA attributes for keyboard navigation
             content.setAttribute('role', 'treeitem');
             content.setAttribute('tabindex', '-1');
             content.setAttribute('aria-selected', 'false');
             content.setAttribute('aria-level', '3');
-            nodeElement.querySelectorAll('.btn-icon').forEach(b => b.setAttribute('tabindex', '-1'));
-
-            const baseType = geometryType.startsWith('offset') ? 'offset' :
-                            geometryType === 'offsets_combined' ? 'offsets_combined' :
-                            geometryType.startsWith('toolpath') ? 'toolpath' :
-                            geometryType === 'preview' ? 'preview' : geometryType;
-
-            // REVIEW - is this mapp still necessary? Icons are predictable.
-            // Map base types to their predictable sprite IDs
-            let iconId = 'icon-file'; // default fallback
-            if (baseType === 'offsets_combined') iconId = 'icon-offset-combined';
-            else if (baseType === 'offset') iconId = 'icon-offset-pass';
-            else if (baseType === 'preview') iconId = 'icon-stage-preview';
-            else if (baseType === 'toolpath') iconId = 'icon-toolpath';
-
+            nodeElement.querySelectorAll('.btn-icon').forEach((b) => b.setAttribute('tabindex', '-1'));
+            // Same sprites as EasyShape's bucket tree: every offset node is the 'offsets' artifact.
+            const iconId = this.core.registry.artifactIcon(geometryType.startsWith('offset') ? 'offsets' : geometryType);
             iconEl.innerHTML = `<svg class="cam-icon" width="14" height="14"><use href="#${iconId}"></use></svg>`;
             labelEl.textContent = label;
-
             // Invalidation styling takes priority
-            if (fileData.operation.isInvalidated && (geometryType.startsWith('offset') || geometryType === 'offsets_combined')) {
+            if (fileData.operation.isInvalidated && geometryType.startsWith('offset')) {
                 nodeElement.classList.add('is-invalidated');
                 labelEl.style.textDecoration = 'line-through';
                 labelEl.style.color = 'var(--color-error, #ff4444)';
                 infoEl.textContent = 'Invalid';
                 infoEl.style.color = 'var(--color-error, #ff4444)';
-            } else if (extraData.offset) {
-                infoEl.textContent = `${extraData.offset}mm`;
             } else {
-                infoEl.textContent = '';
+                infoEl.textContent = info;
             }
-
             content.addEventListener('click', (e) => {
                 if (e.target.closest('.btn-icon')) return;
                 this.setFocusOnItem(document.querySelector('#operations-tree [tabindex="0"]'), content);
                 this.activateGeometryNode(content);
             });
-
             if (deleteBtn) {
                 deleteBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
                     this.emit('deleteGeometry', { fileId, geometryId });
                 });
             }
-
-            // A toolpath has no 2D layer - it is drawn by the 3D view - so its
-            // eye writes straight to the operation's visibility record and
-            // refresh3D filters the plan push on it.
+            // A toolpath has no 2D layer - it is drawn by the 3D view - so
+            // layerName stays null there and the record alone drives it.
             if (visBtn) {
                 const operationId = fileData.operation.id;
                 const artifactKey = NavTreePanel.artifactKeyOf(geometryType);
-
-                // A toolpath has no 2D layer - it is drawn by the 3D view - so
-                // layerName stays null there and the record alone drives it.
                 let layerName = null;
-                if (geometryType === "offsets_combined") {
+                if (geometryType === 'offsets_combined') {
                     layerName = window.LayerNaming.offsetCombined(operationId);
-                } else if (geometryType.startsWith("offset_")) {
-                    const passIndex = parseInt(geometryType.split("_")[1]);
+                } else if (geometryType.startsWith('offset_')) {
+                    const passIndex = parseInt(geometryType.split('_')[1]);
                     layerName = window.LayerNaming.offsetPass(operationId, passIndex + 1);
-                } else if (geometryType === "preview") {
+                } else if (geometryType === 'preview') {
                     layerName = window.LayerNaming.preview(operationId);
                 }
-
-                visBtn.dataset.layerName = layerName || "";
-                visBtn.addEventListener("click", e => {
+                visBtn.dataset.layerName = layerName || '';
+                visBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    this.emit("action", {
-                        id: operationId,
-                        action: "visibility",
-                        artifactKey: artifactKey,
-                        layerName: layerName,
-                        element: visBtn
-                    });
+                    this.emit('action', { id: operationId, action: 'visibility', artifactKey, layerName, element: visBtn });
                 });
-
-                // Paint from the persisted record. Reading renderer.options.show*
-                // here made the icon report a GLOBAL toggle while the layer
-                // followed a per-operation override, so a rebuild could leave
-                // the two pointing opposite ways.
-                const isVisible = fileData.operation.layerVisibility?.[artifactKey] !== false;
-                visBtn.title = isVisible ? 'Hide' : 'Show';
-                visBtn.querySelector('use')?.setAttribute('href', isVisible ? '#icon-eye' : '#icon-eye-off');
             }
-
-            fileData.geometries.set(geometryId, {
-                id: geometryId,
-                type: geometryType,
-                label: label,
-                element: nodeElement,
-                extraData: extraData
-            });
-
+            fileData.geometries.set(geometryId, { id: geometryId, type: geometryType, label, element: nodeElement });
             const container = fileData.element.querySelector('.file-geometries');
             if (container) {
                 container.appendChild(geometryNode);
-
                 // Update aria-setsize and aria-posinset for all geometry siblings
                 this.updateGeometrySetInfo(fileId);
             }
@@ -487,30 +374,40 @@
         /**
          * The Record is the truth; the renderer layer is a consequence of it.
          * @param {string} artifactKey - source/offsets/offset_N/preview/toolpath,
-         *                               the same keyspace refresh3D and 
-         *                               _push3DPlans read.
-         * @param {string} layerName - the renderer layer, when one exists.
+         *                               the same keyspace refresh3D reads.
+         * @param {string} layerName   - the renderer layer, when one exists.
          */
         toggleLayerVisibility(button, artifactKey, layerName) {
             if (!artifactKey) return;
-
             const fileId = button.closest('.file-node')?.dataset.fileId;
             const operation = this.nodes.get(fileId)?.operation;
             if (!operation) return;
-
             operation.layerVisibility ||= {};
             const visible = operation.layerVisibility[artifactKey] === false;
             operation.layerVisibility[artifactKey] = visible;
-
-            // Repaint unconditionally - the icon reports the record, not
-            // whether a layer happened to exist at click time.
-            button.title = visible ? 'Hide' : 'Show';
-            button.querySelector('use')?.setAttribute('href', visible ? '#icon-eye' : '#icon-eye-off');
-
+            // Repaint from the record, not from whether a layer happened to exist at click time.
+            this.paintEyes(fileId);
             const layer = layerName ? this.ui.renderer?.layers.get(layerName) : null;
             if (layer) layer.visible = visible;
             this.ui.renderer?.render();
-            this.ui.ctrl.refresh3D?.();
+            this.ui.ctrl.refresh3D();
+        }
+
+        /** Paints every eye in one file node from its operation's visibility record. */
+        paintEyes(fileId) {
+            const fileData = this.nodes.get(fileId);
+            if (!fileData) return;
+            const record = fileData.operation.layerVisibility || {};
+            const paint = (button, key) => {
+                if (!button) return;
+                const visible = record[key] !== false;
+                button.title = visible ? 'Hide' : 'Show';
+                button.querySelector('use')?.setAttribute('href', visible ? '#icon-eye' : '#icon-eye-off');
+            };
+            paint(fileData.element.querySelector('.file-node-content .visibility-btn'), 'source');
+            for (const geo of fileData.geometries.values()) {
+                paint(geo.element.querySelector('.visibility-btn'), NavTreePanel.artifactKeyOf(geo.type));
+            }
         }
 
         /**
@@ -552,34 +449,10 @@
             }
         }
 
-        removeGeometryNode(fileId, geometryId) {
-            const fileData = this.nodes.get(fileId);
-            if (!fileData) return;
-
-            const geoData = fileData.geometries.get(geometryId);
-            if (geoData?.element) {
-                geoData.element.remove();
-                fileData.geometries.delete(geometryId);
-
-                const geometriesContainer = fileData.element.querySelector('.file-geometries');
-                const fileContent = fileData.element.querySelector('.file-node-content');
-                if (fileContent && geometriesContainer) {
-                    if (geometriesContainer.children.length > 0) {
-                        fileContent.setAttribute('aria-expanded', 'true');
-                        this.updateGeometrySetInfo(fileId);
-                    } else {
-                        fileContent.removeAttribute('aria-expanded');
-                    }
-                }
-                this.syncCategoryExpanded(fileData.element.closest('.operation-category'));
-            }
-        }
-
         updateGeometrySetInfo(fileId) {
             const fileData = this.nodes.get(fileId);
-            if (!fileData) return;
+            // if (!fileData) return;
             const container = fileData.element.querySelector('.file-geometries');
-            if (!container) return;
             const contents = container.querySelectorAll('.geometry-node-content');
             contents.forEach((content, index) => {
                 content.setAttribute('aria-setsize', contents.length.toString());
@@ -624,10 +497,22 @@
                 { selector: ".geometry-node-content", onActivate: el => this.activateGeometryNode(el) }
             ], {
                 onDelete: (id, focused) => {
-                    const isFile = focused.classList.contains("file-node-content");
-                    const isGeo = focused.classList.contains("geometry-node-content");
-                    this.handleDeleteOnFocused(focused, isFile, isGeo);
-                },
+                        const fileId = focused.closest('.file-node')?.dataset.fileId;
+                        const operation = focused.classList.contains('file-node-content')
+                            ? this.nodes.get(fileId)?.operation
+                            : null;
+                        const geometryId = focused.classList.contains('geometry-node-content')
+                            ? focused.closest('.geometry-node')?.dataset.geometryId
+                            : null;
+                        if (!operation && !(fileId && geometryId)) return;
+                        // The deleted row leaves the tree, so focus moves to a neighbour.
+                        const items = this.getVisibleTreeItems();
+                        const idx = items.indexOf(focused);
+                        const nextFocus = items[idx + 1] || items[idx - 1];
+                        if (operation) this.emit('action', { id: operation.id, action: 'delete' });
+                        else this.emit('deleteGeometry', { fileId, geometryId });
+                        if (nextFocus && document.body.contains(nextFocus)) this.setFocusOnItem(null, nextFocus);
+                    },
                 onKey: (key, id, focused) => {
                     if ("v" === key || "V" === key) {
                         const visBtn = focused.querySelector(".visibility-btn");
@@ -661,7 +546,7 @@
                     header.setAttribute('aria-controls', filesId);
                     this.syncCategoryExpanded(category);
                 } else {
-                    header.removeAttribute('aria-expanded'); // REVIEW - Operations are no longer expandable. REVIEW IF THIS IS WORTH KEEPING?
+                    header.removeAttribute('aria-expanded');
                 }
             });
         }
@@ -722,47 +607,9 @@
             return items;
         }
 
-        handleDeleteOnFocused(focused, isFileContent, isGeometryContent) {
-            if (isFileContent) {
-                const fileNode = focused.closest('.file-node');
-                const nodeData = this.nodes.get(fileNode?.dataset.fileId);
-                if (nodeData?.operation) {
-                    // Store next focusable before deletion
-                    const items = this.getVisibleTreeItems();
-                    const idx = items.indexOf(focused);
-                    const nextFocus = items[idx + 1] || items[idx - 1];
-                    this.emit('action', { id: nodeData.operation.id, action: 'delete' });
-                    // Restore focus
-                    if (nextFocus && document.body.contains(nextFocus)) this.setFocusOnItem(null, nextFocus);
-                }
-            } else if (isGeometryContent) {
-                const geoNode = focused.closest('.geometry-node');
-                const fileNode = focused.closest('.file-node');
-                const geometryId = geoNode?.dataset.geometryId;
-                const fileId = fileNode?.dataset.fileId;
-                if (fileId && geometryId) {
-                    // Store next focusable
-                    const items = this.getVisibleTreeItems();
-                    const idx = items.indexOf(focused);
-                    const nextFocus = items[idx + 1] || items[idx - 1];
-                    this.emit('deleteGeometry', { fileId, geometryId });
-                    if (nextFocus && document.body.contains(nextFocus)) this.setFocusOnItem(null, nextFocus);
-                }
-            }
-        }
-
         // ═══════════════════════════════════════════════════════════════
         // Onboarding highlight loop
         // ═══════════════════════════════════════════════════════════════
-
-        scheduleSuggestion() {
-            if (this.suggestionDismissed) return;
-            if (this.suggestionTimer) clearTimeout(this.suggestionTimer);
-            this.suggestionTimer = setTimeout(() => {
-                this.suggestionTimer = null;
-                this.startSuggestionCycle();
-            }, 12500);
-        }
 
         /**
          * Begins cycling the highlight across loaded file nodes (if no file has been selected yet).
@@ -772,12 +619,6 @@
             // Auto-updating motion with no stop control (WCAG 2.2.2). Users who
             // asked for less motion get none.
             if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
-                this.dismissSuggestion();
-                return;
-            }
-
-            // User already found the workflow on their own
-            if (this.ui.TraceOperationPanel?.currentOperation) {
                 this.dismissSuggestion();
                 return;
             }

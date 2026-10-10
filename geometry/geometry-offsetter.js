@@ -19,16 +19,9 @@
     const debugState = D.debug;
 
     class GeometryOffsetter {
-        constructor(options = {}) {
-            this.options = {
-                miterLimit: options.miterLimit
-            };
-            this.initialized = true;
-            this.geometryProcessor = null;
-        }
-
-        setGeometryProcessor(processor) {
-            this.geometryProcessor = processor;
+        /** @param {GeometryProcessor} geometryProcessor - runs the boolean offsets */
+        constructor(geometryProcessor) {
+            this.geometryProcessor = geometryProcessor;
         }
 
         /**
@@ -128,7 +121,9 @@
         }
 
         /**
-         * Offsets a PathPrimitive. Routes to boolean pipeline or legacy fallback.
+         * Offsets a PathPrimitive: a single full-circle contour goes to the
+         * analytic offsetCircle, a centreline path passes through unchanged,
+         * and everything else takes the boolean route.
          */
         async offsetPath(path, distance) {
             if (!path.contours || path.contours.length === 0) {
@@ -164,11 +159,6 @@
          * Boolean offset: builds a stroke-width boundary ring using optimized overlapping shapes, then extracts the outer contour (external offset) or hole contour (internal offset) from the ring.
          */
         async offsetPathViaBoolean(path, distance) {
-            if (!this.geometryProcessor) {
-                console.warn('[Offsetter] GeometryProcessor required for boolean offsetting');
-                return null;
-            }
-
             const offsetDist = Math.abs(distance);
             const strokeWidth = offsetDist * 2;
             const isInternal = distance < 0;
@@ -334,14 +324,6 @@
                 closed: true
             });
             return this.offsetPath(rectAsPath, distance);
-        }
-
-        async offsetArc(arc, distance) {
-            // Convert to path primitive
-            const pathPrimitive = GeometryUtils.primitiveToPath(arc);
-            if (!pathPrimitive) return null;
-
-            return this.offsetPath(pathPrimitive, distance);
         }
 
         offsetObround(obround, distance) {

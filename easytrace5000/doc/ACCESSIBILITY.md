@@ -58,7 +58,7 @@ Each zone has specific interactions once it receives focus.
 
 The tree uses a **roving tabindex** pattern. Press `Tab` to enter the tree list, then use arrow keys to navigate.
 
-Each operation category holds a source file, and each generated artifact — Offsets, Preview, Toolpaths — appears as its own child node with its own visibility toggle.
+Each operation category holds a source file, and each generated artifact - Offsets, Preview, Toolpaths - appears as its own child node with its own visibility toggle.
 
 | Key | Action |
 | :--- | :--- |
@@ -217,7 +217,7 @@ EasyTrace5000 targets **WCAG 2.1 Level AA** compliance. While the application is
 | **1.4.3** | Contrast (Minimum) | Partial | Most default text meets 4.5:1, but some secondary and hint text in both themes does not. Dedicated high-contrast themes are in development. |
 | **1.4.10**| Reflow | Partial | The workspace is laid out for a landscape viewport and does not reflow to a single column; below roughly 768 CSS pixels a warning bar appears instead. Because browser zoom narrows the viewport as it magnifies, this is reached at high zoom on a wide display. Collapsible side panels are planned. In the meantime, text-only zoom or operating-system display scaling magnifies without narrowing the viewport. |
 | **1.4.11**| Non-text Contrast | Partial | Some UI borders and disabled states in the default theme may fall below 3:1. High Contrast themes are supported by the engine and are currently in development. |
-| **1.1.1** | Non-text Content (3D view) | Partial | The 3D toolpath view is a WebGPU canvas with no non-visual equivalent. Toolpath statistics — pass count, estimated time, travel distance — appear as text on the Toolpaths node in the operations tree and in the Export Manager. Nothing in the workflow requires the 3D view. |
+| **1.1.1** | Non-text Content (3D view) | Partial | The 3D toolpath view is a WebGPU canvas with no non-visual equivalent. Toolpath statistics - pass count, estimated time, travel distance - appear as text on the Toolpaths node in the operations tree and in the Export Manager. Nothing in the workflow requires the 3D view. |
 | **1.2.x** | Time-based Media | N/A | The application does not contain audio or video content. |
 
 ---

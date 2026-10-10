@@ -53,7 +53,6 @@
 
         actualRender() {
             const startTime = this.core.beginRender();
-            this.core.clearCanvas();
             this.debugPrimitives = [];
             this.core.setupTransform();
             this.ctx.save();
@@ -166,7 +165,7 @@
                     continue;
                 }
 
-                // Centralized layer-level culling (always world space) // REVIEW - Double check this is the best way to do this
+                // Centralized layer-level culling (always world space)
                 if (layerBounds && !this.core.boundsIntersect(layerBounds, worldViewBounds)) {
                     this.core.renderStats.primitives += layer.primitives.length;
                     this.core.renderStats.skippedPrimitives += layer.primitives.length;
@@ -176,8 +175,6 @@
                 const isStencil = layer.type === 'stencil' || layer.operationType === 'stencil';
                 const isKnifeStencil = isStencil && (layer.metadata?.isKnife || (layer.metadata?.cornerRadius !== undefined && !layer.metadata?.toolDiameter) || layer.metadata?.strategy === 'knife');
                 const isStencilSource = isStencil && !layer.isOffset && !layer.isPreview && layer.type !== 'offset' && layer.type !== 'preview';
-                // REVIEW - Rename isStencilGenerated to isCNCStencil or something of the sort? Make eveyrthing more consistent.
-                const isStencilGenerated = isStencil && !isStencilSource;
 
                 // EasyShape5000: per-layer world transform.
                 // EasyTrace5000: layers have no transform so this branch
@@ -202,7 +199,7 @@
                     this.renderHatchLayerBatched(layer);
                 } else if (isStencilSource) {
                     this.renderStencilSourceImmediate(layer);
-                } else if (isKnifeStencil && isStencilGenerated) {
+                } else if (isKnifeStencil && !isStencilSource) {
                     this.renderStencilGeneratedImmediate(layer);
                 } else if (layer.metadata?.strategy === 'filled') {
                     this.renderFilledLayerImmediate(layer);
@@ -282,8 +279,6 @@
         // ========================================================================
 
         renderOffsetLayerImmediate(layer) {
-            const viewBounds = this.core.frameCache.viewBounds;
-
             const offsetColor = this.options.resolveLayerColor ? this.options.resolveLayerColor(layer) : (layer.color);
 
             // Buckets for z-ordering
@@ -353,12 +348,9 @@
         // ========================================================================
 
         renderStencilGeneratedImmediate(layer) {
-            const viewBounds = this.core.frameCache.viewBounds;
-
-            const stencilColor = this.options.resolveLayerColor ? this.options.resolveLayerColor(layer) : (layer.color);
+            const stencilColor = this.options.resolveLayerColor ? this.options.resolveLayerColor(layer) : layer.color;
             const fc = this.core.frameCache;
             const strokeWidth = Math.max(2.0 * fc.invScale, fc.minWorldWidth);
-
             this.ctx.fillStyle = stencilColor;
             this.ctx.strokeStyle = stencilColor;
             this.ctx.lineWidth = strokeWidth;
@@ -366,34 +358,12 @@
             this.ctx.lineJoin = 'round';
             this.ctx.setLineDash([]);
 
-            const entries = layer.renderCache.entries;
-
-            for (const entry of entries) {
-                this.core.renderStats.primitives++;
-
-                if (!this.core.boundsIntersect(entry.bounds, viewBounds)) {
-                    this.core.renderStats.skippedPrimitives++;
-                    this.core.renderStats.culledViewport++;
-                    continue;
-                }
-
-                if (!this.core.passesLODCull(entry.screenSize, this.core.viewScale, this.core.lodThreshold)) {
-                    this.core.renderStats.skippedPrimitives++;
-                    this.core.renderStats.culledLOD++;
-                    continue;
-                }
-
-                this.core.renderStats.renderedPrimitives++;
-
-                if (this.shouldCollectDebug(entry.primitive)) {
-                    this.debugPrimitives.push(entry.primitive);
-                }
-
+            for (const entry of layer.renderCache.entries) {
+                if (!this.acceptPrimitive(layer, entry, { filter: false })) continue;
                 // Fill + stroke: shows aperture area with crisp boundary
                 this.primitiveRenderer.drawPrimitivePath(entry.primitive);
                 this.ctx.fill('evenodd');
                 this.ctx.stroke();
-
                 this.core.renderStats.drawCalls += 2;
             }
         }
@@ -403,58 +373,18 @@
         // ========================================================================
 
         renderFilledLayerImmediate(layer) {
-            const viewBounds = this.core.frameCache.viewBounds;
-
-            // Resolve colors from theme with fallback
-            const fillColor = this.core.colors.geometry.laser.filled ||
-                              this.core.colors.geometry.preview;
-            const minWidth = this.core.frameCache.minWorldWidth;
-            const outlineWidth = Math.max(1.0 * this.core.frameCache.invScale, minWidth);
-
-            const entries = layer.renderCache.entries;
-
-            for (const entry of entries) {
-                this.core.renderStats.primitives++;
-
-                // Viewport culling
-                if (!this.core.boundsIntersect(entry.bounds, viewBounds)) {
-                    this.core.renderStats.skippedPrimitives++;
-                    this.core.renderStats.culledViewport++;
-                    continue;
-                }
-
-                // LOD culling
-                if (!this.core.passesLODCull(entry.screenSize, this.core.viewScale, this.core.lodThreshold)) {
-                    this.core.renderStats.skippedPrimitives++;
-                    this.core.renderStats.culledLOD++;
-                    continue;
-                }
-
-                const prim = entry.primitive;
-                if (this.options.primitiveFilter && !this.options.primitiveFilter(prim, layer.type)) {
-                    this.core.renderStats.skippedPrimitives++;
-                    continue;
-                }
-
-                this.core.renderStats.renderedPrimitives++;
-
-                // Build the path once - drawPrimitivePath calls beginPath() internally.
-                // Multi-contour paths with holes render correctly via evenodd fill rule since outer and hole contours have opposite winding from Clipper output.
-                this.primitiveRenderer.drawPrimitivePath(prim);
-
-                // Solid fill to show ablation zone
-                this.ctx.save();
-                this.ctx.fillStyle = fillColor;
+            this.ctx.save();
+            this.ctx.fillStyle = this.options.resolveLayerColor
+                ? this.options.resolveLayerColor(layer)
+                : layer.color;
+            for (const entry of layer.renderCache.entries) {
+                if (!this.acceptPrimitive(layer, entry)) continue;
+                // evenodd keeps hole contours open by parity, whatever their winding.
+                this.primitiveRenderer.drawPrimitivePath(entry.primitive);
                 this.ctx.fill('evenodd');
-                this.ctx.restore();
-
-                // Debug collection
-                if (this.shouldCollectDebug(prim)) {
-                    this.debugPrimitives.push(prim);
-                }
-
-                this.core.renderStats.drawCalls += 2;
+                this.core.renderStats.drawCalls++;
             }
+            this.ctx.restore();
         }
 
         // ========================================================================
@@ -465,20 +395,15 @@
          * Renders laser hatch lines using a single batched draw call.
          */
         renderHatchLayerBatched(layer) {
-            const viewBounds = this.core.frameCache.viewBounds;
-
-            // No layer-level LOD: hatch lines are all one size, so per-line
-            // LOD can only ever cull all or none, and the layer-level bbox
-            // test in renderVisibleLayers already rejects an off-screen
-            // region. Viewport culling below still applies per line.
-
-            const hatchColor = this.options.resolveLayerColor ? this.options.resolveLayerColor(layer) : (layer.color);
-
-            // Use the same screen-pixel-based stroke width as standard offsets.
-            // Hatch metadata carries toolDiameter for future export use, but rendering uses a zoom-invariant stroke like all other offset geometry.
+            // No LOD: hatch lines are all one size, so per-line LOD can only
+            // ever cull all or none, and the layer-level bbox test in
+            // renderVisibleLayers already rejects an off-screen region.
+            // Viewport culling still applies per line.
+            const hatchColor = this.options.resolveLayerColor ? this.options.resolveLayerColor(layer) : layer.color;
+            // Zoom-invariant stroke like all other offset geometry; the hatch
+            // metadata's toolDiameter is for export.
             const fc = this.core.frameCache;
             const lineWidth = Math.max(this.primitiveRenderer.cfg.stroke.offset * fc.invScale, fc.minWorldWidth);
-
             this.ctx.save();
             this.ctx.strokeStyle = hatchColor;
             this.ctx.lineWidth = lineWidth;
@@ -488,25 +413,10 @@
 
             // Single batched path for all hatch lines
             this.ctx.beginPath();
-
-            const entries = layer.renderCache.entries;
-
             let batchedCount = 0;
-
-            for (const entry of entries) {
-                this.core.renderStats.primitives++;
-
-                // Viewport culling still applies per-primitive - lines off-screen are cheap to skip and the check is just 4 comparisons.
-                if (!this.core.boundsIntersect(entry.bounds, viewBounds)) {
-                    this.core.renderStats.skippedPrimitives++;
-                    this.core.renderStats.culledViewport++;
-                    continue;
-                }
-
+            for (const entry of layer.renderCache.entries) {
+                if (!this.acceptPrimitive(layer, entry, { lod: false, filter: false })) continue;
                 const prim = entry.primitive;
-                this.core.renderStats.renderedPrimitives++;
-
-                // Accumulate into the batch path.
                 // Hatch primitives are always 2-point open paths from HatchGenerator.
                 if (prim.contours && prim.contours[0] && prim.contours[0].points.length >= 2) {
                     const pts = prim.contours[0].points;
@@ -517,13 +427,11 @@
                     batchedCount++;
                 }
             }
-
             // Single draw call for the entire layer
             if (batchedCount > 0) {
                 this.ctx.stroke();
                 this.core.renderStats.drawCalls++;
             }
-
             this.ctx.restore();
         }
 
@@ -533,8 +441,6 @@
 
 
         renderPreviewLayerImmediate(layer) {
-            const viewBounds = this.core.frameCache.viewBounds;
-
             const previewColor = this.options.resolveLayerColor ? this.options.resolveLayerColor(layer) : (layer.color);
             const minWidth = this.core.frameCache.minWorldWidth;
 
@@ -549,32 +455,8 @@
             const entries = layer.renderCache.entries;
 
             for (const entry of entries) {
-                this.core.renderStats.primitives++;
-
-                // Culling
-                if (!this.core.boundsIntersect(entry.bounds, viewBounds)) {
-                    this.core.renderStats.skippedPrimitives++;
-                    this.core.renderStats.culledViewport++;
-                    continue;
-                }
-
-                if (!this.core.passesLODCull(entry.screenSize, this.core.viewScale, this.core.lodThreshold)) {
-                    this.core.renderStats.skippedPrimitives++;
-                    this.core.renderStats.culledLOD++;
-                    continue;
-                }
-
+                if (!this.acceptPrimitive(layer, entry)) continue;
                 const prim = entry.primitive;
-                if (this.options.primitiveFilter && !this.options.primitiveFilter(prim, layer.type)) {
-                    this.core.renderStats.skippedPrimitives++;
-                    continue;
-                }
-
-                this.core.renderStats.renderedPrimitives++;
-
-                if (this.shouldCollectDebug(prim)) {
-                    this.debugPrimitives.push(prim);
-                }
 
                 // Determine Geometry Type
                 const role = prim.properties?.role;
@@ -623,8 +505,6 @@
         // ========================================================================
 
         renderSourceLayerImmediate(layer) {
-            const viewBounds = this.core.frameCache.viewBounds;
-
             // Determine Base Color.
             let layerColor = this.options.resolveLayerColor ? this.options.resolveLayerColor(layer) : (layer.color);
 
@@ -640,33 +520,8 @@
             const entries = layer.renderCache.entries;
 
             for (const entry of entries) {
-                this.core.renderStats.primitives++;
-
-                // Culling
-                if (!this.core.boundsIntersect(entry.bounds, viewBounds)) {
-                    this.core.renderStats.skippedPrimitives++;
-                    this.core.renderStats.culledViewport++;
-                    continue;
-                }
-
-                if (!this.core.passesLODCull(entry.screenSize, this.core.viewScale, this.core.lodThreshold)) {
-                    this.core.renderStats.skippedPrimitives++;
-                    this.core.renderStats.culledLOD++;
-                    continue;
-                }
-
+                if (!this.acceptPrimitive(layer, entry)) continue;
                 const prim = entry.primitive;
-                if (this.options.primitiveFilter && !this.options.primitiveFilter(prim, layer.type)) {
-                    this.core.renderStats.skippedPrimitives++;
-                    continue;
-                }
-
-                this.core.renderStats.renderedPrimitives++;
-
-                // Debug Collection
-                if (this.shouldCollectDebug(prim)) {
-                    this.debugPrimitives.push(prim);
-                }
 
                 // Draw Logic
                 // Determine if it needs stroke or fill
@@ -719,8 +574,6 @@
         // ========================================================================
 
         renderWireframeMode() {
-            const viewBounds = this.core.frameCache.viewBounds;
-
             // Set Wireframe State Once
             this.ctx.strokeStyle = this.core.colors.debug.wireframe;
             this.ctx.lineWidth = this.core.getWireframeStrokeWidth();
@@ -729,32 +582,11 @@
 
             this.layers.forEach(layer => {
                 if (!layer.visible) return;
-
-                const entries = layer.renderCache.entries;
-
-                for (const entry of entries) {
-                    this.core.renderStats.primitives++;
-
-                    if (!this.core.boundsIntersect(entry.bounds, viewBounds)) {
-                        this.core.renderStats.skippedPrimitives++;
-                        continue;
-                    }
-
-                    const prim = entry.primitive;
-                    if (this.options.primitiveFilter && !this.options.primitiveFilter(prim, layer.type)) {
-                        this.core.renderStats.skippedPrimitives++;
-                        continue;
-                    }
-
-                    this.core.renderStats.renderedPrimitives++;
-
+                for (const entry of layer.renderCache.entries) {
+                    if (!this.acceptPrimitive(layer, entry, { lod: false })) continue;
                     // Direct Immediate Draw
-                    this.primitiveRenderer.drawPrimitivePath(prim);
+                    this.primitiveRenderer.drawPrimitivePath(entry.primitive);
                     this.ctx.stroke();
-
-                    if (this.shouldCollectDebug(prim)) {
-                        this.debugPrimitives.push(prim);
-                    }
                     this.core.renderStats.drawCalls++;
                 }
             });
@@ -975,16 +807,6 @@
             if (diameterStr === undefined) return null;
             const diameter = parseFloat(diameterStr);
             return isNaN(diameter) ? null : diameter;
-        }
-
-        destroy() {
-            if (this.renderHandle) {
-                cancelAnimationFrame(this.renderHandle);
-            }
-            if (this.core?._onThemeChange) {
-                window.removeEventListener('themechange', this.core._onThemeChange);
-                this.core._onThemeChange = null;
-            }
         }
     }
 

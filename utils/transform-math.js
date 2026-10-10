@@ -107,26 +107,17 @@
         /** Matrix-based winding check: negative determinant = reflection. */
         windingFlipped(m) { return this.det(m) < 0; },
 
-        /** Param-based winding check (identical result for workspace params).
-         *  Kept for pipeline code that has the params struct but no matrix.
-         */
-        windingFlippedParams(t) {
-            if (!t) return false;
-            return !!((t.mirrorX ? 1 : 0) ^ (t.mirrorY ? 1 : 0));
-        },
-
         /** Mirror-XOR rule: a single-axis mirror inverts visual rotation. */
         effectiveRotationDeg(t) {
             if (!t || !t.rotation) return 0;
-            return this.windingFlippedParams(t) ? -t.rotation : t.rotation;
+            return !!t.mirrorX !== !!t.mirrorY ? -t.rotation : t.rotation;
         },
 
         // Composition
 
         /**
          * Node-local TRS: translate (tx,ty), rotate by rotationDeg around
-         * (cx,cy), scale by (sx,sy) around (cx,cy). Identical formula to the
-         * old MatrixUtils.composeTRS - per-shape transforms are unchanged.
+         * (cx,cy), scale by (sx,sy) around (cx,cy).
          */
         composeTRS(tx, ty, rotationDeg, sx, sy, cx, cy) {
             const rad = (rotationDeg * Math.PI) / 180;
@@ -176,7 +167,6 @@
         /**
          * Canonical GLOBAL workspace matrix from semantic params
          * { rotation, rotationCenter, mirrorX, mirrorY, mirrorCenter }.
-         * Replaces WorkspaceTransform.forwardPoint / forwardMatrix.
          * Rotate (effective angle) about rotationCenter, THEN mirror about
          * mirrorCenter. Origin is intentionally NOT included.
          */

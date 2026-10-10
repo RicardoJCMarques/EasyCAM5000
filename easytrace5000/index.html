@@ -104,7 +104,7 @@
                 "applicationSubCategory": "CAM Software",
                 "operatingSystem": "Any (Browser-based)",
                 "browserRequirements": "Requires JavaScript and WebAssembly support",
-                "softwareVersion": "1.6.1",
+                "softwareVersion": "1.6.2",
                 "releaseNotes": "https://github.com/RicardoJCMarques/EasyCAM5000/blob/main/CHANGELOG.md",
                 "installUrl": "https://cam.eltryus.design/easytrace5000/",
                 "sameAs": [
@@ -179,7 +179,7 @@
             <h1>EasyTrace5000 - PCB CAM Workspace</h1>
             <p>EasyTrace5000 is a free, open-source CAM workspace for PCB fabrication that runs entirely in your browser. It reads Gerber RS-274X, Excellon drill and SVG files and produces G-code for CNC isolation routing, or vector SVG and raster PNG output for laser processing.</p>
             <p>Operations include multi-pass isolation routing, copper clearing, board cutout with tabs, and drilling with automatic peck, helical-mill or centreline-slot selection based on the tool-to-hole ratio. The geometry engine reconstructs true G2/G3 arcs rather than emitting polygonised line segments. Post-processors cover GRBL, grblHAL, Marlin, LinuxCNC, Mach3 and Roland RML.</p>
-            <p>Nothing is uploaded — all processing is client-side. JavaScript and WebAssembly are required to run the workspace.</p>
+            <p>Nothing is uploaded - all processing is client-side. JavaScript and WebAssembly are required to run the workspace.</p>
             <p>
                 <a href="doc/" style="color: #3b82f6;">EasyTrace5000 documentation</a> ·
                 <a href="doc/cnc" style="color: #3b82f6;">CNC milling guide</a> ·
@@ -209,7 +209,7 @@
                         <svg class="cam-icon" width="16" height="16"><use href="#icon-folder-open"></use></svg> Add Files...
                     </button>
                     <div class="menu-divider"></div>
-                    <button class="menu-item" id="toolbar-manage-toolpaths">
+                    <button class="menu-item" id="toolbar-export-manager">
                         <svg class="cam-icon" width="16" height="16"><use href="#icon-wrench"></use></svg> Manage Toolpaths
                     </button>
                     <button class="menu-item" id="toolbar-export-canvas">
@@ -533,7 +533,6 @@
                             <span>Verbose Debug</span>
                         </label>
                     </div>
-                    <div id="arc-reconstruction-stats" class="stats-info hidden"></div>
                 </div>
             </div>
         </div>
@@ -547,7 +546,7 @@
         </div>
         <div class="status-right" id="status-right">
             <div class="status-info license-info">
-                <a href="https://github.com/RicardoJCMarques/EasyCAM5000/blob/main/CHANGELOG.md" title="Version" draggable="false" aria-label="Changelog (opens in a new tab)">v1.6.1</a> |
+                <a href="https://github.com/RicardoJCMarques/EasyCAM5000/blob/main/CHANGELOG.md" title="Version" draggable="false" aria-label="Changelog (opens in a new tab)">v1.6.2</a> |
                 <a href="/" title="Return to Homepage" draggable="false">Home</a> |
                 <a href="../LICENSE" target="_blank" title="View License" draggable="false" aria-label="View AGPLv3 License (opens in a new tab)">AGPLv3</a> |
                 <a href="doc/" target="_blank" title="Documentation" draggable="false" aria-label="Documentation (opens in a new tab)">Doc</a> |
@@ -664,19 +663,16 @@
                 <div class="sponsors-section">
                     <h4>Project Sponsors</h4>
                     <div class="sponsor-grid">
-                        <a href="#" class="sponsor-slot" id="sponsor-slot-1" draggable="false" aria-label="Sponsor Slot Available">
+                        <a href="https://fablabbenfica.pt/fabacademyLisboa/" class="sponsor-slot sponsor-slot--filled" target="_blank" rel="noopener noreferrer" title="Fab Academy @ Fab Lab Benfica" draggable="false" aria-label="Visit Fab Lab Benfica's Fab Academy Page.">
+                            <img src="../images/sponsors/sponsor-FabAcademy@FabLabBenfica.webp" alt="Sponsor - Fab Academy @ Fab Lab Benfica" width="260" height="125" loading="lazy" decoding="async">
+                        </a>
+                        <a href="#support" class="sponsor-slot" id="sponsor-slot-2" draggable="false" aria-label="Sponsor Slot Available">
                             <div class="slot-content">
                                 <svg class="cam-icon" width="48" height="48"><use href="#icon-sponsor"></use></svg>
                                 <span style="margin-top: 4px;">Your Logo</span>
                             </div>
                         </a>
-                        <a href="#" class="sponsor-slot" id="sponsor-slot-2" draggable="false" aria-label="Sponsor Slot Available">
-                            <div class="slot-content">
-                                <svg class="cam-icon" width="48" height="48"><use href="#icon-sponsor"></use></svg>
-                                <span style="margin-top: 4px;">Your Logo</span>
-                            </div>
-                        </a>
-                        <a href="#" class="sponsor-slot" id="sponsor-slot-3" draggable="false" aria-label="Sponsor Slot Available">
+                        <a href="#support" class="sponsor-slot" id="sponsor-slot-3" draggable="false" aria-label="Sponsor Slot Available">
                             <div class="slot-content">
                                 <svg class="cam-icon" width="48" height="48"><use href="#icon-sponsor"></use></svg>
                                 <span style="margin-top: 4px;">Your Logo</span>
@@ -688,7 +684,7 @@
             </div>
             <div class="modal-footer welcome-footer">
                 <div class="welcome-footer-links">
-                    <a href="https://github.com/RicardoJCMarques/EasyCAM5000/blob/main/CHANGELOG.md" title="version" target="_blank" draggable="false" aria-label="Changelog (opens in a new tab)">v1.6.1</a>
+                    <a href="https://github.com/RicardoJCMarques/EasyCAM5000/blob/main/CHANGELOG.md" title="version" target="_blank" draggable="false" aria-label="Changelog (opens in a new tab)">v1.6.2</a>
                     <span class="separator" aria-hidden="true"></span>
                     <a href="doc/" target="_blank" draggable="false" aria-label="Documentation (opens in a new tab)">Documentation</a>
                     <span class="separator" aria-hidden="true"></span>
@@ -854,7 +850,7 @@
                     <div class="support-options">
                         <div class="support-card support-card--sponsorship">
                             <h3>
-                                <svg class="cam-icon" width="24" height="24"><use href="#icon-op-sponsor"></use></svg>
+                                <svg class="cam-icon" width="24" height="24"><use href="#icon-sponsor"></use></svg>
                                 Become a Sponsor
                             </h3>
                             <p>Gain visibility with your logo on the welcome screen, documentation, and repository. I'm are also actively seeking hardware partnerships.</p>
@@ -993,9 +989,8 @@
                                 </div>
                             </div>
                         </div>
-                    </section>
 
-                    <div class="shortcut-group">
+                        <div class="shortcut-group">
                             <h4>Operations Selection</h4>
                             <div class="shortcut-list">
                                 <div class="shortcut-item">
@@ -1004,7 +999,7 @@
                                 </div>
                             </div>
                         </div>
-
+                    </section>
                     <section class="help-section">
                         <h3>Accessibility Navigation</h3>
                         <div class="shortcut-group">
@@ -1053,11 +1048,19 @@
                     <section class="help-section">
                         <h3>Quick Tips</h3>
                         <ul class="help-tips">
+                            <li>Firefox seems to have the fastest JS/WASM code execution</li>
                             <li>Drag files directly onto the canvas to auto-detect operation type</li>
+                            <li>Protel extensions help dropped files be assigned efficiently</li>
                             <li>Use the eye icon in the tree to toggle layer visibility</li>
                             <li>Mouse wheel zooms; middle-click or right-click drags to pan</li>
                             <li>Check the Visualization panel (bottom-left) for debug options</li>
                         </ul>
+                    </section>
+
+                    <!-- Issues -->
+                    <section class="help-section">
+                        <h3>Issues &amp; Feedback</h3>
+                        <p class="help-text">Having problems with something? Search the open issues or start a new one on the <a href="https://github.com/RicardoJCMarques/EasyCAM5000/issues" target="_blank" rel="noopener" draggable="false">GitHub issue tracker<span class="visually-hidden"> (opens in a new tab)</span></a>.</p>
                     </section>
                 </div>
             </div>
@@ -1080,58 +1083,71 @@
             <div class="modal-body">
                 <div class="gcode-options">
                     <h3>Select Operations to Process</h3>
-                    <p class="help-text">Check to include. Drag to reorder processing sequence.</p>
+                    <p class="help-text" id="exporter-order-help">Check to include. Drag to set the order inside combined files.</p>
                     <div class="operation-order" id="exporter-operation-order"></div>
-
                     <div id="exporter-shared-options">
+                        <h3>Output Files</h3>
                         <div class="property-field field-group">
+                            <label for="exporter-filename">Base Name</label>
+                            <input type="text" id="exporter-filename" value="pcb-output" placeholder="pcb-output">
+                            <p class="exporter-summary" id="exporter-summary"></p>
+                        </div>
+                        <div class="property-field field-group export-option" id="exporter-single-file-field">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="exporter-single-file">
+                                <span>Export as single file</span>
+                                <small class="option-reason"></small>
+                            </label>
+                        </div>
+                        <div class="property-field field-group export-option" id="exporter-split-drills-field">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="exporter-split-drills">
+                                <span>Split drill files by bit</span>
+                                <small class="option-reason"></small>
+                            </label>
+                        </div>
+                        <div class="property-field field-group export-option" id="exporter-zip-field">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="exporter-zip" checked>
+                                <span>Bundle files into one .zip</span>
+                                <small class="option-reason"></small>
+                            </label>
+                        </div>
+                        <div class="property-field field-group export-option">
                             <label class="checkbox-label">
                                 <input type="checkbox" id="exporter-include-comments" checked>
                                 <span>Include operation comments</span>
+                                <small class="option-reason"></small>
                             </label>
-                            <label class="checkbox-label">
-                                <input type="checkbox" id="exporter-single-file">
-                                <span>Export as single file (combines operations)</span>
-                            </label>
-                            <div class="property-field field-group" id="exporter-split-drills-field">
-                                <label class="checkbox-label">
-                                    <input type="checkbox" id="exporter-split-drills">
-                                    <span>Split drill files by hole diameter</span>
-                                </label>
-                            </div>
-                        </div>
-                        <div class="property-field field-group">
-                            <label for="exporter-filename">Base Project Name</label>
-                            <input type="text" id="exporter-filename" value="pcb-output" placeholder="pcb-output">
                         </div>
                     </div>
-
                     <div id="exporter-cnc-options" data-pipeline-group="router">
                         <h3>CNC Output Options</h3>
-                        <div class="property-field field-group">
+                        <div class="property-field field-group export-option">
                             <label class="checkbox-label">
-                                <div id="exporter-tool-changes-hint" class="help-text"></div>
                                 <input type="checkbox" id="exporter-tool-changes">
                                 <span>Insert tool change commands</span>
+                                <small class="option-reason"></small>
                             </label>
                         </div>
-                        <div class="property-field field-group" id="exporter-group-by-tool-field">
+                        <div class="property-field field-group export-option" id="exporter-group-by-tool-field">
                             <label class="checkbox-label">
                                 <input type="checkbox" id="exporter-group-by-tool">
                                 <span>Group operations by tool</span>
+                                <small class="option-reason"></small>
                             </label>
                         </div>
-                        <div class="property-field field-group">
+                        <div class="property-field field-group export-option">
                             <label class="checkbox-label">
                                 <input type="checkbox" id="exporter-optimize-paths" checked>
                                 <span>Optimize path order (whole job)</span>
                             </label>
                         </div>
+                        <div id="exporter-tool-warning" class="is-hidden"></div>
                     </div>
 
                     <div id="exporter-laser-options" data-pipeline-group="laser">
                         <h3>Laser Export Options</h3>
-
                         <div class="property-field field-group">
                             <label for="laser-exporter-padding">Export Margin Padding</label>
                             <div class="input-unit">
@@ -1139,7 +1155,6 @@
                                 <span class="unit" aria-hidden="true">mm</span>
                             </div>
                         </div>
-
                         <div class="property-field field-group" id="laser-profile-summary">
                             <p class="help-text" style="margin: 0;">
                                 Using profile: <strong id="laser-profile-summary-label">LightBurn</strong>.
@@ -1174,20 +1189,17 @@
                         <span>Est. Time: <strong id="exporter-est-time">--:--</strong></span>
                         <span>Distance: <strong id="exporter-distance">0mm</strong></span>
                     </div>
-
                     <div class="preview-text-container">
                         <textarea id="exporter-preview-text" readonly rows="15" placeholder="G-code preview will appear here..." aria-label="G-code output preview"></textarea>
-
                         <button id="exporter-copy-btn" class="btn btn--icon btn--compact btn-copy-floating" title="Copy to clipboard" aria-label="Copy to clipboard">
                             <svg class="cam-icon icon-copy" width="14" height="14"><use href="#icon-copy"></use></svg>
                             <svg class="cam-icon icon-check" width="14" height="14"><use href="#icon-check"></use></svg>
                         </button>
                     </div>
+                    <div class="preview-warnings" id="exporter-warnings" style="display: none;"></div>
 
                 </div>
             </div>
-
-            <div id="exporter-tool-warning" class="is-hidden"></div>
 
             <div class="modal-footer exporter-footer">
                 <button class="btn btn--secondary" id="exporter-cancel-btn" aria-label="Cancel and close modal">Cancel</button>
@@ -1312,6 +1324,7 @@
     <script defer src="../export/processors/winpcnc-processor.js"></script>
     <script defer src="../export/gcode-generator.js"></script>
     <script defer src="../export/graphics-exporter.js"></script>
+    <script defer src="../export/zip-writer.js"></script>
     <script defer src="../utils/canvas-exporter.js"></script>
     <script defer src="../core/operation-store.js"></script>
     <script defer src="../core/parameter-store.js"></script>
@@ -1319,7 +1332,6 @@
     <script defer src="../core/operation-ingest.js"></script>
     <script defer src="../core/cam-core.js"></script>
     <script defer src="../core/cam-controller.js"></script>
-
     <script defer src="ui-nav-tree-panel.js"></script>
     <script defer src="ui-trace-operation-panel.js"></script>
     <script defer src="ui-core-trace.js"></script>

@@ -133,7 +133,7 @@
                 ctrl.scene.reinsertShape(snap.shape, snap.parentId, snap.indexInParent);
             }
             ctrl.selection.replace(this.priorSelection || []);
-            ctrl.scene.recomputeBoardBoundsFromShapes?.();
+            ctrl.scene.recomputeBoardBoundsFromShapes();
             ctrl.afterMutation();
         }
         get label() { return `Delete ${this.snapshots.length} shape(s)`; }
@@ -145,7 +145,7 @@
             this.undoStack = [];
             this.redoStack = [];
             this.maxSize = options.maxSize || 200;
-            this.listeners = [];
+            this.onChange = options.onChange || null;
         }
 
         /** Run the command's forward action AND record it. */
@@ -192,9 +192,7 @@
         getTopUndoLabel() { return this.canUndo() ? this.undoStack[this.undoStack.length - 1].label : null; }
         getTopRedoLabel() { return this.canRedo() ? this.redoStack[this.redoStack.length - 1].label : null; }
 
-        addListener(fn) { this.listeners.push(fn); }
-        removeListener(fn) { this.listeners = this.listeners.filter(l => l !== fn); }
-        fire() { for (const fn of this.listeners) fn(this); }
+        fire() { this.onChange?.(this); }
     }
 
     class GroupCommand extends Command {
@@ -214,7 +212,7 @@
                 if (node) ctrl.scene.reinsertShape(node, group.id);
             }
             ctrl.selection.replace([group.id]);
-            ctrl.scene.recomputeBoardBoundsFromShapes?.();
+            ctrl.scene.recomputeBoardBoundsFromShapes();
             ctrl.afterMutation();
         }
         undo(ctrl) {
@@ -294,7 +292,7 @@
                 ctrl.scene.reinsertShape(node, group.id);
             }
             ctrl.selection.replace([group.id]);
-            ctrl.scene.recomputeBoardBoundsFromShapes?.();
+            ctrl.scene.recomputeBoardBoundsFromShapes();
             ctrl.afterMutation();
         }
         get label() { return `Ungroup`; }
@@ -304,7 +302,7 @@
      * Removes N operation buckets and their core operations, keeping both by
      * reference so undo re-attaches rather than rebuilds. `pruned` carries the
      * shapeRefs lists that a partial deletion trimmed - those edits are as
-     * destructive as the removals and were previously unrecoverable.
+     * destructive as the removals, so undo restores them too.
      * removed: [{ bucketId }]  (token filled in on first execute)
      * pruned:  [{ bucketId, prevRefs }]
      */

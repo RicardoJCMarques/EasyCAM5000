@@ -15,7 +15,6 @@
 
     const C = ROOT.CAMConfig.constants;
     const D = ROOT.CAMConfig.defaults;
-    const EPSILON = C.precision.epsilon;
     const PRECISION = C.precision.coordinate;
 
     // Row fields baked into primitive geometry at generation. Editing one
@@ -64,7 +63,6 @@
          * text only: a header T index is a file index, not a magazine slot.
          */
         static summarizePrimitives(primitives, source) {
-            const quantize = value => Math.round(value / PRECISION) * PRECISION;
             const sizes = new Map();
             const slotSizes = new Map();
             let totalHoles = 0;
@@ -95,7 +93,7 @@
                 const slot = props.originalSlot;
                 if (!slot) continue;
                 const len = Math.hypot(slot.end.x - slot.start.x, slot.end.y - slot.start.y);
-                const slotKey = `${key}x${quantize(len + diameter).toFixed(3)}`;
+                const slotKey = `${key}x${(len + diameter).toFixed(3)}`;
                 slotSizes.set(slotKey, (slotSizes.get(slotKey) || 0) + 1);
             }
 
@@ -137,15 +135,12 @@
          * operator assigns one per size when they want the change, and until
          * then every row cuts on the operation's own number.
          */
-        buildDrillTable(operation, settings, preset = 'flatten') {
+        buildDrillTable(operation, preset = 'flatten') {
             const table = { preset, rows: {}, generatedAt: Date.now() };
             const sizes = operation.drillSummary?.sizes;
             if (!sizes?.length) return table;
-
             const library = this.core?.toolLibrary || null;
             const useLibrary = preset === 'match' && library;
-            const millOversize = settings?.millHoles !== false;
-
             for (const size of sizes) {
                 const row = {
                     key: size.key,
@@ -153,9 +148,9 @@
                     holes: size.holes,
                     slots: size.slots,
                     nativeTools: size.nativeTools || [],
-                    strategy: millOversize ? 'mill' : 'peck',
+                    strategy: 'peck',
                     toolId: null,
-                    toolDiameter: null,
+                    toolDiameter: size.diameter,
                     toolNumber: null,
                     cutting: null,
                     peck: null,
@@ -168,8 +163,9 @@
         }
 
         /**
-         * Fields with no column stay null on purpose: all three are read downstream
-         * and none is visible to the operator. Surface them before writing them.
+         * Seeds one row from the tool library: a drill within matchTolerance of
+         * the hole pecks it, else the largest end mill that clears it by
+         * millMargin mills it, else the row is skipped.
          */
         matchLibraryTool(row, library) {
             const tolerance = D.toolpath.generation.drilling.matchTolerance;
@@ -196,22 +192,19 @@
         }
 
         /**
-         * Assigns the cutter and the feeds the modal actually shows. Fields
-         * with no column stay null on purpose: Auto-match used to write
-         * mill.stepOver, mill.depthPerPass and peck.dwellTime, all three of
-         * which are read downstream (buildDrillDepthLevels builds a per-key
-         * depth ladder from depthPerPass; processPeckMark takes dwellTime as
-         * the G82 dwell word) and none of which the operator can see or clear.
-         * Surface them before writing them again.
-         * TODO(drill-tool-numbers) - ToolLibrary.importTools already accepts and
-         * dedups tool.toolNumber, so a custom library could seed row.toolNumber
-         * here. Blocked on the shipped tools.json declaring none: seeding from
-         * an empty field would write null over a number the operator set.
+         * Assigns the cutter and the feeds the modal shows. mill.stepOver,
+         * mill.depthPerPass and peck.dwellTime stay null on purpose: all three
+         * are read downstream (buildDrillDepthLevels' per-key depth ladder,
+         * processPeckMark's G82 dwell) and the modal has no column to show or
+         * clear them. Surface them before writing them.
          */
         applyLibraryTool(row, tool, diameter) {
             const cut = tool.cutting || {};
             row.toolId = tool.id;
             row.toolDiameter = diameter ?? null;
+            // A numbered library tool brings its T number; an unnumbered one
+            // leaves the row's number alone. importTools validates and dedups it.
+            if (Number.isInteger(tool.toolNumber) && tool.toolNumber > 0) row.toolNumber = tool.toolNumber;
             row.cutting = {
                 feedRate: cut.feedRate ?? null,
                 plungeRate: cut.plungeRate ?? null,
@@ -232,12 +225,12 @@
          * single-tool mode does not read the rows at all - resolveDrillRow
          * answers from the operation - so rewriting them here to track a
          * checkbox would only destroy per-size work on the way past. New keys
-         * still seed from millHoles through buildDrillTable.
+         * seed from the table's preset
          */
-        reconcileDrillTable(operation, settings) {
+        reconcileDrillTable(operation) {
             const preset = operation.drillTable?.preset || 'flatten';
             const previous = operation.drillTable?.rows;
-            const table = this.buildDrillTable(operation, settings, preset);
+            const table = this.buildDrillTable(operation, preset)
 
             if (previous) {
                 for (const [key, row] of Object.entries(table.rows)) {
@@ -279,19 +272,17 @@
          * primitives carry no roles: EasyShape's syncPrimitives copies them raw,
          * and summarizePrimitives would otherwise report zero sizes.
          */
-        ensureDrillTable(operation, settings) {
+        ensureDrillTable(operation) {
             if (!operation) return null;
             const hasRoles = operation.primitives?.some(p => p.properties?.role);
             if (operation.primitives?.length > 0 && !hasRoles) this.classifySVGDrillPrimitives(operation);
             else this.refreshDrillSummary(operation);
-            return this.reconcileDrillTable(operation, settings || {});
+            return this.reconcileDrillTable(operation);
         }
 
-        /**
-         * Rebuilds every row from a preset, discarding manual assignments.
-         */
-        applyDrillPreset(operation, settings, preset) {
-            operation.drillTable = this.buildDrillTable(operation, settings, preset);
+        /** Rebuilds every row from a preset, discarding manual assignments. */
+        applyDrillPreset(operation, preset) {
+            operation.drillTable = this.buildDrillTable(operation, preset);
             return operation.drillTable;
         }
 
@@ -301,12 +292,8 @@
          * checks. Mode comes from the parameter, never from the preset.
          * Single-tool mode has nothing to gate on - the operation's own tool and
          * number cut everything and the rows are dormant.
-         * A row with no CUTTER blocks: generation cannot compute a path without
-         * a diameter. A row with no T NUMBER does not - it inherits the
-         * operation's number exactly as resolveToolDescriptor's drillMap does
-         * (`assigned ?? descriptor.number`), so refusing here would block
-         * geometry the pipeline can already emit. It reports as a note, and the
-         * inherited number joins `numbers` so the card's tool list stays honest.
+         * In multi-tool mode the operation's tool cuts nothing, so a row with no
+         * cutter or no T number has nothing to fall back on and blocks.
          * An empty table never blocks. EasyShape has no operation until its
          * first generation, so blocking there would block the run that builds
          * the rows in the first place.
@@ -319,37 +306,25 @@
             const numbers = new Set();
             const unassigned = [];
             const unnumbered = [];
-
             if (multiTool) {
                 for (const row of rows) {
                     counts[row.strategy] = (counts[row.strategy] || 0) + 1;
                     if (row.strategy === 'skip') continue;
-                    const hasTool = (row.toolDiameter !== null && row.toolDiameter > 0) || Boolean(row.toolId);
+                    const hasTool = row.toolDiameter !== null && row.toolDiameter > 0;
                     if (!hasTool) unassigned.push(row.key);
-                    if (row.toolNumber > 0) numbers.add(row.toolNumber);
+                    if (Number.isInteger(row.toolNumber) && row.toolNumber > 0) numbers.add(row.toolNumber);
                     else unnumbered.push(row.key);
                 }
             } else {
                 counts[settings?.millHoles !== false ? 'mill' : 'peck'] = sizes.length || rows.length;
             }
-
-            const list = keys => keys.map(k => `⌀${k}`).join(', ');
-            const opNumber = Number(settings?.toolNumber) > 0 ? Number(settings.toolNumber) : null;
-            if (unnumbered.length > 0 && opNumber) numbers.add(opNumber);
-
+            const list = keys => keys.map(k => `⌀${k}mm`).join(', ');
             let reason = null;
-            let note = null;
             if (multiTool && rows.length > 0) {
-                if (counts.peck + counts.mill === 0) reason = 'Every size is set to Skip - nothing would be cut.';
-                else if (unassigned.length > 0) reason = `No tool assigned for ${list(unassigned)}.`;
-
-                if (unnumbered.length > 0) {
-                    note = opNumber
-                        ? `${list(unnumbered)} inherit the operation's T${opNumber} - assign a number to give them their own.`
-                        : `${list(unnumbered)} have no T number - no tool change is emitted for them.`;
-                }
+                if (counts.peck + counts.mill === 0) { reason = 'Every size is set to Skip - nothing would be cut.'; }
+                else if (unassigned.length > 0) { reason = `Tool diameter missing or 0 for ${list(unassigned)}.`; }
+                else if (unnumbered.length > 0) { reason = `Enter a tool number (T#) for ${list(unnumbered)}.`; }
             }
-
             return {
                 mode: multiTool ? 'perSize' : 'single',
                 preset: operation?.drillTable?.preset || null,
@@ -360,7 +335,6 @@
                 unassigned,
                 unnumbered,
                 reason,
-                note,
                 complete: reason === null
             };
         }
@@ -399,14 +373,15 @@
                 };
             }
 
-            const toolDiameter = row?.toolDiameter > 0 ? row.toolDiameter : operationDiameter;
+            const holeDiam = row?.diameter ? Number(row.diameter) : parseFloat(key);
+            const toolDiameter = row?.toolDiameter > 0 ? row.toolDiameter : holeDiam;
             return {
                 key: row?.key || key,
                 strategy: row?.strategy || 'peck',
                 toolDiameter,
                 stepOver: row?.mill?.stepOver ?? settings.stepOver,
                 tool: {
-                    number: row?.toolNumber ?? null,
+                    number: Number.isInteger(row?.toolNumber) && row.toolNumber > 0 ? row.toolNumber : null,
                     id: row?.toolId ?? null,
                     name: row?.toolId ?? null,
                     diameter: toolDiameter,
@@ -435,57 +410,60 @@
             };
         }
 
-        classifySVGDrillPrimitives(operation) {
-            const quantize = (value) => Math.round(value / PRECISION) * PRECISION;
+        /**
+         * Stock one preview primitive removes, as polygons to union. A peck
+         * mark is drawn at the bit's radius; a milling path is the tool CENTRE,
+         * so its cut reaches one tool radius past it.
+         */
+        previewCutArea(prim) {
+            const props = prim.properties || {};
+            if ('peck_mark' === props.role) return [new CirclePrimitive(prim.center, prim.radius, { polarity: 'dark' })];
+            const r = (props.toolDiameter || 0) / 2;
+            // Pass 1 is the outermost ring; the passes inside it cut nothing more.
+            if ('drill_milling_path' !== props.role || props.pass > 1 || !(r > 0)) return [];
+            if ('circle' === prim.type) return [new CirclePrimitive(prim.center, prim.radius + r, { polarity: 'dark' })];
+            if ('obround' === prim.type) {
+                return [
+                    new ObroundPrimitive(
+                        { x: prim.position.x - r, y: prim.position.y - r },
+                        prim.width + 2 * r,
+                        prim.height + 2 * r,
+                        { polarity: 'dark' },
+                    ),
+                ];
+            }
+            // Centreline slot: the tool swept along the slot's axis.
+            return props.isCenterlinePath ? GeometryUtils.traceToPolygon(prim.contours[0], 2 * r, { polarity: 'dark' }) : [];
+        }
 
+        classifySVGDrillPrimitives(operation) {
             const accepted = [];
             const warnings = [];
             const rejected = [];
-            const holeSizes = new Map();
-            const slotSizes = new Map();
-
             for (const prim of operation.primitives) {
                 if (!prim.properties) prim.properties = {};
-
                 if (prim.type === 'circle') {
-                    const rawDiameter = prim.radius * 2;
-                    const diameter = quantize(rawDiameter);
-
                     prim.properties.role = 'drill_hole';
-                    prim.properties.diameter = diameter;
+                    prim.properties.diameter = prim.radius * 2;
                     prim.center = prim.center || prim.getCenter();
-
-                    if (Math.abs(rawDiameter - diameter) > PRECISION * 0.1) {
-                        this.debug(`Quantized circle diameter: ${rawDiameter.toFixed(6)} → ${diameter.toFixed(3)}mm`);
-                    }
-
-                    const key = diameter.toFixed(3);
-                    holeSizes.set(key, (holeSizes.get(key) || 0) + 1);
                     accepted.push(prim);
-
                 } else if (prim.type === 'obround') {
                     const w = prim.width;
                     const h = prim.height;
                     const isCircular = Math.abs(w - h) < PRECISION;
-
                     if (isCircular) {
-                        const diameter = quantize(Math.min(w, h));
+                        const diameter = Math.min(w, h);
                         const cx = prim.position.x + w / 2;
                         const cy = prim.position.y + h / 2;
-
                         prim.properties.role = 'drill_hole';
                         prim.properties.diameter = diameter;
                         prim.center = { x: cx, y: cy };
                         prim.radius = diameter / 2;
-
-                        const key = diameter.toFixed(3);
-                        holeSizes.set(key, (holeSizes.get(key) || 0) + 1);
                         accepted.push(prim);
                     } else {
                         const isHorizontal = w > h;
                         const r = Math.min(w, h) / 2;
-                        const diameter = quantize(Math.min(w, h));
-
+                        const diameter = Math.min(w, h);
                         let start, end;
                         if (isHorizontal) {
                             const cy = prim.position.y + h / 2;
@@ -496,39 +474,27 @@
                             start = { x: cx, y: prim.position.y + r };
                             end = { x: cx, y: prim.position.y + h - r };
                         }
-
                         prim.properties.role = 'drill_slot';
                         prim.properties.diameter = diameter;
                         prim.properties.originalSlot = { start, end };
-
-                        const slotLength = Math.hypot(end.x - start.x, end.y - start.y);
-                        const slotKey = `${diameter.toFixed(3)}x${quantize(slotLength + diameter).toFixed(3)}`;
-                        slotSizes.set(slotKey, (slotSizes.get(slotKey) || 0) + 1);
                         accepted.push(prim);
                     }
-
                 } else if (prim.type === 'rectangle') {
                     const w = prim.width;
                     const h = prim.height;
                     const isSquare = Math.abs(w - h) < PRECISION;
-
                     if (isSquare) {
-                        const diameter = quantize(w);
+                        const diameter = w;
                         const cx = prim.position.x + w / 2;
                         const cy = prim.position.y + h / 2;
-
                         prim.properties.role = 'drill_hole';
                         prim.properties.diameter = diameter;
                         prim.center = { x: cx, y: cy };
                         prim.radius = diameter / 2;
-
                         warnings.push({
                             message: `Square rectangle (${w.toFixed(3)}mm) treated as circular hole`,
                             severity: 'info'
                         });
-
-                        const key = diameter.toFixed(3);
-                        holeSizes.set(key, (holeSizes.get(key) || 0) + 1);
                         accepted.push(prim);
                     } else {
                         rejected.push({ type: 'rectangle', id: prim.id, width: w, height: h });
@@ -537,7 +503,6 @@
                             severity: 'warning'
                         });
                     }
-
                 } else {
                     rejected.push({ type: prim.type, id: prim.id });
                     warnings.push({
@@ -550,34 +515,19 @@
             // Recovery detection: scan rejected PathPrimitives for circle/obround patterns
             const recoverableCircles = [];
             const recoverableObrounds = [];
-
             for (const entry of rejected) {
                 const prim = operation.primitives.find(p => p.id === entry.id);
                 if (!prim || prim.type !== 'path') continue;
-
-                const ring = prim.contours?.length === 1
-                    ? GeometryUtils.analyzeCircleRing(prim.contours[0].points)
-                    : null;
+                const ring = prim.contours?.length === 1 ? GeometryUtils.analyzeCircleRing(prim.contours[0].points) : null;
                 const circleMatch = ring?.isFullCircle
                     ? { center: ring.center, radius: ring.radius, diameter: ring.radius * 2 }
                     : this.detectCircleFromPath(prim);
                 if (circleMatch) {
-                    const qDiam = quantize(circleMatch.diameter);
-                    recoverableCircles.push({
-                        primitiveId: prim.id,
-                        detected: { ...circleMatch, diameter: qDiam }
-                    });
+                    recoverableCircles.push({ primitiveId: prim.id, detected: circleMatch });
                     continue;
                 }
-
                 const obroundMatch = this.detectObroundFromPath(prim);
-                if (obroundMatch) {
-                    const qDiam = quantize(obroundMatch.diameter);
-                    recoverableObrounds.push({
-                        primitiveId: prim.id,
-                        detected: { ...obroundMatch, diameter: qDiam }
-                    });
-                }
+                if (obroundMatch) recoverableObrounds.push({ primitiveId: prim.id, detected: obroundMatch });
             }
 
             const hasRecoverable = recoverableCircles.length > 0 || recoverableObrounds.length > 0;
@@ -686,82 +636,45 @@
         }
 
         /**
-         * Promotes user-accepted recoverable shapes into proper drill primitives.
-         * Called from cam-controller when user confirms the drill recovery modal.
+         * Turns the shapes the operator accepted in the drill-recovery prompt
+         * into drill primitives.
          */
         promoteDrillRecoverable(operation, acceptCircles, acceptObrounds) {
             if (!operation.drillRecoverable) return;
-
-            const quantize = (value) => Math.round(value / PRECISION) * PRECISION;
             let promoted = 0;
-
             if (acceptCircles && operation.drillRecoverable.circles) {
                 for (const candidate of operation.drillRecoverable.circles) {
-                    const diameter = quantize(candidate.detected.diameter);
-                    const prim = new CirclePrimitive(
-                        candidate.detected.center,
-                        diameter / 2,
-                        {
-                            role: 'drill_hole',
-                            diameter: diameter,
-                            polarity: 'dark',
-                            operationType: operation.type,
-                            operationId: operation.id,
-                            recoveredFromPath: true
-                        }
-                    );
+                    const diameter = candidate.detected.diameter;
+                    const prim = new CirclePrimitive(candidate.detected.center, diameter / 2, {
+                        role: 'drill_hole',
+                        diameter: diameter,
+                        polarity: 'dark',
+                        operationType: operation.type,
+                        operationId: operation.id,
+                        recoveredFromPath: true
+                    });
                     operation.primitives.push(prim);
                     promoted++;
                 }
             }
-
             if (acceptObrounds && operation.drillRecoverable.obrounds) {
                 for (const candidate of operation.drillRecoverable.obrounds) {
                     const det = candidate.detected;
-                    const diameter = quantize(det.diameter);
-                    const prim = new ObroundPrimitive(
-                        det.position,
-                        det.width,
-                        det.height,
-                        {
-                            role: 'drill_slot',
-                            diameter: diameter,
-                            originalSlot: det.originalSlot,
-                            polarity: 'dark',
-                            operationType: operation.type,
-                            operationId: operation.id,
-                            recoveredFromPath: true
-                        }
-                    );
+                    const prim = new ObroundPrimitive(det.position, det.width, det.height, {
+                        role: 'drill_slot',
+                        diameter: det.diameter,
+                        originalSlot: det.originalSlot,
+                        polarity: 'dark',
+                        operationType: operation.type,
+                        operationId: operation.id,
+                        recoveredFromPath: true
+                    });
                     operation.primitives.push(prim);
                     promoted++;
                 }
             }
-
-            operation.bounds = this.core.ingest.recalculateBounds(operation.primitives)
+            operation.bounds = this.core.ingest.recalculateBounds(operation.primitives);
             delete operation.drillRecoverable;
-
-            // Rebuild drill summary
-            const holeSizes = new Map();
-            const slotSizes = new Map();
-
-            for (const prim of operation.primitives) {
-                const d = prim.properties?.diameter;
-                if (!d) continue;
-
-                if (prim.properties.role === 'drill_hole') {
-                    const key = d.toFixed(3);
-                    holeSizes.set(key, (holeSizes.get(key) || 0) + 1);
-                } else if (prim.properties.role === 'drill_slot') {
-                    const slot = prim.properties.originalSlot;
-                    if (slot) {
-                        const len = Math.hypot(slot.end.x - slot.start.x, slot.end.y - slot.start.y);
-                        const slotKey = `${d.toFixed(3)}x${quantize(len + d).toFixed(3)}`;
-                        slotSizes.set(slotKey, (slotSizes.get(slotKey) || 0) + 1);
-                    }
-                }
-            }
-
             operation.drillSummary = {
                 ...DrillHandler.summarizePrimitives(operation.primitives, 'svg'),
                 totalAccepted: operation.primitives.length,
@@ -775,50 +688,45 @@
         // ORCHESTRATION
         async generateLaserFills(operation, settings) {
             this.debug(`=== LASER DRILL GENERATION ===`);
-
-            // Calculate a simple internal offset of half the laser spot size
-            const offsetDist = -(settings.toolDiameter / 2);
+            // Kerf follows the cut side, as on laser cutout: inside keeps the hole
+            // to size, outside grows it by the spot, on burns the drawn outline.
+            const side = settings.cutSide;
+            const half = settings.toolDiameter / 2;
+            const offsetDist = side === 'on' ? 0 : side === 'outside' ? half : -half;
+            const offsetType = side === 'on' ? 'on' : side === 'outside' ? 'external' : 'internal';
             const processedGeometry = [];
-
             for (const prim of operation.primitives) {
-                // Safeguard: Offset only actual drill holes/slots
-                if (prim.properties?.role !== 'drill_hole' && prim.properties?.role !== 'drill_slot') {
-                    continue;
+                // Only actual drill holes and slots.
+                const role = prim.properties?.role;
+                if (role !== 'drill_hole' && role !== 'drill_slot') continue;
+                let result = await this.core.geometryOffsetter.offsetBoundary(prim, offsetDist);
+                if (!result) continue;
+                // A zero distance hands the source back: tag a clone, never the source.
+                if (result === prim) {
+                    result = { ...prim };
+                    Object.setPrototypeOf(result, Object.getPrototypeOf(prim));
                 }
-
-                const offsetResult = await this.core.geometryOffsetter.offsetBoundary(prim, offsetDist);
-                
-                if (offsetResult) {
-                    if (Array.isArray(offsetResult)) {
-                        processedGeometry.push(...offsetResult);
-                    } else {
-                        processedGeometry.push(offsetResult);
+                if (Array.isArray(result)) processedGeometry.push(...result);
+                else processedGeometry.push(result);
+            }
+            for (const p of processedGeometry) {
+                p.properties = { ...p.properties, isOffset: true, offsetType, offsetDistance: offsetDist };
+            }
+            operation.offsets = [
+                {
+                    id: this.offsetRecordId(operation.id, 0),
+                    distance: offsetDist,
+                    pass: 1,
+                    type: 'drill',
+                    offsetType,
+                    primitives: processedGeometry,
+                    metadata: {
+                        strategy: 'offset',
+                        toolDiameter: settings.toolDiameter,
+                        generatedAt: Date.now()
                     }
                 }
-            }
-
-            // Tag the newly generated geometry 
-            processedGeometry.forEach(p => {
-                if (!p.properties) p.properties = {};
-                p.properties.isOffset = true;
-                p.properties.offsetType = 'internal';
-                p.properties.offsetDistance = offsetDist;
-            });
-
-            // Assign the result to the operation's offsets array
-            operation.offsets = [{
-                id: this.offsetRecordId(operation.id, 0),
-                distance: offsetDist,
-                pass: 1,
-                type: 'drill',
-                primitives: processedGeometry,
-                metadata: {
-                    strategy: 'offset',
-                    toolDiameter: settings.toolDiameter,
-                    generatedAt: Date.now()
-                }
-            }];
-
+            ];
             return operation.offsets;
         }
 
@@ -830,12 +738,7 @@
 
             if (opParams.isLaser) {
                 await this.generateLaserFills(operation, opParams);
-
                 const count = operation.offsets?.[0]?.primitives?.length || 0;
-                if (count > 0) {
-                    operation.exportReady = true;
-                    this.stampExportMetadata(operation, opParams.clearStrategy || 'filled');
-                }
                 return { success: count > 0, message: `Generated ${count} laser drill marks`, status: 'success' };
             }
 
@@ -852,9 +755,8 @@
             if (drill?.millCount) parts.push(`${drill.millCount} milling path${drill.millCount > 1 ? 's' : ''}`);
             const detail = parts.length > 0 ? parts.join(', ') : `${count} feature(s)`;
             const message = `Generated ${detail} across ${drill?.groups || 0} tool group(s)`;
-            // The panel renders every warning; only a real one downgrades the run.
-            // Parse-time rejections survive a regenerate by design and used to make
-            // every subsequent run report itself as a warning with no detail.
+            // The panel renders every warning; only a real one downgrades the
+            // run. Parse-time rejections survive a regenerate by design.
             const blocking = (operation.warnings || []).filter(w => w?.severity === 'warning').length;
             return {
                 success: count > 0,
@@ -864,98 +766,52 @@
             };
         }
 
-        /**
-         * Separates a drill operation's preview into milled and pecked groups,
-         * both keyed on the string generation stamped. Milled paths group the
-         * same way pecks do because they carry the same per-size cutter: lumping
-         * every diameter into one file emitted them under a single T word, so a
-         * 1.5mm and a 3.2mm end mill cut the same program.
-         * Falls back to the hole diameter for operations generated before the
-         * drill table.
-         */
-        static groupPrimitivesByDiameter(operation) {
-            if (!operation.preview?.primitives) return { milledGroups: [], peckGroups: [] };
-
-            const millsByKey = new Map();
-            const pecksByKey = new Map();
-
-            for (const prim of operation.preview.primitives) {
-                const props = prim.properties;
-                const key = props?.drillKey || DrillHandler.diameterKey(props?.originalDiameter || props?.diameter || 0);
-                const target = props?.role === 'peck_mark' ? pecksByKey : millsByKey;
-                if (!target.has(key)) target.set(key, []);
-                target.get(key).push(prim);
-            }
-
-            const toGroups = map => [...map.entries()]
-                .map(([key, primitives]) => ({ key, diameter: parseFloat(key), primitives }))
-                .sort((a, b) => a.diameter - b.diameter);
-
-            return { milledGroups: toGroups(millsByKey), peckGroups: toGroups(pecksByKey) };
-        }
-
         // Keyed on the primitives array identity: regeneration replaces the
         // array, so a stale entry cannot survive a regenerate. Three call
         // sites hit this per checkbox event.
         static _splitCache = new WeakMap();
 
         /**
-         * Files a split export writes for one operation, in emission order.
-         * Splitting exists to give one file per BIT. A peck size is always one
-         * bit. A milled size is one bit only in MULTI-TOOL mode - in single-tool
-         * mode every milled size is cut by the operation's own cutter, so
-         * splitting them hands the operator files with no tool change between
-         * them.
-         * The export loop and the modal's enable gate both call this, so "would
-         * this split" and "what did it split into" cannot disagree. The mode
-         * comes off the offsets record's settings snapshot, which is the full
-         * set generation actually ran with - operation.settings is sparse in
-         * EasyTrace5000 and lives on the bucket in EasyShape5000.
+         * Files a split export writes for one operation: one per TOOL, in
+         * ascending cutter size. The bit is what generation stamped on each
+         * primitive - drillTool.id when a library cutter is assigned, else the
+         * cutter diameter - so hole sizes cut by the same bit share a file:
+         * every size in single-tool mode, the undersized holes an end mill
+         * plunges, and table rows that name the same cutter. A job with one bit
+         * yields one file and has nothing to split.
+         * The export loop and the modal's gate both call this, so "would this
+         * split" and "what did it split into" cannot disagree.
          */
-        // REVIEW - Outdated comment?
         static splitDrillFiles(operation) {
             const primitives = operation?.preview?.primitives;
             if (!primitives) return [];
             const hit = DrillHandler._splitCache.get(primitives);
             if (hit) return hit;
-
-            const { milledGroups, peckGroups } = DrillHandler.groupPrimitivesByDiameter(operation);
-            const settings = operation?.offsets?.[0]?.settings || null;
-            const files = [];
-            if (milledGroups.length > 0) {
-                if (DrillHandler.isMultiTool(settings)) {
-                    for (const group of milledGroups) {
-                        files.push({ key: `milled_${group.key}`, label: `drill milled ⌀${group.key}mm`, primitives: group.primitives });
-                    }
-                } else {
-                    files.push({ key: "milled", label: "drill milled", primitives: milledGroups.flatMap(g => g.primitives) });
-                }
+            const bits = new Map();
+            for (const prim of primitives) {
+                const props = prim.properties || {};
+                const diameter = props.toolDiameter ?? props.drillTool?.diameter ?? 0;
+                const id = props.drillTool?.id || DrillHandler.diameterKey(diameter);
+                if (!bits.has(id)) bits.set(id, { diameter, milled: false, primitives: [] });
+                const bit = bits.get(id);
+                // One milling path makes the bit an end mill; plunges alone leave it a drill.
+                if (props.role !== 'peck_mark') bit.milled = true;
+                bit.primitives.push(prim);
             }
-            for (const group of peckGroups) {
-                files.push({ key: `drill_${group.diameter}mm`, label: `drill ⌀${group.diameter}mm`, primitives: group.primitives });
-            }
+            // Keys become file name parts, so they read as the bit - with a
+            // counter only when two library cutters share a kind and a size.
+            const taken = new Set();
+            const files = [...bits.values()]
+                .sort((a, b) => a.diameter - b.diameter)
+                .map((bit) => {
+                    const base = `${bit.milled ? 'mill' : 'drill'}_${DrillHandler.diameterKey(bit.diameter)}mm`;
+                    let key = base;
+                    for (let n = 2; taken.has(key); n++) key = `${base}_${n}`;
+                    taken.add(key);
+                    return { key, primitives: bit.primitives };
+                });
             DrillHandler._splitCache.set(primitives, files);
             return files;
-        }
-
-        /**
-         * Copies Excellon header tool indices onto the drill table. A fab file
-         * that uses two T codes for one diameter - plated and non-plated is the
-         * common case - collapses to one row here, so the count of skipped codes
-         * is reported rather than swallowed.
-         */
-        static applyNativeToolNumbers(operation) {
-            let applied = 0, ambiguous = 0;
-            for (const row of Object.values(operation.drillTable?.rows || {})) {
-                const codes = row.nativeTools || [];
-                if (codes.length > 1) ambiguous++;
-                const parsed = parseInt(String(codes[0] || "").replace(/\D/g, ""), 10);
-                if (parsed > 0) {
-                    DrillHandler.updateDrillRow(operation, row.key, { toolNumber: parsed });
-                    applied++;
-                }
-            }
-            return { applied, ambiguous };
         }
 
         /**
@@ -965,7 +821,7 @@
             settings = { ...settings };
             this.debug('=== DRILL STRATEGY GENERATION ===');
 
-            const table = this.ensureDrillTable(operation, settings);
+            const table = this.ensureDrillTable(operation);
             this.debug(`Drill table (${table.preset}): ${Object.keys(table.rows).length} diameter group(s)`);
 
             const { plan, warnings } = this.determineDrillStrategy(operation, settings);
@@ -975,7 +831,7 @@
             const kept = (operation.warnings || []).filter(w => w?.source !== 'drill-strategy');
             operation.warnings = [...kept, ...warnings];
 
-            const strategyGeometry = await this.generateGeometryFromPlan(plan, operation, settings);
+            const strategyGeometry = await this.generateGeometryFromPlan(plan, operation);
             const peckCount = strategyGeometry.filter(p => p.properties?.role === 'peck_mark').length;
             const millCount = strategyGeometry.filter(p => p.properties?.role === 'drill_milling_path').length;
 
@@ -1074,7 +930,8 @@
                 else if (diff > PRECISION) toolRelation = 'undersized';
 
                 const wantsMill = entry.strategy === 'mill';
-                const canMill = toolRelation === 'undersized' && diff >= minMillingMargin - EPSILON;
+                // Same tolerance as toolRelation: SVG unit conversion leaves sizes nanometres off.
+                const canMill = toolRelation === 'undersized' && diff >= minMillingMargin - PRECISION;
 
                 if (isSlot) {
                     const slot = primitive.properties.originalSlot;
@@ -1111,7 +968,7 @@
             return { plan, warnings };
         }
 
-        async generateGeometryFromPlan(plan, operation, settings) {
+        async generateGeometryFromPlan(plan, operation) {
             const strategyPrimitives = [];
             const onProgress = operation._onProgress || null;
             const total = plan.length;
@@ -1122,11 +979,7 @@
                 // macrotask yield never reaches the rAF-coalesced overlay.
                 if (onProgress && actionIdx > 0 && actionIdx % 128 === 0) {
                     onProgress({ frac: actionIdx / total, label: `Drill ${actionIdx}/${total} holes` });
-                    await new Promise(resolve => {
-                        const ch = new MessageChannel();
-                        ch.port1.onmessage = () => resolve();
-                        ch.port2.postMessage(null);
-                    });
+                    await this.yieldToEventLoop();
                 }
 
                 const action = plan[actionIdx];
@@ -1141,7 +994,6 @@
                         originalDiameter: action.originalDiameter,
                         toolRelation: action.toolRelation,
                         reducedPlunge: action.reducedPlunge,
-                        slotPart: action.slotPart,
                         operationId: operation.id
                     })));
                     continue;

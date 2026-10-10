@@ -1,6 +1,6 @@
 /*!
  * @file        geometry/geometry-utils-fieldpaths.js
- * @description Shared raster engine over compensated scalar fields —
+ * @description Shared raster engine over compensated scalar fields
  *              Stages 3-5 extracted from geometry-utils-relief.js and
  *              generalized to the FieldView contract (geometry-utils-
  *              field.js) so the flat relief and rotary generators are
@@ -8,7 +8,7 @@
  *
  *                layers()           - constant-stepdown level sequence
  *                                     (Z levels for relief, radii for
- *                                     rotary — same descending math)
+ *                                     rotary - same descending math)
  *                rasterRoughLayer() - clamped surface-follow scanlines
  *                                     with span trimming
  *                rasterFinish()     - serpentine raster; continuous,
@@ -22,7 +22,7 @@
  *
  *              Value conventions: larger value = closer to the stock
  *              surface, layers DESCEND numerically (relief cut-Z is
- *              negative-down; rotary radii shrink inward — identical
+ *              negative-down; rotary radii shrink inward - identical
  *              ordering). view.mapZ converts value → emitted Z and must
  *              be affine increasing (max() runs in value space).
  *
@@ -39,17 +39,16 @@
     'use strict';
 
     const ROOT = (typeof self !== 'undefined') ? self : window;
-    const debugState = ROOT.CAMConfig?.defaults?.debug || { enabled: false };
+    const debugState = ROOT.CAMConfig.defaults.debug;
 
     // Value-space "removes material" threshold (mm for both Z and R)
     const scalarField = ROOT.CAMConfig.constants.precision.scalarField;
 
-    // REVIEW - Why is this a const and not a class?
     const FieldPaths = {
         scalarField: scalarField,
 
         // ════════════════════════════════════════════════════════════
-        // Level sequence — descending from startVal (exclusive) to
+        // Level sequence - descending from startVal (exclusive) to
         // endVal (inclusive, always emitted exactly).
         // Relief: layers(-startDepth, -(startDepth+reliefDepth), stepdown)
         // Rotary: layers(refRadius, floorRadius, stepdown)
@@ -86,7 +85,7 @@
         },
 
         // ════════════════════════════════════════════════════════════
-        // Roughing — one layer of scanlines. Target per sample is
+        // Roughing - one layer of scanlines. Target per sample is
         // max(surface, layerVal): clamped surface-follow, which roughs
         // AND semi-finishes in one motion (no stair-steps on slopes).
         //
@@ -101,11 +100,11 @@
         // dimension: chains that touch the θ seam are merged across it,
         // and a chain covering the full circumference closes into a ring.
         //
-        // Uncovered cells (view.covered) never qualify — roughing stays
+        // Uncovered cells (view.covered) never qualify - roughing stays
         // inside the model/setup footprint. This is the multi-setup
         // (indexed 3+1) ownership hook.
         //
-        // Returns raw chains — the caller simplifies (same contract as
+        // Returns raw chains - the caller simplifies (same contract as
         // the original rasterRoughLayer).
         // ════════════════════════════════════════════════════════════
         rasterRoughLayer(view, o) {
@@ -199,8 +198,8 @@
                 }
 
                 for (const sp of spans) {
-                    if (sp.points.length >= 2 &&
-                        this.chainLength(sp.points) >= minSegLen) {
+                    // Filter by 2D XY length: steep vertical moves must not bypass the minimum segment filter
+                    if (sp.points.length >= 2 && ROOT.GeometryPoints.polylineLength(sp.points) >= minSegLen) {
                         chains.push(sp.points);
                     }
                 }
@@ -211,7 +210,7 @@
         },
 
         // ════════════════════════════════════════════════════════════
-        // Finishing — serpentine raster over the compensated surface.
+        // Finishing - serpentine raster over the compensated surface.
         //
         // Modes (mutually exclusive, in precedence order):
         //   splitLines  - every raster line is its own chain; NO
@@ -227,12 +226,12 @@
         //   (default)   - one continuous chain; row→row connectors are
         //                 cut along the compensated surface (legitimate
         //                 in-material moves): single plunge + retract.
-        //                 Assumes a fully covered field — with a partial
+        //                 Assumes a fully covered field - with a partial
         //                 mask use splitLines or skipFloor.
         //
         // Wrapped sample axes ('around' passes): serpentine flip is
         // disabled, each line closes into a ring, and connectors run at
-        // sample 0. (skipFloor seam merge is NOT implemented — spans
+        // sample 0. (skipFloor seam merge is NOT implemented - spans
         // touching the seam stay split; harmless, they're separate
         // chains anyway.)
         // ════════════════════════════════════════════════════════════
@@ -341,7 +340,7 @@
             // Wrapped views: each ring advances A by one full turn and the
             // next ring continues from there (y accumulates, never resets).
             // Resetting to y=0 per ring would command a 360° reverse sweep
-            // at depth. Accumulated A is the documented contract —
+            // at depth. Accumulated A is the documented contract -
             // convertDevelopedToRotary never wraps it.
             const out = [];
             let flip = false;
@@ -389,10 +388,10 @@
         },
 
         // ════════════════════════════════════════════════════════════
-        // Spiral finishing — wrapped views only. One continuous helix:
+        // Spiral finishing - wrapped views only. One continuous helix:
         // θ advances one angular cell per step, the column advances
         // stepover per revolution. Emitted y is the UNWOUND developed
-        // arc (rowCoord extrapolated past rows — affine contract), so
+        // arc (rowCoord extrapolated past rows - affine contract), so
         // A-axis continuity survives all the way to the machine pass.
         //
         // capRings adds one full closed revolution at the first and last
@@ -437,10 +436,10 @@
 
             // Ring stops the helix passes through, in travel order.
             // capColStart/capColEnd let a caller put closing revolutions at
-            // the MODEL EDGE rather than the window edge: with a 'lip' end
-            // the window runs a full tool diameter past the part, so a ring
-            // out there rides the lip flat while the model's own base edge
-            // — the line you part the job on — was left with the helix
+            // the MODEL EDGE rather than the window edge: with a 'rollover'
+            // end the window runs a full tool diameter past the part, so a
+            // ring out there rides the lip flat while the model's own base
+            // edge - the line you part the job on - would keep the helix
             // crossing it at the spiral angle.
             const stops = [];
             const addStop = (v) => {
@@ -482,7 +481,7 @@
         // ════════════════════════════════════════════════════════════
         // 3D Douglas-Peucker (point-to-segment distance in XYZ).
         // ════════════════════════════════════════════════════════════
-        // REVIEW - Consider moving to a dedicated 3d utils module.
+        // REVIEW - Consider moving to a dedicated 3d utils module. 
         //          Separation of concerns in geometry-utils.js has become messy and it may be worth refactoring some of the files now that geometry is working consistently.
         simplifyPolyline3D(points, tolerance) {
             if (points.length <= 2) return points;
@@ -490,7 +489,7 @@
             keep[0] = 1;
             keep[points.length - 1] = 1;
 
-            // Iterative stack — scanlines can be long
+            // Iterative stack - scanlines can be long
             const stack = [[0, points.length - 1]];
             while (stack.length) {
                 const [a, b] = stack.pop();
@@ -532,9 +531,9 @@
         },
 
         // ════════════════════════════════════════════════════════════
-        // Output — is3DContour contract shared with the V-Carve and
+        // Output - is3DContour contract shared with the V-Carve and
         // relief generators. The caller supplies operation-specific
-        // properties (role, isRelief/isRotary, machiningPhase — the phase
+        // properties (role, isRelief/isRotary, machiningPhase - the phase
         // key Toolpath3DTranslator ranks by).
         // ════════════════════════════════════════════════════════════
         toPrimitive(points, properties = {}) {
@@ -559,18 +558,6 @@
             return (typeof ROOT.PathPrimitive !== 'undefined')
                 ? new ROOT.PathPrimitive([contour], props)
                 : { type: 'path', contours: [contour], properties: props };
-        },
-
-        // XY-only, matching the original relief implementation exactly so
-        // the rebase regression-gates byte-identical. Switching to 3D
-        // length changes minSegLen filtering on steep slivers — do it
-        // deliberately, later, if ever.
-        chainLength(points) {
-            let l = 0;
-            for (let i = 1; i < points.length; i++) {
-                l += Math.hypot(points[i].x - points[i - 1].x, points[i].y - points[i - 1].y);
-            }
-            return l;
         },
 
         debug(message, data = null) {

@@ -128,7 +128,6 @@
         buildGeneratorOptions(p, wh) {
             const toolDiameter = p.toolDiameter;
             const mode = p.rotaryMode;
-            const C = ROOT.CAMConfig.constants.rotary;
 
             return {
                 toolDiameter,

@@ -12,6 +12,8 @@
 (function() {
     'use strict';
 
+    const decimals = window.CAMConfig.defaults.geometry.decimals.coordinates;
+
     class BaseAppUI {
         constructor(ctrl) {
             this.ctrl = ctrl;
@@ -27,8 +29,11 @@
 
             this.statusManager = null;
             this.controls = null;
-            this.machineSettingsValues = {};
             this.canvasExporter = null;
+
+            // Origin the offset fields measure from; see bindOriginFields.
+            this.committedOrigin = { x: 0, y: 0 };
+            this.originFields = null;
 
             // Resolved custom properties, cleared whenever the theme changes.
             // getComputedStyle forces a style recalc and resolveLayerColor runs
@@ -39,9 +44,8 @@
 
         /**
          * Shared init sequence. The order is the dependency order: the renderer
-         * exists before anything reads it, machine settings render before the
-         * panels that gate against them, and the theme is applied last so it
-         * sees every control that will be styled.
+         * exists before anything reads it, and machine settings render before
+         * the panels that gate against them.
          */
         async initShared() {
             this.initRenderer();
@@ -56,48 +60,38 @@
             UIControls.setupCollapsibles(document);
             UIControls.setupArrowSidebarNav('#sidebar-right');
 
-            window.addEventListener('resize', () => {
-                this.renderer.resizeCanvas();
-                this.renderer.render();
-            });
-
-            // CamController.initializeTheme reads and applies the stored theme
-            // and returns the name the renderer needs. Different method, same
-            // name, one object away - which is its own argument for not having
-            // a one-line wrapper here.
-            this.renderer.setOptions({ theme: this.ctrl.initializeTheme() });
-
             this.initStaticTooltips();
             this.watchDecorativeIcons();
         }
 
         initRenderer() {
             this.renderer = new RendererCore('preview-canvas', this.core);
-
-            const theme = document.documentElement.getAttribute('data-theme') || 'dark';
-            this.renderer.setOptions(this.getDefaultRendererOptions(theme));
+            this.renderer.setOptions({
+                primitiveFilter: (prim, layerType) => this.shouldRenderPrimitive(prim, layerType),
+                resolveLayerColor: (layer) => this.resolveLayerColor(layer),
+            });
             this.renderer.onRenderOverlay = (ctx, core) => this.renderOverlay(ctx, core);
 
             const parent = this.renderer.canvas.parentElement;
             if (parent) {
                 new ResizeObserver(() => {
-                    this.renderer.resizeCanvas();
-                    this.renderer.render();
+                    if (this.renderer.resizeCanvas()) this.renderer.renderNow();
                 }).observe(parent);
             }
 
+            // A pixel-ratio change with no CSS size change (window moved to another
+            // monitor) reaches no observer. The query only matches the current
+            // ratio, so it is re-armed with the new one on every change.
+            const watchPixelRatio = () => {
+                matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`).addEventListener('change', () => {
+                    if (this.renderer.resizeCanvas()) this.renderer.renderNow();
+                    this.ctrl.renderer3D?.requestRender();
+                    watchPixelRatio();
+                }, { once: true });
+            };
+            watchPixelRatio();
             this.renderer.render();
             this.canvasExporter = new CanvasExporter(this.renderer);
-        }
-
-        /** Universal renderer options */
-        getDefaultRendererOptions(theme) {
-            return {
-                ...window.CAMConfig.defaults.rendering.defaultOptions,
-                theme,
-                primitiveFilter: (prim, layerType) => this.shouldRenderPrimitive(prim, layerType),
-                resolveLayerColor: (layer) => this.resolveLayerColor(layer)
-            };
         }
 
         /** Subclasses override */
@@ -106,7 +100,6 @@
 
         initViewportInteraction() {
             const canvas = document.getElementById('preview-canvas');
-            if (!canvas || !this.renderer) return;
 
             this.canvasReadout = new CanvasReadout(this.renderer);
             this.input = new InputManager(canvas, { readout: this.canvasReadout });
@@ -172,8 +165,8 @@
             if (!hosts.default) return;
             const ps = this.ctrl.parameterStore;
             const rend = this.ctrl.inputRenderer;
-            const gen = this.ctrl.gcodeGenerator;
-            const lasers = this.ctrl.graphicsExporter;
+            const gen = this.core.gcodeGenerator;
+            const lasers = this.core.graphicsExporter;
             const post = this.core.settings.gcode.postProcessor;
             const postDesc = gen.getProcessorInfo(post);
             // No active profile is legitimate: an app removes every laser.* entry
@@ -211,9 +204,14 @@
             this.refreshMachineSettings();
         }
 
+        /** The app's operation panel for shared code to refresh; null until the app builds it. */
+        get operationPanel() {
+            return null;
+        }
+
         /**
-         * Visibility and capability gates. Called when the active machine classes
-         * change; that does not change which fields exist, so it never re-renders.
+         * Visibility and capability gates. Called on all settings edit; that
+         * does not change which fields exist, so it never re-renders.
          */
         refreshMachineSettings() {
             const hosts = this.machineHosts();
@@ -228,9 +226,9 @@
             const classes = new Set([this.core.machineClass, ...Object.values(this.core.classByType || {})]);
             for (const op of this.core.operations) classes.add(this.core.machineClassOf(op));
 
-            const gates = ps.setOptionGates(this.ctrl.gcodeGenerator.getOptionGates(this.core.settings));
+            const gates = ps.setOptionGates(this.core.gcodeGenerator.getOptionGates(this.core.settings));
             const visibility = {
-                caps: this.ctrl.gcodeGenerator.getProcessorInfo(post)?.capabilities || {},
+                caps: this.core.gcodeGenerator.getProcessorInfo(post)?.capabilities || {},
                 classes,
                 owners: { processorSettings: post, laserSettings: this.core.settings.laser?.activeProfile }
             };
@@ -238,7 +236,7 @@
                 rend.applyOptionGates(host, gates);
                 rend.applyVisibility(host, visibility);
             }
-            (this.traceOperationPanel || this.shapeOperationPanel)?.refresh?.();
+            this.operationPanel?.refresh();
         }
 
         /**
@@ -247,21 +245,30 @@
          */
         onSettingCascade(name, value, param) {
             if (param.owner) {
-                const device = this.ctrl.gcodeGenerator.getProcessor(param.owner)
-                    || this.ctrl.graphicsExporter.getProfileInfo(param.owner);
+                const device =
+                    this.core.gcodeGenerator.getProcessor(param.owner) ||
+                    this.core.graphicsExporter.getProfileInfo(param.owner);
                 const patch = device?.onParameterChange?.(name, value);
-                if (!patch) return;
-                for (const [k, v] of Object.entries(patch)) {
-                    this.core.setSetting(`${param.namespace || "processorSettings"}.${param.owner}.${k}`, v);
+                if (patch) {
+                    for (const [k, v] of Object.entries(patch)) {
+                        this.core.setSetting(`${param.namespace || 'processorSettings'}.${param.owner}.${k}`, v);
+                    }
+                    this.renderMachineSettings();
+                    return;
                 }
-                this.renderMachineSettings();
-                return;
-            }
-            if ("postProcessor" === name || "activeProfile" === name) {
+            } else if ('postProcessor' === name || 'activeProfile' === name) {
                 this.renderMachineSettings();
                 this.rebuildLayers();
-                this.setStatus(`Switched to ${value}. Recalculate toolpaths to apply changes.`, "warning");
+                // A laser profile only styles the exported file; a post changes the program.
+                if ('postProcessor' === name) {
+                    this.setStatus(
+                        `Switched to ${value}. Recalculate toolpaths to apply changes.`,
+                        'warning'
+                    );
+                }
+                return;
             }
+            this.refreshMachineSettings();
         }
 
         /**
@@ -289,10 +296,74 @@
 
             mark(document.body);
 
-            this._iconObserver = new MutationObserver(records => {
+            new MutationObserver(records => {
                 for (const r of records) r.addedNodes.forEach(mark);
-            });
-            this._iconObserver.observe(document.body, { childList: true, subtree: true });
+            }).observe(document.body, { childList: true, subtree: true });
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // Origin offset fields (both apps)
+        // ═══════════════════════════════════════════════════════════════
+        /**
+         * Binds two inputs to the pending origin offset: they show the offset
+         * from the committed origin, typing previews it, Enter commits it.
+         */
+        bindOriginFields(xId, yId) {
+            const x = document.getElementById(xId);
+            const y = document.getElementById(yId);
+            if (!x || !y) return;
+            const scene = this.core.scene;
+            this.originFields = { x, y };
+            this.committedOrigin = { ...scene.transform.origin };
+            const preview = () => {
+                scene.setOrigin(
+                    this.committedOrigin.x + (parseFloat(x.value) || 0),
+                    this.committedOrigin.y + (parseFloat(y.value) || 0)
+                );
+                this.renderer.render();
+            };
+            for (const input of [x, y]) {
+                input.removeAttribute('readonly');
+                input.addEventListener('input', preview);
+                input.addEventListener('keypress', e => {
+                    if (e.key !== 'Enter') return;
+                    preview();
+                    this.commitOrigin();
+                });
+            }
+            scene.addTransformListener(() => this.syncOriginFields());
+            this.syncOriginFields(true);
+        }
+
+        /**
+         * Writes the pending offset back into the fields. Skips whichever
+         * field has focus unless forced: setOrigin fires this on every
+         * keystroke through the transform listener, and reformatting mid-edit
+         * moves the caret so a second digit can never be typed. A commit
+         * forces it, because the field the user just pressed Enter in has to
+         * show 0 again.
+         */
+        syncOriginFields(force = false) {
+            if (!this.originFields) return;
+            const { x, y } = this.originFields;
+            const o = this.core.scene.transform.origin;
+            const active = document.activeElement;
+            if (force || active !== x) x.value = (o.x - this.committedOrigin.x).toFixed(decimals);
+            if (force || active !== y) y.value = (o.y - this.committedOrigin.y).toFixed(decimals);
+        }
+
+        /** Makes the current origin the committed one; a null message commits silently. */
+        commitOrigin(message = 'Origin saved at current position') {
+            this.committedOrigin = { ...this.core.scene.transform.origin };
+            this.syncOriginFields(true);
+            if (message) this.setStatus(message, 'success');
+        }
+
+        revertOrigin() {
+            this.core.scene.setOrigin(this.committedOrigin.x, this.committedOrigin.y);
+            this.syncOriginFields(true);
+            this.renderer.render();
+            this.setStatus('Reset to saved origin', 'info');
         }
 
         // Status
@@ -307,8 +378,8 @@
 
         /**
          * Viewport controls, shared by the toolbar buttons and the keyboard
-         * shortcuts registered in CamController. In 3D the camera owns the fit,
-         * so the request goes to the 3D view instead.
+         * shortcuts registered in CamController. In 3D the camera owns fit and
+         * zoom, so those requests go to the 3D view instead.
          * No optional chaining past `renderer`: RendererCore declares zoomFit,
          * zoomIn, zoomOut and the readout, and a `?.` here spent two sessions
          * turning a dead property into a button that did nothing quietly.
@@ -323,8 +394,25 @@
             this.canvasReadout.updateZoom();
         }
 
-        zoomIn() { this.renderer.zoomIn(); this.renderer.render(); this.canvasReadout.updateZoom(); }
-        zoomOut() { this.renderer.zoomOut(); this.renderer.render(); this.canvasReadout.updateZoom(); }
+        zoomIn() {
+            if (this.ctrl.renderMode === '3d') {
+                this.ctrl.renderer3D?.orbitTool.dolly(window.CAMConfig.constants.renderer.zoom.factor);
+                return;
+            }
+            this.renderer.zoomIn();
+            this.renderer.render();
+            this.canvasReadout.updateZoom();
+        }
+
+        zoomOut() {
+            if (this.ctrl.renderMode === '3d') {
+                this.ctrl.renderer3D?.orbitTool.dolly(1 / window.CAMConfig.constants.renderer.zoom.factor);
+                return;
+            }
+            this.renderer.zoomOut();
+            this.renderer.render();
+            this.canvasReadout.updateZoom();
+        }
 
         // Layer color/z-index resolution
 
@@ -351,8 +439,6 @@
          * keeps this independent of registration order.
          */
         onThemeChanged() {
-            if (!this.renderer) return;
-            this.renderer.setOptions({ theme: document.documentElement.getAttribute('data-theme') || 'dark' });
             this.renderer.updateThemeColors();
             this.renderer.render();
         }
@@ -366,7 +452,6 @@
          * several UI events fire together.
          */
         async rebuildLayers() {
-            if (!this.renderer) return;
             if (this._rebuildPending) { this._rebuildQueued = true; return; }
             this._rebuildPending = true;
             try {
@@ -405,14 +490,18 @@
         resolveLayerColor(layer) {
             const isBW = this.renderer?.options?.blackAndWhite;
             if (isBW) return this.readCSSVar('--color-bw-white');
-
+            // A stencil's generated geometry is the aperture itself, so it keeps
+            // the stencil colour; only its preview reads as a preview.
             if (layer.operationType === 'stencil' || layer.type === 'stencil') {
                 if (layer.isPreview || layer.type === 'preview') {
                     return this.readCSSVar('--color-geometry-preview');
                 }
                 return this.readCSSVar('--color-geometry-source-stencil');
             }
-
+            // Laser fill passes paint the area they burn, not an offset line.
+            if (layer.metadata?.strategy === 'filled') {
+                return this.readCSSVar('--color-geometry-laser-filled');
+            }
             switch (layer.type) {
                 case 'offset':
                     if (layer.offsetType === 'external') return this.readCSSVar('--color-geometry-offset-external');

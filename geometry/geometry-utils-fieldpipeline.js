@@ -128,8 +128,8 @@
          *        rotary axis (indexed 3+1). Ignored by plain relief.
          * @param {number} [o.surfaceRefZ]   - blank face plane / apothem.
          *        REQUIRED under the axial policy: every value in that
-         *        policy is measured from it, and toRadius/fromRadius are
-         *        NaN without it.
+         *        policy is measured from it, and fromRadius is NaN
+         *        without it.
          * @param {number} o.reliefDepth, o.startDepth
          * @param {boolean} o.invert
          * @param {string} o.depthMapping - 'scaled' | 'literal'
@@ -171,11 +171,9 @@
                     : (line) => hm.cellX(line),
                 minValue: -Infinity,
 
-                // The rotation axis sits at z = -apothem in every face's
-                // sliced frame, so a depth v at cross offset y is
-                // hypot(y, apo + v) from it, and a radius r maps back to
+                // The rotation axis sits at z = -apothem in every face's sliced
+                // frame, so a radius r at cross offset y maps back to the depth
                 // -apo + sqrt(r^2 - y^2), degrading to -apo for |y| >= r.
-                toRadius: (v, y) => Math.hypot(y || 0, apo + v),
                 fromRadius: (r, y) => {
                     const yy = y || 0;
                     const s = r * r - yy * yy;
@@ -204,7 +202,7 @@
          * @param {CylMap|CylMapPrimitive} source
          * @param {Object} o
          * @param {number} [o.minValue=0] - smallest radius any target may
-         *        hold (tuning.minRadiusClip).
+         *        hold (constants.rotary.minRadiusClip).
          */
         cylindrical(source, o = {}) {
             const cm = source.cylmap || source;
@@ -224,7 +222,7 @@
                 cellCol: cm.cellX,
                 cellRow: cm.cellArc,
                 cellAxial: cm.cellX,
-                colCoord: (ic) => cm.cellXAt(ic),
+                colCoord: ic => cm.originX + ic * cm.cellX,
                 // Affine in the index - spiralFinish extrapolates past rows
                 // for the unwound helix.
                 rowCoord: (ir) => ir * cm.dTheta * refR,
@@ -239,7 +237,6 @@
                 crossCoord: () => 0,
 
                 minValue: Number.isFinite(o.minValue) ? o.minValue : 0,
-                toRadius: (v) => v,
                 fromRadius: (r) => r,
 
                 seedTarget: () => new Float32Array(cm.data),
@@ -359,9 +356,8 @@
 
         /**
          * Rebuilds a live container from a serialize() record. Prototype
-         * re-attachment restores methods and getters (cellXAt, cellArc,
-         * circumference, worldBounds); typed arrays arrive by transfer,
-         * zero-copy.
+         * re-attachment restores methods and getters (cellArc, circumference,
+         * worldBounds); typed arrays arrive by transfer, zero-copy.
          */
         rehydrate(record) {
             const proto = (record.kind === 'cylmap')

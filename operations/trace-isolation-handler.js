@@ -23,10 +23,7 @@
             };
         }
 
-        /**
-         * Tier 1 only - isolation can have thousands of primitives, so skip
-         * the O(n²) inter-primitive merge.
-         */
+        /** Tier 1 only: isolation carries thousands of primitives and the inter-primitive merge is O(n²). */
         resolveSourceTopology(operation) {
             return this.resolveContourTopology(operation.primitives);
         }

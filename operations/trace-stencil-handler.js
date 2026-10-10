@@ -100,7 +100,7 @@
          */
         buildRegistrationHoles(operation, settings) {
             if (!settings.stencilAddRegHoles) return [];
-            const bounds = this.core.scene?.getBoardBounds?.() || operation.bounds;
+            const bounds = this.core.scene.getBoardBounds() || operation.bounds;
             if (!bounds || !isFinite(bounds.minX)) {
                 operation.warnings.push({ message: 'Registration holes skipped - no board bounds available.', severity: 'warning' });
                 return [];

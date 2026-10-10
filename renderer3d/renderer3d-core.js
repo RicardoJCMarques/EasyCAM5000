@@ -10,8 +10,11 @@
  *              the exact array handed to GCodeGenerator.generate - the
  *              preview can never diverge from the export.
  *
- *              Rendering is ON-DEMAND: requestRender() coalesces into one
- *              rAF frame. No continuous loop until the simulator lands.
+ *              Frames run in three's animation loop while the view is
+ *              active (setActive). requestRender() only marks the scene
+ *              dirty; the loop callback sizes the drawing buffer first and
+ *              draws second, so a drawn frame is never resized before it is
+ *              presented. A hidden view runs no loop at all.
  *
  *              WebGPURenderer initializes WebGPU and falls back to WebGL2
  *              automatically on unsupported browsers.
@@ -37,33 +40,30 @@ export class Renderer3D {
 
     /**
      * Preferred entry: const view = await Renderer3D.mount(container);
+     * The view starts inactive; the owner calls setActive(true) once the
+     * container is visible and populated.
      */
-    static async mount(container, options = {}) {
+    static async mount(container, options) {
         const r = new Renderer3D(container, options);
         await r.init();
         return r;
     }
 
-    constructor(container, options = {}) {
+    /**
+     * @param {HTMLElement} container - sized by layout; the canvas fills it
+     * @param {Object} options - the theme palette (every colour key, from
+     *  CamController.buildRenderer3DOptions), plus onDeviceLost(info),
+     *  called once when the WebGPU device or WebGL context is lost
+     */
+    constructor(container, options) {
         this.container = container;
         this.options = {
-            // REVIEW - shouldn't these be config and theme material? Aren't they already in the theme jsons?
+            // REVIEW - shouldn't these be config or theme jsons? 
             // Light
-            skyColor: 0xffffff,
-            groundColor: 0x303a3a,
             keyIntensity: 1.4,
             fillIntensity: 1.1,
-
-            background: 0x16181c,
             gridSize: 400, // mm
             gridDivisions: 40,
-            gridColor: 0x2a2e34,
-            gridCenterColor: 0x3a3f46,
-            rapidColor: 0x565b63,
-            cutColorShallow: 0x4fc3f7,
-            cutColorDeep: 0xe07a7a,
-            stockColor: 0x8a7a5c,
-            surfaceColor: 0xb0a58e,
             ...options
         };
 
@@ -71,35 +71,39 @@ export class Renderer3D {
         this.scene = null;
         this.camera = null;
         this.controls = null;
-        this.contentGroup = null;   // everything fitToContent frames
+        this.contentGroup = null; // everything fitToContent frames
+        this.hemi = null;
+        this.dir = null;
+        this.grid = null;
         this.toolpaths = null;
         this.stock = null;
         this.geometry = null;
         this.simulator = null;
         this.toolController = null;
         this.input = null;
+        this.orbitTool = null;
 
-        this._renderQueued = false;
-        this._resizeObserver = null;
-        this._disposed = false;
-        this._animating = false;
+        this._orbitKeyHandler = null;
+        this._width = 0; // CSS px the drawing buffer is sized to
+        this._height = 0;
+        this._pixelRatio = 0;
+        this._active = false;
+        this._needsRender = false;
+        this._deviceLost = false;
         this._animTick = null;
+        this._lastTime = null;
+        this._onFrame = (time) => this._frame(time);
     }
 
     async init() {
-        const w = this.container.clientWidth || 1;
-        const h = this.container.clientHeight || 1;
+        const cfg = window.CAMConfig.defaults.rendering.preview3D;
 
-        this.renderer = new THREE.WebGPURenderer({ antialias: true });
-        await this.renderer.init(); // async backend selection (WebGPU → WebGL2)
-        this.renderer.setPixelRatio(window.devicePixelRatio || 1);
-        this.renderer.setSize(w, h);
-        this.container.appendChild(this.renderer.domElement);
-
+        // The scene graph needs no GPU, and the camera has to exist before
+        // the first size sync sets its aspect.
         this.scene = new THREE.Scene();
         this.scene.background = new THREE.Color(this.options.background);
 
-        this.camera = new THREE.PerspectiveCamera(45, w / h, 0.5, 5000);
+        this.camera = new THREE.PerspectiveCamera(45, 1, 0.5, 5000);
         this.camera.position.set(120, -120, 140); // iso-ish, looking at origin
         this.camera.lookAt(0, 0, 0);
 
@@ -127,10 +131,46 @@ export class Renderer3D {
         this.simulator = new Simulator3D(this);
         this.geometry = new GeometryLayer3D(this);
 
-        this._resizeObserver = new ResizeObserver(() => this.onResize());
-        this._resizeObserver.observe(this.container);
+        const renderer = new THREE.WebGPURenderer({
+            antialias: cfg.antialias,
+            alpha: false, // the scene background is opaque
+            forceWebGL: cfg.forceWebGL
+        });
+        this.renderer = renderer;
 
-        this.requestRender();
+        // pixel ratio and size before init, so the canvas context is
+        // configured at its real size.
+        this._syncSize();
+        try {
+            await renderer.init();
+        } catch (err) {
+            this.renderer = null; // the canvas was never attached
+            throw err;
+        }
+        // init() starts three's internal rAF loop; setActive() runs it only
+        // while the view is shown.
+        renderer._animation.stop();
+
+        // Wrapped, not replaced: three's handler logs the loss and sets the
+        // flag that stops its own render path. WebGL context loss arrives
+        // through the same hook.
+        const handleDeviceLost = renderer.onDeviceLost;
+        renderer.onDeviceLost = (info) => {
+            handleDeviceLost.call(renderer, info);
+            this._deviceLost = true;
+            this.setActive(false);
+            this.options.onDeviceLost?.(info);
+        };
+
+        this.container.appendChild(renderer.domElement);
+
+        // Size changes only mark the view dirty; _frame applies them
+        // before drawing.
+        new ResizeObserver(() => {
+            if (this._active) this._needsRender = true;
+        }).observe(this.container);
+
+        this.debug(`three r${THREE.REVISION}, ${renderer.backend.isWebGPUBackend ? 'WebGPU' : 'WebGL2'} backend`);
     }
 
     // Public data API
@@ -144,18 +184,6 @@ export class Renderer3D {
     setPlans(plans, o = {}) {
         this.toolpaths.setPlans(plans);
         if (o.fit) this.fitToContent();
-        this.requestRender();
-    }
-
-    /** @param {Heightmap} heightmap - from HeightmapBuilder / HeightmapPrimitive.heightmap */
-    setHeightmap(heightmap, opts = {}) {
-        this.stock.setHeightmapSurface(heightmap, opts);
-        this.requestRender();
-    }
-
-    /** @param {{minX,minY,maxX,maxY,thickness,topZ?}} box */
-    setStock(box) {
-        this.stock.setStock(box);
         this.requestRender();
     }
 
@@ -175,7 +203,9 @@ export class Renderer3D {
      * every material that reads core.options is rebuilt from the new palette.
      */
     setOptions(options = {}) {
-        Object.assign(this.options, options);
+        for (const [k, v] of Object.entries(options)) {
+            if (v !== undefined) this.options[k] = v;
+        }
         if (this.scene) this.scene.background = new THREE.Color(this.options.background);
         if (this.hemi) {
             this.hemi.color.set(this.options.skyColor);
@@ -198,19 +228,22 @@ export class Renderer3D {
     }
 
     fitToContent() {
+        this._syncSize();
         this.contentGroup.updateMatrixWorld(true);
         const box = new THREE.Box3().setFromObject(this.contentGroup);
         if (box.isEmpty()) return;
 
-
         const center = box.getCenter(new THREE.Vector3());
         const size = box.getSize(new THREE.Vector3());
-        if (!Number.isFinite(size.x) || (size.x <= 0 && size.y <= 0 && size.z <= 0)) return;
+        // One non-finite vertex makes the box non-finite, and a camera placed
+        // from it leaves the orbit state NaN.
+        if (!Number.isFinite(center.x + center.y + center.z + size.x + size.y + size.z)) return;
+        if (size.x <= 0 && size.y <= 0 && size.z <= 0) return;
 
         // Isometric view direction (Z-up)
         const dirV = new THREE.Vector3(0.55, -0.55, 0.63).normalize();
         const fovV = (this.camera.fov * Math.PI) / 180;
-        const aspect = Math.max(0.1, this.camera.aspect || 1);
+        const aspect = Math.max(0.1, this.camera.aspect);
         const tanV = Math.tan(fovV / 2);
         const tanH = tanV * aspect;
 
@@ -257,52 +290,84 @@ export class Renderer3D {
         this.requestRender();
     }
 
-    // Render loop (on-demand)
+    // Frame loop
 
+    /** Marks the scene dirty; the next frame of an active view draws it. */
     requestRender() {
-        if (this._renderQueued || this._disposed) return;
-        this._renderQueued = true;
-        requestAnimationFrame(() => {
-            this._renderQueued = false;
-            if (this._disposed) return;
-            this.renderer.render(this.scene, this.camera);
-        });
+        this._needsRender = true;
     }
 
-    onResize() {
-        if (this._disposed) return;
-        const w = this.container.clientWidth || 1;
-        const h = this.container.clientHeight || 1;
+    /**
+     * Starts or stops the frame loop. Called by the owner when the view is
+     * shown or hidden: a hidden canvas is neither resized nor drawn.
+     */
+    setActive(active) {
+        const run = active && !this._deviceLost;
+        if (run === this._active) return;
+        this._active = run;
+        // setAnimationLoop(null) only drops the callback; three's loop itself
+        // stops only through _animation, which is private API - re-check it on
+        // three upgrades.
+        if (run) {
+            this._needsRender = true;
+            this._lastTime = null;
+            // start() runs one tick synchronously, so the callback goes in
+            // after it and the first _frame gets a real rAF timestamp.
+            this.renderer._animation.start();
+            this.renderer.setAnimationLoop(this._onFrame);
+        } else {
+            this.renderer.setAnimationLoop(null);
+            this.renderer._animation.stop();
+        }
+    }
+
+    /**
+     * Matches the drawing buffer to the container. Returns false while the
+     * container has no size, keeping the last buffer. Writes only on a real
+     * change: every canvas size write discards the current WebGPU texture
+     * and three's canvas attachments.
+     */
+    _syncSize() {
+        const w = this.container.clientWidth;
+        const h = this.container.clientHeight;
+        if (w === 0 || h === 0) return false;
+        const pixelRatio = window.devicePixelRatio;
+        if (w === this._width && h === this._height && pixelRatio === this._pixelRatio) return true;
+        this._width = w;
+        this._height = h;
+        this._pixelRatio = pixelRatio;
+        // One buffer write for both: setPixelRatio alone already resizes the
+        // buffer at the previous size. CSS sizes the canvas element.
+        this.renderer.setDrawingBufferSize(w, h, pixelRatio);
         this.camera.aspect = w / h;
         this.camera.updateProjectionMatrix();
-        this.renderer.setSize(w, h);
-        this.requestRender();
+        return true;
     }
 
-    // Animation loop (simulator only)
-    // The on-demand requestRender path stays authoritative for static
-    // viewing; this continuous loop runs ONLY while the simulator plays.
+    /** three's animation-loop callback: size first, then draw, once per dirty frame. */
+    _frame(time) {
+        if (this._animTick) {
+            const dt = this._lastTime === null ? 0 : Math.min(0.1, (time - this._lastTime) / 1000); // clamp tab-switch jumps
+            this._lastTime = time;
+            this._animTick(dt);
+            this._needsRender = true;
+        }
+        if (!this._needsRender || !this._syncSize()) return;
+        this._needsRender = false;
+        this.renderer.render(this.scene, this.camera);
+    }
+
+    // Simulator playback ticks inside the same loop until stopAnimation;
+    // static viewing only draws when something marked the scene dirty.
 
     startAnimation(tick) {
         this._animTick = tick;
-        if (this._animating) return;
-        this._animating = true;
-        let last = performance.now();
-        const loop = (now) => {
-            if (!this._animating || this._disposed) return;
-            const dt = Math.min(0.1, (now - last) / 1000); // clamp tab-switch jumps
-            last = now;
-            this._animTick?.(dt);
-            this.renderer.render(this.scene, this.camera);
-            requestAnimationFrame(loop);
-        };
-        requestAnimationFrame(loop);
+        this._lastTime = null;
     }
 
     stopAnimation() {
-        this._animating = false;
         this._animTick = null;
-        this.requestRender();
+        this._needsRender = true;
     }
 
     /**
@@ -354,26 +419,10 @@ export class Renderer3D {
         return true;
     }
 
-    // Lifecycle
-
-    dispose() {
-        this._disposed = true;
-        this.stopAnimation();
-        this._resizeObserver?.disconnect();
-        this.input?.detach();
-        this.controls?.dispose();
-        this.simulator?.unload();
-        this.toolpaths?.clear();
-        this.geometry?.clear();
-        this.stock?.clear();
-        this.scene.traverse(obj => {
-            obj.geometry?.dispose?.();
-            const m = obj.material;
-            if (Array.isArray(m)) m.forEach(x => x.dispose?.());
-            else m?.dispose?.();
-        });
-        this.renderer.dispose();
-        this.renderer.domElement.remove();
+    debug(message, data = null) {
+        if (!window.CAMConfig.defaults.debug.enabled) return;
+        if (data !== null) console.log(`[Renderer3D] ${message}`, data);
+        else console.log(`[Renderer3D] ${message}`);
     }
 }
 

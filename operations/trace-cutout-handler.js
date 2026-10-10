@@ -74,11 +74,7 @@
             return { primitives, warnings };
         }
 
-        /**
-         * Tier 1 & 2 - newly closed orphans from the closure prompt must be
-         * topologically merged so they classify as internal holes rather than
-         * independent board outlines.
-         */
+        /** Both tiers: loops the closure prompt just closed must merge as holes, not stand as extra board outlines. */
         resolveSourceTopology(operation) {
             return this.resolveContourTopology(operation.primitives, { mergeNesting: true });
         }

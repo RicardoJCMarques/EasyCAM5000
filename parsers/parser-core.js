@@ -24,21 +24,23 @@
                 format: { integer: 3, decimal: 3 },
                 ...options
             };
+            this.reset();
+        }
 
-            // Common state
+        /**
+         * Per-parse state. Subclasses extend it and call super.reset(). The
+         * constructor runs it before any subclass constructor body, so an
+         * override may read this.options and nothing else.
+         */
+        reset() {
             this.errors = [];
             this.warnings = [];
-            this.bounds = null;
-
-            // Statistics
             this.stats = {
                 linesProcessed: 0,
                 objectsCreated: 0,
                 coordinatesParsed: 0,
                 commandsProcessed: 0
             };
-
-            // Coordinate validation
             this.coordinateValidation = {
                 coordinateRange: { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity },
                 suspiciousCoordinates: []
@@ -138,8 +140,8 @@
                     return GeometryUtils.boundsOfPoints(obj.points);
                 case 'trace': {
                     const halfWidth = (obj.width || 0) / 2;
-                    // SVG linear_path traces carry points; Gerber traces carry start/end
-                    // REVIEW - why not standardize traces to have points? first point is start last point is end?
+                    // SVG linear_path traces carry points; Gerber traces keep discrete start/end
+                    // points to avoid allocating 2-element arrays for thousands of segments
                     const b = obj.points && obj.points.length > 0
                         ? GeometryUtils.boundsOfPoints(obj.points)
                         : GeometryUtils.boundsOfPoints([obj.start, obj.end]);
@@ -181,57 +183,27 @@
             return `${x1},${y1}-${x2},${y2}`;
         }
 
-        buildEdgeMap(regions) {
-            const edgeMap = new Map();
-
-            regions.forEach((region, idx) => {
-                if (!region.points || region.points.length < 2) return;
-
-                for (let i = 0; i < region.points.length - 1; i++) {
-                    const p1 = region.points[i];
-                    const p2 = region.points[i + 1];
-                    const edgeKey = this.createEdgeKey(p1, p2);
-                    edgeMap.set(edgeKey, `region${idx}_edge${i}`);
-
-                    // Store reverse edge for bidirectional matching
-                    const reverseKey = this.createEdgeKey(p2, p1);
-                    edgeMap.set(reverseKey, `region${idx}_edge${i}_reverse`);
-                }
-            });
-
-            return edgeMap;
-        }
-
+        /** Drops traces that run along a region edge, in either direction. */
         removeDuplicateTraces(objects) {
-            const regions = objects.filter(obj => obj.type === 'region');
+            const regions = objects.filter((obj) => obj.type === 'region');
             if (regions.length === 0) return objects;
-
-            const edgeMap = this.buildEdgeMap(regions);
-            const kept = [];
-            let removedCount = 0;
-
-            objects.forEach(obj => {
-                if (obj.type !== 'trace') {
-                    kept.push(obj);
-                    return;
-                }
-
-                const edgeKey = this.createEdgeKey(obj.start, obj.end);
-                const reverseKey = this.createEdgeKey(obj.end, obj.start);
-
-                if (edgeMap.has(edgeKey) || edgeMap.has(reverseKey)) {
-                    removedCount++;
-                    this.debug(`Removed duplicate trace: (${obj.start.x.toFixed(3)}, ${obj.start.y.toFixed(3)}) to (${obj.end.x.toFixed(3)}, ${obj.end.y.toFixed(3)})`);
-                } else {
-                    kept.push(obj);
-                }
-            });
-
-            if (removedCount > 0) {
-                this.debug(`Removed ${removedCount} duplicate traces`);
-
+            const edges = new Set();
+            for (const region of regions) {
+                const pts = region.points || [];
+                for (let i = 0; i < pts.length - 1; i++) edges.add(this.createEdgeKey(pts[i], pts[i + 1]));
             }
-
+            let removedCount = 0;
+            const kept = objects.filter((obj) => {
+                if (obj.type !== 'trace') return true;
+                const onEdge = edges.has(this.createEdgeKey(obj.start, obj.end)) || edges.has(this.createEdgeKey(obj.end, obj.start));
+                if (!onEdge) return true;
+                removedCount++;
+                this.debug(
+                    `Removed duplicate trace: (${obj.start.x.toFixed(3)}, ${obj.start.y.toFixed(3)}) to (${obj.end.x.toFixed(3)}, ${obj.end.y.toFixed(3)})`,
+                );
+                return false;
+            });
+            if (removedCount > 0) this.debug(`Removed ${removedCount} duplicate traces`);
             return kept;
         }
 

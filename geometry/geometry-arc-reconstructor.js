@@ -16,13 +16,10 @@
     const C = ROOT.CAMConfig.constants;
     const PRECISION = C.precision.coordinate;
     const debugState = ROOT.CAMConfig.defaults.debug;
+    const DUPLICATE_SQ  = 1e-9 ; // mm². Below every clipper2scale grid step squared, so only exact duplicates merge. Squared distance so precision.epsilon is a coincidence.
 
     class ArcReconstructor {
-        constructor(options = {}) {
-            this.options = {
-                scale: options.scale
-            };
-
+        constructor() {
             // Simplified thresholds
             const arcConfig = C.geometry.arcReconstruction;
             this.minArcPoints = arcConfig.minArcPoints;
@@ -42,19 +39,6 @@
                 groupsFound: 0,
                 wrappedGroups: 0
             };
-        }
-
-        // Clear all registered curves
-        clear() {
-            this.stats = {
-                reconstructed: 0,
-                partialArcs: 0,
-                fullCircles: 0,
-                pathsWithCurves: 0,
-                groupsFound: 0,
-                wrappedGroups: 0
-            };
-            this.debug('Stats reset');
         }
 
         // Main reconstruction method - process fused primitives
@@ -108,11 +92,9 @@
                 this.recoverLostMetadata(contour.points, isClosed);
                 const groups = this.groupPointsWithGaps(contour.points, isClosed);
 
-                // A circular HOLE is as much a circle as a lone outer ring, so the
-                // promotion runs per contour. Alone it becomes a CirclePrimitive;
-                // inside a compound the ring stays a contour carrying one 2*PI arc,
-                // which the translator emits as a single G2/G3.
-                // REVIEW - This may be true but arc and analtic circle offsets are very different.
+                // A circular HOLE inside a compound must remain a 2*PI arc contour
+                // within PathPrimitive to maintain nesting topology during Clipper
+                // booleans; standalone rings promote to CirclePrimitive.
                 const ring = (groups.length === 1 && groups[0].type === 'curve')
                     ? GeometryUtils.analyzeCircleRing(groups[0].points)
                     : null;
@@ -122,7 +104,11 @@
                     this.stats.reconstructed++;
 
                     if (isLoneContour) {
-                        return [this.attemptFullCircleReconstruction(ring, primitive)];
+                        return [new CirclePrimitive(ring.center, ring.radius, {
+                            ...primitive.properties,
+                            reconstructed: true,
+                            originalCurveId: ring.curveId
+                        })];
                     }
                     reconstructedContours.push(this.fullCircleContour(contour, groups[0], ring));
                     continue;
@@ -134,8 +120,7 @@
                         `endGap=${(ring.endGap ?? 0).toFixed(5)} chord=${(ring.chord ?? 0).toFixed(5)}`);
                 }
 
-                const reconstructed = this.reconstructSingleContour(contour, isClosed, groups);
-                if (reconstructed) reconstructedContours.push(reconstructed);
+                reconstructedContours.push(this.reconstructSingleContour(contour, groups));
             }
 
             if (reconstructedContours.length === 0) return [primitive];
@@ -146,16 +131,12 @@
             })];
         }
 
-        reconstructSingleContour(contour, isClosed, precomputedGroups = null) {
-            if (!contour.points || contour.points.length < 3) return contour;
-
+        /**
+         * groups: groupPointsWithGaps output for this contour; the caller has
+         * already skipped contours under 3 points.
+         */
+        reconstructSingleContour(contour, groups) {
             const originalPointCount = contour.points.length;
-            let groups = precomputedGroups;
-            if (!groups) {
-                this.recoverLostMetadata(contour.points, isClosed);
-                groups = this.groupPointsWithGaps(contour.points, isClosed);
-            }
-
             const newPoints = [];
             const detectedArcSegments = [];
 
@@ -209,7 +190,7 @@
                         const first = groupPts[0];
                         const dx = last.x - first.x;
                         const dy = last.y - first.y;
-                        if ((dx * dx + dy * dy) <= 1e-9) {
+                        if ((dx * dx + dy * dy) <= DUPLICATE_SQ ) {
                             startIdx = 1; // skip duplicate point
                         }
                     }
@@ -237,8 +218,7 @@
                 const dx = prev.x - curr.x;
                 const dy = prev.y - curr.y;
 
-                // REVIEW - Connect to config 1e-9 epsilon?
-                if ((dx * dx + dy * dy) > 1e-9 || protectedIndices.has(j)) {
+                if ((dx * dx + dy * dy) > DUPLICATE_SQ  || protectedIndices.has(j)) {
                     indexRemap.push(dedupedPoints.length);
                     dedupedPoints.push(curr);
                 } else {
@@ -246,14 +226,12 @@
                 }
             }
 
-            const remappedArcs = detectedArcSegments.map(arc => {
-                const newStart = indexRemap[arc.startIndex];
-                const newEnd = indexRemap[arc.endIndex];
-                if (newStart >= 0 && newEnd >= 0) {
-                    return { ...arc, startIndex: newStart, endIndex: newEnd };
-                }
-                return null;
-            }).filter(Boolean);
+            // indexRemap holds a valid index for every newPoints entry.
+            const remappedArcs = detectedArcSegments.map(arc => ({
+                ...arc,
+                startIndex: indexRemap[arc.startIndex],
+                endIndex: indexRemap[arc.endIndex]
+            }));
 
             if (debugState.enabled && remappedArcs.length > 0) {
                 if (dedupedPoints.length >= originalPointCount) {
@@ -380,19 +358,6 @@
 
             this.stats.groupsFound += groups.length;
             return groups;
-        }
-
-        /**
-         * Lone circular contour -> analytic CirclePrimitive. `ring` comes from
-         * GeometryUtils.analyzeCircleRing and has already passed provenance,
-         * sweep and closure; this only builds the primitive.
-         */
-        attemptFullCircleReconstruction(ring, primitive) {
-            return new CirclePrimitive(ring.center, ring.radius, {
-                ...primitive.properties,
-                reconstructed: true,
-                originalCurveId: ring.curveId
-            });
         }
 
         /**

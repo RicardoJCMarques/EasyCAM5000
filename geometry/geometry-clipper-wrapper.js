@@ -13,14 +13,12 @@
     'use strict';
 
     const ROOT = (typeof self !== 'undefined') ? self : window;
-    const C = ROOT.CAMConfig.constants;
     const D = ROOT.CAMConfig.defaults;
     const debugState = D.debug;
 
     class ClipperWrapper {
-        constructor(options = {}) {
-            this.options = { ...options };
-            this.scale = options.clipper2scale; // REVIEW - If this is applied before clipper and reverted after, scaling can be larger?
+        constructor({ clipper2scale }) {
+            this.scale = clipper2scale; // REVIEW - If this is applied before clipper and reverted after, scaling can be larger?
 
             this.clipper2 = null;
             this.initialized = false;
@@ -37,9 +35,7 @@
             // Pre-calculate bit masks for efficiency
             this.bitMasks = {
                 curveId: (1n << this.metadataPacking.curveIdBits) - 1n,
-                segmentIndex: (1n << this.metadataPacking.segmentIndexBits) - 1n,
-                clockwise: 1n,
-                reserved: (1n << this.metadataPacking.reservedBits) - 1n
+                segmentIndex: (1n << this.metadataPacking.segmentIndexBits) - 1n
             };
         }
 
@@ -87,24 +83,12 @@
             }
         }
 
-        // Pack metadata into 64-bit Z coordinate
-        // REVIEW - Metadata packing comments need improvement
-        packMetadata(curveId, segmentIndex, clockwise = false, reserved = 0) {
-            // Allow reserved-only packing (sourceId) on non-arc points, which have no curveId.
-            // // REVIEW - this doesn't make sense? Metadata packing could also be, CurveID is necessary for arc-reconstruction but non arc points don't need it?
-            if ((!curveId || curveId === 0) && (!reserved || reserved === 0)) return BigInt(0);
-
-            const packedCurveId = BigInt(curveId || 0) & this.bitMasks.curveId;
-            const packedSegmentIndex = BigInt(segmentIndex || 0) & this.bitMasks.segmentIndex;
-            const packedClockwise = clockwise ? 1n : 0n;
-            const packedReserved = BigInt(reserved || 0) & this.bitMasks.reserved;
-
-            const z = packedCurveId |
-                     (packedSegmentIndex << 24n) |
-                     (packedClockwise << 55n) |
-                     (packedReserved << 56n);
-
-            return z;
+        // Arc points: curveId bits 0-23, segmentIndex 24-54, clockwise bit 55;
+        // bits 56-63 unused. Non-arc points carry packSourceId instead.
+        packMetadata(curveId, segmentIndex, clockwise) {
+            return (BigInt(curveId) & this.bitMasks.curveId)
+                | ((BigInt(segmentIndex) & this.bitMasks.segmentIndex) << 24n)
+                | ((clockwise ? 1n : 0n) << 55n);
         }
 
         /**
@@ -116,8 +100,10 @@
          * Identity is carried for downstream toolpath grouping; it is not
          * arc metadata and does not participate in reconstruction.
          */
-        // The current system may not need this but stayDown clusters probably need it in the future.
-        // Same shapeID if far appart by the offset distance (not just point distance) should be stayDown compatible, it would allow enough precision for more stayDown moves when explicit points are diagonally distant.
+        // TODO(staydown-identity) - let staydown clustering link points that share
+        // a sourceId across the offset distance, not only by point distance.
+        // Internal offsets are always predictably related which allows for advanced
+        // pocket/clearing strategies.
         packSourceId(sourceId) {
             if (!sourceId) return BigInt(0);
             return (BigInt(sourceId) & 0xFFFFFFFFn) << 24n;
@@ -131,20 +117,14 @@
             return Number((BigInt(z) >> 24n) & 0xFFFFFFFFn);
         }
 
-        // Unpack metadata from 64-bit Z coordinate
+        // Inverse of packMetadata; callers trust the fields only when curveId > 0.
         unpackMetadata(z) {
-            if (!z || z === 0n) {
-                return { curveId: 0, segmentIndex: 0, clockwise: false, reserved: 0 };
-            }
-
             const zBigInt = BigInt(z);
-
-            const curveId = Number(zBigInt & this.bitMasks.curveId);
-            const segmentIndex = Number((zBigInt >> 24n) & this.bitMasks.segmentIndex);
-            const clockwise = Boolean((zBigInt >> 55n) & 1n);
-            const reserved = Number((zBigInt >> 56n) & this.bitMasks.reserved);
-
-            return { curveId, segmentIndex, clockwise, reserved };
+            return {
+                curveId: Number(zBigInt & this.bitMasks.curveId),
+                segmentIndex: Number((zBigInt >> 24n) & this.bitMasks.segmentIndex),
+                clockwise: Boolean((zBigInt >> 55n) & 1n)
+            };
         }
 
         // Union multiple paths into merged regions
@@ -305,7 +285,7 @@
                     if (this.supportsZ) {
                         if (p.curveId !== undefined && p.curveId !== null && p.curveId > 0) {
                             const curveClockwise = reg?.getCurve(p.curveId)?.clockwise === true;
-                            z = this.packMetadata(p.curveId, p.segmentIndex || 0, curveClockwise, 0);
+                            z = this.packMetadata(p.curveId, p.segmentIndex || 0, curveClockwise);
                         } else {
                             const sid = (p.sourceId > 0) ? p.sourceId : contourSourceId;
                             if (sid > 0) z = this.packSourceId(sid);
@@ -333,7 +313,6 @@
          * arcs must use GeometryOffsetter.offsetPathViaBoolean instead as this
          * bypasses all arc logic.
          */
-        // REVIEW - Should this be in geometry-utils? Like all other pre-processor methods?
         pointsToPath64Plain(points) {
             const { Path64, Point64 } = this.clipper2;
             if (!points || points.length < 3) return null;

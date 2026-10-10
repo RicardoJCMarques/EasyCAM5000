@@ -18,14 +18,14 @@
     const EPSILON = C.precision.epsilon;
 
     class GCodeGenerator {
-        constructor(config) {
+        constructor(config, core, lang) {
             this.config = config;
+            this.core = core;
+            this.lang = lang;
             this.processors = new Map();
             this.currentProcessor = null;
             this.lastWarnings = [];
-            this.core = null;
             this.untransformedPosition = { x: 0, y: 0, z: 0 };
-
             this.registerDefaultProcessors();
         }
 
@@ -84,7 +84,7 @@
          * Capability gates for profile <option>s. Indexed 3+1 needs a real A/B
          * word; axis replacement repurposes Y as arc length and the two cannot
          * coexist on one machine. Keyed on the PINNED route, not the resolved one -
-         * buildToolpathContext promotes '' to 'a-word' for an indexed op, and
+         * buildPipelineContext promotes '' to 'a-word' for an indexed op, and
          * gating on the resolved route would disable indexed on every post that
          * lists wrapped-linear first.
          */
@@ -168,7 +168,6 @@
             options = { ...options };
 
             // Resolve all comment strings from language system once.
-            // v2 keys are flat: "comments.header", "comments.makera.mtcRelease".
             // Processors read the LEAF (c.header, c.mtcRelease), so index by
             // leaf and keep the dotted form for anything that wants it.
             const section = this.lang.get('gcode', {}) || {};
@@ -188,12 +187,12 @@
 
             const output = [];
 
-            // Check for comment compatibility // REVIEW - Incompatible post-processors should have the export modal toggle disabled.
+            // Check for comment compatibility
             const supportsComments =
                 this.currentProcessor.descriptor?.capabilities?.supportsComments !== false;
             if (options.includeComments && supportsComments) {
                 // Gather data
-                // REVIEW - Add a Verbose toggle to export more operational parameter details in each gcode file.
+                // TODO - Add a Verbose toggle to export more operational parameter details in each gcode file.
                 const c = options.comments;
                 const opIds = [...new Set(toolpathPlans.map(p => p.operationId))];
                 const operations = opIds.map(id => this.core.store.getOperation(id)).filter(Boolean);
@@ -252,20 +251,12 @@
                         commentBlock.push(`Z zero: ROTARY CENTERLINE - Z is tool ` +
                             `radius; blank surface at Z${(rm.refRadius || 0).toFixed(3)}`);
                     }
-                    // TODO(zzero-workoffset) - the operator currently dials the
-                    // number above into Z0 by hand. The convenience version is a
-                    // work offset - G10 L2 P0 Z-apothem, or G92 with a matching
-                    // cancel in the end code - emitted HERE, gated on a per-post
-                    // capability (G10 L2 vs G92 vs neither). Deliberately not
-                    // built yet: both are MODAL machine state, so an abort
-                    // between the shift and its cancel leaves the controller
-                    // with a wrong origin and the next program cuts into the
-                    // fixture. It needs a guaranteed cancel path and bench
-                    // testing per post, and it changes no geometry - so it waits
-                    // until the 3D pipeline stops moving. A disabled-by-default
-                    // flag would not have reduced that risk, only deferred it to
-                    // whoever flipped it.
-                    // REVIEW - Outdated comment?
+                    // TODO(zzero-workoffset) - emit the apothem as a work offset (G10 L2 or
+                    // G92, per-post capability) instead of having the operator dial it into
+                    // Z0. Blocked on a guaranteed cancel path and per-post bench tests: both
+                    // are modal state, and an abort before the cancel leaves a wrong origin.
+                    // Needs nuance to handle machines with absolute Z0 and with the 4th axis
+                    // above it.
                     commentBlock.push(c.separator || '---');
                 }
 
@@ -275,13 +266,8 @@
 
             // First operational plan for the header's feed setup. Synthetic
             // plans (init/connection/entry/plunge/retract/final/index) carry no
-            // cutting parameters. MachineProcessor stamps metadata.synthetic;
-            // the operationId fallback covers plans built before that landed.
-            const syntheticIds = new Set(['init', 'connection', 'entry',
-                'staydown_plunge', 'depth_plunge', 'retract', 'final', 'index']);
-            const isSynthetic = (p) =>
-                p.metadata?.synthetic === true || syntheticIds.has(p.operationId);
-            options.firstPlan = toolpathPlans.find(p => !isSynthetic(p)) || toolpathPlans[0];
+            // cutting parameters; MachineProcessor stamps metadata.synthetic on each.
+            options.firstPlan = toolpathPlans.find(p => p.metadata?.synthetic !== true) || toolpathPlans[0];
 
             // Tool state. Resolved BEFORE the header so the {toolNumber}
             // placeholder in user start code finally gets a real value
@@ -584,14 +570,6 @@
             }
 
             return linearizedCmds;
-        }
-
-        /**
-         * Returns keys of all registered processors.
-         * For richer data, use getAllProcessorDescriptors().
-         */
-        getAvailableProcessors() {
-            return Array.from(this.processors.keys());
         }
     }
 

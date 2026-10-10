@@ -18,11 +18,9 @@
     const D = window.CAMConfig.defaults;
     const renderingOptions = D.rendering.defaultOptions;
     const debugState = D.debug;
+    const sortables = new WeakMap();
 
-    /**
-     * Lightweight event emitter base class. Extend in any panel or
-     * module that needs on()/off()/emit().
-     */
+    /** Lightweight event emitter base class for panels: on() and emit(). */
     class EventEmitter {
         constructor() {
             this.listeners = new Map();
@@ -31,14 +29,6 @@
         on(event, fn) {
             if (!this.listeners.has(event)) this.listeners.set(event, []);
             this.listeners.get(event).push(fn);
-            return this;
-        }
-
-        off(event, fn) {
-            const fns = this.listeners.get(event);
-            if (!fns) return this;
-            const idx = fns.indexOf(fn);
-            if (idx !== -1) fns.splice(idx, 1);
             return this;
         }
 
@@ -65,7 +55,6 @@
             this.renderer = renderer;
             this.setupVisualizationToggles();
             UIControls.setupVizPanelButton();
-            this.setupThemeToggle();
         }
 
         // ═══════════════════════════════════════════════════════════════
@@ -103,10 +92,9 @@
             if (debugLogToggle) debugLogToggle.checked = debugState.enabled;
 
             // Attach Single Event Listener
-            vizControls.addEventListener('change', async (e) => {
+            vizControls.addEventListener('change', async e => {
                 const el = e.target;
                 if (el.tagName !== 'INPUT' || el.type !== 'checkbox') return;
-
                 const isChecked = el.checked;
                 const option = el.dataset.option;
                 const action = el.dataset.action;
@@ -122,88 +110,37 @@
                     }
                 }
 
-                if (option === 'showPreprocessed' && isChecked) {
-                    const arc = document.getElementById('enable-arc-reconstruction');
-                    if (arc?.checked) { arc.checked = false; this.renderer.setOptions({ enableArcReconstruction: false }); }
+                // Preprocessed view and arc reconstruction exclude each other.
+                if (option === 'showPreprocessed' && isChecked && arcToggle?.checked) {
+                    arcToggle.checked = false;
+                    this.renderer.setOptions({ enableArcReconstruction: false });
                 }
-                if (option === 'enableArcReconstruction' && isChecked) {
-                    const prep = document.getElementById('show-preprocessed');
-                    if (prep?.checked) { prep.checked = false; this.renderer.setOptions({ showPreprocessed: false }); }
+                if (option === 'enableArcReconstruction' && isChecked && prepToggle?.checked) {
+                    prepToggle.checked = false;
+                    this.renderer.setOptions({ showPreprocessed: false });
                 }
                 if (option === 'fuseGeometry') {
                     if (prepToggle) prepToggle.disabled = !isChecked;
                     if (arcToggle) arcToggle.disabled = !isChecked;
                 }
 
-                switch (action) {
-                    case 'render':
-                        // Simple redraw (e.g., grid, wireframe)
-                        if (option) this.renderer.setOptions({ [option]: isChecked });
-                        break;
-                    case 'update':
-                        // Full re-process and redraw (e.g., fusion, offsets)
-                        if (option) this.renderer.setOptions({ [option]: isChecked });
-                        // Special logic for fusion/arc changes
-                        if (option === 'fuseGeometry' && !isChecked) this.resetFusionStates();
-                        if (option === 'fuseGeometry' || option === 'enableArcReconstruction') {
-                            this.ui.core.geometryProcessor.clearCachedStates?.();
-                        }
-                        if (this.ui.rebuildLayers) await this.ui.rebuildLayers();
-                        break;
-                    case 'toggle-debug':
-                        D.debug.enabled = isChecked;
-                        this.ui.statusManager.renderLog?.();
-                        break;
-                    default:
-                        // For toggles that manage layer visibility directly (e.g., show-regions)
-                        if (option) this.renderer.setOptions({ [option]: isChecked });
-                        break;
+                if (option) this.renderer.setOptions({ [option]: isChecked });
+                if (action === 'toggle-debug') {
+                    D.debug.enabled = isChecked;
+                    this.ui.statusManager.renderLog();
+                } else if (action === 'update') {
+                    // Full re-process and redraw (fusion, offsets)
+                    if (option === 'fuseGeometry' && !isChecked) {
+                        this.renderer.setOptions({ showPreprocessed: false, enableArcReconstruction: false });
+                        if (prepToggle) prepToggle.checked = false;
+                        if (arcToggle) arcToggle.checked = false;
+                    }
+                    if (option === 'fuseGeometry' || option === 'enableArcReconstruction') {
+                        this.ui.core.geometryProcessor.clearCachedStates();
+                    }
+                    await this.ui.rebuildLayers();
                 }
             });
-        }
-
-        // ═══════════════════════════════════════════════════════════════
-        // Theme Toggle (instance - needs renderer)
-        // ═══════════════════════════════════════════════════════════════
-
-        setupThemeToggle() {
-            const btn = document.querySelector('.theme-toggle');
-            if (!btn) return;
-
-            const useEl = btn.querySelector('use');
-
-            // Set the initial icon based on the starting theme
-            const initialTheme = document.documentElement.getAttribute('data-theme') || 'dark';
-            if (useEl) {
-                useEl.setAttribute('href', initialTheme === 'dark' ? '#icon-sun' : '#icon-moon');
-            }
-
-            // Handle the toggle
-            btn.addEventListener('click', async () => {
-                const theme = await window.ThemeLoader.toggleTheme();
-
-                if (useEl) {
-                    useEl.setAttribute('href', theme === 'dark' ? '#icon-sun' : '#icon-moon');
-                }
-
-                if (this.renderer) {
-                    this.renderer.setOptions({ theme });
-                    this.renderer.render();
-                }
-            });
-        }
-
-        // ═══════════════════════════════════════════════════════════════
-        // Fusion / Arc Helpers (instance - needs renderer)
-        // ═══════════════════════════════════════════════════════════════
-
-        resetFusionStates() {
-            // Reset preprocessed view and arc-reconstruction
-            this.renderer.setOptions({ showPreprocessed: false, enableArcReconstruction: false });
-            const prep = document.getElementById('show-preprocessed');
-            const arc = document.getElementById('enable-arc-reconstruction');
-            if (prep) prep.checked = false;
-            if (arc) arc.checked = false;
         }
 
         // ═══════════════════════════════════════════════════════════════
@@ -320,106 +257,162 @@
         
         /**
          * @param {Function} [onStatus] - (message, level) for reorder feedback.
+         * @param {Function} [onReorder] - () after a row lands in a new position.
          * A shared control cannot reach the app singleton for this: a global
          * lookup is untestable and no-ops silently before the app is ready.
+         * Call it again whenever the rows are rebuilt: row attributes are
+         * reapplied, and the container's listeners bind once and read the
+         * latest callbacks.
          */
-        static makeSortable(container, rowSelector, onStatus = null) {
+        static makeSortable(container, rowSelector, onStatus = null, onReorder = null) {
+            container.querySelectorAll(rowSelector).forEach((item, idx) => {
+                item.draggable = true;
+                item.setAttribute('tabindex', idx === 0 ? '0' : '-1');
+                item.setAttribute('role', 'listitem');
+                item.setAttribute('aria-grabbed', 'false');
+            });
+            const bound = sortables.has(container);
+            sortables.set(container, { onStatus, onReorder });
+            if (bound) return;
+            const status = (msg, level) => sortables.get(container).onStatus?.(msg, level);
+            const reordered = () => sortables.get(container).onReorder?.();
+            const rowsOf = () => Array.from(container.querySelectorAll(rowSelector));
+            // Row the dragged item lands before; undefined means the end of the list.
+            const rowAfter = y => [...container.querySelectorAll(`${rowSelector}:not(.dragging)`)].reduce((closest, child) => {
+                const box = child.getBoundingClientRect();
+                const offset = y - box.top - box.height / 2;
+                return offset < 0 && offset > closest.offset ? { offset, element: child } : closest;
+            }, { offset: Number.NEGATIVE_INFINITY }).element;
             let draggedItem = null;
-            container.addEventListener("dragstart", e => {
-                if (!container.classList.contains("is-orderable")) {
+            let startIndex = -1;
+            container.addEventListener('dragstart', (e) => {
+                if (!container.classList.contains('is-orderable')) {
                     e.preventDefault();
                     return;
                 }
                 const targetItem = e.target.closest(rowSelector);
                 if (targetItem && container.contains(targetItem) && !targetItem.dataset.locked) {
                     draggedItem = targetItem;
-                    draggedItem.classList.add("dragging");
-                    e.dataTransfer.effectAllowed = "move";
+                    startIndex = rowsOf().indexOf(targetItem);
+                    draggedItem.classList.add('dragging');
+                    e.dataTransfer.effectAllowed = 'move';
                 } else e.preventDefault();
             });
-            container.addEventListener("dragend", () => {
-                if (draggedItem) {
-                    draggedItem.classList.remove("dragging");
-                    draggedItem = null;
-                }
+            container.addEventListener('dragend', () => {
+                if (!draggedItem) return;
+                draggedItem.classList.remove('dragging');
+                const moved = rowsOf().indexOf(draggedItem) !== startIndex;
+                draggedItem = null;
+                if (moved) reordered();
             });
-            container.addEventListener("dragover", e => {
+            container.addEventListener('dragover', (e) => {
                 e.preventDefault();
                 if (!draggedItem) return;
-                const afterElement = UIControls.getDragAfterElement(container, e.clientY, rowSelector);
-                if (null == afterElement) {
+                const afterElement = rowAfter(e.clientY);
+                if (afterElement == null) {
                     const firstLocked = container.querySelector(`${rowSelector}[data-locked="true"]`);
-                    firstLocked ? container.insertBefore(draggedItem, firstLocked) : container.appendChild(draggedItem);
+                    if (firstLocked) container.insertBefore(draggedItem, firstLocked);
+                    else container.appendChild(draggedItem);
                 } else if (afterElement.dataset.locked !== 'true') {
                     container.insertBefore(draggedItem, afterElement);
                 }
             });
-            container.querySelectorAll(rowSelector).forEach((item, idx) => {
-                item.draggable = true;
-                item.setAttribute("tabindex", 0 === idx ? "0" : "-1");
-                item.setAttribute("role", "listitem");
-                item.setAttribute("aria-grabbed", "false");
-            });
-            container.addEventListener("keydown", e => {
+            container.addEventListener('keydown', (e) => {
                 const focused = document.activeElement;
                 if (!focused || !focused.matches(rowSelector) || !container.contains(focused)) return;
-                const items = Array.from(container.querySelectorAll(rowSelector));
-                const isGrabbed = "true" === focused.getAttribute("aria-grabbed");
-                if (" " === e.key) {
+                const items = rowsOf();
+                const isGrabbed = focused.getAttribute('aria-grabbed') === 'true';
+                if (e.key === ' ') {
                     e.preventDefault();
-                    if (!container.classList.contains("is-orderable") || focused.dataset.locked) return;
+                    if (!container.classList.contains('is-orderable') || focused.dataset.locked) return;
                     if (isGrabbed) {
-                        focused.setAttribute("aria-grabbed", "false");
-                        focused.classList.remove("is-grabbed");
-                        onStatus?.('Item placed', 'info');
+                        focused.setAttribute('aria-grabbed', 'false');
+                        focused.classList.remove('is-grabbed');
+                        status('Item placed', 'info');
                     } else {
-                        items.forEach(item => {
-                            item.setAttribute("aria-grabbed", "false");
-                            item.classList.remove("is-grabbed");
+                        items.forEach((item) => {
+                            item.setAttribute('aria-grabbed', 'false');
+                            item.classList.remove('is-grabbed');
                         });
-                        focused.setAttribute("aria-grabbed", "true");
-                        focused.classList.add("is-grabbed");
-                        onStatus?.('Item grabbed. Use Up/Down to move, Space to place.', 'info');
+                        focused.setAttribute('aria-grabbed', 'true');
+                        focused.classList.add('is-grabbed');
+                        status('Item grabbed. Use Up/Down to move, Space to place.', 'info');
                     }
                 }
-                if ("ArrowDown" === e.key || "ArrowUp" === e.key) {
+                if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
                     e.preventDefault();
                     const idx = items.indexOf(focused);
-                    const targetIdx = "ArrowDown" === e.key ? idx + 1 : idx - 1;
+                    const targetIdx = e.key === 'ArrowDown' ? idx + 1 : idx - 1;
                     if (isGrabbed) {
-                        const sibling = "ArrowDown" === e.key ? focused.nextElementSibling : focused.previousElementSibling;
+                        const sibling = e.key === 'ArrowDown' ? focused.nextElementSibling : focused.previousElementSibling;
                         if (sibling && sibling.matches(rowSelector) && !sibling.dataset.locked) {
-                            "ArrowUp" === e.key ? container.insertBefore(focused, sibling) : container.insertBefore(sibling, focused);
+                            if (e.key === 'ArrowUp') container.insertBefore(focused, sibling);
+                            else container.insertBefore(sibling, focused);
                             focused.focus();
+                            reordered();
                         }
                     } else if (items[targetIdx]) {
-                        focused.setAttribute("tabindex", "-1");
-                        items[targetIdx].setAttribute("tabindex", "0");
+                        focused.setAttribute('tabindex', '-1');
+                        items[targetIdx].setAttribute('tabindex', '0');
                         items[targetIdx].focus();
                     }
                 }
-                if ("Escape" === e.key && isGrabbed) {
+                if (e.key === 'Escape' && isGrabbed) {
                     e.preventDefault();
                     e.stopPropagation();
-                    focused.setAttribute("aria-grabbed", "false");
-                    focused.classList.remove("is-grabbed");
-                    onStatus?.('Reorder cancelled', 'info');
+                    focused.setAttribute('aria-grabbed', 'false');
+                    focused.classList.remove('is-grabbed');
+                    status('Reorder cancelled', 'info');
                 }
             });
         }
 
         /**
-         * Inner half of makeSortable - not callable standalone, which is why
-         * rowSelector has no default: the sortable rows are makeSortable's
-         * argument and there is no second answer to that question.
+         * Every file in a drop, folders walked recursively. The DataTransfer
+         * is emptied once the drop event returns, so its items are read
+         * synchronously here - call this before the handler's first await.
+         * readEntries answers in batches (100 at a time in Chromium), so each
+         * folder is read until it returns an empty one. Hidden entries (.git,
+         * .DS_Store) are skipped.
+         * @param {DataTransfer} dataTransfer
+         * @returns {Promise<File[]>}
          */
-        static getDragAfterElement(container, y, rowSelector) {
-            const draggableElements = [...container.querySelectorAll(`${rowSelector}:not(.dragging)`)];
-            return draggableElements.reduce((closest, child) => {
-                const box = child.getBoundingClientRect();
-                const offset = y - box.top - box.height / 2;
-                return offset < 0 && offset > closest.offset ? { offset: offset, element: child } : closest;
-            }, { offset: Number.NEGATIVE_INFINITY }).element;
+        static async filesFromDrop(dataTransfer) {
+            const files = [];
+            const folders = [];
+            for (const item of Array.from(dataTransfer?.items || [])) {
+                if (item.kind !== 'file') continue;
+                const entry = item.webkitGetAsEntry?.();
+                if (entry?.isDirectory) {
+                    folders.push(entry);
+                } else {
+                    const file = item.getAsFile();
+                    if (file) files.push(file);
+                }
+            }
+            if (files.length === 0 && folders.length === 0) return Array.from(dataTransfer?.files || []);
+            const readBatch = (reader) => new Promise((resolve, reject) => reader.readEntries(resolve, reject));
+            const readFile = (entry) => new Promise((resolve, reject) => entry.file(resolve, reject));
+            const walk = async (folder) => {
+                const reader = folder.createReader();
+                for (;;) {
+                    const batch = await readBatch(reader);
+                    if (batch.length === 0) return;
+                    for (const entry of batch) {
+                        if (entry.name.startsWith('.')) continue;
+                        if (entry.isDirectory) await walk(entry);
+                        else files.push(await readFile(entry));
+                    }
+                }
+            };
+            for (const folder of folders) {
+                try {
+                    await walk(folder);
+                } catch (err) {
+                    console.warn(`[UIControls] Could not read the dropped folder "${folder.name}":`, err);
+                }
+            }
+            return files;
         }
 
         /**
@@ -576,11 +569,6 @@
          * @param {Function} [callbacks.onKey] - (key, id, focused, e) anything else.
          */
         static setupTreeKeyboard(container, rows, callbacks) {
-            if (!container) {
-                this.debug('[UIControls] setupTreeKeyboard: no container - keyboard navigation is off for this panel.');
-                return;
-            }
-
             const levels = Array.isArray(rows)
                 ? rows
                 : [{ selector: rows, idFrom: null, onActivate: null }];

@@ -233,7 +233,7 @@
             // Public descriptor
             this.descriptor = {
                 id: "roland",
-                label: "Roland (RML) (Experimental)",
+                label: "Roland (RML) (Very Experimental)",
                 fileExtension: ".rml",
 
                 parameters: [
@@ -552,6 +552,36 @@
         }
 
         /**
+         * Target position for cmd, with change detection on the machine step
+         * grid: a move smaller than one step emits nothing.
+         */
+        stepTarget(cmd) {
+            const s = this.stepsPerMM;
+            const cur = this.currentPosition;
+            const x = cmd.x ?? cur.x;
+            const y = cmd.y ?? cur.y;
+            const z = cmd.z ?? cur.z;
+            const sx = Math.round(x * s);
+            const sy = Math.round(y * s);
+            const sz = Math.round(z * s);
+            return {
+                x, y, z,
+                stepped: { x: sx / s, y: sy / s, z: sz / s },
+                xChanged: sx !== Math.round(cur.x * s),
+                yChanged: sy !== Math.round(cur.y * s),
+                zChanged: sz !== Math.round(cur.z * s)
+            };
+        }
+
+        // V (legacy) / !VZ is modal: re-emitted only on a change above 0.1 mm/min.
+        pushVelocity(lines, mmPerMin, axis) {
+            if (this.currentVZ === null || Math.abs(mmPerMin - this.currentVZ) > 0.1) {
+                lines.push(`${this.useLegacyVelocity ? 'V' : '!VZ'}${this.mmMinToVS(mmPerMin, axis)};`);
+                this.currentVZ = mmPerMin;
+            }
+        }
+
+        /**
          * 3D Mode: All motion via V/!VZ + Z x,y,z; command.
          * 
          * Modern machines (MDX-40+): !VZ sets speed for Z command (all axes)
@@ -565,104 +595,46 @@
          *   - Plunges = Z command at plunge feed
          */
         process3D(cmd) {
-            const targetX = cmd.x ?? this.currentPosition.x;
-            const targetY = cmd.y ?? this.currentPosition.y;
-            const targetZ = cmd.z ?? this.currentPosition.z;
-
-            // Quantize to machine steps for accurate change detection
-            const stepTargetX = Math.round(targetX * this.stepsPerMM);
-            const stepTargetY = Math.round(targetY * this.stepsPerMM);
-            const stepTargetZ = Math.round(targetZ * this.stepsPerMM);
-            const stepCurrentX = Math.round(this.currentPosition.x * this.stepsPerMM);
-            const stepCurrentY = Math.round(this.currentPosition.y * this.stepsPerMM);
-            const stepCurrentZ = Math.round(this.currentPosition.z * this.stepsPerMM);
-
-            const xChanged = stepTargetX !== stepCurrentX;
-            const yChanged = stepTargetY !== stepCurrentY;
-            const zChanged = stepTargetZ !== stepCurrentZ;
-
-            if (!xChanged && !yChanged && !zChanged && cmd.type !== 'DWELL') {
-                return '';
-            }
-
+            const t = this.stepTarget(cmd);
+            if (!t.xChanged && !t.yChanged && !t.zChanged && cmd.type !== 'DWELL') return '';
             const lines = [];
-            const velCmd = this.useLegacyVelocity ? 'V' : '!VZ';
+            const moveTo = () => {
+                lines.push(`Z${this.fmtCoord(t.x)},${this.fmtCoord(t.y)},${this.fmtCoord(t.z)};`);
+                this.currentPosition = t.stepped;
+            };
 
             switch (cmd.type) {
                 case 'RAPID':
-                case 'RETRACT': {
-                    // Set speed to machine maximum for rapid travel
-                    const rapidMmSec = Math.min(this.maxFeedXY, this.maxFeedZ);
-                    const rapidMmMin = rapidMmSec * 60;
-                    if (this.currentVZ === null || Math.abs(rapidMmMin - this.currentVZ) > 0.1) {
-                        lines.push(`${velCmd}${this.mmMinToVS(rapidMmMin, 'combined')};`);
-                        this.currentVZ = rapidMmMin;
-                    }
-                    lines.push(`Z${this.fmtCoord(targetX)},${this.fmtCoord(targetY)},${this.fmtCoord(targetZ)};`);
-                    this.currentPosition = {
-                        x: stepTargetX / this.stepsPerMM,
-                        y: stepTargetY / this.stepsPerMM,
-                        z: stepTargetZ / this.stepsPerMM
-                    };
+                case 'RETRACT':
+                    // Machine maximum for rapid travel
+                    this.pushVelocity(lines, Math.min(this.maxFeedXY, this.maxFeedZ) * 60, 'combined');
+                    moveTo();
                     break;
-                }
-
                 case 'LINEAR':
-                case 'PLUNGE': {
-                    // Determine dominant axis for feed clamping
-                    const isZOnly = !xChanged && !yChanged && zChanged;
-                    const isXYOnly = (xChanged || yChanged) && !zChanged;
-                    const feedAxis = isZOnly ? 'z' : isXYOnly ? 'xy' : 'combined';
-
+                case 'PLUNGE':
                     if (cmd.f != null) {
-                        if (this.currentVZ === null || Math.abs(cmd.f - this.currentVZ) > 0.1) {
-                            lines.push(`${velCmd}${this.mmMinToVS(cmd.f, feedAxis)};`);
-                            this.currentVZ = cmd.f;
-                        }
+                        // Clamp against the dominant axis
+                        const feedAxis = !t.xChanged && !t.yChanged ? 'z' : !t.zChanged ? 'xy' : 'combined';
+                        this.pushVelocity(lines, cmd.f, feedAxis);
                     }
-                    lines.push(`Z${this.fmtCoord(targetX)},${this.fmtCoord(targetY)},${this.fmtCoord(targetZ)};`);
-                    this.currentPosition = {
-                        x: stepTargetX / this.stepsPerMM,
-                        y: stepTargetY / this.stepsPerMM,
-                        z: stepTargetZ / this.stepsPerMM
-                    };
+                    moveTo();
                     break;
-                }
-
                 case 'DWELL': {
-                    // Legacy machines (MDX-15/20) don't support !DW
-                    if (this.useLegacyVelocity && !this.profile?.supportsDwell) {
-                        break; // Skip silently - no dwell capability
-                    }
+                    // Legacy machines (MDX-15/20) have no !DW
+                    if (this.useLegacyVelocity && !this.profile?.supportsDwell) break;
                     const ms = Math.round((cmd.dwell || 0) * 1000);
-                    if (ms > 0) {
-                        lines.push(`!DW${ms};`);
-                    }
+                    if (ms > 0) lines.push(`!DW${ms};`);
                     break;
                 }
-
                 case 'ARC_CW':
-                case 'ARC_CCW': {
+                case 'ARC_CCW':
                     console.warn('[RolandProcessor] Arc command reached processor - should have been linearized');
-                    if (cmd.f != null) {
-                        if (this.currentVZ === null || Math.abs(cmd.f - this.currentVZ) > 0.1) {
-                            lines.push(`${velCmd}${this.mmMinToVS(cmd.f)};`);
-                            this.currentVZ = cmd.f;
-                        }
-                    }
-                    lines.push(`Z${this.fmtCoord(targetX)},${this.fmtCoord(targetY)},${this.fmtCoord(targetZ)};`);
-                    this.currentPosition = {
-                        x: stepTargetX / this.stepsPerMM,
-                        y: stepTargetY / this.stepsPerMM,
-                        z: stepTargetZ / this.stepsPerMM
-                    };
+                    if (cmd.f != null) this.pushVelocity(lines, cmd.f);
+                    moveTo();
                     break;
-                }
-
                 default:
                     break;
             }
-
             return lines.join('\n');
         }
 
@@ -680,115 +652,61 @@
          * No simultaneous XYZ motion is possible.
          */
         process25D(cmd) {
-            const targetX = cmd.x ?? this.currentPosition.x;
-            const targetY = cmd.y ?? this.currentPosition.y;
-            const targetZ = cmd.z ?? this.currentPosition.z;
-
-            // Quantize to machine steps for accurate change detection
-            const stepTargetX = Math.round(targetX * this.stepsPerMM);
-            const stepTargetY = Math.round(targetY * this.stepsPerMM);
-            const stepTargetZ = Math.round(targetZ * this.stepsPerMM);
-            const stepCurrentX = Math.round(this.currentPosition.x * this.stepsPerMM);
-            const stepCurrentY = Math.round(this.currentPosition.y * this.stepsPerMM);
-            const stepCurrentZ = Math.round(this.currentPosition.z * this.stepsPerMM);
-
-            const xChanged = stepTargetX !== stepCurrentX;
-            const yChanged = stepTargetY !== stepCurrentY;
-            const zChanged = stepTargetZ !== stepCurrentZ;
-
-            if (!xChanged && !yChanged && !zChanged && cmd.type !== 'DWELL') {
-                return '';
-            }
-
+            const t = this.stepTarget(cmd);
+            if (!t.xChanged && !t.yChanged && !t.zChanged && cmd.type !== 'DWELL') return '';
             const lines = [];
+            // PD: the depth register (z1) follows the target Z, then the XY move.
+            const penDown = () => {
+                if (t.zChanged) {
+                    const pz = this.emitPZIfChanged(t.z, this.pzUpMM);
+                    if (pz) lines.push(pz);
+                }
+                lines.push(`PD${this.fmtCoord(t.x)},${this.fmtCoord(t.y)};`);
+                this.currentPosition = { x: t.stepped.x, y: t.stepped.y, z: this.pzDownMM };
+            };
 
             switch (cmd.type) {
                 case 'RAPID':
                 case 'RETRACT': {
-                    // Update the PU height register (z2) if Z target changed
-                    if (zChanged) {
-                        const pz = this.emitPZIfChanged(this.pzDownMM, targetZ);
+                    // PU: the height register (z2) follows the target Z
+                    if (t.zChanged) {
+                        const pz = this.emitPZIfChanged(this.pzDownMM, t.z);
                         if (pz) lines.push(pz);
                     }
-                    lines.push(`PU${this.fmtCoord(targetX)},${this.fmtCoord(targetY)};`);
-                    // After PU, machine Z is at z2 (up height). Track quantized XY.
-                    this.currentPosition = {
-                        x: stepTargetX / this.stepsPerMM,
-                        y: stepTargetY / this.stepsPerMM,
-                        z: this.pzUpMM
-                    };
+                    lines.push(`PU${this.fmtCoord(t.x)},${this.fmtCoord(t.y)};`);
+                    // After PU the machine sits at z2
+                    this.currentPosition = { x: t.stepped.x, y: t.stepped.y, z: this.pzUpMM };
                     break;
                 }
-
                 case 'LINEAR':
-                case 'PLUNGE': {
-                    const velCmd = this.useLegacyVelocity ? 'V' : '!VZ';
-
-                    // Feed rate handling
+                case 'PLUNGE':
                     if (cmd.f != null) {
-                        const isPlungeMove = cmd.type === 'PLUNGE' || (zChanged && !xChanged && !yChanged);
-                        const isSimultaneous = zChanged && (xChanged || yChanged);
-
-                        if (isPlungeMove || isSimultaneous) {
-                            // Plunge/Z speed via V/!VZ
-                            if (this.currentVZ === null || Math.abs(cmd.f - this.currentVZ) > 0.1) {
-                                lines.push(`${velCmd}${this.mmMinToVS(cmd.f)};`);
-                                this.currentVZ = cmd.f;
-                            }
-                        }
-                        if (!isPlungeMove) {
-                            // XY cutting speed via VS
-                            if (this.currentFeed === null || Math.abs(cmd.f - this.currentFeed) > 0.1) {
-                                lines.push(`VS${this.mmMinToVS(cmd.f)};`);
-                                this.currentFeed = cmd.f;
-                            }
+                        const isPlungeMove = cmd.type === 'PLUNGE' || (t.zChanged && !t.xChanged && !t.yChanged);
+                        const isSimultaneous = t.zChanged && (t.xChanged || t.yChanged);
+                        // Plunge/Z speed via V/!VZ
+                        if (isPlungeMove || isSimultaneous) this.pushVelocity(lines, cmd.f);
+                        // XY cutting speed via VS
+                        if (!isPlungeMove && (this.currentFeed === null || Math.abs(cmd.f - this.currentFeed) > 0.1)) {
+                            lines.push(`VS${this.mmMinToVS(cmd.f)};`);
+                            this.currentFeed = cmd.f;
                         }
                     }
-
-                    // Update the PD depth register (z1) if Z target changed
-                    if (zChanged) {
-                        const pz = this.emitPZIfChanged(targetZ, this.pzUpMM);
-                        if (pz) lines.push(pz);
-                    }
-
-                    lines.push(`PD${this.fmtCoord(targetX)},${this.fmtCoord(targetY)};`);
-                    this.currentPosition = {
-                        x: stepTargetX / this.stepsPerMM,
-                        y: stepTargetY / this.stepsPerMM,
-                        z: this.pzDownMM
-                    };
+                    penDown();
                     break;
-                }
-
                 case 'DWELL': {
+                    if (this.useLegacyVelocity && !this.profile?.supportsDwell) break;
                     const ms = Math.round((cmd.dwell || 0) * 1000);
-                    if (ms > 0) {
-                        lines.push(`!DW${ms};`);
-                    }
+                    if (ms > 0) lines.push(`!DW${ms};`);
                     break;
                 }
-
                 case 'ARC_CW':
-                case 'ARC_CCW': {
-                    // Should never reach here - fallback to linear
+                case 'ARC_CCW':
                     console.warn('[RolandProcessor] Arc command reached 2.5D processor - should have been linearized');
-                    if (zChanged) {
-                        const pz = this.emitPZIfChanged(targetZ, this.pzUpMM);
-                        if (pz) lines.push(pz);
-                    }
-                    lines.push(`PD${this.fmtCoord(targetX)},${this.fmtCoord(targetY)};`);
-                    this.currentPosition = {
-                        x: stepTargetX / this.stepsPerMM,
-                        y: stepTargetY / this.stepsPerMM,
-                        z: this.pzDownMM
-                    };
+                    penDown();
                     break;
-                }
-
                 default:
                     break;
             }
-
             return lines.join('\n');
         }
 

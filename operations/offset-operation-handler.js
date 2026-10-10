@@ -100,6 +100,21 @@
         }
 
         /**
+         * Stock one preview primitive removes, as polygons to union: a band one
+         * tool diameter wide around the tool-centre ring.
+         */
+        previewCutArea(prim) {
+            const width = prim.properties?.toolDiameter || 0;
+            if (!(width > 0)) return [];
+            if ('circle' === prim.type) {
+                // A full-circle arc band is an annulus, or a disc once the ring is narrower than the tool.
+                const ring = { center: prim.center, radius: prim.radius, startAngle: 0, endAngle: 2 * Math.PI };
+                return [GeometryUtils.arcToPolygon({ ...ring, clockwise: false, properties: { polarity: 'dark' } }, width)];
+            }
+            return (prim.contours || []).flatMap((contour) => GeometryUtils.closedContourToStrokePolygons(contour, width));
+        }
+
+        /**
          * Returns the clearance zone for filled/hatch laser strategies.
          * Override in TraceIsolationHandler and TraceClearingHandler.
          */
@@ -107,46 +122,39 @@
 
         // ORCHESTRATION
 
+        resolveSourceTopology(operation, params) {
+            return this.resolveContourTopology(operation.primitives, { mergeNesting: params.detectNesting === true });
+        }
+
         async orchestrateGeneration(operation, params, core, options = {}) {
             // Stale-run token + structured progress + state reset
             const token = this.beginRun(operation, options, core);
-
             const resolved = this.resolveSourceTopology(operation, params);
             if (resolved) operation.primitives = resolved;
-
             // Compile parameters
             const opParams = core.pipelineContext.compileOperationParams(operation, params);
             // Both branches get the same bag. compileOperationParams only emits
             // the pipeline-agnostic strategy fields, so a handler reading its own
             // profile parameters (every stencil* key) sees undefined without this.
             const settings = { ...params, ...opParams };
-            if (opParams.isLaser) {
-                operation.clearancePolygon = null;
-                await this.generateLaserFills(operation, settings);
-            } else await this.generateGeometry(operation, settings);
-
+            if (opParams.isLaser) await this.generateLaserFills(operation, settings);
+            else await this.generateGeometry(operation, settings);
             if (this.isStale(operation, token)) {
                 return { success: false, message: 'Generation superseded by a newer request', status: 'warning' };
             }
-
             const total = operation.offsets?.reduce((s, o) => s + (o.primitives?.length || 0), 0) || 0;
-            const passCount = operation.offsets?.length || 0;
-
             if (total === 0) {
-                return { success: false, message: 'No geometry generated - tool may be too large for features', status: 'warning' };
+                return {
+                    success: false,
+                    message: 'No geometry generated - tool may be too large for features',
+                    status: 'warning',
+                };
             }
-
             if (opParams.isLaser) {
                 const strategy = opParams.clearStrategy || 'offset';
-
-                // CORE handles its own state
-                operation.exportReady = true;
-                this.stampExportMetadata(operation, strategy);
-                
                 return { success: true, message: `Generated ${total} laser path(s) [${strategy}]`, status: 'success' };
             }
-
-            return { success: true, message: `Generated ${passCount} offset(s)`, status: 'success' };
+            return { success: true, message: `Generated ${operation.offsets.length} offset(s)`, status: 'success' };
         }
 
         /**
@@ -177,27 +185,6 @@
             if (stamped > 0) {
                 this.debug(`ensureSourceIds: stamped ${stamped} primitive(s) (ids ${maxId - stamped + 1}..${maxId})`);
             }
-        }
-
-        /**
-         * Pre-compute a centroid/bounds index from the operation's source
-         * primitives. Used by attributeShapeKey for fast spatial lookup.
-         */
-        buildSourceIndex(primitives) {
-            const index = [];
-            for (const prim of primitives) {
-                const id = prim.properties?.sourceId;
-                if (!id || id <= 0) continue;
-                const b = prim.getBounds();
-                if (!b) continue;
-                index.push({
-                    id,
-                    bounds: b,
-                    cx: (b.minX + b.maxX) / 2,
-                    cy: (b.minY + b.maxY) / 2
-                });
-            }
-            return index;
         }
 
         /**
@@ -295,10 +282,15 @@
                 return [];
             }
 
-            // Identity: stamp any untagged primitives and build spatial index
-            // for geometric shapeKey attribution after offset passes.
+            // Identity: stamp any untagged primitives, then index each source's
+            // bounds and centroid for shapeKey attribution after the offset passes.
             this.ensureSourceIds(operation.primitives);
-            const srcIndex = this.buildSourceIndex(operation.primitives);
+            const srcIndex = [];
+            for (const prim of operation.primitives) {
+                const id = prim.properties?.sourceId;
+                const b = id > 0 ? prim.getBounds() : null;
+                if (b) srcIndex.push({ id, bounds: b, cx: (b.minX + b.maxX) / 2, cy: (b.minY + b.maxY) / 2 });
+            }
 
             // Offset direction. Resolved once; radius/sign/step derive from it.
             const cutSide = this.resolveCutSide(operation, settings);
@@ -441,11 +433,7 @@
                         frac: totalPasses > 0 ? passIndex / totalPasses : null,
                         label: `${operation.type || 'Offset'} pass ${passIndex + 1}${of}`
                     });
-                    await new Promise(resolve => {
-                        const ch = new MessageChannel();
-                        ch.port1.onmessage = () => resolve();
-                        ch.port2.postMessage(null);
-                    });
+                    await this.yieldToEventLoop();
                 }
 
                 const offsetType = distance >= 0 ? 'external' : 'internal';
@@ -539,10 +527,10 @@
                 }
 
                 // POST-PROCESSING
-                // Runs at distance 0 too. An on-line pass still crosses Clipper
-                // (jsPathToClipper tessellates whatever it is handed), so its arcs
-                // are already gone by here - skipping reconstruction did not
-                // "keep the original arcs", it shipped a 2048-segment polyline.
+                // Runs at distance 0 too: an on-line pass is still a union - it is
+                // what merges overlapping closed shapes into one outline - and
+                // jsPathToClipper tessellates whatever it is handed, so arcs come
+                // back only through reconstruction.
                 if (!settings.skipArcReconstruction) {
                     passGeometry = this.core.geometryProcessor.arcReconstructor.processForReconstruction(passGeometry);
                 }
@@ -557,7 +545,6 @@
                     p.properties.pass = passIndex + 1;
                     p.properties.offsetDistance = distance;
                     p.properties.offsetType = offsetType;
-                    p.properties.thermalGroup = thermalGroup;
                     p.properties.shapeKey = this.attributeShapeKey(p, srcIndex);   // identity surviving the boolean union
                     if (chainable) {
                         // The translator welds a key's rings into one plan so the
@@ -574,19 +561,17 @@
 
                 passResults.push({
                     distance: distance,
-                    actualDistance: distance,
                     pass: passIndex + 1,
                     offsetType: offsetType,
-                    thermalGroup: thermalGroup,
                     primitives: reconstructedGeometry,
                     metadata: {
                         sourceCount: primitivesToProcess.length,
                         generatedAt: Date.now(),
                         toolDiameter: settings.toolDiameter,
                         targetWidth: settings.targetWidth || null,
-                        actualWidth: Math.abs(distance) + (settings.toolDiameter / 2),
-                        thermalGroup: thermalGroup
-                    }
+                        actualWidth: Math.abs(distance) + settings.toolDiameter / 2,
+                        thermalGroup: thermalGroup,
+                    },
                 });
 
                 passIndex++;
@@ -648,11 +633,7 @@
             }
 
             // Filled/hatch strategies need a clearance zone
-            let clearanceZone = operation.clearancePolygon;
-
-            if (!clearanceZone || clearanceZone.length === 0) {
-                clearanceZone = await this.getClearanceZone(operation, settings);
-            }
+            const clearanceZone = await this.getClearanceZone(operation, settings);
 
             if (!clearanceZone || clearanceZone.length === 0) {
                 this.debug('Clearance zone empty, falling back to offset strategy');
@@ -751,7 +732,6 @@
                 this.debug(`Clearance polygon: ${clearanceZone.length} polygon(s)`);
                 this.debug(`=== CLEARANCE POLYGON COMPLETE ===`);
 
-                operation.clearancePolygon = clearanceZone;
                 return clearanceZone;
 
             } finally {

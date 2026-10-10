@@ -48,10 +48,11 @@ const CONFIG = {
         'fiveserver.config.js',
         'licensepasta.txt',
         'other',
+        'project.config.js',
         'context-gen.js',
+        'PROJECT_CONTEXT_easycam5000.txt',
         'file-bundle.js',
-        'PROJECT_CONTEXT.txt',
-        'FILE_BUNDLE.txt',
+        'FILE_BUNDLE_easycam5000.txt',
         'package.json',
         'package-lock.json',
         // Analytic offsetting files
@@ -695,12 +696,17 @@ class Builder {
                         }
                     }
 
-                    const svg = fs.readFileSync(figurePath, 'utf8')
+                    let svg = fs.readFileSync(figurePath, 'utf8')
                         .replace(/<\?xml[^>]*\?>\s*/i, '')
                         .replace(/<!DOCTYPE[^>]*>\s*/i, '')
                         .replace(/<metadata>[\s\S]*?<\/metadata>/gi, '')
-                        .replace(/<script\b[\s\S]*?<\/script>/gi, '')
-                        .replace(/\s(width|height)=["'][^"']*["']/gi, '');
+                        .replace(/<script\b[\s\S]*?<\/script>/gi, '');
+
+                    // Strip width and height only from the root <svg> element so child shapes (e.g. <rect>) retain dimensions
+                    svg = svg.replace(/<svg\b([^>]*)>/i, (match, svgAttrs) => {
+                        const cleanAttrs = svgAttrs.replace(/\s+(?:width|height)=["'][^"']*["']/gi, '');
+                        return `<svg${cleanAttrs}>`;
+                    });
 
                     // Strip data-figure-pending so inlined SVGs are immediately displayed
                     const cleanAttrs = attrs.replace(/\s*data-figure-pending(=["'][^"']*["'])?/gi, '');
@@ -713,7 +719,11 @@ class Builder {
             htmlContent = htmlContent.replace(/\s*<!--\s*Easy(?:Trace|Shape)5000[\s\S]*?-->/g, '');
 
             // Inject the new compact deployment header
-            const htmlHeader = buildHeader('Documentation', 'Manual', 'html');
+            const isLanding = path.basename(pagePath) === 'index.html' && path.dirname(pagePath) === this.distDir;
+            const title = isLanding ? 'EasyCAM5000' : 'Documentation';
+            const subtitle = isLanding ? 'Landing Page' : 'Manual';
+
+            const htmlHeader = buildHeader(title, subtitle, 'html');
             if (htmlContent.match(/<!DOCTYPE[^>]*>/i)) {
                 htmlContent = htmlContent.replace(/(<!DOCTYPE[^>]*>)/i, `$1\n${htmlHeader}\n`);
             } else {
@@ -722,7 +732,7 @@ class Builder {
 
             const deps = this.extractDependencies(htmlContent, pagePath);
 
-            let cssContents = buildHeader('Documentation', 'Bundled Styles', 'css');
+            let cssContents = buildHeader(title, 'Bundled Styles', 'css');
             for (const item of deps.css) {
                 if (fs.existsSync(item.absPath)) {
                     cssContents += `/* ${this.repoPath(item.absPath)} */\n${stripComments(readFile(item.absPath), 'css', this.keepComments)}\n\n`;
@@ -733,10 +743,10 @@ class Builder {
             if (deps.css.length > 0) {
                 const styleTag = `\n    \n    <style>\n${cssContents}    </style>\n`;
                 htmlContent = htmlContent.replace('</head>', styleTag + '</head>');
-                htmlContent = htmlContent.replace(/^\s*[\r\n]/gm, '');
-                writeFile(pagePath, htmlContent);
                 log(` Inlined CSS for ${this.repoPath(pagePath)}`);
             }
+            htmlContent = htmlContent.replace(/^\s*[\r\n]/gm, '');
+            writeFile(pagePath, htmlContent);
         }
     }
 
@@ -876,8 +886,8 @@ class Builder {
             'geometry/field-worker.js'
         ];
 
-        if (fs.existsSync(path.join(this.distDir, 'figures.js'))) {
-            jsTargets.push('figures.js');
+        if (fs.existsSync(path.join(this.distDir, 'images/figures.js'))) {
+            jsTargets.push('images/figures.js');
         }
 
         // renderer3d is one ESM bundle by now; it still needs module:true.
@@ -913,6 +923,7 @@ class Builder {
             collapseWhitespace: true,
             removeComments: true,
             ignoreCustomComments: [/^!/],
+            caseSensitive: true,
             minifyCSS: true,
             minifyJS: names ? { mangle: false } : true
         };
@@ -922,7 +933,7 @@ class Builder {
     }
 
     /**
-     * dist must be self-contained. Every embed step deletes the file it
+     * dist/ must be self-contained. Every embed step deletes the file it
      * embedded, every bundling step deletes what it inlined, and all of it is
      * regex-driven - so the only check that means anything is whether the
      * output still points at something that is no longer there. This is what

@@ -168,7 +168,7 @@
                 <p>Development goes fast, documentation may be outdated. Proceed with some caution.</p>
             </div>
 
-            <section class="hero hero--compact">
+            <section class="hero">
                 <h1>EasyShape5000 Parameter Guide</h1>
                 <p class="tagline">Every field, its range, its default, and what it changes</p>
             </section>
@@ -226,7 +226,7 @@
                             <td>The magazine slot, carousel pocket or collet this operation's tool sits in - the T word your controller will receive. If your machine has no tool changer, leaving 1 on every operation is safe.</td>
                         </tr>
                         <tr>
-                            <td><strong>Tool Diameter</strong></td>
+                            <td><strong>Tool Diameter</strong><br><span class="param-condition">Shown when Multi-Tool Drilling is off</span></td>
                             <td>0.01 - 25.4 mm</td>
                             <td>&mdash;</td>
                             <td>Profile Cut, Pocket Clear, Drill Holes, Engrave, V-Carve, Relief / 2.5D Carve, Rotary / 4th Axis</td>
@@ -305,14 +305,14 @@
                         </tr>
                         <tr>
                             <td><strong>Cut Side</strong></td>
-                            <td>Outside / Inside / On Line</td>
+                            <td>Outside / Inside / On Path (Centerline)</td>
                             <td>Outside</td>
                             <td>Profile Cut</td>
                             <td>Where the tool sits relative to the polygon outline. Outside clears material around the shape. Inside clears within. On Path centers the tool on the line.</td>
                         </tr>
                         <tr>
                             <td><strong>Pocket Strategy</strong></td>
-                            <td>Concentric Offsets / Raster / Zig-Zag</td>
+                            <td>Concentric Offsets</td>
                             <td>Concentric Offsets</td>
                             <td>Pocket Clear</td>
                             <td>How the pocket interior is cleared. Concentric Offsets shrinks inward in passes. Raster sweeps back and forth in straight lines.</td>
@@ -325,14 +325,14 @@
                             <td>Percentage of the tool diameter to overlap on each pass. 50% is a good default.</td>
                         </tr>
                         <tr>
-                            <td><strong>Raster Angle</strong><br><span class="param-condition">Shown when Pocket Strategy is Raster / Zig-Zag</span></td>
+                            <td><strong>Raster Angle</strong><br><span class="param-condition">Shown when Pocket Strategy is raster</span></td>
                             <td>0 - 180 °</td>
                             <td>45</td>
                             <td>Pocket Clear</td>
                             <td>Angle of the sweep lines for raster pocketing. 0° is horizontal, 90° vertical, 45° diagonal.</td>
                         </tr>
                         <tr>
-                            <td><strong>Bidirectional Raster</strong><br><span class="param-condition">Shown when Pocket Strategy is Raster / Zig-Zag</span></td>
+                            <td><strong>Bidirectional Raster</strong><br><span class="param-condition">Shown when Pocket Strategy is raster</span></td>
                             <td>on / off</td>
                             <td>on</td>
                             <td>Pocket Clear</td>
@@ -843,23 +843,23 @@
                     </thead>
                     <tbody>
                         <tr>
-                            <td><strong>Multi-depth Milling</strong></td>
+                            <td><strong>Multi-depth Milling</strong><br><span class="param-condition">Shown when Mill Holes is on</span></td>
                             <td>on / off</td>
                             <td>on</td>
                             <td>Drill Holes</td>
                             <td>Mill oversize holes in several Z levels instead of one full-depth pass. Easier on small cutters.</td>
                         </tr>
                         <tr>
-                            <td><strong>Depth per Pass</strong><br><span class="param-condition">Shown when Multi-depth Milling is on</span></td>
+                            <td><strong>Depth per Pass</strong><br><span class="param-condition">Shown when Mill Holes is on and Multi-depth Milling is on</span></td>
                             <td>0.1 - 50 mm</td>
                             <td>2</td>
                             <td>Drill Holes</td>
                             <td>Material removed per Z level while milling an oversize hole.</td>
                         </tr>
                         <tr>
-                            <td><strong>Entry Method</strong></td>
-                            <td>Plunge / Helix</td>
-                            <td>Helix</td>
+                            <td><strong>Entry Method</strong><br><span class="param-condition">Shown when Mill Holes is on</span></td>
+                            <td>Helix (Spiral entry) / Plunge (Vertical)</td>
+                            <td>Helix (Spiral entry)</td>
                             <td>Drill Holes</td>
                             <td>How the cutter enters an oversize hole. Helix spirals down and loads the tool gently; Plunge drops straight in and needs a centre-cutting bit.</td>
                         </tr>
@@ -886,8 +886,8 @@
                         </tr>
                         <tr>
                             <td><strong>Entry Type</strong></td>
-                            <td>Plunge</td>
-                            <td>Plunge</td>
+                            <td>Plunge (Vertical)</td>
+                            <td>Plunge (Vertical)</td>
                             <td>Profile Cut, Pocket Clear</td>
                             <td>How the tool enters the material. Plunge: straight down. Ramp: diagonal. Helix: spiral down.</td>
                         </tr>
@@ -1061,7 +1061,7 @@
 
 <!-- Scripts -->
 <script defer src="../../themes/theme-loader.js"></script>
-<script src="../../figures.js" defer></script>
+<script defer src="../../images/figures.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', () => {
         // Load the SVG Sprite

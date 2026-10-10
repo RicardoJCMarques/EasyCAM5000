@@ -14,7 +14,6 @@
     const ROOT = globalThis;
 
     const C = ROOT.CAMConfig.constants;
-    const D = ROOT.CAMConfig.defaults;
     const PRECISION = C.precision.coordinate;
     const formatConfig = C.formats.gerber;
 
@@ -25,30 +24,6 @@
                 format: formatConfig.defaultFormat,
                 ...options
             });
-
-            // Gerber-specific state
-            this.state = {
-                position: { x: 0, y: 0 },
-                aperture: null,
-                apertures: new Map(),
-                macros: new Map(),
-                interpolation: 'linear',
-                polarity: 'dark',
-                inRegion: false,
-                regionPoints: [],
-                currentNetName: null,
-                units: this.options.units,
-                format: { ...this.options.format }
-            };
-
-            // Results
-            this.layers = {
-                polarity: 'positive',
-                units: this.options.units,
-                bounds: null,
-                apertures: [],
-                objects: []
-            };
         }
 
         parse(content) {
@@ -89,6 +64,7 @@
         }
 
         reset() {
+            super.reset();
             this.state = {
                 position: { x: 0, y: 0 },
                 aperture: null,
@@ -102,22 +78,12 @@
                 units: this.options.units,
                 format: { ...this.options.format }
             };
-
             this.layers = {
                 polarity: 'positive',
                 units: this.options.units,
                 bounds: null,
                 apertures: [],
                 objects: []
-            };
-
-            this.errors = [];
-            this.warnings = [];
-            this.stats = {
-                linesProcessed: 0,
-                objectsCreated: 0,
-                coordinatesParsed: 0,
-                commandsProcessed: 0
             };
         }
 
@@ -718,10 +684,7 @@
         /**
          * Converts macro shapes to flash polygon points
          */
-        macroShapesToPolygon(shapes, position) {
-            // For RoundRect-style macros, tessellate circles and combine
-            const allPoints = [];
-
+        macroShapesToPolygon(shapes) {
             // If it's a simple case (circles at corners + lines), build rounded rect directly
             const circles = shapes.filter(s => s.type === 'circle');
             const lines = shapes.filter(s => s.type === 'line');
@@ -1368,7 +1331,7 @@
                         return;
                     }
 
-                    const polyData = this.macroShapesToPolygon(macroShapes, position);
+                    const polyData = this.macroShapesToPolygon(macroShapes);
 
                     if (polyData) {
                         if (Array.isArray(polyData)) {

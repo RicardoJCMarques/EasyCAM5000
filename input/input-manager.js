@@ -65,10 +65,6 @@
             this.ctrl = null;
         }
 
-        setReadout(readout) {
-            this.readout = readout;
-        }
-
         normalize(e) {
             const rect = this.target.getBoundingClientRect();
             const dpr = window.devicePixelRatio || 1;

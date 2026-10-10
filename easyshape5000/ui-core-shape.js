@@ -26,6 +26,10 @@
             this.vizFilters = { generated: true, preview: true };
         }
 
+        get operationPanel() {
+            return this.shapeOperationPanel;
+        }
+
         // ═══════════════════════════════════════════════════════════════
         // Initialization
         // ═══════════════════════════════════════════════════════════════
@@ -54,22 +58,6 @@
         // BaseAppUI Overrides
         // ═══════════════════════════════════════════════════════════════
 
-        getDefaultRendererOptions(theme) {
-            return {
-                showGrid: true,
-                showOrigin: true,
-                showRulers: true,
-                showBounds: false,
-                showOffsets: true,
-                showPreviews: true,
-                fuseGeometry: false,
-                blackAndWhite: false,
-                theme,
-                primitiveFilter: (prim, layerType) => this.shouldRenderPrimitive(prim, layerType),
-                resolveLayerColor: (layer) => this.resolveLayerColor(layer)
-            };
-        }
-
         buildToolContext(canvas) {
             const ctrl = this.ctrl;
             return {
@@ -81,10 +69,6 @@
                 requestRender: () => this.renderer?.render(),
                 onCommit: () => this.renderAll(),
                 getTopLevelIds: (ids) => ctrl.getTopLevelActionableIds(ids),
-                isNodeLocked: (idOrNode) => {
-                    const n = typeof idOrNode === 'string' ? ctrl.scene.findNode(idOrNode) : idOrNode;
-                    return n ? !ctrl.canMutateNode(n) : false;
-                },
                 isNodeVisible: (idOrNode) => {
                     const n = typeof idOrNode === 'string' ? ctrl.scene.findNode(idOrNode) : idOrNode;
                     return n ? n.isVisible : false;
@@ -99,7 +83,7 @@
                     if (topLevel.length === 0) return;
                     ctrl.history.record(new TranslateCommand(topLevel, dx, dy));
                 },
-                syncInspector: () => this.syncTransformFromSelection?.(),
+                syncInspector: () => this.syncTransformFromSelection(),
                 createPanZoomTool: () => new PanZoomTool({ allowedButtons: [1, 2], cursor: 'grabbing' })
             };
         }
@@ -162,8 +146,6 @@
             }
         }
 
-        shouldRenderPrimitive(primitive, layerType) { return true; }
-
         renderOverlay(ctx, core) {
             this.renderSelectionHighlights(ctx, core);
             if (!this.toolController) return;
@@ -179,7 +161,7 @@
             })());
 
             if (showAggregateBbox) {
-                const b = this.ctrl.scene.getSelectionWorldBounds?.();
+                const b = this.ctrl.scene.getSelectionWorldBounds();
                 if (b) {
                     ctx.save();
                     ctx.strokeStyle = this.readCSSVar('--color-interaction-group-bounds', '#22d3ee');
@@ -211,8 +193,7 @@
 
         initTreePanel() {
             this.navScenePanel = new NavScenePanel(this);
-            this.navScenePanel.init('scene-tree-list');
-            this.navScenePanel.bindScene(this.ctrl.scene);
+            this.navScenePanel.init('scene-tree-list', this.ctrl.scene);
 
             this.navScenePanel.on('select', ({ id, shiftKey, ctrlKey }) => {
                 const sel = this.ctrl.selection;
@@ -245,12 +226,9 @@
 
         initOperationsPanel() {
             this.opsPanel = new NavOperationsPanel();
-            this.opsPanel.init('operations-bucket-list');
-            this.opsPanel.setSceneResolver(() => this.ctrl.scene);
-            this.opsPanel.setArtifactResolver((opType) => {
-                const cls = this.core.machineClassForType(opType);
-                return this.ctrl.parameterStore.getArtifacts(opType, cls);
-            });
+            this.opsPanel.init('operations-bucket-list', this.ctrl.scene, opType =>
+                this.ctrl.parameterStore.getArtifacts(opType, this.core.machineClassForType(opType))
+            );
 
             this.opsPanel.on('select', ({ bucketId, stage }) => {
                 const bucket = this.opsPanel.getBucket(bucketId);
@@ -315,8 +293,8 @@
         /**
          * Builds the op-type strip from the registry. Declaration order in
          * profile-shape.json is the button order; `tab: false` types
-         * (pattern, unassigned) are excluded. Batch B adds a dimensionality
-         * filter to the same list and nothing else changes.
+         * (pattern, unassigned) are excluded, and so is any type the
+         * workspace's dimensions cannot present (allowsOperationType).
          */
         initOpTypeTabs() {
             const strip = document.getElementById('op-type-selector');
@@ -400,18 +378,16 @@
                 appProfile: this.ctrl.appProfile,
                 lang: this.lang
             });
-
-            // Export manager
-            this.shapeOperationPanel.on('openExportManager', () => this.openExportModal());
-
-            // Bucket creation
+            // Bucket creation. The bucket exists before runGeneration starts, so
+            // without the guard a double click creates two.
             this.shapeOperationPanel.on('createAndGenerate', async ({ shapeId, opType }) => {
+                if (this.generating) {
+                    this.debug('Busy: ignored a generation request while the previous one runs.');
+                    return;
+                }
                 const node = this.ctrl.scene.findNode(shapeId);
-                const label = (node?.label && node.label !== '__root__' && node.label !== 'Shape')
-                    ? node.label : opType;
-
-                const rawIds = this.ctrl.selection.size() > 1
-                    ? this.ctrl.selection.toArray() : [shapeId];
+                const label = node?.label && node.label !== '__root__' && node.label !== 'Shape' ? node.label : opType;
+                const rawIds = this.ctrl.selection.size() > 1 ? this.ctrl.selection.toArray() : [shapeId];
                 const refs = [];
                 for (const id of rawIds) {
                     const n = this.ctrl.scene.findNode(id);
@@ -419,7 +395,17 @@
                     if (n.kind === 'shape') { if (!refs.includes(id)) refs.push(id); }
                     else { for (const sid of this.ctrl.scene.collectShapeIds(n)) { if (!refs.includes(sid)) refs.push(sid); } }
                 }
-                if (refs.length !== 0) await this.runBucketStage("Generation", async () => {
+                if (refs.length === 0) return;
+
+                // One mesh per operation: syncPrimitives keeps a single sourceMesh.
+                const meshCount = refs.filter(id => this.ctrl.scene.findShape(id)?.mesh?.triangles?.length).length;
+                if (meshCount > 1) {
+                    this.setStatus(`${meshCount} meshes selected - each model needs its own operation.`, 'warning');
+                    return;
+                }
+
+                this.generating = true;
+                try {
                     const bucketId = this.opsPanel.createBucket(this.ctrl.core, this.ctrl.scene, opType, label, refs);
                     const bucket = this.opsPanel.getBucket(bucketId);
                     const captured = this.shapeOperationPanel.captureFormStateForId(bucketId, opType);
@@ -428,33 +414,16 @@
                     this.opsPanel.updateBucketAfterGeneration(bucketId, this.ctrl.core);
                     this.setStatus(result.message, result.status);
                     if (result.success) {
-                        this.opsPanel.selectStage(bucketId, "offsets");
+                        this.opsPanel.selectStage(bucketId, 'offsets');
                         await this.rebuildLayers();
                     }
-                });
-            })
-        }
-
-        /**
-         * Re-entrancy-guarded bucket stage runner. Spinner/task ownership
-         * lives in BaseOperationPanel.runGeneration (StatusManager task);
-         * this owns only the guard and the shared success/error plumbing.
-         * REVIEW - This seems sort of useless now? Can't it be integrated somewhere else?
-         */
-        async runBucketStage(label, fn) {
-            if (this.generating) {
-                this.debug(`[EasyShapeUI] - Busy: ignored '${label}' while a previous operation is still being processed.`);
-                return;
-            }
-            this.generating = true;
-            try {
-                await fn();
-            } catch (e) {
-                console.error(`[EasyShapeUI] ${label} failed:`, e);
-                this.setStatus(`${label} failed: ` + e.message, 'error');
-            } finally {
-                this.generating = false;
-            }
+                } catch (e) {
+                    console.error('[EasyShapeUI] Generation failed:', e);
+                    this.setStatus('Generation failed: ' + e.message, 'error');
+                } finally {
+                    this.generating = false;
+                }
+            });
         }
 
         /**
@@ -638,13 +607,13 @@
         }
 
         addStockLayer() {
-            const stock = this.ctrl.core.stock;
-            if (!stock) return;
-            const { width: w, height: h } = stock;
-            if (!w || !h || w <= 0 || h <= 0) return;
-
+            const { width: w, length: h } = this.ctrl.core.stock;
+            if (!(w > 0 && h > 0)) return;
+            // Fit to Object places the stock around the geometry, not at the
+            // world origin.
+            const { minX: x, minY: y } = this.ctrl.stockPlacement;
             const prim = new PathPrimitive([{
-                points: [{ x: 0, y: 0 }, { x: w, y: 0 }, { x: w, y: h }, { x: 0, y: h }, { x: 0, y: 0 }],
+                points: [{ x, y }, { x: x + w, y }, { x: x + w, y: y + h }, { x, y: y + h }, { x, y }],
                 isHole: false, nestingLevel: 0, parentId: null, arcSegments: [], curveIds: []
             }], {
                 stroke: true, fill: false, strokeWidth: 0.5, polarity: 'dark', isStock: true
@@ -686,7 +655,7 @@
             for (const id of shapeIds) {
                 const shape = this.ctrl.scene.findShape(id);
                 if (!shape?.primitive) continue;
-                const m = shape.getWorldMatrix?.();
+                const m = shape.getWorldMatrix();
                 ctx.save();
                 if (m) ctx.transform(m.a, m.b, m.c, m.d, m.e, m.f);
                 const props = shape.primitive.properties || {};
@@ -726,12 +695,9 @@
                 const shapeIds = this.ctrl.scene.collectShapeIds(node);
                 for (const sid of shapeIds) {
                     const s = this.ctrl.scene.findShape(sid);
-                    if (!s) continue;
-                    if (s.reliefMesh?.triangles?.length || "relief_mesh" === s.primitive?.properties?.role || s.sourceFile?.toLowerCase().endsWith(".stl")) {
-                        hasMesh = true;
-                    } else {
-                        hasVector = true;
-                    }
+                    if (!s) continue; // REVIEW - Is this defensive check necessary? Why?
+                    if (s.mesh?.triangles?.length) hasMesh = true;
+                    else hasVector = true;
                 }
             }
         }
@@ -810,17 +776,6 @@
         this.syncTransformFromSelection();
         this.renderer.render();
     }
-
-        // ═══════════════════════════════════════════════════════════════
-        // Right Panel State
-        // ═══════════════════════════════════════════════════════════════
-
-        openExportModal() {
-            const readyOps = this.ctrl.core.operations.filter(op => this.ctrl.core.store.isExportReady(op));
-            if (readyOps.length === 0) { this.setStatus('No operations ready for export. Finish each operation through its Toolpaths stage first.', 'warning'); return; }
-            this.ctrl.ensureBucketParamsLoaded(readyOps);
-            this.ctrl.modalManager.showModal('exportManager', { operations: readyOps });
-        }
 
         // ═══════════════════════════════════════════════════════════════
         // Transform Fields
@@ -960,7 +915,7 @@
         commitScale() {
             const ctx = this.resolveTransformTarget();
             if (!ctx) return;
-            const { anchorId, node, t } = ctx;
+            const { anchorId, t } = ctx;
 
             const magRaw = parseFloat(document.getElementById('shape-scale')?.value);
             const mag = (Number.isFinite(magRaw) && magRaw > 0) ? magRaw : 1;

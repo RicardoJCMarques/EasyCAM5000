@@ -40,9 +40,7 @@
     'use strict';
 
     const ROOT = (typeof self !== 'undefined') ? self : window;
-    // Worker-safe: CAMConfig may not be loaded inside a worker. Captured at
-    // load like the other modules; falls back to disabled.
-    const debugState = ROOT.CAMConfig?.defaults?.debug || { enabled: false };
+    const debugState = ROOT.CAMConfig.defaults.debug;
 
     // ════════════════════════════════════════════════════════════════
     // ScalarField - uniform grid of float values + optional coverage mask
@@ -69,8 +67,6 @@
             this.data = new Float32Array(cols * rows);
             this.mask = options.withMask ? new Uint8Array(cols * rows) : null;
         }
-
-        index(ix, iy) { return iy * this.cols + ix; }
 
         clampCol(ix) {
             if (ix < 0) return 0;
@@ -194,9 +190,8 @@
     //   tipVal(p) = max over neighbors q within kernelRadius of
     //               [ value(q) - h(d(p,q)) ]
     //
-    // planar():      d = Euclidean grid distance. Direct generalization
-    //                of the kernel previously in ReliefGenerator (hFn
-    //                from ToolProfile instead of hardcoded ball/flat).
+    // planar():      d = Euclidean grid distance; h comes from
+    //                ToolProfile, so any tool shape works.
     // cylindrical(): the part rotates under a radial tool. For a
     //                neighbor at radius Rn and angular offset Δθ:
     //                  height along tool axis:  Rn·cosΔθ
@@ -375,8 +370,8 @@
             const r2 = new Float32Array(n);
             for (let i = 0; i < n; i++) r2[i] = radii[i] * radii[i];
 
-            // h(d²) lookup with linear interpolation - replaces the per-tap
-            // Math.sqrt + profile.h() closure call. Quantization error is
+            // h(d²) lookup with linear interpolation: no per-tap
+            // Math.sqrt or profile.h() closure call. Quantization error is
             // µm-level for all current profiles; raise H_N if a future
             // profile is spikier near the rim.
             const rt2 = rt * rt;
@@ -618,33 +613,13 @@
         return out;
     }
 
-    // ════════════════════════════════════════════════════════════════
-    // fillFromFootprint - resolves the THREE states a sliced cell can be
-    // in, which is the distinction the whole "uncovered is two different
-    // facts" rule rests on:
-    //
-    //   covered              → keep the sliced surface value.
-    //   uncovered + hull,    → the model IS on this ray, the slicer just
-    //     within reachCells    could not form it (radiality-gated end
-    //                          caps, tilted bases, occlusion). Hold the
-    //                          nearest formable value ALONG THE SCAN
-    //                          AXIS. Leave stock; sand later.
-    //   anything else        → true waste → min(seed, wasteValue), flagged
-    //                          so a later floor compose can exempt it.
-    //
-    // Scans across LINES (the cross direction) at each STATION along the
-    // axial direction, via the caller's idxOf - so the caller's own axis
-    // convention holds for cylindrical θ and for a planar field whose
-    // axial axis is either 'x' or 'y'. Two laps each way is exact L1 on
-    // a cycle. Mutates `values` in place.
-    //
-    // A line with no formable cell at all (a fully-gated flat end cap)
-    // carries the PREVIOUS station's already-filled value where the
-    // footprint says the model is there. Directional by construction -
-    // the low-index end has no predecessor and keeps blank stock, which
-    // the end policy trims anyway.
-    // ════════════════════════════════════════════════════════════════
-    // REVIEW - Is this comment outdated? Should be trimmed a bit too
+    /**
+     * fillFromFootprint - resolves cell states:
+     * - covered: retains sliced surface value
+     * - uncovered + hull (within reachCells): model present but unformable; holds nearest formable value
+     * - waste: unformable/uncovered area set to wasteValue
+     * Scans cross lines per axial station via idxOf. Mutates values in place.
+     */
     function fillFromFootprint(values, mask, hull, o) {
         const lines = o.lines, length = o.length, idxOf = o.idxOf;
         const wasteValue = o.wasteValue;
@@ -661,7 +636,7 @@
         // shields the severance band, where the model genuinely is not
         // there and cutting through IS the job. One cutting radius keeps
         // the wall fix and returns everything past it to waste.
-        // Infinity = legacy unbounded behaviour.
+        // Infinity (the policy sets no fillReachCells) = unbounded.
         const reach = Number.isFinite(o.reachCells) ? Math.max(0, o.reachCells) : Infinity;
 
         const INF = 1 << 29;
@@ -740,7 +715,7 @@
     //
     // idxOf(line, pos) → flat index, so callers keep their own axis
     // convention (rotary scans columns within a θ row; the axial block's
-    // axis depends on axialGridAxis).
+    // axis is the machine axis).
     // ════════════════════════════════════════════════════════════════
     function rowEdges(mask, lines, length, runLen, idxOf) {
         const first = new Int32Array(lines).fill(-1);
@@ -860,8 +835,8 @@
 
         // 'stop' carries its own SIGNED reach from the resolver: 0 ends
         // the window on the model's own edge, negative trims inward. Do
-        // not floor it at the cutting radius - that is what made a 'stop'
-        // end machine one tool radius out over the fixture. 'lip' and
+        // not floor it at the cutting radius - that makes a 'stop' end
+        // machine one tool radius out over the fixture. 'rollover' and
         // 'free' ARE floored there: their falloff lives outside the
         // silhouette and the tool must reach across it.
         const reachOf = (end) => (end.mode === 'stop')
@@ -876,13 +851,13 @@
     }
 
     /**
-     * Writes the explicit 'lip' end bands into `target` and returns
+     * Writes the explicit 'rollover' end bands into `target` and returns
      * inZone. 'stub' and 'free' write nothing - a stop's signed reach
      * already moved the window in the resolver, and a free end's falloff
      * is the waste fill (radial) / per-station floor (axial) plus the
-     * tool profile: composing a band for it re-created the old taper
-     * cone, whose toRadius/fromRadius round-trip clamped at the axis on
-     * any planar face whose surface passes it.
+     * tool profile: a band composed for it is a taper cone, whose
+     * toRadius/fromRadius round-trip clamps at the axis on any planar face
+     * whose surface passes it.
      *
      * @param {Object} o
      * @param {Float32Array} o.target   - written IN PLACE
@@ -909,7 +884,7 @@
         // edge; a large value wins the max-plus compensation, shoulders
         // the real surface beside it and drags the deepest value with it.
         const write = (end, edges, outward) => {
-            if (end.material !== 'lip') return;
+            if (end.material !== 'rollover') return;
             const amount = Math.max(0, end.mm || 0);
             const band = Math.max(1, unitsOf(reachOf(end)));
 

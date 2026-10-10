@@ -625,7 +625,7 @@
             let best = blocks.slice();
             let bestCost = routeCost(best);
             let improved = true, guard = 0;
-            const GUARD_MAX = 8; // REVIEW - Magic number, should it go on config.js?
+            const GUARD_MAX = 8; // Loop safety cap; deadline bounds actual execution time - Arbitrary number, can be tweaked
             const deadline = performance.now() + (D.gcode.optimization.orOptBudgetMs);
             let trials = 0, budgetHit = false;
 
@@ -972,7 +972,7 @@
          */
         entryDepthPenalty(p, is3D) {
             if (!is3D || !p || !Number.isFinite(p.z)) return 0;
-            const k = D.toolpath.generation.threeD?.entryDepthCost ?? 0;
+            const k = D.toolpath.generation.threeD.entryDepthCost;
             return k > 0 ? Math.max(0, -p.z) * k : 0;
         }
 

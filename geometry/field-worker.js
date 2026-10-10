@@ -27,13 +27,8 @@
 let modulesLoaded = false;
 
 /**
- * Deferred module load. A classic worker runs top-level importScripts
- * before any message can arrive, which is why every module's
- *   const debugState = ROOT.CAMConfig?.defaults?.debug || { enabled:false }
- * used to capture a dead literal. Loading on the FIRST JOB instead lets
- * the job's config snapshot become self.CAMConfig first, so those same
- * snapshots bind to a live object - and ReliefGenerator's
- * constants.rotary read stops being a load-order gamble.
+ * Loads the modules on the first job, after that job's config snapshot is
+ * installed as self.CAMConfig, so module-level CAMConfig reads bind to it.
  */
 function ensureModules(constants, debug) {
     if (!modulesLoaded) {
@@ -61,9 +56,10 @@ function ensureModules(constants, debug) {
         return;
     }
     // MUTATE, never replace: the modules alias these exact objects.
-    // Reassigning defaults.debug would strand every snapshot on the old
-    // object and the toggle would die again. Constants arrive only on a
-    // worker's FIRST job; debug rides every job.
+    // Reassigning defaults.debug would strand every snapshot on the
+    // old object and the debug toggle would stop reaching the worker.
+    // Constants arrive only on a worker's FIRST job; debug rides every
+    // job.
     if (debug) Object.assign(self.CAMConfig.defaults.debug, debug);
     if (constants) Object.assign(self.CAMConfig.constants, constants);
 }

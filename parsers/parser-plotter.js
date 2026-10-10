@@ -847,7 +847,7 @@
             }
 
             // Chain connecting arcs within each bucket
-            for (const [key, bucketArcs] of buckets) {
+            for (const bucketArcs of buckets.values()) {
                 const visited = new Set();
 
                 for (let i = 0; i < bucketArcs.length; i++) {

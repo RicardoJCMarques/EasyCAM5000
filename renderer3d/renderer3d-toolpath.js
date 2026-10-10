@@ -25,7 +25,7 @@
 
 import * as THREE from 'three/webgpu';
 
-const ARC_SAGITTA = window.CAMConfig?.defaults?.rendering?.preview3D?.arcSagitta ?? 0.02;
+const ARC_SAGITTA = window.CAMConfig.defaults.rendering.preview3D.arcSagitta;
 const MIN_ARC_SEGS_PER_TURN = 48;
 const MAX_ARC_SEGS = 2048;
 
@@ -120,17 +120,12 @@ export function walkPlans(plans, emit) {
         // with R_axis(+θk) and the A word is +θk, so R_axis(-A)=R_axis(-θk)
         // rotates it back onto the physical part: screen == G-code. Using
         // +A here inverts every face at 3+ counts (correct only at 0/180).
-        // THREE COUPLED SITES - flip together or not at all:
-        //   1. ShapeIndexedHandler.buildFaceSliceOptions  rotAboutAxis(+θk)
-        //   2. this wrapPt                                          R(-A)
-        //   3. GeometryLayer3D's [INDEXED] block (renderer3d-geometry.js) R(-A)
-        // (3) is the offset-geometry mirror and reads primitive PROPERTIES
-        // (ip.indexA) while this reads plan METADATA (cmd.a) - a grep for
-        // one will not find the other, and both draw in the same frame.
-        // REVIEW - Outdated comments?
-        // NO early-out on curA === 0. Face 0 is not a no-op any more: the
-        // display frame is the centreline, so even an unrotated face has to
-        // be lifted by the apothem.
+        // FOUR COUPLED SIGN SITES - flip together or not at all:
+        // 1. ShapeIndexedHandler.buildFaceSliceOptions rotAboutAxis(+θk)
+        // 2. this wrapPt R(-A)
+        // 3. GeometryLayer3D's [INDEXED] block (renderer3d-geometry.js) R(-A)
+        // 4. Simulator3D.setTime (renderer3d-simulator.js) marker rotation R(-A)
+        // NO early-out on curA === 0: face 0 still lifts z by the apothem.
         const th = -curA * Math.PI / 180, c = Math.cos(th), s = Math.sin(th);
         const dz = z + apothem;
         if (wrapAxis === 'y') { out.x = x * c + dz * s; out.y = y; out.z = -x * s + dz * c; }
@@ -138,19 +133,39 @@ export function walkPlans(plans, emit) {
         return out;
     };
 
+    // Non-finite points are dropped, not drawn: one NaN vertex poisons the
+    // geometry's bounding volumes (camera fit, picking) and the depth
+    // colour range. Counted so a drop is reported, never silent.
+    let dropped = 0;
+
     const seg = (x, y, z, kind, feed) => {
-        if (x === pos.x && y === pos.y && z === pos.z) return;   // RAW no-op
+        if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) {
+            dropped++;
+            return;
+        }
+        if (x === pos.x && y === pos.y && z === pos.z) return; // RAW no-op
         const a = wrapPt(pos.x, pos.y, pos.z, _wpA);
         const b = wrapPt(x, y, z, _wpB);
-        emit(a.x, a.y, a.z, b.x, b.y, b.z, kind, feed,
-             wrapAxis ? curA : null, wrapAxis);
-        if (kind === 'cut') {                          // colour maps on DISPLAY Z
+        // Finite input still wraps to non-finite through bad frame metadata
+        // (apothem, refRadius); the raw position stays valid for the next move.
+        if (!Number.isFinite(a.x + a.y + a.z + b.x + b.y + b.z)) {
+            dropped++;
+            pos.x = x;
+            pos.y = y;
+            pos.z = z;
+            return;
+        }
+        emit(a.x, a.y, a.z, b.x, b.y, b.z, kind, feed, wrapAxis ? curA : null, wrapAxis);
+        if (kind === 'cut') {
+            // colour maps on DISPLAY Z
             if (b.z < minZ) minZ = b.z;
             if (a.z < minZ) minZ = a.z;
             if (b.z > maxZ) maxZ = b.z;
             if (a.z > maxZ) maxZ = a.z;
         }
-        pos.x = x; pos.y = y; pos.z = z;               // store RAW
+        pos.x = x;
+        pos.y = y;
+        pos.z = z; // store RAW
     };
 
     for (const plan of (plans || [])) {
@@ -236,6 +251,7 @@ export function walkPlans(plans, emit) {
             }
         }
     }
+    if (dropped > 0) console.warn(`[Renderer3D] Dropped ${dropped} non-finite toolpath point(s) from the 3D preview.`);
     if (!Number.isFinite(minZ)) { minZ = 0; maxZ = 0; }
     return { minZ, maxZ };
 }
@@ -268,7 +284,7 @@ export class ToolpathLayer3D {
             g.setAttribute("position", new THREE.Float32BufferAttribute(rapidPos, 3));
             const m = new THREE.LineBasicMaterial({
                 color: this.core.options.rapidColor,
-                transparent: !0,
+                transparent: true,
                 opacity: 0.4,
                 depthWrite: false,
                 depthTest: true
@@ -296,7 +312,7 @@ export class ToolpathLayer3D {
             }
             g.setAttribute("color", new THREE.BufferAttribute(colors, 3));
             const m = new THREE.LineBasicMaterial({
-                vertexColors: !0,
+                vertexColors: true,
                 depthWrite: true,
                 depthTest: true
             });

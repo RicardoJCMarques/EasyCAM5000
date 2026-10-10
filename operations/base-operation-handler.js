@@ -22,10 +22,7 @@
         }
 
         /**
-         * Standard operation generation entry point called by BaseOperationPanel.
-         * Default implementation binds progress tracking, tracks stale generation tokens,
-         * and delegates to generateGeometry(). Subclasses can override for custom pipelines.
-         *
+         * Runs one generation and reports it. Every handler implements this.
          * @param {Object} operation - The operation object
          * @param {Object} params - Merged parameters from parameterStore
          * @param {Object} core - App core reference
@@ -33,34 +30,13 @@
          * @returns {Promise<{success: boolean, message: string, status: string}>}
          */
         async orchestrateGeneration(operation, params, core, options = {}) {
-            const token = this.beginRun(operation, options, core);
-            const onProgress = operation._onProgress;
-
-            onProgress?.({ frac: 0.1, label: `Generating ${operation.type}...` });
-
-            // Delegate to existing generateGeometry logic
-            if (typeof this.generateGeometry === 'function') {
-                await this.generateGeometry(operation, params);
-
-                if (this.isStale(operation, token)) {
-                    return { success: false, message: 'Generation cancelled', status: 'warning' };
-                }
-
-                onProgress?.({ frac: 1.0, label: 'Complete' });
-                return {
-                    success: true,
-                    message: `${operation.type.toUpperCase()} geometry generated`,
-                    status: 'success'
-                };
-            }
-
-            throw new Error(`[${this.constructor.name}] orchestrateGeneration() or generateGeometry() must be implemented.`);
+            throw new Error(`[${this.constructor.name}] orchestrateGeneration() not implemented`);
         }
 
         /**
          * Pre-validation classification of raw plotter output.
          * Override to filter/transform primitives before validation and compositing.
-         * Called after ParserPlotter, before analyzeGeometricContext.
+         * Called after ParserPlotter.
          * @param {Object} operation - The operation object (may set flags like needsClosurePrompt)
          * @param {Array} rawPrimitives - Raw plotter output
          * @returns {{ primitives: Array, warnings: Array }}
@@ -166,6 +142,7 @@
             // are emitted as their ORIGINAL primitive so analytic arcs survive;
             // only true compounds (outer + hole contours) must be polygonized
             // into a PathPrimitive.
+            // TODO(contour-order) - see GeometryTopology.assembleCutoutCompounds.
             const outers = topology.filter(t => !t.isHole);
             const holes  = topology.filter(t => t.isHole);
             const merged = [];
@@ -263,13 +240,24 @@
             return `offset_${operationId}_${pass}`;
         }
 
-        /** Standard post-generation stamp. */
-        stampExportMetadata(operation, strategy) {
-            operation.exportMetadata = {
-                generatedAt: Date.now(),
-                sourceOffsets: operation.offsets?.length || 0,
-                strategy
-            };
+        /**
+         * Stock one preview primitive removes, as polygons to union. Feeds the
+         * 3D copper view; a handler whose previews cut nothing returns none.
+         */
+        previewCutArea(prim) {
+            return [];
+        }
+
+        /**
+         * Resolves on the next macrotask, so a progress tick can paint between
+         * synchronous chunks of work (the overlay renders on rAF).
+         */
+        yieldToEventLoop() {
+            return new Promise((resolve) => {
+                const channel = new MessageChannel();
+                channel.port1.onmessage = () => resolve();
+                channel.port2.postMessage(null);
+            });
         }
 
         /**
@@ -296,42 +284,21 @@
         }
 
         /**
-         * Binds the panel's progress callback onto the operation. Progress is
-         * STRUCTURED ({frac, label}) end to end - never format here, the state
-         * manager owns the one formatter.
-         */
-        resolveProgress(operation, options) {
-            operation._onProgress = options?.onProgress || null;
-            return operation._onProgress;
-        }
-
-        /**
-         * Canonical opening of a generation run: bind progress, stamp the
-         * stale token, wipe previous state. The ordering matters (token BEFORE
-         * reset, progress before anything that can tick), and it had already
-         * drifted into three different sequences across the handler families -
-         * so it lives in exactly one place now.
-         *
+         * Opens a generation run: binds the panel's progress callback, stamps
+         * the stale-run token, then wipes previous state. Order matters: the
+         * token is stamped BEFORE the reset, and progress is bound before
+         * anything can tick. Progress is structured ({frac, label}) end to
+         * end; the status manager owns the one formatter.
          * @param {Object} operation
-         * @param {Object|Function} options - the orchestrateGeneration slot
+         * @param {Object} options - the orchestrateGeneration slot
          * @param {Object} [core] - omit to skip the state reset
-         * @returns {number} the stale-run token
+         * @returns {number} the stale-run token; compare with isStale() after any await
          */
         beginRun(operation, options, core) {
-            this.resolveProgress(operation, options);
-            const token = this.beginGeneration(operation);
+            operation._onProgress = options?.onProgress || null;
+            const token = operation._genToken = (operation._genToken || 0) + 1;
             if (core) core.store.resetOperationState(operation.id);
             return token;
-        }
-
-        /**
-         * Stale-run token, shared by every handler family. Stamp BEFORE
-         * resetOperationState; compare after any await that a newer run
-         * could span. Replaces FieldOperationHandler's inline _genToken
-         * bump and ShapeVCarveHandler's parallel _vcarveToken.
-         */
-        beginGeneration(operation) {
-            return (operation._genToken = (operation._genToken || 0) + 1);
         }
 
         isStale(operation, token) {

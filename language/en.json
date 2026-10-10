@@ -9,7 +9,7 @@
   },
   "_schema": {
     "params": "Keyed by the parameter name used in ui/profile-*.json. { label, help } - both live here, never in the profile or the HTML.",
-    "enums": "Dropdown option values, keyed by the value the code stores.",
+    "enums": "Labels for option lists built in code (tool-length-comp modes, rotary routes) and operation-type captions, keyed by the stored value.",
     "ui": "Static chrome, keyed by a flat dotted path. A string, or { label, help } where the control carries a tooltip.",
     "messages": "Runtime strings with {token} placeholders.",
     "gcode": "Emitted into G-code comments. ASCII only - some controls reject anything else."
@@ -96,7 +96,7 @@
       "label": "Direction",
       "help": "Climb milling: tool rotation matches feed direction (better finish). Conventional: opposite direction (more stable)."
     },
-    "drillMultiTool":{
+    "drillMultiTool": {
       "help":" When enabled, allows assigning different tools, tool numbers, and strategies to each hole diameter in the drill table.",
       "label":"Multi-Tool Drilling"
     },
@@ -250,7 +250,7 @@
       "label": "Lines per cm"
     },
     "laserLinesPerInch": {
-      "help": "Number of laser passes per inches. Higher values produce denser coverageance.",
+      "help": "Number of laser passes per inch. Higher values produce denser coverage.",
       "label": "Lines per Inch"
     },
     "laserProfile": {
@@ -273,9 +273,13 @@
       "help": "Choose how to define the distance between consecutive laser passes. Step Over uses a percentage of spot size. Lines/cm and LPI set the density directly.",
       "label": "Pass Spacing Mode"
     },
+    "laserSpotSize": {
+      "label": "Laser Spot Size",
+      "help": "Read-only reminder of the spot size set in Machine Settings, where it is changed. Offset and hatch strategies space their passes from it."
+    },
     "spotSize": {
       "label": "Laser Spot Size",
-      "help": "The effective cut width of your laser beam. Manufacturer should list it in the speceification sheet. Typical values: UV laser 0.02-0.08mm, Fiber laser 0.03-0.15mm."
+      "help": "The effective cut width of your laser beam. Manufacturer should list it in the specification sheet. Typical values: UV laser 0.02-0.08mm, Fiber laser 0.03-0.15mm."
     },
     "layerColors": {
       "label": "Layer Colours",
@@ -308,7 +312,7 @@
       "help": "If checked, generates circular milling paths inside any drill holes larger than the tool. If unchecked, generates a simple peck/drill at the center."
     },
     "mirrorGeometry": {
-      "help": "Invert file geometry. Usefull with bottom-layer isolation.",
+      "help": "Invert file geometry. Useful with bottom-layer isolation.",
       "label": "Mirror Geometry"
     },
     "multiDepth": {
@@ -334,7 +338,7 @@
       "label": "Stock Thickness",
       "help": "The total thickness of your stock material is. Used for cutout depth calculations."
     },
-    "thicknessCopper":{
+    "thicknessCopper": {
       "label": "Copper Thickness",
       "help": "Copper foil thickness, typically 0.035mm for 1oz. Used for isolation depth suggestions."
     },
@@ -766,7 +770,7 @@
       "label": "Noise Threshold",
       "help": "Discards medial branches whose clearance changes by less than this. 0 disables it."
     },
-    "vcarveMaxDepth":{
+    "vcarveMaxDepth": {
       "help":"Maximum depth for V-carve cuts. Set to 0 for unconstrained natural depth (no flat floor). Set > 0 to clamp depth and generate flat floor loops for wide areas.",
       "label":"Max Carve Depth"
     },
@@ -798,28 +802,6 @@
     }
   },
   "enums": {
-    "climb": "Climb",
-    "conventional": "Conventional",
-    "router":"CNC Milling (G-code)",
-    "knife":"Vinyl / Laser (SVG)",
-    "g54": "G54",
-    "g55": "G55",
-    "g56": "G56",
-    "g73": "G73 - Peck (Stepped)",
-    "g81": "G81 - Simple Drill",
-    "g82": "G82 - Dwell",
-    "g83": "G83 - Peck",
-    "grbl": "GRBL",
-    "helix": "Helix",
-    "inside": "Inside",
-    "linuxcnc": "LinuxCNC",
-    "mach3": "Mach3",
-    "marlin": "Marlin",
-    "none": "None (G0 + G1)",
-    "on": "On Line",
-    "outside": "Outside",
-    "plunge": "Plunge",
-    "ramp": "Ramp",
     "table": "Controller tool table (G43 H<n>)",
     "table-implicit": "Controller tool table, H from T (T<n> M06 G43)",
     "probe": "Measured at change time (controller macro)",
@@ -878,22 +860,26 @@
     "modals.exporter.estTime": "Est. Time",
     "modals.exporter.exportSingle": "Export as single file",
     "modals.exporter.filename": {
-      "label": "Output Filename",
-      "help": "The name of the G-code file that will be downloaded."
+      "label": "Base Name",
+      "help": "Every exported file starts with this name, followed by the operation it holds. ZIPs inherit it too."
+    },
+    "modals.exporter.groupByTool": {
+      "label": "Group operations by tool",
+      "help": "Reorders the combined file so operations that share a tool run back to back, overriding the list order. Needs single-file export and more than one tool number in the file."
     },
     "modals.exporter.includeComments": {
       "label": "Include operation comments",
-      "help": "Add human-readable comments (e.g., '; Starting Operation: isolation.gbr') to the G-code."
+      "help": "Adds readable notes to each file: a comment per operation in G-code, a header block in SVG. Unavailable when the post-processor cannot carry comments."
     },
     "modals.exporter.lines": "Lines",
     "modals.exporter.operations": "Operations",
     "modals.exporter.optimize": {
-      "label": "Optimize toolpaths (Experimental)",
-      "help": "Applies multiple algorithms to reduce operation time. Disable to try and remove unexpected toolpaths."
+      "label": "Optimize path order (whole job)",
+      "help": "Reorders paths to shorten travel between cuts. Turn it off to keep the generated order when tracking down an unexpected move."
     },
     "modals.exporter.order": {
       "label": "Processing Order",
-      "help": "Drag and drop operations to set the final cutting order."
+      "help": "Check an operation to export it. Operations combined into one file are cut top to bottom - drag to reorder them."
     },
     "modals.exporter.orderHelp": "Drag operations to reorder. Operations will be processed in this sequence.",
     "modals.exporter.outputOptions": "Output Options",
@@ -902,15 +888,21 @@
     "modals.exporter.preview": "G-code Preview",
     "modals.exporter.selectOps": "Select Operations to Process",
     "modals.exporter.singleFile": {
-      "help": "Combine all selected operations into one G-code file. If unchecked, you will get one file per operation."
+      "label": "Export as single file",
+      "help": "Combines operations that run on the same machine into one file, cut in list order. Needs two or more operations of one kind; stencils always export on their own."
     },
     "modals.exporter.splitDrills": {
-      "help": "When enabled, peck drill operations are separated into individual files grouped by original hole diameter. Milled holes are exported together in their own file. Requires multi-file export mode."
+      "label": "Split drill files by bit",
+      "help": "Writes one file per drill bit, for machines without a tool changer. Hole sizes cut by the same bit stay in one file, so this only appears for drill jobs that use more than one bit."
     },
     "modals.exporter.title": "Toolpath Manager & Export",
     "modals.exporter.toolChanges": {
       "label": "Insert tool change commands",
-      "help": "Inserts tool change commands (Tx and M6) and tool length compensation when the tool changes between operations."
+      "help": "Emits T and M6, plus tool length compensation commands, where a file switches tools. Needs a file that holds more than one tool number - turn on single-file export or give operations their own T numbers - and a post-processor with tool changes."
+    },
+    "modals.exporter.zip": {
+      "label": "Bundle files into one .zip",
+      "help": "Delivers every file in one archive named after the base name. Off: each file downloads on its own."
     },
     "modals.welcome.dontShowAgain": "Don't show this again",
     "modals.welcome.exampleHelp": "Select an example to explore functionality.",

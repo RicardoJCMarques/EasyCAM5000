@@ -31,7 +31,7 @@
             });
 
             if (this.isStale(operation, token)) {
-                return { success: false, message: 'Generation cancelled', status: 'warning' };
+                return { success: false, message: 'Generation superseded by a newer request', status: 'warning' };
             }
 
             const total = operation.offsets?.[0]?.primitives?.length || 0;
@@ -43,8 +43,6 @@
                     status: 'warning'
                 };
             }
-
-            this.stampExportMetadata(operation, 'engrave');
 
             return {
                 success: true,

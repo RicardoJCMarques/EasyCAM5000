@@ -7,7 +7,7 @@ It controls five LEDs and includes:
 - An LM35 temperature sensor
 - An LDR (light-dependent resistor)
 
-Inputs are placed on the left, outputs on the right, making the board intuitive and easy to understand—especially for educational use.
+Inputs are placed on the left, outputs on the right, making the board intuitive and easy to understand, especially for educational use.
 
 Use it for:
 - Learning basic electronics
@@ -39,7 +39,7 @@ Multi-Sensor LED Control Board Overview
 
 ## Acknowledgements
 
-This project was developed within the context of the Fab Lab at Universidad de Lima — a digital fabrication laboratory where functional prototypes are designed and built as part of open learning and innovation.
+This project was developed within the context of the Fab Lab at Universidad de Lima - a digital fabrication laboratory where functional prototypes are designed and built as part of open learning and innovation.
 
 You can explore the Fab Lab’s activities and community here:
 - Fab Lab Universidad de Lima (Fab Academy Lab)
@@ -55,7 +55,7 @@ You can also find more about the designer here:
 - Fab Academy page:
   https://fabacademy.org/2024/labs/ulima/students/marcela-gonzales/
 
-(These links are for reference only — no attribution necessary.)
+(These links are for reference only - no attribution necessary.)
 
 ---
 

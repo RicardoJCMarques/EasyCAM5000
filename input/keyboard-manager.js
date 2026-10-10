@@ -18,19 +18,12 @@
     'use strict';
 
     class ShortcutManager {
-        constructor() {
+        /** @param {ModalManager} modalManager */
+        constructor(modalManager) {
             this.shortcuts = [];
             this.actions = {};
-            this.modalManager = null;
-
-            document.addEventListener('keydown', (e) => this.handleKeyDown(e));
-        }
-
-        /**
-         * @param {ModalManager} mm
-         */
-        setModalManager(mm) {
-            this.modalManager = mm;
+            this.modalManager = modalManager;
+            document.addEventListener('keydown', e => this.handleKeyDown(e));
         }
 
         /**
@@ -56,15 +49,6 @@
                 const args = entry.args;
                 this.register(entry.combo, args ? e => fn(e, ...args) : fn, entry);
             }
-        }
-
-        /**
-         * Invoke by name, with no keystroke. The surface a headless caller and a
-         * future command palette both need.
-         */
-        invoke(action, ...args) {
-            const fn = this.actions[action];
-            return typeof fn === 'function' ? fn(...args) : undefined;
         }
 
         /**
@@ -111,7 +95,7 @@
 
         handleKeyDown(e) {
             // Modal active → only Escape routes to modal handler
-            if (this.modalManager?.activeModal) {
+            if (this.modalManager.activeModal) {
                 if (e.key === 'Escape') {
                     e.preventDefault();
                     e.stopPropagation();

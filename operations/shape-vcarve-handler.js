@@ -304,10 +304,10 @@
                 };
             }
 
-            // Pass the run's OWN token. generateGeometry used to re-read
-            // operation._genToken, which is the LIVE one - a newer run
-            // starting mid-flight made the inner stale gate compare the new
-            // token against itself and pay for a sync retry it then threw away.
+            // Pass the run's OWN token, not operation._genToken: that is the
+            // LIVE one, so a newer run starting mid-flight would make the inner
+            // stale gate compare the new token against itself and pay for a
+            // sync retry it then throws away.
             await this.generateGeometry(operation, { ...params, ...opParams }, token);
 
             // A newer run finished (or is running) - this run's offsets were
@@ -461,15 +461,14 @@
             const prof = { clipperMs: 0, packMs: 0, t0: performance.now(), dispatchMs: 0 };
 
             // Dispatch is split in TWO PHASES because buildFloorLoops is
-            // main-thread Clipper WASM and every `await` on it used to sit
-            // BETWEEN two dispatches - job k+1 was only posted after glyph
-            // k's inset finished, so the pool ran one job deep no matter how
-            // many workers it had. The bbox triage below is the same inradius
-            // bound as before (a region whose bbox min-dimension is under
-            // 2·tClamp cannot contain a disc of radius tClamp, so its inset
-            // is provably empty); on text that is the large majority of
-            // glyphs, and they now fan out on the first tick instead of
-            // queueing behind Clipper work they never needed.
+            // main-thread Clipper WASM: an `await` on it BETWEEN two dispatches
+            // posts job k+1 only after glyph k's inset finishes, and the pool
+            // runs one job deep however many workers it has. The bbox triage
+            // below is an inradius bound (a region whose bbox min-dimension is
+            // under 2·tClamp cannot contain a disc of radius tClamp, so its
+            // inset is provably empty); on text that is most glyphs, and they
+            // fan out on the first tick instead of queueing behind Clipper
+            // work they never need.
             const jobs = new Array(merged.length);
             const wantsFloor = new Uint8Array(merged.length);
             const canFloor = tClamp !== null && !!this.core.geometryProcessor;
@@ -503,7 +502,7 @@
                     // Count ONLY worker successes live; rejected jobs are
                     // counted after their sync retry completes below, and the
                     // no-pool path (null promise) is counted after its sync
-                    // run - progress can no longer hit 100% before the work.
+                    // run, so progress cannot reach 100% before the work does.
                     if (promise) promise.then(
                         () => { partials[i] = 0; done++; report(); },
                         () => { partials[i] = 0; });

@@ -16,7 +16,7 @@ desktop.ini
 # Logs
 *.log
 
-# Dependencies (if you add any later)
+# Dependencies
 node_modules/
 
 # Temporary files
@@ -33,8 +33,12 @@ node_modules/
 /parsers/gcode-parser.md
 /tests/
 file-bundle.js
-FILE_BUNDLE.txt
-PROJECT_CONTEXT.txt
+FILE_BUNDLE_easycam5000.txt
 context-gen.js
+PROJECT_CONTEXT_easycam5000.txt
+project.config.js
 package-lock.json
 package.json
+
+# Notes
+WebGPU_device_loss.md

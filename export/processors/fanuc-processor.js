@@ -47,7 +47,7 @@
      *   - G41/G42 cutter comp: all offsetting is done in CAM.
      */
 
-    // REVIEW - Add a safety check for machines with absolute Z0 coordinates that can't have negative Z values in operations since that can mean plunging dangerously into the perfectly leveled spoil-board.
+    // TODO - Add a safety check for machines with absolute Z0 coordinates that can't have negative Z values in operations since that can mean plunging dangerously into the perfectly leveled spoil-board.
     
     const ROOT = globalThis;
 

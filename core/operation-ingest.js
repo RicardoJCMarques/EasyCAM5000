@@ -1,6 +1,6 @@
 /*!
  * @file        core/operation-ingest.js
- * @description File to primitives - parse, plot, classify, composite, analyse, bound
+ * @description File ingestion pipeline: parsing, plotting, geometry classification, and polarity compositing
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
  * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
@@ -43,10 +43,6 @@
             this.debug(`Registered parser for ${extension}: ${parser.constructor.name}`);
         }
 
-        getParser(fileName) {
-            return this.parsers.get(this.getFileExtension(fileName)) || null;
-        }
-
         getFileExtension(fileName) {
             const match = fileName.toLowerCase().match(/(\.[^.]+)$/);
             return match ? match[1] : '';
@@ -85,7 +81,7 @@
             try {
                 this.debug(`[parseOperation] Parsing ${operation.file.name}...`);
 
-                const parser = this.getParser(operation.file.name);
+                const parser = this.parsers.get(this.getFileExtension(operation.file.name));
                 if (!parser) {
                     operation.error = `No parser registered for ${operation.file.name}`;
                     return false;
@@ -96,7 +92,6 @@
                     operation.error = parseResult.errors?.join('; ') || 'Parse failed';
                     return false;
                 }
-                operation.parsed = parseResult;
 
                 const plotter = new ParserPlotter({ markStrokes: true });
                 const plotResult = plotter.plot(parseResult);
@@ -137,7 +132,6 @@
                     this.stampOperationTags(primitive, operation);
                 }
 
-                this.analyzeGeometricContext(operation, primitives);
                 const validPrimitives = this.validateAndOptimizePrimitives(primitives);
 
                 // Sequential compositing for mixed-polarity layers (Eagle LPD→LPC→LPD).
@@ -145,7 +139,7 @@
                 const isCopperLayer = operation.type === 'isolation' || operation.type === 'clearing';
                 const hasMixedPolarity = validPrimitives.some(p => (p.properties?.polarity || 'dark') === 'clear');
 
-                if (isCopperLayer && hasMixedPolarity && this.core.processorInitialized) {
+                if (isCopperLayer && hasMixedPolarity && this.core.isInitialized) {
                     this.debug(`[Compositing] Mixed polarity detected in ${operation.file.name}, running sequential compositing...`);
                     try {
                         const composited = await this.compositeByPolarity(validPrimitives);
@@ -171,7 +165,6 @@
 
                 handler.postParsePrimitives(operation);
                 this.core.store.updateStatistics();
-                operation.processed = true;
 
                 this.debug(`Parsed ${operation.file.name}: ${operation.primitives.length} primitives`);
                 return true;
@@ -187,46 +180,11 @@
             primitive.properties ||= {};
             primitive.properties.operationType = operation.type;
             primitive.properties.operationId = operation.id;
-            primitive.properties.layerType = operation.type === 'drill' ? 'drill' : operation.type;
         }
 
         // ════════════════════════════════════════════════════════════════
         // Analysis
         // ════════════════════════════════════════════════════════════════
-
-        analyzeGeometricContext(operation, primitives) {
-            let analyticCount = 0;
-            let hasArcs = false;
-            let hasCircles = false;
-            let hasStrokes = false;
-            let strokeCount = 0;
-            const preservedShapes = [];
-
-            primitives.forEach(primitive => {
-                if (primitive.canOffsetAnalytically && primitive.canOffsetAnalytically()) {
-                    analyticCount++;
-                    preservedShapes.push({
-                        type: primitive.type,
-                        metadata: primitive.getGeometricMetadata ? primitive.getGeometricMetadata() : {}
-                    });
-                }
-
-                if (primitive.type === 'circle') hasCircles = true;
-                if (primitive.type === 'arc' || primitive.arcSegments?.length > 0) hasArcs = true;
-
-                if (primitive.properties &&
-                    ((primitive.properties.stroke && !primitive.properties.fill) || primitive.properties.isTrace)) {
-                    hasStrokes = true;
-                    strokeCount++;
-                }
-            });
-
-            operation.geometricContext = {
-                hasArcs, hasCircles, analyticCount, preservedShapes, hasStrokes, strokeCount
-            };
-
-            this.core.store.recordParseStats(analyticCount, primitives.length - analyticCount, strokeCount);
-        }
 
         /**
          * Builds a structured geometry summary for any operation type.

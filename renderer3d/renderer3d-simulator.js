@@ -174,7 +174,6 @@ export class Simulator3D {
             this.trail = null;
         }
 
-        // REVIEW - these if ( safety safeguards may not be necessary.
         if (this.marker) {
             this.marker.traverse(c => {
                 c.geometry?.dispose?.();

@@ -1,9 +1,9 @@
 /*!
  * @file        easyshape5000/ui-nav-scene-panel.js
- * @description Scene graph tree panel — EasyShape5000 only.
+ * @description Scene graph tree panel - EasyShape5000 only.
  *              Renders the hierarchical group/shape tree from a Scene
  *              instance. Emits events for selection, actions, and warnings.
- *              Does NOT mutate scene state — the controller decides.
+ *              Does NOT mutate scene state - the controller decides.
  * @author      Eltryus - Ricardo Marques
  * @copyright   2025-2026 Eltryus - Ricardo Marques
  * @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
@@ -24,14 +24,14 @@
             this.lang = ui.lang;
             this.treeContainer = null;
             this.sceneRef = null;
-            this.initialized = false;
         }
 
         // ═══════════════════════════════════════════════════════════════
         // Initialization
         // ═══════════════════════════════════════════════════════════════
 
-        init(containerId) {
+        init(containerId, scene) {
+            this.sceneRef = scene;
             this.treeContainer = document.getElementById(containerId || 'scene-tree-list');
             if (this.treeContainer) {
                 // Keyboard navigation via shared utility. The scene tree has
@@ -56,7 +56,7 @@
                     },
                     onExpand: (id, focused) => {
                         if (!focused.classList.contains('group-row')) return;
-                        const node = this.sceneRef?.findNode(id);
+                        const node = this.sceneRef.findNode(id);
                         if (node?.collapsed) { node.collapsed = false; this.refreshTree(); }
                     },
                     // Close an open group before letting focus leave it. Return
@@ -64,7 +64,7 @@
                     // generic parent walk.
                     onCollapse: (id, focused) => {
                         if (!focused.classList.contains('group-row')) return false;
-                        const node = this.sceneRef?.findNode(id);
+                        const node = this.sceneRef.findNode(id);
                         if (node && !node.collapsed) {
                             node.collapsed = true;
                             this.refreshTree();
@@ -73,45 +73,34 @@
                         return false;
                     }
                 });
-
                 // Delegated click handler
                 this.treeContainer.addEventListener('click', (e) => {
                     const actionBtn = e.target.closest('[data-action]');
                     const row = e.target.closest('.path-row, .group-row');
                     if (!row) return;
-
                     const id = row.dataset.pathId || row.dataset.groupId;
                     if (!id) return;
-
                     if (actionBtn) {
                         e.stopPropagation();
                         const action = actionBtn.dataset.action;
-                        if (action === 'lock' && this.hasLockedAncestor(this.sceneRef?.findNode(id))) {
-                            this.emit('warn', 'Locked by parent — unlock the parent first');
+                        if (action === 'lock' && this.sceneRef?.findNode(id)?.hasLockedAncestor) {
+                            this.emit('warn', 'Locked by parent - unlock the parent first');
                             return;
                         }
                         this.emit('action', { id, action });
                         return;
                     }
-
                     if (e.target.closest('.group-toggle') && row.classList.contains('group-row')) {
                         e.stopPropagation();
                         const node = this.sceneRef?.findNode(id);
                         if (node) { node.collapsed = !node.collapsed; this.refreshTree(); }
                         return;
                     }
-
                     this.emit('select', { id, shiftKey: e.shiftKey, ctrlKey: e.ctrlKey || e.metaKey });
                 });
             }
 
             this.setupTreeToolbar();
-
-            this.initialized = true;
-        }
-
-        bindScene(scene) {
-            this.sceneRef = scene;
         }
 
         /**
@@ -138,7 +127,6 @@
                 const id = row.dataset.pathId || row.dataset.groupId;
                 const node = id ? this.sceneRef.findNode(id) : null;
                 if (!node) return;
-
                 const visible = node.visible !== false;
                 row.classList.toggle('is-hidden-shape', !visible);
                 const visBtn = row.querySelector('.path-visibility');
@@ -146,14 +134,13 @@
                     visBtn.title = visible ? 'Hide' : 'Show';
                     visBtn.querySelector('use')?.setAttribute('href', visible ? '#icon-eye' : '#icon-eye-off');
                 }
-
                 const localLocked = !!node.locked;
-                const descendantLock = node.kind === 'group' && this.hasLockedDescendant(node);
+                const descendantLock = node.hasLockedDescendant;
                 row.classList.toggle('is-locked-shape', !!node.isLocked || descendantLock);
                 const lockBtn = row.querySelector('.path-lock');
                 if (lockBtn) {
                     lockBtn.querySelector('use')?.setAttribute('href', localLocked ? '#icon-lock-locked' : '#icon-lock-unlocked');
-                    lockBtn.title = this.hasLockedAncestor(node) ? 'Locked by parent'
+                    lockBtn.title = node.hasLockedAncestor ? 'Locked by parent'
                         : descendantLock && !localLocked ? 'Contains locked items'
                         : localLocked ? 'Unlock' : 'Lock';
                 }
@@ -188,7 +175,7 @@
         }
 
         // ═══════════════════════════════════════════════════════════════
-        // Tree rendering — full rebuild from scene graph
+        // Tree rendering - full rebuild from scene graph
         // ═══════════════════════════════════════════════════════════════
 
         refreshTree() {
@@ -268,22 +255,18 @@
             }
             if (selectedIds.has(node.id)) row.classList.add('selected');
             if (!node.visible) row.classList.add('is-hidden-shape');
-
             const localLocked = node.locked;
-            const ancestorLocked = this.hasLockedAncestor(node);
-            const descendantLock = this.hasLockedDescendant(node);
+            const ancestorLocked = node.hasLockedAncestor;
+            const descendantLock = node.hasLockedDescendant;
             if (node.isLocked || descendantLock) row.classList.add('is-locked-shape');
-
             const lockTitle = ancestorLocked ? 'Locked by parent'
                 : descendantLock && !localLocked ? 'Contains locked items'
                 : (localLocked ? 'Unlock' : 'Lock');
             const lockDisabled = ancestorLocked ? 'disabled' : '';
             const lockExtra = ancestorLocked ? ' btn--locked-by-ancestor'
                 : (descendantLock && !localLocked ? ' btn--locked-by-descendant' : '');
-
             const lockId = localLocked ? 'icon-lock-locked' : 'icon-lock-unlocked';
             const visId = node.visible ? 'icon-eye' : 'icon-eye-off';
-
             row.innerHTML = `
                 <span class="group-toggle">
                     <svg class="cam-icon" width="14" height="14">
@@ -304,7 +287,6 @@
             `;
             row.querySelector('.group-name').textContent = node.label || 'Group';
             row.querySelectorAll('button').forEach(b => b.setAttribute('tabindex', '-1'));
-
             list.appendChild(row);
         }
 
@@ -322,15 +304,12 @@
             row.setAttribute('aria-selected', selectedIds.has(shape.id) ? 'true' : 'false');
             if (selectedIds.has(shape.id)) row.classList.add('selected');
             if (!shape.isVisible) row.classList.add('is-hidden-shape');
-
             const localLocked = shape.locked;
-            const ancestorLocked = this.hasLockedAncestor(shape);
+            const ancestorLocked = shape.hasLockedAncestor;
             if (shape.isLocked) row.classList.add('is-locked-shape');
-
             const lockTitle = ancestorLocked ? 'Locked by parent' : (localLocked ? 'Unlock' : 'Lock');
             const lockDisabled = ancestorLocked ? 'disabled' : '';
             const lockExtra = ancestorLocked ? ' btn--locked-by-ancestor' : '';
-
             let displayLabel = shape.label || 'Shape';
             const path = shape.primitive?.properties?.groupPath;
             if (Array.isArray(path) && path.length > 0) {
@@ -342,10 +321,8 @@
                     }
                 }
             }
-
             const lockId = localLocked ? "icon-lock-locked" : "icon-lock-unlocked";
             const visId = shape.visible ? "icon-eye" : "icon-eye-off";
-
             row.innerHTML = `
                 <span class="path-name"></span>
                 <button class="btn btn--icon btn--compact path-lock${lockExtra}" data-action="lock" title="${lockTitle}" aria-label="${lockTitle}: ${displayLabel}" ${lockDisabled}>
@@ -360,30 +337,7 @@
             `;
             row.querySelector(".path-name").textContent = shape.label || "Shape";
             row.querySelectorAll('button').forEach(b => b.setAttribute("tabindex", "-1"));
-
             list.appendChild(row);
-        }
-
-        // ═══════════════════════════════════════════════════════════════
-        // Lock/visibility ancestor helpers
-        // ═══════════════════════════════════════════════════════════════
-
-        hasLockedAncestor(node) {
-            if (!node) return false;
-            let n = node.parent;
-            while (n && n.kind !== 'root') {
-                if (n.locked) return true;
-                n = n.parent;
-            }
-            return false;
-        }
-
-        hasLockedDescendant(node) {
-            if (!node || !node.children) return false;
-            for (const c of node.children) {
-                if (c.locked || this.hasLockedDescendant(c)) return true;
-            }
-            return false;
         }
     }
 

@@ -13,19 +13,12 @@
     'use strict';
     const ROOT = globalThis;
 
-    const C = ROOT.CAMConfig.constants;
-    const D = ROOT.CAMConfig.defaults;
-    const debugState = D.debug;
+    const debugState = ROOT.CAMConfig.defaults.debug;
 
     class GeometryProcessor {
         constructor(options = {}) {
-            this.options = {
-                preserveOriginals: options.preserveOriginals !== undefined ? options.preserveOriginals : true,
-                ...options
-            };
-
             // Initialize sub-modules
-            this.clipper = new ClipperWrapper({ clipper2scale: this.options.clipper2scale });
+            this.clipper = new ClipperWrapper({ clipper2scale: options.clipper2scale });
             this.arcReconstructor = new ArcReconstructor();
 
             // State caching
@@ -61,99 +54,50 @@
 
         // Main fusion pipeline with arc reconstruction
         async fuseGeometry(primitives, options = {}) {
-            this.debug('Entered fuseGeometry(). Received options:', options);
-
             await this.ensureInitialized();
-
             if (!primitives || primitives.length === 0) return [];
-
-            const fusionOptions = {
-                enableArcReconstruction: options.enableArcReconstruction || false,
-                ...options
-            };
-
+            const reconstructArcs = !!options.enableArcReconstruction; // REVIEW - Is this just for the advanced viz toggles? Should have an explicit comment. Regular geometry pipelines are always arc-reconstruction these days
             this.debug(`=== FUSION PIPELINE START ===`);
             this.debug(`Input: ${primitives.length} primitives`);
-            this.debug(`Arc reconstruction: ${fusionOptions.enableArcReconstruction ? 'Enabled' : 'Disabled'}`);
-
-            // Cache originals with indices
-            primitives.forEach((p, idx) => {
-                p._originalIndex = idx;
-            });
-            const originalPrimitives = primitives;
-
+            this.debug(`Arc reconstruction: ${reconstructArcs ? 'Enabled' : 'Disabled'}`);
             // Count registered curves from global registry
-            if (fusionOptions.enableArcReconstruction && ROOT.globalCurveRegistry) {
+            if (reconstructArcs && ROOT.globalCurveRegistry) {
                 const registryStats = ROOT.globalCurveRegistry.getStats();
                 this.stats.curvesRegistered = registryStats.registrySize;
-
                 this.debug(`Global registry has ${registryStats.registrySize} curves`);
                 this.debug(`  Circles: ${registryStats.circles}`);
                 this.debug(`  Arcs: ${registryStats.arcs}`);
                 this.debug(`  End caps: ${registryStats.endCaps}`);
             }
-
-            // Preprocess primitives (convert to polygons with metadata)
-            const preprocessed = this.preprocessPrimitives(originalPrimitives);
+            const preprocessed = this.preprocessPrimitives(primitives);
             this.cachedStates.preprocessedGeometry = preprocessed;
-
-            // Verify metadata propagation
-            fusionOptions.enableArcReconstruction && debugState.enabled && this.verifyMetadataPropagation(preprocessed, "After preprocessing");
-
-            // Perform boolean fusion
-            let fused = await this.performFusion(preprocessed);
-
-            // Verify metadata survival
-            if (fusionOptions.enableArcReconstruction && debugState.enabled) {
-            this.verifyMetadataPropagation(fused, 'After fusion');
-            }
-
-            // Reconstruct arcs if enabled, otherwise use the fused geometry directly.
-            let finalGeometry; // Initialize as undefined.
-
-            this.debug('About to check if (fusionOptions.enableArcReconstruction).');
-            if (fusionOptions.enableArcReconstruction) {
+            if (reconstructArcs && debugState.enabled) this.verifyMetadataPropagation(preprocessed, 'After preprocessing');
+            const fused = await this.performFusion(preprocessed);
+            if (reconstructArcs && debugState.enabled) this.verifyMetadataPropagation(fused, 'After fusion');
+            let finalGeometry = fused;
+            if (reconstructArcs) {
                 this.debug(`=== RECONSTRUCTION PHASE ===`);
-                this.debug('Received options:', options);
-
-                const preReconstructionCount = fused.length;
-
-                // The reconstructor is now the single source of truth for the final geometry.
                 finalGeometry = this.arcReconstructor.processForReconstruction(fused);
-
                 const stats = this.arcReconstructor.stats;
                 this.stats.curvesReconstructed = stats.reconstructed;
-
                 this.debug(`Reconstruction complete:`);
-                this.debug(`  Primitives: ${preReconstructionCount} → ${finalGeometry.length}`);
+                this.debug(`  Primitives: ${fused.length} → ${finalGeometry.length}`);
                 this.debug(`  Full circles reconstructed: ${stats.fullCircles}`);
                 this.debug(`  Partial arcs found: ${stats.partialArcs}`);
                 this.debug(`  Groups with gaps merged: ${stats.wrappedGroups}`);
-
-                if (debugState.enabled) {
-                    this.verifyReconstructionResults(finalGeometry);
-                }
-                this.debug('Exiting arc reconstruction block. Result count:', finalGeometry.length);
-
-            } else {
-                // If reconstruction is disabled, the fused geometry is the final geometry.
-                this.debug('Arc reconstruction is Disabled, skipping block.');
-                finalGeometry = fused;
+                if (debugState.enabled) this.verifyReconstructionResults(finalGeometry);
             }
-
             // Update statistics
             this.stats.fusionOperations++;
             this.stats.primitivesProcessed += primitives.length;
             this.stats.primitivesReduced = primitives.length - finalGeometry.length;
-
             this.debug(`=== FUSION PIPELINE COMPLETE ===`);
             this.debug(`Result: ${primitives.length} → ${finalGeometry.length} primitives`);
-
             return finalGeometry;
         }
 
         // Union geometry for offset pass merging
-        async unionGeometry(primitives, options = {}) {
+        async unionGeometry(primitives) {
             await this.ensureInitialized();
 
             if (!primitives || primitives.length === 0) return [];
@@ -274,7 +218,7 @@
                         }
                     });
                 } 
-                // Legacy data structure check (should be empty)
+                // Points belong on contours; a top-level array is malformed input. // REVIEW - This old scruture shouldn't exist any more. If nothing sets it then this check is dead?
                 else if (prim.points) {
                      // Warn if it's populated
                      console.warn("[GeometryProcessor] verifyMetadata found primitive.points on ID:", prim.id);
@@ -300,7 +244,6 @@
             primitives.forEach(prim => {
                 if (prim.type === 'circle' && prim.properties?.reconstructed) {
                     reconstructedCircles++;
-                    // Circles no longer carry a coverage property in the unified pipeline, so just log the radius
                     this.debug(`  Reconstructed circle: r=${prim.radius.toFixed(3)}`);
                 } else if (prim.type === 'path' && prim.properties?.hasDetectedArcs) {
                     reconstructedPaths++;
@@ -341,7 +284,6 @@
                     // Handle arrays returned by traceToPolygon
                     if (Array.isArray(processed)) {
                         processed.forEach(p => {
-                            p._originalIndex = primitive._originalIndex;
                             if (curveIds.length > 0) {
                                 // Merge inherited curveIds with newly generated ones
                                 p.curveIds = p.curveIds ? Array.from(new Set([...p.curveIds, ...curveIds])) : curveIds;
@@ -349,8 +291,6 @@
                             preprocessed.push(p);
                         });
                     } else {
-                        // Original handling for single primitives
-                        processed._originalIndex = primitive._originalIndex;
                         if (curveIds.length > 0) processed.curveIds = curveIds;
                         preprocessed.push(processed);
                     }
@@ -368,7 +308,7 @@
 
             // Strokes need conversion to filled polygons regardless of primitive type
             if (isStroke && props.strokeWidth > 0) {
-                const converted = GeometryUtils.primitiveToPath(primitive, curveIds || []);
+                const converted = GeometryUtils.primitiveToPath(primitive);
                 if (converted) {
                     return converted;
                 }
@@ -401,7 +341,7 @@
             const localCurveIds = curveIds || [];
 
             // For analytic primitives, convert to path
-            const pathPrimitive = GeometryUtils.primitiveToPath(primitive, localCurveIds);
+            const pathPrimitive = GeometryUtils.primitiveToPath(primitive);
 
             if (pathPrimitive) {
                 // Verify contours were created
@@ -503,10 +443,6 @@
         // State management
         clearCachedStates() {
             this.cachedStates = { preprocessedGeometry: null };
-        }
-
-        getCachedState(stateName) {
-            return this.cachedStates[stateName] || null;
         }
 
         async ensureInitialized() {

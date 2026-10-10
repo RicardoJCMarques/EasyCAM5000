@@ -23,13 +23,13 @@
     class ShapeOperationPanel extends BaseOperationPanel {
         constructor(ui) {
             super(ui);
-
             this.scene = null;
             this.selection = null;
             // Non-null while a bucket STAGE is showing. The panel has two
             // contexts with different id spaces (shape id vs operation/bucket
             // id) and currentOperationId alone cannot tell them apart.
             this.currentBucket = null;
+            this._bucketBusy = false; // re-entrancy guard for handleAction
         }
 
         // ═══════════════════════════════════════════════════════════════
@@ -100,8 +100,7 @@
          * Bucket tree draws the stage nodes; refresh them when stale.
          */
         onInvalidated(operation) {
-            this.ui.opsPanel?.updateBucketDOM?.(
-                this.ui.opsPanel.getBucket(operation.id), this.core);
+            this.ui.opsPanel.updateBucketDOM(this.ui.opsPanel.getBucket(operation.id), this.core);
         }
 
         /**
@@ -109,12 +108,23 @@
          * allowed. Only the bucket context has a core operation behind it, so
          * the shape context just re-renders the form.
          */
-        refreshOperationPanel() {
+        refreshOperationPanel(operation) {
             const container = this.getFormContainer();
-            if (!container) return;
             if (this.currentBucket) {
-                this.showBucketStage(container, this.currentBucket, 'geometry');
+                // showBucketStage takes the NODE and renders the form after it,
+                // so map the form on screen back to the node that shows it.
+                const { stages, artifacts } = this.getOperationContext(this.currentBucket.type);
+                const node = artifacts[stages.indexOf(this.currentStage) - 1] || 'geometry';
+                this.showBucketStage(container, this.currentBucket, node);
                 return;
+            }
+            if (this.currentOperationId) {
+                const activeTab =
+                    document.querySelector('.op-type-tab.active:not(:disabled)') ||
+                    document.querySelector('.op-type-tab:not(:disabled)');
+                if (activeTab) {
+                    this.showFreshSelection(container, this.currentOperationId, activeTab.dataset.op);
+                }
             }
         }
 
@@ -155,33 +165,24 @@
             container.appendChild(wrapper);
         }
 
-        /**
-         * Renders params for a specific stage of an existing bucket.
-         */
+        /** Renders params for a specific stage of an existing bucket. */
         showBucketStage(container, bucket, stage) {
             // The form below is rendered from getAllParameters(bucket.id), so
             // currentOperationId MUST be bucket.id: onParameterChange writes
             // through it, applyConditionals re-reads through it, and
-            // onExternalParameterChange compares against it. Pointing it at
-            // shapeRefs[0] made the panel read one store and write another -
-            // conditionals re-evaluated against a different (possibly stale)
-            // state than the values on screen.
+            // onExternalParameterChange compares against it.
             this.currentOperationId = bucket.id;
             this.currentBucket = bucket;
             container.innerHTML = '';
-
             const opType = bucket.type;
-
             // Positional indexing here renders the wrong stage under a node's caption.
-            const ctx = this.getOperationContext(opType);
-            const { stages, artifacts } = ctx;
+            const { stages, artifacts } = this.getOperationContext(opType);
             const nodeIndex = artifacts.indexOf(stage);
             const paramStage = nodeIndex === -1 ? stages[0] : stages[nodeIndex + 1];
             this.currentStage = paramStage;
-
             // Load bucket settings into parameter manager
             this.parameterStore.loadFromOperation(bucket.toParamSource());
-
+            const operation = this.core.store.getOperation(bucket.id);
             // Header
             const header = document.createElement('div');
             header.className = 'param-form-header';
@@ -191,29 +192,25 @@
             title.textContent = opType.charAt(0).toUpperCase() + opType.slice(1) + ' - ' + bucket.label;
             header.appendChild(title);
             container.appendChild(header);
-
+            if (operation?.isInvalidated) container.appendChild(this.createInvalidationPanel(operation));
             // Render Parameter form
             const values = this.parameterStore.getAllParameters(bucket.id);
             this.renderParameterForm(container, opType, paramStage, values);
-
-            if (paramStage === 'output') {
-                const op = this.core.store.getOperation(bucket.id);
-                if (op) container.appendChild(this.createOutputBlock(op));
-            }
-
+            if (paramStage === 'output' && operation) container.appendChild(this.createOutputBlock(operation));
             // Drill tooling sits directly above the action button, same as
             // EasyTrace. Bucket context only: the shape context has no core
             // operation yet, so there is no summary to describe.
-            if ('drill' === opType && ('geometry' === stage || 'strategy' === stage) && this.supportsDrillTooling()) {
-                const operation = this.core.store.getOperation(bucket.id);
-                if (operation) container.appendChild(this.createDrillToolingCard(operation, values, stage));
+            const toolingStage = 'geometry' === paramStage || 'strategy' === paramStage;
+            if ('drill' === opType && toolingStage && operation && this.supportsDrillTooling()) {
+                const card = this.createDrillToolingCard(operation, values, paramStage);
+                if (card) container.appendChild(card);
             }
-
             // Stage-appropriate action button
             const actionInfo = this.getBucketActionInfo(stage, bucket);
             if (actionInfo) {
-                container.appendChild(this.createActionButton(
-                    actionInfo.text, actionInfo.disabled, actionInfo.title || ''));
+                container.appendChild(
+                    this.createActionButton(actionInfo.text, actionInfo.disabled, actionInfo.title || ''),
+                );
             }
         }
 
@@ -287,7 +284,6 @@
 
         onGenerationFailure(opId, operation, stage) {
             const container = this.getFormContainer();
-            if (!container) return;
             // `operation` is a bucket here and has no `.operation` to render.
             if (this.currentBucket) this.showBucketStage(container, this.currentBucket, 'geometry');
         }
@@ -298,7 +294,7 @@
         }
 
         async onToolpathSuccess(opId, operation) {
-            this.ui.rebuildLayers();
+            await this.ui.rebuildLayers();
             this.selectArtifactNode(opId, "toolpath");
         }
 
@@ -314,10 +310,10 @@
             panel.selectStage(opId, artifact);
         }
 
-        onStageTransition(newStage) {}
-
-        onExportStage(opId, operation) {
-            this.emit('openExportManager', { opType: this.resolveOperationType(operation) });
+        /** Drops the stale geometry, then shows the source form. */
+        discardInvalidGeometry(operation) {
+            this.ui.opsPanel.clearBucketStage(operation.id, 'offsets', this.core);
+            this.ui.opsPanel.selectStage(operation.id, 'geometry');
         }
 
         // ═══════════════════════════════════════════════════════════════
@@ -397,7 +393,6 @@
 
             for (const [name, def] of Object.entries(pm.parameterDefinitions)) {
                 if (!def.stage) continue;
-                if (def.operationType && def.operationType !== opType) continue;
                 if (def.operationTypes && !def.operationTypes.includes(opType)) continue;
                 if (source[name] !== undefined) out[name] = source[name];
             }

@@ -81,6 +81,15 @@
             return false;
         }
 
+        /** Locked through a parent, grandparent… - the node's own flag excluded. */
+        get hasLockedAncestor() {
+            return !!this.parent?.isLocked;
+        }
+        /** Some node below this one is locked. A shape has nothing below it. */
+        get hasLockedDescendant() {
+            return false;
+        }
+
         /**
          * Full invalidation - this node's own TRS changed.
          * Clears local + world caches, then cascades world-only to children.
@@ -170,16 +179,6 @@
             if (centre) this.transform.rotationCenter = { x: centre.x, y: centre.y };
             this.markDirty();
         }
-
-        resetTransform() {
-            this.transform.x = 0;
-            this.transform.y = 0;
-            this.transform.rotation = 0;
-            this.transform.scaleX = 1;
-            this.transform.scaleY = 1;
-            this.transform.rotationCenter = null;
-            this.markDirty();
-        }
     }
 
     // GroupNode - internal tree node with ordered children.
@@ -191,6 +190,10 @@
             super('group', label);
             this.children = [];
             this.collapsed = false;
+        }
+
+        get hasLockedDescendant() {
+            return this.children.some((child) => child.locked || child.hasLockedDescendant);
         }
 
         addChild(node) {
@@ -272,27 +275,6 @@
         getLocalBounds() {
             return this.localBounds;
         }
-
-        /**
-         * Hit-test a world-space point against this shape's geometry.
-         * Inverse-transforms the point into the shape's local frame, then
-         * delegates to the primitive-shape-specific containment test.
-         */
-        containsWorldPoint(worldPt) {
-            const worldM = this.getWorldMatrix();
-            const invM = TransformMath.invert(worldM);
-            if (!invM) return false;
-            const localPt = TransformMath.applyToPoint(invM, worldPt);
-
-            // Fast bbox reject first.
-            const b = this.localBounds;
-            if (localPt.x < b.minX || localPt.x > b.maxX ||
-                localPt.y < b.minY || localPt.y > b.maxY) {
-                return false;
-            }
-
-            return primitiveContainsLocalPoint(this.primitive, localPt);
-        }
     }
 
     // SelectionSet - set of node IDs with anchor tracking and change events.
@@ -310,7 +292,6 @@
         }
 
         addChangeListener(fn) { this.listeners.add(fn); }
-        removeChangeListener(fn) { this.listeners.delete(fn); }
 
         notify(action) {
             if (this.batchDepth > 0) {
@@ -776,10 +757,7 @@
             return true;
         }
 
-        nudgeOrigin(dx, dy) {
-            return this.setOrigin(this.transform.origin.x + dx, this.transform.origin.y + dy);
-        }
-
+        /** Origin back to (0, 0), not to the last committed origin. */
         resetOrigin() {
             return this.setOrigin(0, 0);
         }
@@ -817,10 +795,6 @@
             return true;
         }
 
-        rotateBy(deg) {
-            return this.setRotation(this.transform.rotation + deg);
-        }
-
         resetRotation() {
             this.transform.rotation = 0;
             this.notifyTransformChange('resetRotation');
@@ -837,25 +811,6 @@
             this.transform.mirrorY = !!enabled;
             this.notifyTransformChange('setMirrorY');
             return true;
-        }
-
-        toggleMirrorX() { return this.setMirrorX(!this.transform.mirrorX); }
-        toggleMirrorY() { return this.setMirrorY(!this.transform.mirrorY); }
-
-        resetMirror() {
-            this.transform.mirrorX = false;
-            this.transform.mirrorY = false;
-            this.notifyTransformChange('resetMirror');
-            return true;
-        }
-
-        resetTransform() {
-            this.transform.origin.x = 0;
-            this.transform.origin.y = 0;
-            this.transform.rotation = 0;
-            this.transform.mirrorX = false;
-            this.transform.mirrorY = false;
-            this.notifyTransformChange('resetTransform');
         }
 
         // Board bounds
@@ -969,55 +924,9 @@
             return { x: w.x - t.origin.x, y: w.y - t.origin.y };
         }
 
-        /** workspace → world: plus origin, then forward workspace matrix. */
-        workspaceToWorld(p) {
-            const t = this.transform;
-            return TransformMath.applyToPoint(this.getWorkspaceMatrix(), {
-                x: p.x + t.origin.x,
-                y: p.y + t.origin.y
-            });
-        }
-
-        /** canvas pixel → workspace (file) coordinates. */
-        canvasToWorkspace(rendererCore, canvasX, canvasY) {
-            const w = rendererCore.canvasToWorld(canvasX, canvasY);
-            return this.worldToWorkspace(w);
-        }
-
-        /** workspace → canvas pixel. */
-        workspaceToCanvas(rendererCore, workspacePt) {
-            const w = this.workspaceToWorld(workspacePt);
-            return {
-                x: rendererCore.worldToCanvasX(w.x),
-                y: rendererCore.worldToCanvasY(w.y)
-            };
-        }
-
-        // Viewport / frustum culling
-        //
-        // viewBounds arrives PRE-workspace (the renderer inverse-transforms
-        // its frame viewBounds once via getWorkspaceInverse), so this stays
-        // a plain AABB-vs-AABB walk. Swap body for OBB-vs-frustum in 3D.
-        *shapesInViewport(viewBounds) {
-            for (const s of this.allShapes()) {
-                if (!s.isVisible) continue;
-                const wb = this.getShapeWorldBounds(s);
-                if (wb.maxX < viewBounds.minX || wb.minX > viewBounds.maxX ||
-                    wb.maxY < viewBounds.minY || wb.minY > viewBounds.maxY) {
-                    continue;
-                }
-                yield s;
-            }
-        }
-
-        collectShapesInViewport(viewBounds) {
-            return Array.from(this.shapesInViewport(viewBounds));
-        }
-
         // Transform listeners
 
         addTransformListener(fn) { this.transformListeners.add(fn); }
-        removeTransformListener(fn) { this.transformListeners.delete(fn); }
 
         notifyTransformChange(action) {
             this.wsMatrix = null;

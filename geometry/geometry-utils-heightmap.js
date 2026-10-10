@@ -28,7 +28,7 @@
     'use strict';
 
     const ROOT = (typeof self !== 'undefined') ? self : window;
-    const debugState = ROOT.CAMConfig?.defaults?.debug || { enabled: false };
+    const debugState = ROOT.CAMConfig.defaults.debug;
 
     // ════════════════════════════════════════════════════════════════
     // Heightmap - uniform grid of model heights (mm), normalized so
@@ -106,9 +106,9 @@
          * @param {Object} options
          * @param {number} [options.cellSize]   - mm per cell. If omitted,
          *        derived from gridMaxDim.
-         * @param {number|{x:number,y:number}} [options.padding=0] - mm of
-         *        empty margin added to the bounds. Scalar = both axes;
-         *        {x,y} = per axis.
+         * @param {number|{x0:number,x1:number,y0:number,y1:number}} [options.padding=0] -
+         *     mm of empty margin added to the bounds: one number for every side,
+         *     or per side.
          * @param {number} [options.gridMaxDim=1024] - cap on the longer
          *        grid axis when cellSize is auto-derived.
          * @param {Object} [options.expandTo] - {minX,maxX,minY,maxY} in
@@ -116,9 +116,8 @@
          *        include this box, AFTER padding and AFTER cell-size
          *        derivation - so it adds cells without changing resolution.
          * @returns {Heightmap} with .mask populated (1 = model footprint).
-         *        Uncovered cells are FILLED to the covered minimum
-         *        before normalize() - legacy-identical data; the mask is
-         *        additional information for opt-in consumers.
+         *        Uncovered cells are filled to the covered minimum before
+         *        normalize(); the mask tells opt-in consumers which ones.
          */
         fromMesh(triangles, options = {}) {
             const t0 = performance.now();
@@ -166,19 +165,17 @@
             );
 
             // Padding shapes:
-            //   number           - all four sides (plain relief; the
-            //                      rollover band is isotropic)
-            //   { x, y }         - per axis, both sides (legacy)
-            //   { x0, x1, y0, y1 } - per SIDE. Indexed 3+1 reserves each
-            //                      end's OWN reach, so a 'stop' chuck no
-            //                      longer inherits the tail's overrun as
-            //                      dead grid.
+            //  number             - all four sides (plain relief; the
+            //                       rollover band is isotropic)
+            //  { x0, x1, y0, y1 } - per SIDE. Indexed 3+1 reserves each
+            //                       end's OWN reach, so a 'stop' chuck does
+            //                       not inherit the tail's overrun as dead grid.
             const pad = options.padding || 0;
             const isObj = typeof pad === 'object';
-            const padX0 = isObj ? (pad.x0 ?? pad.x ?? 0) : pad;
-            const padX1 = isObj ? (pad.x1 ?? pad.x ?? 0) : pad;
-            const padY0 = isObj ? (pad.y0 ?? pad.y ?? 0) : pad;
-            const padY1 = isObj ? (pad.y1 ?? pad.y ?? 0) : pad;
+            const padX0 = isObj ? pad.x0 : pad;
+            const padX1 = isObj ? pad.x1 : pad;
+            const padY0 = isObj ? pad.y0 : pad;
+            const padY1 = isObj ? pad.y1 : pad;
             minX -= padX0; maxX += padX1;
             minY -= padY0; maxY += padY1;
 
@@ -275,8 +272,7 @@
                 }
             }
 
-            // Coverage mask + legacy fill: uncovered cells (outside the
-            // model footprint) → base plane, exactly as before.
+            // Coverage mask; uncovered cells (outside the model footprint) fill to the base plane.
             let coveredMin = Infinity;
             for (let i = 0; i < data.length; i++) {
                 if (data[i] !== -Infinity && data[i] < coveredMin) coveredMin = data[i];
@@ -375,7 +371,7 @@
          * @param {boolean} [options.flipY=true]   - image rows are top-down;
          *        world Y is bottom-up
          * @returns {Heightmap}
-         * REVIEW - Spin off?
+         * TODO - Spin off? This likely deserves it's own operation, maybe UI/app? To be ignored for now.
         fromImageData(imageData, options = {}) {
             const { widthMM, heightScale = 1, flipY = true } = options;
             if (!(widthMM > 0)) throw new Error('fromImageData requires widthMM > 0');
@@ -418,15 +414,12 @@
             this.properties = properties;
             this.bounds = null;
             this.id = `prim_fld_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
-            this.geometricContext = { originalType: type, isAnalytic: false, metadata: {} };
         }
         getBounds() { if (!this.bounds) this.calculateBounds(); return this.bounds; }
         getCenter() {
             const b = this.getBounds();
             return { x: (b.minX + b.maxX) / 2, y: (b.minY + b.maxY) / 2 };
         }
-        canOffsetAnalytically() { return false; }
-        getGeometricMetadata() { return this.geometricContext; }
     };
 
     class HeightmapPrimitive extends Base {

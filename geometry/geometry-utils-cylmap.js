@@ -37,7 +37,7 @@
     'use strict';
 
     const ROOT = (typeof self !== 'undefined') ? self : window;
-    const debugState = ROOT.CAMConfig?.defaults?.debug || { enabled: false };
+    const debugState = ROOT.CAMConfig.defaults.debug;
 
     const TWO_PI = Math.PI * 2;
 
@@ -79,12 +79,6 @@
             // rotary record; rehydrated alongside data/mask.
             this.hull = null;
         }
-
-        cellXAt(ix) { return this.originX + ix * this.cellX; }
-
-        /** Developed arc length at row j - AFFINE, extrapolates freely
-         *  (spiralFinish walks j past rows for the unwound helix). */
-        arcAt(j) { return j * this.dTheta * this.refRadius; }
 
         get cellArc() { return this.dTheta * this.refRadius; }
 
@@ -165,8 +159,7 @@
 
             // Cell size derives from the MODEL's axial extent, BEFORE
             // padding - end reach must not change resolution over the part,
-            // nor the angular row count derived from cellX below (it used
-            // to halve BOTH on a long stub).
+            // nor the angular row count derived from cellX below.
             const extXraw = maxX - minX;
             if (!(extXraw > 0)) throw new Error('Mesh has degenerate axial extent');
             const gridMaxDim = options.gridMaxDim || 1024;
@@ -175,13 +168,10 @@
                 0.005
             );
 
-            // Per-end axial padding: { low, high } in mm. low = the CHUCK
-            // end of the internal axial X (chuck = LOW end, both
-            // kinematics), high = tail. A bare number pads both ends
-            // (legacy/direct callers).
-            const pad = options.padding || 0;
-            const padLow  = (typeof pad === 'object') ? (pad.low  || 0) : pad;
-            const padHigh = (typeof pad === 'object') ? (pad.high || 0) : pad;
+            // Per-end axial padding in mm: low = the CHUCK end of the internal
+            // axial X (both kinematics), high = the tail.
+            const padLow = options.padding.low || 0;
+            const padHigh = options.padding.high || 0;
             minX -= padLow;
             maxX += padHigh;
             const extX = maxX - minX;

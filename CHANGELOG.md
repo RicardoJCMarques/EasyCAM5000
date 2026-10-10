@@ -4,10 +4,41 @@ All notable changes to the **EasyCAM5000** project will be documented in this fi
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.2] - 2026-10-10
+
+### Added
+- **.zip storage:** Generic storage allows bundling multiple files. Reading/decompressing/compressing isn't viable. [#11](https://github.com/RicardoJCMarques/EasyCAM5000/discussions/11)
+- **+1 STL Shapes:** When a file has more than one mesh, each will generate it's own geometry object. Generating multiple 3D operation bucket isn't recommended as previews will overlap.
+- **New Sponsor:** Added banners + hyperlinks to [Fab Academy @ Fab Lab Benfica](https://fablabbenfica.pt/fabacademyLisboa/).
+
+### Changed
+- **Copper Removal:** Basic simulation of material removal was extended to Copper Clearing operations.
+- **Export flow:** Export modal and back-end logic were tweaked to be more predictable.
+- **3D Rendering:** 3D pipeline was made more resilient while attempting to debug a WebGPU crash that turned out was Firefox Dev + Three.js specific. (Fixed by 158.0b3)
+- **Stock Margin/Origin:** Stock handling was tweaked/improved in preparation for future material removal simulation.
+- **RML Post-processor:** Big refactor of the main logic (remove machine step quantization), needs more testing in all Roland models.
+- **Bounding Boxes:** Unified primitive bb math code.
+- **Config.js** Audit and clean-up of unused/useless keys.
+- Minor tweaks and clean-up around the code.
+
+### Fixed
+- **2D Rendering:** It was being sneaky and staying active even while 3D rendering was happening in the forefront.
+- **Multi-Tool Drilling:** Drill/slot operations UI was reworked to fix tool number export order and other minor issues.
+- **Doc Figures:** A bug made most shapes inside embedded figures disappear. All should render as expected.
+- **Hatch Pattern:** The zig-zag order wasn't zig-zagging.
+- **Laser PNG:** PNG export in the laser pipeline is working again.
+- **Hide Welcome** The toggle wasn't saving between sessions.
+
+### Known Problems
+- **V-Carve Mirror:** Flatzones are getting discarded when mirroring is active, both cancel out the bug (180º flip).
+- **Mold Mode:** The inversion on 3D flat reliefs is sort of working but not in a usable way yet.
+- **Reordering CNC Jobs:** Export Modal rework broke it so they are always set in the default order unless grouping by tool is selected (minimize tool changes).
+
+
 ## [1.6.1] - 2026-09-11
 
 ### Added
-- **Copper Holes:** A hidden operation adds holes/slots to rendered copper geometry on drill toolpath generation. Especially useful for oversized tools that eat away copper pads.
+- **Copper Holes:** A hidden operation adds holes/slots to 3d rendered copper geometry on drill toolpath generation. Especially useful for oversized tools that eat away copper pads.
 - **EasyShape5000 Accessibility:** Initial draft ARIA implementation and keyboard navigation rework on EasyShape5000.
 - **Stock Margin:** New parameter for stock auto-fit that leaves a space around the bounding box. (May be expanded to automatic cutouts, maybe...)
 

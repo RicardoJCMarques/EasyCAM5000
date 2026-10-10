@@ -31,42 +31,34 @@
             this.cachedHasPreview = false;
         }
 
-        /**
-         * Syncs primitives from scene current shapes into the operation in core.
-         */
+        /** Syncs primitives from scene current shapes into the operation in core. */
         syncPrimitives(core, scene) {
             const operation = core.store.getOperation(this.id);
-            if (!operation) return;
-
+            if (!operation) return; // REVIEW - Is this check necessary? Why?
             operation.primitives = [];
-            operation.sourceMesh = null;
             operation.shapeKeyToNodeId = new Map(); // dense sourceId → scene node id
+            // One mesh per operation: createAndGenerate refuses a selection with more.
+            operation.sourceMesh = null;
             let shapeKeySeq = 0;
             const bounds = { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity };
-
-            const growBounds = (b) => {
+            const growBounds = b => {
                 if (!b) return;
                 if (b.minX < bounds.minX) bounds.minX = b.minX;
                 if (b.minY < bounds.minY) bounds.minY = b.minY;
                 if (b.maxX > bounds.maxX) bounds.maxX = b.maxX;
                 if (b.maxY > bounds.maxY) bounds.maxY = b.maxY;
             };
-
             for (const sid of this.shapeRefs) {
                 const shape = scene.findShape(sid);
                 if (!shape?.primitive) continue;
-
                 const m = shape.getWorldMatrix();
-
-                // Transform relief mesh by world matrix so scaled or rotated footprints carve in-place
-                if (shape.reliefMesh?.triangles?.length) {
-                    let mesh = shape.reliefMesh;
-                    if (!TransformMath.isIdentity(m)) {
-                        const scale = Math.hypot(m.a, m.b);
-                        const res = Transform3D.transformTrianglesByAffine2D(mesh.triangles, m, scale);
-                        mesh = { ...mesh, triangles: res.triangles, bounds3D: res.bounds3D || mesh.bounds3D };
-                    }
-                    operation.sourceMesh = mesh;
+                // Baked by the world matrix so scaled or rotated footprints carve in
+                // place; an identity matrix hands the mesh back untouched.
+                if (shape.mesh?.triangles?.length) {
+                    const res = Transform3D.transformTrianglesByAffine2D(shape.mesh.triangles, m, Math.hypot(m.a, m.b));
+                    operation.sourceMesh = res.bounds3D
+                        ? { ...shape.mesh, triangles: res.triangles, bounds3D: res.bounds3D }
+                        : shape.mesh;
                     growBounds(TransformMath.transformBounds(m, shape.getLocalBounds()));
                     continue;
                 }
@@ -77,7 +69,10 @@
                 (transformed.properties ||= {}).sourceId = sourceId;
                 operation.shapeKeyToNodeId.set(sourceId, sid);
                 // Stamp non-arc points so the Z channel carries identity through Clipper booleans.
-                if (transformed.contours) for (const c of transformed.contours) if (c.points) for (const pt of c.points) (!pt.curveId || pt.curveId <= 0) && (pt.sourceId = sourceId);
+                if (transformed.contours)
+                    for (const c of transformed.contours)
+                        if (c.points)
+                            for (const pt of c.points) (!pt.curveId || pt.curveId <= 0) && (pt.sourceId = sourceId);
                 operation.primitives.push(transformed);
                 growBounds(transformed.getBounds());
             }
@@ -85,7 +80,7 @@
         }
 
         /**
-         * Parameter-manager source for this bucket.
+         * Input-renderer source for this bucket.
          *
          * bucket.settings is a FULL snapshot (saveCurrentState and
          * captureFormStateForId write the whole merged param set), unlike a
@@ -130,14 +125,17 @@
         constructor() {
             // Event emitter
             super();
-
             this.container = null;
             this.buckets = new Map();
             this.selectedNode = null; // { bucketId, stage }
+            this.scene = null;
+            this.artifactsFor = null; // (opType) => string[], one tree node per artifact
         }
 
         // Initialization
-        init(containerId) {
+        init(containerId, scene, artifactsFor) {
+            this.scene = scene;
+            this.artifactsFor = artifactsFor;
             this.container = document.getElementById(containerId || 'operations-bucket-list');
             if (this.container) {
                 UIControls.setupTreeKeyboard(this.container, [
@@ -163,20 +161,6 @@
                 });
             }
             this.updateEmptyState();
-        }
-
-        setSceneResolver(fn) {
-            this._resolveScene = fn;
-        }
-
-        /**
-         * (opType) => string[] - the operation's Artifact list. The tree
-         * draws one node per artifact. Renamed from setStageResolver: the
-         * tree has never drawn parameter stages, and treating the two lists
-         * as one is what produced the mislabelled node.
-         */
-        setArtifactResolver(fn) {
-            this._resolveArtifacts = fn;
         }
 
         // Bucket CRUD
@@ -255,24 +239,6 @@
         }
 
         /**
-         * Invalidation lives on the OPERATION. buildStages, addBucketLayers and
-         * isExportReady all read it there, so a flag written on the bucket is
-         * write-only: stale offsets kept rendering and stayed exportable after
-         * their source shape moved.
-         */
-        invalidateBucket(bucketId, reason, core) {
-            const bucket = this.buckets.get(bucketId);
-            if (!bucket || !core || !bucket.hasOffsets) return;
-
-            const op = core.store.getOperation(bucket.id);
-            if (!op || op.isInvalidated) return;
-
-            core.store.invalidateOperationState(bucketId);
-            op.isInvalidated = true;
-            op.invalidatedReason = reason;
-        }
-
-        /**
          * Clears one artifact and everything downstream of it. Core owns the
          * cascade: preview.primitives ARE the offset primitives tagged in
          * place, and a toolpath cannot outlive the geometry it was built from.
@@ -285,10 +251,6 @@
 
             if (stage === 'offsets') {
                 core.store.resetOperationState(bucketId);
-            } else if (stage === 'preview') {
-                core.store.deleteOperationGeometry(bucketId, 'preview');
-                op.exportReady = false;
-                if (op.stamps) delete op.stamps.preview;
             } else {
                 core.store.deleteOperationGeometry(bucketId, stage);
             }
@@ -378,7 +340,7 @@
             // One node per ARTIFACT the chain declares. A 3D operation has no
             // preview node because tool compensation is already baked into
             // its field; a laser operation has only offsets.
-            const artifacts = this._resolveArtifacts?.(bucket.type) || ['offsets', 'preview'];
+            const artifacts = this.artifactsFor(bucket.type);
             const registry = core?.registry;
 
             const dimension = registry?.dimensionFor(bucket.type, core?.machineClassOf(core.store.getOperation(bucket.id)) || 'router') || null;
@@ -392,7 +354,7 @@
 
                 const stageLabel = registry?.artifactLabel(stage, dimension)
                     || (stage.charAt(0).toUpperCase() + stage.slice(1));
-                const stageIcon = registry?.artifactIcon(stage) || `icon-${stage}-stage`;
+                const stageIcon = registry.artifactIcon(stage);
 
                 const node = document.createElement('div');
                 node.dataset.stage = stage;
@@ -473,7 +435,7 @@
 
             const genVisible = this.isBucketVisible(bucket, core);
             header.innerHTML = `
-                <span class="bucket-icon"><svg class="cam-icon" width="14" height="14" aria-hidden="true"><use href="#icon-op-${bucket.type}"></use></svg></span>
+                <span class="bucket-icon"><svg class="cam-icon" width="14" height="14" aria-hidden="true"><use href="#${core.registry.iconFor(bucket.type)}"></use></svg></span>
                 <span class="bucket-label"></span>
                 <span class="bucket-info">${bucket.shapeRefs.length} shape(s)</span>
                 <button class="btn btn--icon btn--compact bucket-visibility" data-action="visibility" tabindex="-1" title="${genVisible ? 'Hide' : 'Show'} generated geometry" aria-label="Toggle generated geometry visibility">
@@ -486,7 +448,7 @@
 
             let displayLabel = bucket.label;
             if (bucket.shapeRefs.length === 1) {
-                const shape = this._resolveScene?.()?.findShape(bucket.shapeRefs[0]);
+                const shape = this.scene.findShape(bucket.shapeRefs[0]);
                 if (shape?.label && shape.label !== 'Shape') displayLabel = shape.label;
             }
             header.querySelector('.bucket-label').textContent = displayLabel;

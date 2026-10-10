@@ -82,73 +82,51 @@
             if (edges.length === 0) return { success: false };
 
             // Greedy Chaining (Robust Distance Matching)
-            const chain = [];
-            edges[0].used = true;
-            chain.push({ edge: edges[0], dir: 'forward' });
-            let head = edges[0].start;   // Front of the chain
-            let tail = edges[0].end;     // End of the chain
-
-            const chainTolerance = customTolerance !== null
-                ? customTolerance
-                : (forceClose ? 0.5 : PRECISION);
+            const chainTolerance = customTolerance !== null ? customTolerance : (forceClose ? 0.5 : PRECISION);
             const chainTolSq = chainTolerance * chainTolerance;
-
-            let added = true;
             let gapCount = 0;
             let maxGap = 0;
 
-            while (added && chain.length < edges.length) {
-                added = false;
-                let bestMatch = null;
+            // Nearest unused edge to `point`, claimed. At the tail a matching
+            // start continues forward; at the head a matching end does.
+            const claimNearest = (point, atTail) => {
+                let best = null;
                 let bestDistSq = chainTolSq;
                 let bestDir = 'forward';
-
-                // Search against TAIL
                 for (const e of edges) {
                     if (e.used) continue;
-                    const dxStart = e.start.x - tail.x, dyStart = e.start.y - tail.y;
-                    const dStartSq = dxStart * dxStart + dyStart * dyStart;
-                    const dxEnd = e.end.x - tail.x, dyEnd = e.end.y - tail.y;
-                    const dEndSq = dxEnd * dxEnd + dyEnd * dyEnd;
-                    if (dStartSq < bestDistSq) { bestDistSq = dStartSq; bestMatch = e; bestDir = 'forward'; }
-                    if (dEndSq < bestDistSq) { bestDistSq = dEndSq; bestMatch = e; bestDir = 'reverse'; }
+                    const fwd = atTail ? e.start : e.end;
+                    const rev = atTail ? e.end : e.start;
+                    const fdx = fwd.x - point.x, fdy = fwd.y - point.y;
+                    const rdx = rev.x - point.x, rdy = rev.y - point.y;
+                    const fwdSq = fdx * fdx + fdy * fdy;
+                    const revSq = rdx * rdx + rdy * rdy;
+                    if (fwdSq < bestDistSq) { bestDistSq = fwdSq; best = e; bestDir = 'forward'; }
+                    if (revSq < bestDistSq) { bestDistSq = revSq; best = e; bestDir = 'reverse'; }
                 }
+                if (!best) return null;
+                best.used = true;
+                const gap = Math.sqrt(bestDistSq);
+                if (gap > PRECISION) gapCount++;
+                maxGap = Math.max(maxGap, gap);
+                return { edge: best, dir: bestDir };
+            };
 
-                if (bestMatch) {
-                    bestMatch.used = true;
-                    chain.push({ edge: bestMatch, dir: bestDir });
-                    tail = bestDir === 'forward' ? bestMatch.end : bestMatch.start;
-                    const actualDist = Math.sqrt(bestDistSq);
-                    if (actualDist > PRECISION) gapCount++;
-                    maxGap = Math.max(maxGap, actualDist);
-                    added = true;
+            edges[0].used = true;
+            const chain = [{ edge: edges[0], dir: 'forward' }];
+            let head = edges[0].start; // Front of the chain
+            let tail = edges[0].end;   // End of the chain
+            while (chain.length < edges.length) {
+                const atTail = claimNearest(tail, true);
+                if (atTail) {
+                    chain.push(atTail);
+                    tail = atTail.dir === 'forward' ? atTail.edge.end : atTail.edge.start;
                     continue;
                 }
-
-                bestMatch = null;
-                bestDistSq = chainTolSq;
-                bestDir = 'forward';
-
-                // Search against HEAD
-                for (const e of edges) {
-                    if (e.used) continue;
-                    const dxEnd = e.end.x - head.x, dyEnd = e.end.y - head.y;
-                    const dEndSq = dxEnd * dxEnd + dyEnd * dyEnd;
-                    const dxStart = e.start.x - head.x, dyStart = e.start.y - head.y;
-                    const dStartSq = dxStart * dxStart + dyStart * dyStart;
-                    if (dEndSq < bestDistSq) { bestDistSq = dEndSq; bestMatch = e; bestDir = 'forward'; }
-                    if (dStartSq < bestDistSq) { bestDistSq = dStartSq; bestMatch = e; bestDir = 'reverse'; }
-                }
-
-                if (bestMatch) {
-                    bestMatch.used = true;
-                    chain.unshift({ edge: bestMatch, dir: bestDir });
-                    head = bestDir === 'forward' ? bestMatch.start : bestMatch.end;
-                    const actualDist = Math.sqrt(bestDistSq);
-                    if (actualDist > PRECISION) gapCount++;
-                    maxGap = Math.max(maxGap, actualDist);
-                    added = true;
-                }
+                const atHead = claimNearest(head, false);
+                if (!atHead) break;
+                chain.unshift(atHead);
+                head = atHead.dir === 'forward' ? atHead.edge.start : atHead.edge.end;
             }
 
             // Gap / Chain Analysis
@@ -197,7 +175,7 @@
                     if (rawPoints.length === 0) rawPoints.push({ x: ptStart.x, y: ptStart.y });
                     const startIdx = rawPoints.length - 1;
 
-                    // Store only the arc endpoint — no tessellation.
+                    // Store only the arc endpoint - no tessellation.
                     // The renderer draws arcs analytically from arcSegment metadata.
                     // Tessellation for Clipper2 happens on demand via contourArcsToPath().
                     rawPoints.push({ x: ptEnd.x, y: ptEnd.y });
@@ -380,7 +358,7 @@
             // Analytic shapes are closed by definition
             if (prim.type === 'circle' || prim.type === 'rectangle' || prim.type === 'obround') return true;
 
-            // Check if an ArcPrimitive is a full 360 degree circle - REVIEW - double check this isn't redundant towards the new logic around single source of truth for circles post boolean.
+            // Check if an ArcPrimitive is a full 360 degree circle
             if (prim.type === 'arc') {
                 const dx = prim.startPoint.x - prim.endPoint.x;
                 const dy = prim.startPoint.y - prim.endPoint.y;
@@ -494,13 +472,6 @@
                 else skipped.push(prim);
             }
 
-            if (edges.length === 0) {
-                return {
-                    loops: closed,
-                    orphans: [...skipped, ...open.filter((_, i) => !edges.some((e) => e.index === i))],
-                };
-            }
-
             const uf = new UnionFind(edges.length);
             for (let i = 0; i < edges.length; i++) {
                 for (let j = i + 1; j < edges.length; j++) {
@@ -585,35 +556,26 @@
                     rep = mid;
                 }
 
-                // Bounding box for the containment prefilter below.
-                let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-                for (const p of pts) {
-                    if (p.x < minX) minX = p.x;
-                    if (p.x > maxX) maxX = p.x;
-                    if (p.y < minY) minY = p.y;
-                    if (p.y > maxY) maxY = p.y;
-                }
-
                 return {
                     loop, originalIdx: idx, absArea, rep, parentIdx: null, depth: 0,
-                    bb: { minX, minY, maxX, maxY },
+                    bb: GeometryUtils.boundsOfPoints(pts) // containment prefilter below
                 };
             });
 
-            // Sort by area descending — entries[j] (j < i) is always >= entries[i]
+            // Sort by area descending - entries[j] (j < i) is always >= entries[i]
             entries.sort((a, b) => b.absArea - a.absArea);
 
             // Find innermost containing parent for each loop.
             // BBox prefilter: a parent's bbox must contain the child's
             // representative point. For scattered loops (dense text: thousands
             // of glyphs, none nested) this rejects ~every pair with 4 float
-            // compares instead of an O(V) pointInPolygon — the difference
+            // compares instead of an O(V) pointInPolygon - the difference
             // between milliseconds and a multi-minute main-thread hang.
             for (let i = 1; i < entries.length; i++) {
                 const rep = entries[i].rep;
                 for (let j = i - 1; j >= 0; j--) {
                     const bb = entries[j].bb;
-                    const outside = rep.x < bb.minX || rep.x > bb.maxX || rep.y < bb.minY || rep.y > bb.maxY;
+                    const outside = !bb || rep.x < bb.minX || rep.x > bb.maxX || rep.y < bb.minY || rep.y > bb.maxY;
                     if (!outside && GeometryUtils.pointInPolygon(rep, entries[j].loop.contours[0].points)) {
                         entries[i].parentIdx = entries[j].originalIdx;
                         entries[i].depth = entries[j].depth + 1;
@@ -642,6 +604,11 @@
 
         // Compound assembly
 
+        // TODO(contour-order) - holes go first and the outer last here, while
+        // resolveCompoundContours and BaseOperationHandler.resolveContourTopology
+        // put the outer at index 0 (classifyCutoutTopology re-reads contours[0]).
+        // Merge the three reassemblies into one helper with one order, and let
+        // the toolpath stage decide cut order.
         assembleCutoutCompounds(topologyResults) {
             const outers = topologyResults.filter((r) => !r.isHole);
             const holes = topologyResults.filter((r) => r.isHole);
@@ -697,7 +664,7 @@
             if (!contours || contours.length < 2) return [primitive];
 
             // EAGLE-composited primitives carry nestingLevel from the
-            // sequential compositing pipeline — don't re-derive.
+            // sequential compositing pipeline - don't re-derive.
             if (primitive.properties?.isComposited) return [primitive];
 
             // Explode each contour into a single-contour PathPrimitive.
@@ -718,19 +685,20 @@
             if (!topology.some((t) => t.isHole)) return loops;
 
             // Reassemble: group holes under their parent outer
+            // TODO(contour-order) - same reassembly as assembleCutoutCompounds, opposite order.
             const outers = topology.filter((t) => !t.isHole);
             const holes = topology.filter((t) => t.isHole);
             const compounds = [];
             for (const outer of outers) {
                 const children = holes.filter((h) => h.parentIdx === outer.originalIdx);
-                // Outer contour first — classifyCutoutTopology reads contours[0]
+                // Outer contour first - classifyCutoutTopology reads contours[0]
                 // for any future re-analysis, so outer must be at index 0.
                 const newContours = [outer.loop.contours[0]];
                 for (const child of children) newContours.push(child.loop.contours[0]);
                 compounds.push(new PathPrimitive(newContours, { ...primitive.properties }));
             }
 
-            // Orphan holes with no containing outer — keep as standalone
+            // Orphan holes with no containing outer - keep as standalone
             for (const hole of holes) {
                 if (hole.parentIdx === null) compounds.push(hole.loop);
             }

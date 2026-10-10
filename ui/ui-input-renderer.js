@@ -94,7 +94,7 @@
                     if (param.max !== undefined) inputEl.max = param.max;
                     if (param.step !== undefined) inputEl.step = param.step;
                     if (param.unit) inputEl.setAttribute('aria-label', `${labelText} in ${param.unit}`);
-                    if (param.readOnly) {inputEl.readOnly = true; inputEl.classList.add("input-readonly");}
+                    if (param.readOnly) inputEl.readOnly = true;
 
                     inputEl.addEventListener("input", () => {
                         inputEl.classList.remove("input-error");
@@ -124,9 +124,7 @@
                         for (const opt of param.options) {
                             const o = document.createElement("option");
                             o.value = opt.value;
-                            const optLabel = lang
-                                ? lang.get(`enums.${opt.value}`, opt.label) : opt.label;
-                            o.textContent = optLabel;
+                            o.textContent = opt.label;
                             // Machine-capability gate, applied post-render by
                             // applyOptionGates - the value is unknown at field
                             // build time and changes with the post-processor.
@@ -194,15 +192,34 @@
                 field.title = "Not available yet";
                 if (inputEl) inputEl.disabled = true;
             } else if (inputEl && options.onChange) {
+                // An emptied or unparseable number restores the value shown before
+                // the edit. Machine settings commit through setSetting unvalidated,
+                // so a 0 here would become a live Safe Z.
+                let previous = inputEl.value;
+                inputEl.addEventListener('focus', () => {
+                    previous = inputEl.value;
+                });
                 const handleCommit = () => {
                     const raw = inputEl.value;
-                    const val = param.type === "checkbox" ? inputEl.checked
-                        : param.type === 'number'
-                            ? (param.nullable && raw.trim() === ""
-                                ? null
-                                : (parseFloat(raw) || 0))
-                        : raw;
+                    let val = raw;
+                    if (param.type === 'checkbox') {
+                        val = inputEl.checked;
+                    } else if (param.type === 'number') {
+                        val = param.nullable && raw.trim() === '' ? null : parseFloat(raw);
+                        if (Number.isNaN(val)) {
+                            inputEl.value = previous;
+                            return;
+                        }
+                        // Numbers keep the coordinate grid's decimals (0.001 mm),
+                        // the resolution geometry and G-code work at.
+                        if (val !== null) {
+                            const rounded = +val.toFixed(D.geometry.decimals.coordinates);
+                            if (rounded !== val) inputEl.value = rounded;
+                            val = rounded;
+                        }
+                    }
                     options.onChange(param.name, val, inputEl);
+                    previous = inputEl.value;
                 };
                 inputEl.addEventListener('change', handleCommit);
             }
@@ -230,9 +247,8 @@
                 const opt = document.createElement('option');
                 opt.value = tool.id;
                 const sizes = toolLibrary.getToolSizes(tool.id);
-                // REVIEW - All these stats on the drop-down lable are useless and confusing
                 opt.textContent = sizes.tapered
-                    ? `${tool.name} (${sizes.effective}mm cut / ${sizes.diameter}mm dia)`
+                    ? `${tool.name} (${sizes.effective}mm cut diameter)`
                     : `${tool.name} (${sizes.diameter}mm)`;
                 if (tool.id === selectedId) opt.selected = true;
                 select.appendChild(opt);
@@ -290,6 +306,12 @@
                         lang,
                         onChange: (n, v) => {
                             this.core.setSetting(path, v);
+                            // `values` is the render's snapshot; a sibling whose
+                            // conditional names this field re-reads it now. The
+                            // cascade then re-applies class, owner and capability
+                            // visibility on top.
+                            values[path] = v;
+                            for (const host of panels) this.applyConditionals(host, values);
                             onChange?.(n, v, param);
                         }
                     });

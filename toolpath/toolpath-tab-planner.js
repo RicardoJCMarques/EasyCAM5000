@@ -26,10 +26,12 @@
         }
 
         /**
-         * Main entry point. Calculates tab locations, splits the geometry, and returns a flat array of tagged motion commands (LINEAR or ARC) that the MachineProcessor will use to insert Z-moves.
-         * @param {Object} geometrySource - The contour (must have points array and arcSegments)
-         * @param {Object} context - The operation context
-         * @returns {Array<MotionCommand>} Array of motion commands, tagged with isTab: boolean // Review -  description is outdated?
+         * Tab placement for one contour, as a flat list of LINEAR/ARC motion
+         * commands in machine coordinates (transforms applied), each tagged
+         * metadata.isTab for MachineProcessor's Z lifts.
+         * @param {Object} geometrySource - contour with points and arcSegments
+         * @param {Object} context - pipeline context
+         * @returns {Array<MotionCommand>}
          */
         calculateTabPositions(geometrySource, context) {
             const tabWidth = context.strategy.cutout.tabWidth;
@@ -224,7 +226,7 @@
 
         getArcData(startPoint, endPoint, arc) {
             const center = { x: arc.center.x, y: arc.center.y };
-            const radius = Math.hypot(startPoint.x - center.x, startPoint.y - center.y); // REVIEW - Math.hypot are expensive, is this necessary? Not that this is called frequently
+            const radius = Math.hypot(startPoint.x - center.x, startPoint.y - center.y);
             const startAngle = Math.atan2(startPoint.y - center.y, startPoint.x - center.x);
             const endAngle = Math.atan2(endPoint.y - center.y, endPoint.x - center.x);
 
@@ -232,7 +234,7 @@
                  sweepAngle: arc.sweepAngle,
                  startAngle, endAngle,
                  clockwise: arc.clockwise,
-                 chord: Math.hypot(endPoint.x - startPoint.x, endPoint.y - startPoint.y), // REVIEW - Math.hypot are expensive, is this necessary? Not that this is called frequently
+                 chord: Math.hypot(endPoint.x - startPoint.x, endPoint.y - startPoint.y),
                  radius,
                  eps: PRECISION,
                  chordEps: PRECISION
@@ -303,7 +305,7 @@
             const type = arc ? (isClockwise ? 'ARC_CW' : 'ARC_CCW') : 'LINEAR';
 
             const cmd = new MotionCommand(type, 
-                { x: finalEnd.x, y: finalEnd.y }, // REVIEW - should this be { x: finalEnd.x, y: finalEnd.y, null }?
+                { x: finalEnd.x, y: finalEnd.y },
                 { i: i_val, j: j_val, feed: feedRate }
             );
 

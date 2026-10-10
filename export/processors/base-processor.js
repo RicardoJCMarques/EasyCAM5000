@@ -231,11 +231,10 @@
 
         /**
          * Last chance to clamp a job context to machine limits, called by
-         * CamCore.buildToolpathContext just before Object.freeze.
-         *
-         * The core cannot know which post is loaded, so anything that used to
-         * be a `postProcessor === 'x'` test in the core belongs here instead.
-         * Mutate ctx in place; the return value is ignored.
+         * PipelineContextBuilder.buildPipelineContext just before Object.freeze.
+         * The core cannot know which post is loaded, so a `postProcessor === 'x'`
+         * test belongs here, never in the core. Mutate ctx in place; the return
+         * value is ignored.
          */
         prepareContext(ctx, operation) {}
 
@@ -382,6 +381,9 @@
             if (n === null) return '';
             this.currentToolNumber = n;
             const lines = [];
+            const c = options.comments || {};
+            this.pushCommentLine(lines, (c.initialTool || c.toolChange || 'Tool change: {name}').replace('{name}', tool?.name || tool?.id || `Tool ${n}`), options);
+            this.pushCommentLine(lines, (c.toolDiameter || 'Diameter: {diameter}mm').replace('{diameter}', tool?.diameter ?? '?'), options);
             if (this.config.useM6 && this.config.supportsToolChange) {
                 lines.push(...this.toolChangeSwap(n, options));
             } else {
@@ -681,8 +683,7 @@
          * X/Y/Z/A word list for a motion command, plus whether any of them
          * is real movement. generateRapid and generateLinear differ only in
          * their modal G-word and feed handling; this is everything they
-         * shared, including the 4th-axis rules that previously had to be
-         * kept in sync by hand in two places.
+         * share, including the 4th-axis rules.
          *
          * The rotary state key is always 'a' regardless of which WORD the
          * plan asked for - currentPosition tracks one rotary axis, and a
@@ -793,129 +794,54 @@
                 case 'PLUNGE': return this.generateLinear(cmd);
                 case 'RETRACT': return this.generateRapid(cmd);
                 case 'DWELL': return this.generateDwell(cmd);
-                case 'CANNED_SIMPLE': 
-                    if (this.generateSimpleDrill) return this.generateSimpleDrill({x: cmd.x, y: cmd.y}, cmd.z, cmd.retract, cmd.f, cmd.dwell);
-                    return '';
+                case 'CANNED_SIMPLE':
+                    return this.generateSimpleDrill({ x: cmd.x, y: cmd.y }, cmd.z, cmd.retract, cmd.f, cmd.dwell);
                 case 'CANNED_PECK':
-                    // Route to G73 if requested AND supported by the specific post-processor
-                    if (cmd.cycleType === 'G73' && this.generateChipBreakDrill) {
-                        return this.generateChipBreakDrill({x: cmd.x, y: cmd.y}, cmd.z, cmd.retract, cmd.peckDepth, cmd.f);
-                    } 
-                    // Fallback to G83 if G73 isn't available, or if G83 was explicitly requested
-                    else if (this.generatePeckDrill) {
-                        // Pass cmd.cycleType so it doesn't automatically default to G83
-                        return this.generatePeckDrill({x: cmd.x, y: cmd.y}, cmd.z, cmd.retract, cmd.peckDepth, cmd.f, cmd.cycleType);
-                    }
-                    return '';
-                default:
-                    return '';
+                    // cycleType 'G73' (chip-break) or 'G83' (full retract, the default)
+                    return this.generatePeckDrill({ x: cmd.x, y: cmd.y }, cmd.z, cmd.retract, cmd.peckDepth, cmd.f, cmd.cycleType);
+                default: return '';
             }
         }
 
         /**
-         * G81 - Simple drilling cycle (no dwell).
-         * G82 - Drilling cycle with dwell at bottom.
-         * Dwell parameter P is in milliseconds for UCCNC.
+         * G81 - simple drilling cycle; G82 when dwellTime > 0 (dwell at the bottom).
+         * P goes through formatDwell, which posts override for their unit.
          */
         generateSimpleDrill(position, depth, retract, feedRate, dwellTime) {
-            let line = '';
-
-            // Emit cycle code only on first hole or if changed
-            const cycleCode = dwellTime > 0 ? 'G82' : 'G81';
-            if (cycleCode !== this.cannedState.cycleType) {
-                line += cycleCode + ' ';
-                this.cannedState.cycleType = cycleCode;
-            }
-
-            // Always emit XY (position changes every hole)
-            line += `X${this.formatCoordinate(position.x)} Y${this.formatCoordinate(position.y)}`;
-
-            // Emit Z, R, F, P only if changed from last canned command
-            if (depth !== this.cannedState.z) {
-                line += ` Z${this.formatCoordinate(depth)}`;
-                this.cannedState.z = depth;
-            }
-            if (retract !== this.cannedState.r) {
-                line += ` R${this.formatCoordinate(retract)}`;
-                this.cannedState.r = retract;
-            }
-            if (feedRate !== this.cannedState.f) {
-                line += ` F${this.formatFeed(feedRate)}`;
-                this.cannedState.f = feedRate;
-            }
-            if (dwellTime > 0 && dwellTime !== this.cannedState.dwell) {
-                line += ` P${this.formatDwell(dwellTime)}`;
-                this.cannedState.dwell = dwellTime;
-            }
-
-            return line;
+            return this.cannedCycleHead(dwellTime > 0 ? 'G82' : 'G81', position)
+                + this.modalWord('Z', 'z', depth, this.formatCoordinate)
+                + this.modalWord('R', 'r', retract, this.formatCoordinate)
+                + this.modalWord('F', 'f', feedRate, this.formatFeed)
+                + (dwellTime > 0 ? this.modalWord('P', 'dwell', dwellTime, this.formatDwell) : '');
         }
 
         /**
-         * G83 - Peck drilling cycle (full retract between pecks).
+         * G83 - peck drilling, full retract between pecks.
+         * G73 - chip-breaking, partial retract; faster in stringy materials.
          */
         generatePeckDrill(position, depth, retract, peckDepth, feedRate, cycleType = 'G83') {
-            let line = '';
-
-            if (cycleType !== this.cannedState.cycleType) {
-                line += cycleType + ' ';
-                this.cannedState.cycleType = cycleType;
-            }
-
-            line += `X${this.formatCoordinate(position.x)} Y${this.formatCoordinate(position.y)}`;
-
-            if (depth !== this.cannedState.z) {
-                line += ` Z${this.formatCoordinate(depth)}`;
-                this.cannedState.z = depth;
-            }
-            if (retract !== this.cannedState.r) {
-                line += ` R${this.formatCoordinate(retract)}`;
-                this.cannedState.r = retract;
-            }
-            if (peckDepth !== this.cannedState.q) {
-                line += ` Q${this.formatCoordinate(peckDepth)}`;
-                this.cannedState.q = peckDepth;
-            }
-            if (feedRate !== this.cannedState.f) {
-                line += ` F${this.formatFeed(feedRate)}`;
-                this.cannedState.f = feedRate;
-            }
-
-            return line;
+            return this.cannedCycleHead(cycleType, position)
+                + this.modalWord('Z', 'z', depth, this.formatCoordinate)
+                + this.modalWord('R', 'r', retract, this.formatCoordinate)
+                + this.modalWord('Q', 'q', peckDepth, this.formatCoordinate)
+                + this.modalWord('F', 'f', feedRate, this.formatFeed);
         }
 
-        /**
-         * G73 - Chip-breaking cycle (partial retract between pecks).
-         * Faster than G83 for materials that produce stringy chips.
-         */
-        generateChipBreakDrill(position, depth, retract, peckDepth, feedRate) {
+        // Cycle code is modal; XY changes every hole.
+        cannedCycleHead(cycleType, position) {
             let line = '';
+            if (cycleType !== this.cannedState.cycleType) {
+                line = cycleType + ' ';
+                this.cannedState.cycleType = cycleType;
+            }
+            return line + `X${this.formatCoordinate(position.x)} Y${this.formatCoordinate(position.y)}`;
+        }
 
-            if ('G73' !== this.cannedState.cycleType) {
-                line += 'G73 ';
-                this.cannedState.cycleType = 'G73';
-            }
-
-            line += `X${this.formatCoordinate(position.x)} Y${this.formatCoordinate(position.y)}`;
-
-            if (depth !== this.cannedState.z) {
-                line += ` Z${this.formatCoordinate(depth)}`;
-                this.cannedState.z = depth;
-            }
-            if (retract !== this.cannedState.r) {
-                line += ` R${this.formatCoordinate(retract)}`;
-                this.cannedState.r = retract;
-            }
-            if (peckDepth !== this.cannedState.q) {
-                line += ` Q${this.formatCoordinate(peckDepth)}`;
-                this.cannedState.q = peckDepth;
-            }
-            if (feedRate !== this.cannedState.f) {
-                line += ` F${this.formatFeed(feedRate)}`;
-                this.cannedState.f = feedRate;
-            }
-
-            return line;
+        // Canned-cycle words are modal: emitted only when they differ from the previous cycle.
+        modalWord(letter, key, value, format) {
+            if (value === this.cannedState[key]) return '';
+            this.cannedState[key] = value;
+            return ` ${letter}${format.call(this, value)}`;
         }
 
         cancelCannedCycle(options) {

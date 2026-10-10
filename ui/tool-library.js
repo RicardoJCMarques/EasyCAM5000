@@ -25,8 +25,7 @@
             this.loadError = null;
         }
 
-        async init(appProfile = null) {
-            this.appProfile = appProfile;
+        async init() {
             if (this.isLoaded) return true;
 
             // PROD: Use the array injected by build.js
@@ -68,21 +67,16 @@
             return g ? (g.maxDiameter ?? g.diameter ?? null) : null;
         }
 
-        getEffectiveDiameter(toolId) {
-            const tool = this.getTool(toolId);
-            if (!tool?.geometry) return null;
-            if (!ToolLibrary.isTapered(tool)) return this.getToolDiameter(toolId);
-            return tool.geometry.effectiveDiameter ?? tool.geometry.tipDiameter;
-        }
-
         getToolSizes(toolId) {
             const tool = this.getTool(toolId);
             if (!tool) return null;
             const g = tool.geometry || {};
+            const tapered = ToolLibrary.isTapered(tool);
+            const diameter = this.getToolDiameter(toolId);
             return {
-                tapered: ToolLibrary.isTapered(tool),
-                diameter: this.getToolDiameter(toolId),
-                effective: this.getEffectiveDiameter(toolId),
+                tapered,
+                diameter,
+                effective: !tool.geometry ? null : tapered ? (g.effectiveDiameter ?? g.tipDiameter) : diameter,
                 tipRadius: (g.tipDiameter ?? 0) / 2,
                 angle: g.angle ?? g.angleDeg ?? null,
                 cornerRadius: g.cornerRadius,
@@ -208,29 +202,6 @@
             return compatibleTools[0] || null;
         }
 
-        getToolCategories() {
-            const categories = new Set();
-            this.tools.forEach(tool => {
-                if (tool.category) {
-                    categories.add(tool.category);
-                }
-            });
-            return Array.from(categories);
-        }
-
-        getToolsByCategory(category) {
-            return this.tools.filter(tool => tool.category === category);
-        }
-
-        // Export tool library for backup/sharing
-        exportTools() {
-            return {
-                version: 1,
-                timestamp: new Date().toISOString(),
-                tools: this.tools
-            };
-        }
-
         // Import tools from JSON
         importTools(data) {
             if (!data || !data.tools || !Array.isArray(data.tools)) {
@@ -293,7 +264,7 @@
          * @param {string} jsonText - raw file contents
          * @returns {{success:boolean, imported:string[], failed:Array, total:number, error?:string}}
          * 
-         * Not Wired
+         * TODO - To be wired alongside other custom imports.
          */
         importFromJSONText(jsonText) {
             let data;

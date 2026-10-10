@@ -20,29 +20,43 @@
     class EasyTraceUI extends BaseAppUI {
         constructor(ctrl) {
             super(ctrl);
-
             this.navTreePanel = null;
             this.traceOperationPanel = null;
-            this.canvasExporter = null;
             this.scene = null;
-            this.updatePending = false;
-            this.updateQueued = false;
+        }
+
+        get operationPanel() {
+            return this.traceOperationPanel;
         }
 
         async init() {
             try {
                 // Shorthand refs - used heavily by board transform controls.
                 // core.scene is the canonical owner; these avoid ~30 long-form lookups.
-                // REVIEW - EasyShape keeps transform setup in its controller; EasyTrace keeps it here. Target convention: transform wiring lives in ui-core-*, controllers own lifecycle only.
                 this.scene = this.core.scene;
-
                 await this.initShared();
-
-                this.initializeSceneListeners();
+                this.scene.addTransformListener(change => {
+                    this.renderer.render();
+                    if (debugState.enabled) this.debug(`[scene] transform change: ${change.action}`);
+                });
                 this.initTreePanel();
-                this.initTraceOperationPanel(this.ctrl.parameterStore, this.ctrl.inputRenderer);
-                this.initBoardTransforms();
-
+                this.traceOperationPanel = new TraceOperationPanel(this);
+                this.traceOperationPanel.initBase({
+                    core: this.core,
+                    store: this.ctrl.parameterStore,
+                    renderer: this.ctrl.inputRenderer,
+                    appProfile: this.ctrl.appProfile,
+                    lang: this.lang
+                });
+                // Board transforms: origin offset, rotation, mirror.
+                this.bindOriginFields('x-offset', 'y-offset');
+                const onClick = (id, fn) => document.getElementById(id)?.addEventListener('click', fn);
+                onClick('center-origin-btn', () => this.centerOrigin());
+                onClick('bottom-left-origin-btn', () => this.bottomLeftOrigin());
+                onClick('reset-origin-btn', () => this.revertOrigin());
+                onClick('apply-set-origin-btn', () => this.commitOrigin());
+                this.setupRotationControls();
+                this.setupMirrorControls();
                 this.debug('EasyTraceUI initialized');
                 return true;
             } catch (error) {
@@ -56,47 +70,25 @@
         // BaseAppUI Overrides
         // ═══════════════════════════════════════════════════════════════
 
-        getDefaultRendererOptions(theme) {
-            // REVIEW - EasyShape doesn't need this, why does EasyTrace?
-            const ro = D.rendering.defaultOptions;
-            return {
-                showWireframe: ro.showWireframe,
-                showGrid: ro.showGrid,
-                showOrigin: ro.showOrigin,
-                showRulers: ro.showRulers,
-                fuseGeometry: ro.fuseGeometry,
-                blackAndWhite: ro.blackAndWhite,
-                debugPoints: ro.debugPoints,
-                debugArcs: ro.debugArcs,
-                theme,
-                primitiveFilter: (prim, layerType) => this.shouldRenderPrimitive(prim, layerType),
-                resolveLayerColor: (layer) => this.resolveLayerColor(layer)
-            };
-        }
-
+        /**
+         * Source layers, one theme colour per operation type. The base answers
+         * first for everything else: black-and-white mode, stencil, laser
+         * fills, offsets and previews.
+         */
         resolveLayerColor(layer) {
-            // REVIEW - This looks like a bit of a band-aid but it does work.
-            // Stencil offset geometry override
-            if (layer.operationType === 'stencil') {
-                return this.readCSSVar('--color-geometry-source-stencil');
-            }
-
             const base = super.resolveLayerColor(layer);
             if (base !== null) return base;
-
-            const isBW = this.renderer?.options?.blackAndWhite;
-            if (isBW) {
-                if (layer.type === 'cutout') return this.readCSSVar('--color-bw-black');
-                return this.readCSSVar('--color-bw-white');
-            }
-
+            // REVIEW - Why isn't stencil color here?
             switch (layer.type) {
-                case 'isolation': return this.readCSSVar('--color-geometry-source-isolation');
-                case 'clearing':  return this.readCSSVar('--color-geometry-source-clearing');
-                case 'drill':     return this.readCSSVar('--color-geometry-source-drill');
-                case 'cutout':    return this.readCSSVar('--color-geometry-source-cutout');
-                case 'stencil':   return this.readCSSVar('--color-geometry-source-stencil');
-                case 'fused':     return this.readCSSVar('--color-geometry-source-isolation');
+                case 'isolation':
+                case 'fused':
+                    return this.readCSSVar('--color-geometry-source-isolation');
+                case 'clearing':
+                    return this.readCSSVar('--color-geometry-source-clearing');
+                case 'drill':
+                    return this.readCSSVar('--color-geometry-source-drill');
+                case 'cutout':
+                    return this.readCSSVar('--color-geometry-source-cutout');
             }
             return layer.color || this.readCSSVar('--color-geometry-source-isolation');
         }
@@ -125,28 +117,15 @@
         }
 
         // ═══════════════════════════════════════════════════════════════
-        // Scene Listeners
-        // ═══════════════════════════════════════════════════════════════
-
-        initializeSceneListeners() {
-            if (!this.scene) { console.warn('[cam-ui] core.scene missing'); return; }
-            this.scene.addTransformListener((change) => {
-                if (this.renderer) this.renderer.render();
-                if (debugState.enabled) this.debug(`[scene] transform change: ${change.action}`);
-            });
-        }
-
-        // ═══════════════════════════════════════════════════════════════
         // Panel Initialization
         // ═══════════════════════════════════════════════════════════════
 
         initTreePanel() {
             this.navTreePanel = new NavTreePanel(this);
             this.navTreePanel.init();
-
             this.navTreePanel.on('categoryClick', (opType) => this.triggerFileInput(opType));
-            this.navTreePanel.on('select', ({ kind, operation, stage }) => {
-                if (this.handleOperationSelection) this.handleOperationSelection(operation, stage || 'geometry');
+            this.navTreePanel.on('select', ({ operation, stage }) => {
+                this.handleOperationSelection(operation, stage || 'geometry');
             });
             this.navTreePanel.on('action', ({ id, action, artifactKey, layerName, element }) => {
                 if (action === 'delete') { this.promptRemoveOperation(id); return; }
@@ -157,106 +136,60 @@
             this.navTreePanel.on('deleteGeometry', ({ fileId, geometryId }) => {
                 const fileData = this.navTreePanel.nodes.get(fileId);
                 const geoData = fileData?.geometries.get(geometryId);
-                if (fileData && geoData) this.handleDeleteGeometry(fileId, fileData, geometryId, geoData);
+                if (geoData) this.handleDeleteGeometry(fileId, fileData.operation, geoData.type);
             });
-        }
-
-        initTraceOperationPanel(store, renderer) {
-            this.traceOperationPanel = new TraceOperationPanel(this);
-            this.traceOperationPanel.initBase({
-                core: this.core,
-                store,
-                renderer,
-                appProfile: this.ctrl.appProfile,
-                lang: this.lang
-            });
-            this.debug('TraceOperationPanel Initialized');
         }
 
         // ═══════════════════════════════════════════════════════════════
         // Board Transforms (origin/rotation/mirror)
         // ═══════════════════════════════════════════════════════════════
-
-        initBoardTransforms() {
-            this.committedOrigin = this.scene ? { ...this.scene.transform.origin } : { x: 0, y: 0 };
-            this.setupOffsetControls();
-            this.setupRotationControls();
-            this.setupMirrorControls();
-            // REVIEW - is this defensive scene check necessary?
-            if (this.scene) this.scene.addTransformListener(() => this.updateOffsetInputs());
-        }
-
-        setupOffsetControls() {
-            const xInput = document.getElementById('x-offset');
-            const yInput = document.getElementById('y-offset');
-            if (!xInput || !yInput) return;
-            xInput.removeAttribute('readonly');
-            yInput.removeAttribute('readonly');
-
-            const applyPreview = () => {
-                if (!this.scene) return;
-                this.scene.setOrigin(this.committedOrigin.x + (parseFloat(xInput.value) || 0), this.committedOrigin.y + (parseFloat(yInput.value) || 0));
-            };
-            xInput.addEventListener('input', applyPreview);
-            yInput.addEventListener('input', applyPreview);
-            const handleEnter = (e) => { if (e.key === 'Enter') { applyPreview(); this.applyOffsetAndSetOrigin(); } };
-            xInput.addEventListener('keypress', handleEnter);
-            yInput.addEventListener('keypress', handleEnter);
-
-            document.getElementById('center-origin-btn')?.addEventListener('click', () => this.centerOrigin());
-            document.getElementById('bottom-left-origin-btn')?.addEventListener('click', () => this.bottomLeftOrigin());
-            document.getElementById('reset-origin-btn')?.addEventListener('click', () => this.resetOrigin());
-            document.getElementById('apply-set-origin-btn')?.addEventListener('click', () => this.applyOffsetAndSetOrigin());
-        }
-
         setupRotationControls() {
             const rotationInput = document.getElementById('rotation-angle');
-
             const commitRotation = () => {
-                if (!this.scene) return;
                 this.scene.setRotation(parseFloat(rotationInput?.value) || 0);
                 this.updateOriginDisplay();
                 const el = document.getElementById('rotation-angle');
                 if (el) el.value = (this.scene.transform.rotation || 0).toFixed(1);
                 this.setStatus(`Board rotation set to ${this.scene.transform.rotation.toFixed(1)}°`, 'success');
             };
-
             if (rotationInput) {
-                rotationInput.addEventListener('keypress', (e) => {
+                rotationInput.addEventListener('keypress', e => {
                     if (e.key === 'Enter') { rotationInput.blur(); commitRotation(); }
                 });
             }
             document.getElementById("apply-rotation-btn")?.addEventListener("click", commitRotation);
             document.getElementById("reset-rotation-btn")?.addEventListener("click", () => {
-                if (this.scene) {
-                    this.scene.resetRotation();
-                    this.updateOriginDisplay();
-                    this.setStatus("Board rotation reset (position unchanged)", "success");
-                }
+                this.scene.resetRotation();
+                this.updateOriginDisplay();
+                this.setStatus("Board rotation reset (position unchanged)", "success");
             });
-
             // Keep the field on the absolute board angle, except while typing.
             const syncRotation = () => {
                 const el = document.getElementById('rotation-angle');
-                if (el && this.scene && document.activeElement !== el) {
-                    el.value = (this.scene.transform.rotation || 0).toFixed(1);
-                }
+                if (el && document.activeElement !== el) { el.value = (this.scene.transform.rotation || 0).toFixed(1); }
             };
-            if (this.scene) this.scene.addTransformListener(syncRotation);
+            this.scene.addTransformListener(syncRotation);
             syncRotation();
         }
 
         setupMirrorControls() {
             const toggleX = document.getElementById('mirror-x-toggle');
             const toggleY = document.getElementById('mirror-y-toggle');
-            if (toggleX) toggleX.addEventListener('change', (e) => { if (this.scene) { this.scene.setMirrorX(e.target.checked); this.updateOriginDisplay(); this.setStatus(`Horizontal mirror ${e.target.checked ? 'enabled' : 'disabled'}`, 'info'); } });
-            if (toggleY) toggleY.addEventListener('change', (e) => { if (this.scene) { this.scene.setMirrorY(e.target.checked); this.updateOriginDisplay(); this.setStatus(`Vertical mirror ${e.target.checked ? 'enabled' : 'disabled'}`, 'info'); } });
+            if (toggleX) toggleX.addEventListener('change', e => {
+                this.scene.setMirrorX(e.target.checked);
+                this.updateOriginDisplay();
+                this.setStatus(`Horizontal mirror ${e.target.checked ? 'enabled' : 'disabled'}`, 'info');
+            });
+            if (toggleY) toggleY.addEventListener('change', e => {
+                this.scene.setMirrorY(e.target.checked);
+                this.updateOriginDisplay();
+                this.setStatus(`Vertical mirror ${e.target.checked ? 'enabled' : 'disabled'}`, 'info');
+            });
             this.syncMirrorCheckboxes();
-            if (this.scene) this.scene.addTransformListener(() => this.syncMirrorCheckboxes());
+            this.scene.addTransformListener(() => this.syncMirrorCheckboxes());
         }
 
         syncMirrorCheckboxes() {
-            if (!this.scene) return;
             const t = this.scene.transform;
             const toggleX = document.getElementById('mirror-x-toggle');
             const toggleY = document.getElementById('mirror-y-toggle');
@@ -265,50 +198,15 @@
         }
 
         centerOrigin() {
-            if (!this.scene) return;
             const applied = this.scene.centerOriginOnBoard();
             this.updateOriginDisplay();
             this.setStatus(applied ? 'Preview: Origin at board center (not saved)' : 'Cannot center - no board bounds yet', applied ? 'info' : 'error');
         }
 
         bottomLeftOrigin() {
-            if (!this.scene) return;
             const applied = this.scene.setOriginToBottomLeft();
             this.updateOriginDisplay();
             this.setStatus(applied ? 'Preview: Origin at board bottom-left (not saved)' : 'Cannot set bottom-left - no board bounds yet', applied ? 'info' : 'error');
-        }
-
-        applyOffsetAndSetOrigin() {
-            if (!this.scene) return;
-            this.committedOrigin = { ...this.scene.transform.origin };
-            this.updateOffsetInputs(true);
-            this.updateOriginDisplay();
-            this.setStatus('Origin saved at current position', 'success');
-        }
-
-        resetOrigin() {
-            if (!this.scene) return;
-            this.scene.setOrigin(this.committedOrigin.x, this.committedOrigin.y);
-            this.updateOriginDisplay();
-            this.setStatus('Reset to saved origin', 'success');
-        }
-
-        /**
-         * Writes the pending offset back into the fields. Skips whichever field
-         * has focus unless forced: setOrigin fires this on every keystroke via the
-         * transform listener, and reformatting mid-edit moves the caret so a
-         * second digit can never be typed. A commit forces it, because the field
-         * the user just pressed Enter in has to show 0 again.
-         */
-        updateOffsetInputs(force = false) {
-            const xInput = document.getElementById('x-offset');
-            const yInput = document.getElementById('y-offset');
-            if (!xInput || !yInput || !this.scene) return;
-            const o = this.scene.transform.origin;
-            const decimals = D.geometry.decimals.coordinates;
-            const active = document.activeElement;
-            if (force || active !== xInput) xInput.value = (o.x - this.committedOrigin.x).toFixed(decimals);
-            if (force || active !== yInput) yInput.value = (o.y - this.committedOrigin.y).toFixed(decimals);
         }
 
         // ═══════════════════════════════════════════════════════════════
@@ -316,11 +214,7 @@
         // ═══════════════════════════════════════════════════════════════
 
         async collectLayers() {
-            // Clear cached 3D subtracted copper on layer rebuild
-            for (const op of this.core.operations) {
-                if (op._3dCopperPrimitives) delete op._3dCopperPrimitives;
-            }
-            this.renderer.options.fuseGeometry ? await this.performFusion() : this.addIndividualLayers();
+            this.renderer.options.fuseGeometry ? await this.performFusion() : this.addSourceLayers();
             this.addOffsetLayers();
         }
 
@@ -355,16 +249,16 @@
 
                 if (this.renderer.options.showPreprocessed) this.addPreprocessedLayer();
                 else this.addFusedLayer(fused);
-                this.addNonFusableLayers();
+                this.addSourceLayers((op) => op.type !== 'isolation' && op.type !== 'clearing');
             } catch (error) {
                 console.error('Fusion error:', error);
                 this.setStatus('Fusion failed: ' + error.message, 'error');
-                this.addIndividualLayers();
+                this.addSourceLayers();
             }
         }
 
         addPreprocessedLayer() {
-            const allPreprocessed = this.core.getPreprocessedPrimitives();
+            const allPreprocessed = this.core.geometryProcessor?.cachedStates.preprocessedGeometry;
             if (!allPreprocessed?.length) return;
             const byOperation = new Map();
             allPreprocessed.forEach(p => {
@@ -404,40 +298,25 @@
             });
         }
 
-        addNonFusableLayers() {
-            this.core.operations.forEach(operation => {
-                if ((operation.type === 'drill' || operation.type === 'cutout' || operation.type === 'stencil') && operation.primitives?.length > 0) {
-                    const hasVisibleOffsets = operation.offsets?.length > 0 && this.resolveLayerVisibility(operation, 'offsets', true);
-                    const defaultVis = operation.type === 'stencil' && hasVisibleOffsets ? false : true;
-                    const layerName = window.LayerNaming.source(operation.id);
-                    this.renderer.addLayer(layerName, operation.primitives, {
-                        type: operation.type,
-                        operationType: operation.type,
-                        operationId: operation.id,
-                        role: 'source',
-                        visible: this.resolveLayerVisibility(operation, 'source', defaultVis),
-                        zIndex: this.getLayerZIndex(operation.type, { operationType: operation.type })
-                    });
-                }
-            });
-        }
-
-        addIndividualLayers() {
-            this.core.operations.forEach(operation => {
-                if (operation.primitives?.length > 0) {
-                    const hasVisibleOffsets = operation.offsets?.length > 0 && this.resolveLayerVisibility(operation, 'offsets', true);
-                    const defaultVis = operation.type === 'stencil' && hasVisibleOffsets ? false : true;
-                    const layerName = window.LayerNaming.source(operation.id);
-                    this.renderer.addLayer(layerName, operation.primitives, {
-                        type: operation.type,
-                        operationType: operation.type,
-                        operationId: operation.id,
-                        role: 'source',
-                        visible: this.resolveLayerVisibility(operation, 'source', defaultVis),
-                        zIndex: this.getLayerZIndex(operation.type, { operationType: operation.type })
-                    });
-                }
-            });
+        /**
+         * Source layers for every operation with primitives that `include`
+         * accepts. A stencil's source starts hidden while its offsets show.
+         */
+        addSourceLayers(include = () => true) {
+            for (const operation of this.core.operations) {
+                if (!operation.primitives?.length || !include(operation)) continue;
+                const hasVisibleOffsets =
+                    operation.offsets?.length > 0 && this.resolveLayerVisibility(operation, 'offsets', true);
+                const defaultVis = !(operation.type === 'stencil' && hasVisibleOffsets);
+                this.renderer.addLayer(window.LayerNaming.source(operation.id), operation.primitives, {
+                    type: operation.type,
+                    operationType: operation.type,
+                    operationId: operation.id,
+                    role: 'source',
+                    visible: this.resolveLayerVisibility(operation, 'source', defaultVis),
+                    zIndex: this.getLayerZIndex(operation.type, { operationType: operation.type }),
+                });
+            }
         }
 
 
@@ -453,8 +332,8 @@
             return v !== undefined ? v : defaultVisible;
         }
 
-        addOffsetLayers() {
-            this.core.operations.forEach(operation => {
+        addOffsetLayers(operations = this.core.operations) {
+            operations.forEach((operation) => {
                 if (operation.offsets?.length > 0) {
                     const isLaser = this.core.machineClassOf(operation) === 'laser';
                     const isCombined = operation.offsets[0]?.metadata?.offset?.combined || isLaser;
@@ -480,8 +359,8 @@
                                 let offsetType = offset.distance > 0 ? 'external' : offset.distance < 0 ? 'internal' : 'on';
                                 const isHatch = offset.metadata?.isHatch === true;
                                 const layerName = window.LayerNaming.offsetPass(operation.id, passIndex + 1);
-                                const isVisible = this.resolveLayerVisibility(operation, `offset_${passIndex}`, !0) &&
-                                                this.resolveLayerVisibility(operation, "offsets", !0);
+                                const isVisible = this.resolveLayerVisibility(operation, `offset_${passIndex}`, true) &&
+                                                this.resolveLayerVisibility(operation, "offsets", true);
                                 this.renderer.addLayer(layerName, offset.primitives, {
                                     type: "offset", visible: isVisible,
                                     operationId: operation.id, operationType: operation.type, offsetType, pass: offset.pass,
@@ -515,7 +394,7 @@
                 const b = this.scene.getVisualBounds() || this.scene.getBoardBounds();
                 if (b) sizeElement.textContent = b.width.toFixed(1) + ' x ' + b.height.toFixed(1) + ' mm';
             }
-            this.updateOffsetInputs(true);
+            this.syncOriginFields(true);
         }
 
         updateStatistics() {
@@ -533,9 +412,8 @@
         // ═══════════════════════════════════════════════════════════════
 
         /**
-         * Confirms, then deletes. Named for the prompt, not the action: the
-         * thing that actually removes is removeOperation below, and CamCore's
-         * removeOperation is the one that keeps board bounds in step.
+         * Confirms, then deletes. Named for the prompt, not the action:
+         * removeOperation below does the delete.
          */
         promptRemoveOperation(operationId) {
             const op = this.core.store.getOperation(operationId);
@@ -548,7 +426,7 @@
         }
 
         removeOperation(operationId) {
-            if (this.core.removeOperation(operationId)) {
+            if (this.core.detachOperation(operationId)) {
                 this.navTreePanel?.removeFileNode(operationId);
                 if (this.traceOperationPanel) {
                     if (this.traceOperationPanel.currentOperationId === operationId) {
@@ -575,87 +453,39 @@
             if (this.traceOperationPanel && container) this.traceOperationPanel.showOperationProperties(container, operation, stage);
         }
 
-        handleDeleteGeometry(fileId, fileData, geometryId, geoData) {
-            if (!fileData || !geoData) return;
-            // Determine the layer to be deleted
-            const operation = fileData.operation;
-            let layerName;
-            if (geoData.type === 'offsets_combined') layerName = window.LayerNaming.offsetCombined(operation.id);
-            else if (geoData.type.startsWith('offset_')) { const passIndex = parseInt(geoData.type.split('_')[1]); layerName = window.LayerNaming.offsetPass(operation.id, passIndex + 1); }
-            else if (geoData.type === 'preview') layerName = window.LayerNaming.preview(operation.id);
-            else if (geoData.type === 'source') layerName = window.LayerNaming.source(operation.id);
-            else layerName = `${geoData.type}_${operation.id}`;
-
-            // Delegate data mutation to Core
-            this.core.store.deleteOperationGeometry(operation.id, geoData.type);
-
-            // Handle UI/renderer restoration after preview deletion
-            if (geoData.type === 'preview' && operation.offsets?.length > 0) {
-                // Auto-unhide offsets when CNC preview is deleted
-                const isLaser = this.core.machineClassOf(operation) === 'laser';
-                const isCombined = operation.offsets[0]?.metadata?.offset?.combined || isLaser;
-
-                // Unhide the specific offset layer(s) in the Renderer
-                if (isCombined) {
-                    const oln = window.LayerNaming.offsetCombined(operation.id);
-                    if (this.renderer.layers.has(oln)) this.renderer.layers.get(oln).visible = true;
-                } else {
-                    operation.offsets.forEach((_, pi) => {
-                        const oln = window.LayerNaming.offsetPass(operation.id, pi + 1);
-                        if (this.renderer.layers.has(oln)) this.renderer.layers.get(oln).visible = true;
-                    });
-                }
-                // Update eye icons in the Nav Tree
-                if (this.navTreePanel) {
-                    const fn = this.navTreePanel.nodes.get(fileId);
-                    if (fn) fn.geometries.forEach((geo) => {
-                        if (geo.type.startsWith('offset')) { const vb = geo.element.querySelector('.visibility-btn'); if (vb) vb.classList.remove('is-hidden'); }
-                    });
+        handleDeleteGeometry(fileId, operation, type) {
+            const hadPreview = !!operation.preview;
+            this.core.store.deleteOperationGeometry(operation.id, type);
+            // The record is the truth: a `false` left behind for anything this
+            // delete re-shows would re-hide it on the next rebuild.
+            const record = (operation.layerVisibility ||= {});
+            delete record[NavTreePanel.artifactKeyOf(type)];
+            if (hadPreview && !operation.preview) {
+                delete record.offsets;
+                operation.offsets.forEach((_, pi) => delete record[`offset_${pi}`]);
+            }
+            if (operation.type === 'stencil' && !operation.offsets.length) {
+                delete record.source;
+                const source = this.renderer.layers.get(window.LayerNaming.source(operation.id));
+                if (source) source.visible = true;
+            }
+            // Re-lay this operation's offset and preview layers only: source and
+            // fused layers stay, so fusion does not re-run.
+            for (const [name, layer] of this.renderer.layers) {
+                if (layer.operationId === operation.id && (layer.isOffset || layer.isPreview)) {
+                    this.renderer.layers.delete(name);
                 }
             }
-
-            // Restore stencil source visibility if all offsets are deleted
-            if (operation.type === 'stencil' && (!operation.offsets || operation.offsets.length === 0)) {
-                const sln = window.LayerNaming.source(operation.id);
-                if (this.renderer.layers.has(sln)) this.renderer.layers.get(sln).visible = true;
-                if (this.navTreePanel) { const fn = this.navTreePanel.nodes.get(fileId); const vb = fn?.element.querySelector('.file-node-content .visibility-btn'); if (vb) vb.classList.remove('is-hidden'); }
-            }
-
-            // Clear the persisted record for the deleted artifact AND for
-            // anything this delete just un-hid. Deleting a preview re-shows
-            // the offsets in the renderer; leaving their `false` record
-            // behind re-hid them on the next rebuild with the icon still
-            // reading "shown".
-            if (operation.layerVisibility) {
-                delete operation.layerVisibility[NavTreePanel.artifactKeyOf(geoData.type)];
-                if (geoData.type === 'preview') {
-                    delete operation.layerVisibility.offsets;
-                    operation.offsets?.forEach((_, pi) => delete operation.layerVisibility[`offset_${pi}`]);
-                }
-            }
-
-            // Invalidate 3D differenced copper when toolpaths or offsets are deleted
-            if ("toolpath" === geoData.type || "preview" === geoData.type || geoData.type.startsWith("offset")) {
-                for (const op of this.core.operations) {
-                    if (op._3dCopperPrimitives) delete op._3dCopperPrimitives;
-                }
-            }
-            // Remove renderer layer // REVIEW - Useless code now?
-            if (layerName && this.renderer.layers.has(layerName)) this.renderer.layers.delete(layerName);
-
-            // Remove DOM node and re-select parent
-            if (this.navTreePanel) {
-                this.navTreePanel.removeGeometryNode(fileId, geometryId);
-                const updatedFileData = this.navTreePanel.nodes.get(fileId);
-                if (updatedFileData) this.navTreePanel.selectFile(fileId, updatedFileData.operation);
-            }
-            // Re-draw the canvas
-            this.ctrl.refresh3D?.(); // refresh3D owns the world→machine map and the stock box; the renderer has neither.
+            this.addOffsetLayers([operation]);
+            this.navTreePanel.updateFileGeometries(fileId, operation);
+            this.navTreePanel.selectFile(fileId, operation);
+            // refresh3D owns the world→machine map and the stock box; the renderer has neither.
+            this.ctrl.refresh3D();
             this.renderer.render();
         }
 
         triggerFileInput(opType) {
-            const fileInput = document.getElementById('file-input-hidden') || document.getElementById('file-input-temp');
+            const fileInput = document.getElementById('file-input-hidden');
             if (!fileInput) { console.warn('No file input element found'); return; }
             fileInput.setAttribute('data-type', opType);
             fileInput.setAttribute('accept', this.ctrl.registry.acceptFor(opType));

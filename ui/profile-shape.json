@@ -45,7 +45,7 @@
       "machineClasses": { "router": "2.5d" }
     },
     "drill": {
-      "handler": "ShapeDrillHandler",
+      "handler": "DrillHandler",
       "label": "Drill Holes",
       "icon": "icon-op-drilling",
       "extensions": [".svg"],
@@ -150,32 +150,19 @@
       "general": "General Settings"
     },
     "stages": {
-      "geometry": { "label": "XY Geometry", "label3d": "XYZ Geometry", "icon": "icon-geometry-stage" },
-      "strategy": { "label": "Z Strategy",  "icon": "icon-offsets-stage" },
-      "machine": { "label": "Feeds & Toolpaths", "icon": "icon-machine-stage" },
-      "output": { "label": "Output", "icon": "icon-output-stage" }
+      "geometry": { "label": "XY Geometry", "label3d": "XYZ Geometry" },
+      "strategy": { "label": "Z Strategy" },
+      "machine": { "label": "Feeds & Toolpaths" },
+      "output": { "label": "Output" }
     },
     "artifacts": {
-      "offsets": { "label": "Offsets", "label3d": "3D Paths", "icon": "icon-offsets-stage" },
-      "preview": { "label": "Tool Reach", "icon": "icon-preview-stage" },
-      "toolpath": { "label": "Toolpaths", "icon": "icon-toolpath-stage" }
-    },
-    "icons": {
-      "warning": "icon-warning",
-      "offsetCombined": "icon-offset-combined",
-      "offsetPass": "icon-offset-pass",
-      "preview": "icon-preview",
-      "toolpath": "icon-toolpath",
-      "defaultGeometry": "icon-file",
-      "dragHandle": "icon-drag-handle",
-      "tooltipTrigger": "?",
-      "file": "icon-file",
-      "gear": "icon-gear",
-      "offsetsStage": "icon-offsets-stage"
+      "offsets": { "label": "Offsets", "label3d": "3D Paths", "icon": "icon-stage-offsets" },
+      "preview": { "label": "Tool Reach", "icon": "icon-stage-preview" },
+      "toolpath": { "label": "Toolpaths", "icon": "icon-stage-toolpath" }
     },
     "text": {
       "noToolsAvailable": "No tools available",
-      "gcodePlaceholder": "Click 'Generate G-code' to continue",
+      "gcodePlaceholder": "Click \"Calculate Toolpaths\" to generate G-code",
       "gcodeNoExportAlert": "No operations ready to export",
       "statusReady": "Ready - Import an SVG to begin",
       "statusLoading": "Loading...",
@@ -236,10 +223,11 @@
       "unit": "mm",
       "stage": "geometry",
       "category": "tool",
+      "conditional": "!drillMultiTool",
       "operationTypes": ["profile", "pocket", "drill", "engrave", "vcarve", "relief", "rotary"],
       "min": 0.01,
       "max": 25.4,
-      "step": 0.01
+      "step": 0.001
     },
 
     "_comment_profile_geo": "═══ PROFILE GEOMETRY ═══",
@@ -277,8 +265,7 @@
       "operationTypes": "pocket",
       "default": "offset",
       "options": [
-        { "value": "offset", "label": "Concentric Offsets" },
-        { "value": "raster", "label": "Raster / Zig-Zag" }
+        { "value": "offset", "label": "Concentric Offsets" }
       ]
     },
     "stepOver": {
@@ -358,7 +345,8 @@
       "stage": "strategy",
       "category": "depth",
       "operationTypes": "drill",
-      "default": true
+      "default": true,
+      "conditional": "millHoles"
     },
     "drillDepthPerPass": {
       "type": "number",
@@ -371,7 +359,7 @@
       "min": 0.1,
       "max": 50,
       "step": 0.5,
-      "conditional": "drillMultiDepth"
+      "conditional": "millHoles && drillMultiDepth"
     },
     "drillEntryType": {
       "type": "select",
@@ -380,9 +368,10 @@
       "category": "depth",
       "operationTypes": "drill",
       "default": "helix",
+      "conditional": "millHoles",
       "options": [
-        { "value": "plunge", "label": "Plunge (Vertical)" },
-        { "value": "helix", "label": "Helix (Spiral entry)" }
+        { "value": "helix", "label": "Helix (Spiral entry)" },
+        { "value": "plunge", "label": "Plunge (Vertical)" }
       ]
     },
 

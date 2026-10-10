@@ -51,7 +51,7 @@ const APPS = [
 const SHARED = {
     cssPath: '../../css',
     themeScriptPath: '../../themes/theme-loader.js',
-    figuresScriptPath: '../../figures.js',
+    figuresScriptPath: '../../images/figures.js',
     githubUrl: 'https://github.com/RicardoJCMarques/EasyCAM5000',
     siteUrl: 'https://cam.eltryus.design'
 };
@@ -350,7 +350,7 @@ const getTemplate = (cfg, sidebarHtml, mainBodyHtml, heroTitle, tagline) => `<!D
 
         <!-- Main Content -->
         <main id="doc-content" class="doc-main" aria-label="Main Content">
-            <section class="hero hero--compact">
+            <section class="hero">
                 <h1>${heroTitle}</h1>
                 <p class="tagline">${tagline}</p>
             </section>
