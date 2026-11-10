@@ -1,1173 +1,1272 @@
 <!DOCTYPE html>
 <html lang="en" data-theme="dark">
 <head>
-    <meta charset="UTF-8">
-    <meta http-equiv="Content-Security-Policy" content="worker-src 'self';">
-    <!--!
-        @file        easyshape5000/index.html
-        @description EasyShape5000 App Workspace
-        @author      Eltryus - Ricardo Marques
-        @copyright   2025-2026 Eltryus - Ricardo Marques
-        @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="worker-src 'self';">
+  <!--!
+    @file        easyshape5000/index.html
+    @description EasyShape5000 App Workspace
+    @author      Eltryus - Ricardo Marques
+    @copyright   2025-2026 Eltryus - Ricardo Marques
+    @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
 
-        SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
-        SPDX-License-Identifier: AGPL-3.0-or-later
-    -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EasyShape5000 - Browser CAM for CNC Routers</title>
+    SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
+    SPDX-License-Identifier: AGPL-3.0-or-later
+  -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title data-i18n="app.title">EasyShape5000 - Browser CAM for CNC Routers</title>
 
-    <meta name="description" content="Free online CAM for CNC routers. Turn SVG and STL into G-code in your browser - profile, pocket, drill, engrave, V-carve, relief and 4th-axis rotary.">
-    <meta name="keywords" content="CNC CAM, CNC Router CAM, G-code Generator, SVG to G-code, Open Source CAM, Easel alternative, browser CAM, woodworking CAM, pocket milling, profile cutting">
-    <meta name="author" content="Eltryus">
-    <meta name="robots" content="index, follow">
-    <meta name="theme-color" content="#1a1a1a">
+  <meta name="description" content="Free online CAM for CNC routers. Turn SVG and STL into G-code in your browser - profile, pocket, drill, engrave, V-carve, relief and 4th-axis rotary.">
+  <meta name="keywords" content="CNC CAM, CNC Router CAM, G-code Generator, SVG to G-code, Open Source CAM, Easel alternative, browser CAM, woodworking CAM, pocket milling, profile cutting">
+  <meta name="author" content="Eltryus">
+  <meta name="robots" content="index, follow">
+  <meta name="theme-color" content="#1a1a1a">
 
-    <link rel="canonical" href="https://cam.eltryus.design/easyshape5000/">
+  <link rel="canonical" href="https://cam.eltryus.design/easyshape5000/">
 
-    <meta property="og:type" content="website">
-    <meta property="og:url" content="https://cam.eltryus.design/easyshape5000/">
-    <meta property="og:title" content="EasyShape5000 - Browser CAM for CNC Routers">
-    <meta property="og:site_name" content="EasyCAM5000">
-    <meta property="og:description" content="Free online CAM for CNC routers. Turn SVG and STL into G-code in your browser - profile, pocket, drill, engrave, V-carve, relief and 4th-axis rotary.">
-    <meta property="og:image" content="https://cam.eltryus.design/images/social-shape.jpg">
-    <meta property="og:image:width" content="1200">
-    <meta property="og:image:height" content="630">
-    <meta property="og:locale" content="en_US">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://cam.eltryus.design/easyshape5000/">
+  <meta property="og:title" content="EasyShape5000 - Browser CAM for CNC Routers">
+  <meta property="og:site_name" content="EasyCAM5000">
+  <meta property="og:description" content="Free online CAM for CNC routers. Turn SVG and STL into G-code in your browser - profile, pocket, drill, engrave, V-carve, relief and 4th-axis rotary.">
+  <meta property="og:image" content="https://cam.eltryus.design/images/social-shape.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:locale" content="en_US">
 
-    <link rel="icon" type="image/png" href="../images/favicon/favicon-96x96.png" sizes="96x96">
-    <link rel="icon" type="image/svg+xml" href="../images/favicon/favicon.svg">
-    <link rel="shortcut icon" href="../images/favicon/favicon.ico">
-    <link rel="apple-touch-icon" sizes="180x180" href="../images/favicon/apple-touch-icon.png">
-    <link rel="manifest" href="../images/favicon/site.webmanifest">
+  <link rel="icon" type="image/png" href="../images/favicon/favicon-96x96.png" sizes="96x96">
+  <link rel="icon" type="image/svg+xml" href="../images/favicon/favicon.svg">
+  <link rel="shortcut icon" href="../images/favicon/favicon.ico">
+  <link rel="apple-touch-icon" sizes="180x180" href="../images/favicon/apple-touch-icon.png">
+  <link rel="manifest" href="../images/favicon/site.webmanifest">
 
-    <!-- Shared CSS -->
-    <link rel="stylesheet" href="../css/base.css">
-    <link rel="stylesheet" href="../css/components.css">
-    <link rel="stylesheet" href="../css/modals.css">
-    <link rel="stylesheet" href="../css/theme.css">
-    <link rel="stylesheet" href="../css/layout-shared.css">
+  <!-- Shared CSS -->
+  <link rel="stylesheet" href="../css/base.css">
+  <link rel="stylesheet" href="../css/components.css">
+  <link rel="stylesheet" href="../css/modals.css">
+  <link rel="stylesheet" href="../css/theme.css">
+  <link rel="stylesheet" href="../css/layout-shared.css">
 
-    <!-- App-specific layout -->
-    <link rel="stylesheet" href="../css/layout-easyshape5000.css">
+  <!-- App-specific layout -->
+  <link rel="stylesheet" href="../css/layout-easyshape5000.css">
 
-    <!-- WASM preload -->
-    <link rel="preload" href="../geometry/clipper2z.wasm" as="fetch" crossorigin>
+  <!-- WASM preload -->
+  <link rel="preload" href="../geometry/clipper2z.wasm" as="fetch" crossorigin>
 
-    <script type="application/ld+json">
-    {
-        "@context": "https://schema.org",
-        "@graph": [
-            {
-                "@type": "Organization",
-                "@id": "https://www.eltryus.design/#organization",
-                "name": "Eltryus",
-                "url": "https://www.eltryus.design/"
-            },
-            {
-                "@type": "WebSite",
-                "@id": "https://cam.eltryus.design/#website",
-                "name": "EasyCAM5000",
-                "alternateName": "Eltryus EasyCAM5000 Suite",
-                "url": "https://cam.eltryus.design/",
-                "inLanguage": "en",
-                "publisher": { "@id": "https://www.eltryus.design/#organization" }
-            },
-            {
-                "@type": "WebApplication",
-                "@id": "https://cam.eltryus.design/#suite",
-                "name": "EasyCAM5000",
-                "url": "https://cam.eltryus.design/"
-            },
-            {
-                "@type": "CollectionPage",
-                "@id": "https://cam.eltryus.design/easyshape5000/doc/#docs",
-                "name": "EasyShape5000 Documentation",
-                "url": "https://cam.eltryus.design/easyshape5000/doc/"
-            },
-            {
-                "@type": "WebPage",
-                "@id": "https://cam.eltryus.design/easyshape5000/#webpage",
-                "url": "https://cam.eltryus.design/easyshape5000/",
-                "name": "EasyShape5000 - Browser CAM for CNC Routers",
-                "inLanguage": "en",
-                "isPartOf": { "@id": "https://cam.eltryus.design/#website" },
-                "mainEntity": { "@id": "https://cam.eltryus.design/easyshape5000/#app" },
-                "breadcrumb": { "@id": "https://cam.eltryus.design/easyshape5000/#breadcrumb" },
-                "primaryImageOfPage": "https://cam.eltryus.design/images/social-shape.jpg"
-            },
-            {
-                "@type": "WebApplication",
-                "@id": "https://cam.eltryus.design/easyshape5000/#app",
-                "name": "EasyShape5000",
-                "url": "https://cam.eltryus.design/easyshape5000/",
-                "mainEntityOfPage": { "@id": "https://cam.eltryus.design/easyshape5000/#webpage" },
-                "applicationCategory": "DesignApplication",
-                "applicationSubCategory": "CAM Software",
-                "operatingSystem": "Any (Browser-based)",
-                "browserRequirements": "Requires JavaScript and WebAssembly support",
-                "softwareVersion": "1.4.0",
-                "releaseNotes": "https://github.com/RicardoJCMarques/EasyCAM5000/blob/main/CHANGELOG.md",
-                "installUrl": "https://cam.eltryus.design/easyshape5000/",
-                "sameAs": [
-                    "https://github.com/RicardoJCMarques/EasyCAM5000"
-                ],
-                "license": "https://www.gnu.org/licenses/agpl-3.0.html",
-                "isAccessibleForFree": true,
-                "offers": {
-                    "@type": "Offer",
-                    "price": "0",
-                    "priceCurrency": "EUR",
-                    "availability": "https://schema.org/InStock"
-                },
-                "description": "Browser-based CAM tool for CNC routers. Import SVG/STL designs, assign profile/pocket/drill/engrave/v-carve/relief/4th-axis operations, and export optimized G-code.",
-                "isPartOf": { "@id": "https://cam.eltryus.design/#suite" },
-                "author": { "@id": "https://www.eltryus.design/#organization" },
-                "publisher": { "@id": "https://www.eltryus.design/#organization" },
-                "softwareHelp": { "@id": "https://cam.eltryus.design/easyshape5000/doc/#docs" },
-                "featureList": [
-                    "Browser-based, 100% client-side CAM processing with zero cloud dependencies",
-                    "SVG import with hierarchical group preservation",
-                    "Scene graph with group/ungroup, lock, visibility, and undo/redo",
-                    "Per-shape operation assignment (Profile, Pocket, Drill, Engrave)",
-                    "WebAssembly geometry engine for high-performance boolean operations",
-                    "Smart drill strategy with dynamic peck-or-mill selection",
-                    "Optimized toolpaths with staydown clustering and G2/G3 arc reconstruction",
-                    "Ten CNC post-processors including GRBL, grblHAL, LinuxCNC, Mach3, Fanuc and Roland RML",
-                    "Automatic tool changes with tool length compensation",
-                    "3D operations: V-carve, relief surfacing, and 4th-axis rotary in radial and indexed 3+1 kinematics",
-                    "3D toolpath preview with playback"
-                ],
-                "screenshot": {
-                    "@type": "ImageObject",
-                    "url": "https://cam.eltryus.design/images/social-shape.jpg",
-                    "caption": "EasyShape5000 main workspace"
-                }
-            },
-            {
-                "@type": "BreadcrumbList",
-                "@id": "https://cam.eltryus.design/easyshape5000/#breadcrumb",
-                "itemListElement": [
-                    { "@type": "ListItem", "position": 1, "name": "EasyCAM5000", "item": "https://cam.eltryus.design/" },
-                    { "@type": "ListItem", "position": 2, "name": "EasyShape5000", "item": "https://cam.eltryus.design/easyshape5000/" }
-                ]
-            }
-        ]
-    }
-    </script>
-
-    <script type="importmap">
-    {
-        "imports": {
-            "three": "../renderer3d/three.core.min.js",
-            "three/webgpu": "../renderer3d/three.webgpu.min.js",
-            "three/tsl": "../renderer3d/three.tsl.min.js"
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": "https://www.eltryus.design/#organization",
+        "name": "Eltryus",
+        "url": "https://www.eltryus.design/"
+      },
+      {
+        "@type": "WebSite",
+        "@id": "https://cam.eltryus.design/#website",
+        "name": "EasyCAM5000",
+        "alternateName": "Eltryus EasyCAM5000 Suite",
+        "url": "https://cam.eltryus.design/",
+        "inLanguage": "en",
+        "publisher": { "@id": "https://www.eltryus.design/#organization" }
+      },
+      {
+        "@type": "WebApplication",
+        "@id": "https://cam.eltryus.design/#suite",
+        "name": "EasyCAM5000",
+        "url": "https://cam.eltryus.design/"
+      },
+      {
+        "@type": "CollectionPage",
+        "@id": "https://cam.eltryus.design/easyshape5000/doc/#docs",
+        "name": "EasyShape5000 Documentation",
+        "url": "https://cam.eltryus.design/easyshape5000/doc/"
+      },
+      {
+        "@type": "WebPage",
+        "@id": "https://cam.eltryus.design/easyshape5000/#webpage",
+        "url": "https://cam.eltryus.design/easyshape5000/",
+        "name": "EasyShape5000 - Browser CAM for CNC Routers",
+        "inLanguage": "en",
+        "isPartOf": { "@id": "https://cam.eltryus.design/#website" },
+        "mainEntity": { "@id": "https://cam.eltryus.design/easyshape5000/#app" },
+        "breadcrumb": { "@id": "https://cam.eltryus.design/easyshape5000/#breadcrumb" },
+        "primaryImageOfPage": "https://cam.eltryus.design/images/social-shape.jpg"
+      },
+      {
+        "@type": "WebApplication",
+        "@id": "https://cam.eltryus.design/easyshape5000/#app",
+        "name": "EasyShape5000",
+        "url": "https://cam.eltryus.design/easyshape5000/",
+        "mainEntityOfPage": { "@id": "https://cam.eltryus.design/easyshape5000/#webpage" },
+        "applicationCategory": "DesignApplication",
+        "applicationSubCategory": "CAM Software",
+        "operatingSystem": "Any (Browser-based)",
+        "browserRequirements": "Requires JavaScript and WebAssembly support",
+        "softwareVersion": "1.7.0",
+        "dateModified": "2026-11-10",
+        "releaseNotes": "https://github.com/RicardoJCMarques/EasyCAM5000/blob/main/CHANGELOG.md",
+        "installUrl": "https://cam.eltryus.design/easyshape5000/",
+        "sameAs": [
+          "https://github.com/RicardoJCMarques/EasyCAM5000"
+        ],
+        "license": "https://www.gnu.org/licenses/agpl-3.0.html",
+        "isAccessibleForFree": true,
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "EUR",
+          "availability": "https://schema.org/InStock"
+        },
+        "description": "Browser-based CAM tool for CNC routers. Import SVG/STL designs, assign profile/pocket/drill/engrave/v-carve/relief/4th-axis operations, and export optimized G-code.",
+        "isPartOf": { "@id": "https://cam.eltryus.design/#suite" },
+        "author": { "@id": "https://www.eltryus.design/#organization" },
+        "publisher": { "@id": "https://www.eltryus.design/#organization" },
+        "softwareHelp": { "@id": "https://cam.eltryus.design/easyshape5000/doc/#docs" },
+        "featureList": [
+          "Browser-based, 100% client-side CAM processing with zero cloud dependencies",
+          "SVG import with hierarchical group preservation",
+          "Scene graph with group/ungroup, lock, visibility, and undo/redo",
+          "Per-shape operation assignment (Profile, Pocket, Drill, Engrave)",
+          "WebAssembly geometry engine for high-performance boolean operations",
+          "Smart drill strategy with dynamic peck-or-mill selection",
+          "Optimized toolpaths with staydown clustering and G2/G3 arc reconstruction",
+          "Ten CNC post-processors including GRBL, grblHAL, LinuxCNC, Mach3, Fanuc and Roland RML",
+          "Automatic tool changes with tool length compensation",
+          "3D operations: V-carve, relief surfacing, and 4th-axis rotary in radial and indexed 3+1 kinematics",
+          "3D toolpath preview with playback"
+        ],
+        "screenshot": {
+          "@type": "ImageObject",
+          "url": "https://cam.eltryus.design/images/social-shape.jpg",
+          "caption": "EasyShape5000 main workspace"
         }
+      },
+      {
+        "@type": "BreadcrumbList",
+        "@id": "https://cam.eltryus.design/easyshape5000/#breadcrumb",
+        "itemListElement": [
+          { "@type": "ListItem", "position": 1, "name": "EasyCAM5000", "item": "https://cam.eltryus.design/" },
+          { "@type": "ListItem", "position": 2, "name": "EasyShape5000", "item": "https://cam.eltryus.design/easyshape5000/" }
+        ]
+      }
+    ]
+  }
+  </script>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "../renderer3d/three.core.min.js",
+      "three/webgpu": "../renderer3d/three.webgpu.min.js",
+      "three/tsl": "../renderer3d/three.tsl.min.js"
     }
-    </script>
+  }
+  </script>
 </head>
 <body>
 
-    <!-- Viewport warning bar - persistent, dismissible -->
-    <div class="workspace-viewport-bar" id="workspace-viewport-bar">
-        <svg class="cam-icon workspace-viewport-bar-icon" width="20" height="20"><use href="#icon-warning"></use></svg>
-        <span>Screen too narrow - rotate device or use a larger screen.</span>
-        <button class="workspace-viewport-bar-dismiss" id="dismiss-viewport-bar" aria-label="Dismiss warning">
-            <svg class="cam-icon" width="20" height="20"><use href="#icon-close"></use></svg>
+  <!-- Viewport warning bar - persistent, dismissible -->
+  <div class="workspace-viewport-bar" id="workspace-viewport-bar">
+    <svg class="cam-icon workspace-viewport-bar-icon" width="20" height="20"><use href="#icon-warning"></use></svg>
+    <span data-i18n="app.viewportBar.message">Screen too narrow - rotate device or use a larger screen.</span>
+    <button class="workspace-viewport-bar-dismiss" id="dismiss-viewport-bar" aria-label="Dismiss warning" data-i18n-attr="aria-label:app.viewportBar.dismiss">
+      <svg class="cam-icon" width="20" height="20"><use href="#icon-close"></use></svg>
+    </button>
+  </div>
+
+  <!-- Skip link -->
+  <a href="#preview-canvas" class="skip-link" data-i18n="app.skipToCanvas">Skip to Canvas</a>
+
+  <!-- For non-JS crawlers -->
+  <noscript>
+    <div style="padding: 2rem; max-width: 44rem; margin: 0 auto; background: #1a1a1a; color: #fff;">
+      <h1>EasyShape5000 - CNC Router CAM Workspace</h1>
+      <p>EasyShape5000 is a free, open-source CAM workspace for CNC routers that runs entirely in your browser. It reads SVG vector artwork and STL meshes and produces optimised G-code, with no installation, account or cloud processing.</p>
+      <p>Operations include profile cutting, pocket clearing, drilling and engraving, plus V-carving, 3D relief surfacing and 4th-axis rotary work in both continuous radial and indexed 3+1 kinematics. A scene graph handles grouping, locking, visibility and undo/redo. Toolpaths use staydown clustering and true G2/G3 arc reconstruction, with automatic tool changes and tool length compensation. Ten post-processors are supported, including GRBL, grblHAL, LinuxCNC, Mach3, Fanuc and Roland RML.</p>
+      <p>Nothing is uploaded - all processing is client-side. JavaScript and WebAssembly are required to run the workspace.</p>
+      <p>
+        <a href="doc/" style="color: #3b82f6;">EasyShape5000 documentation</a> ·
+        <a href="doc/guide" style="color: #3b82f6;">Routing workflow guide</a> ·
+        <a href="/" style="color: #3b82f6;">EasyCAM5000 suite</a>
+      </p>
+    </div>
+  </noscript>
+
+  <!-- Loading Overlay -->
+  <div class="loading-overlay" id="loading-overlay" tabindex="-1">
+    <div class="spinner"></div>
+    <div id="loading-text" class="loading-message">EasyShape5000</div>
+    <div id="loading-progress" class="loading-progress" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" aria-label="Application loading progress" data-i18n-attr="aria-label:app.loading.progress">0%</div>
+    <button class="btn btn--secondary loading-cancel hidden" id="loading-cancel" type="button" data-i18n="common.cancel">Cancel</button>
+  </div>
+
+  <!-- TOP TOOLBAR -->
+  <div class="cam-toolbar toolbar" id="cam-toolbar" role="toolbar" aria-label="Main toolbar" data-i18n-attr="aria-label:app.toolbar.label">
+    <div class="toolbar-section toolbar-left">
+      <div class="dropdown-menu dropdown">
+        <button class="btn--menu btn" id="quick-actions-btn">
+          <svg width="20" height="20" viewBox="0 0 20 20">
+            <rect x="2" y="4" width="16" height="2" fill="currentColor"/>
+            <rect x="2" y="9" width="16" height="2" fill="currentColor"/>
+            <rect x="2" y="14" width="16" height="2" fill="currentColor"/>
+          </svg>
+          <span data-i18n="app.toolbar.actions">Actions</span>
         </button>
+        <div class="dropdown-content" id="quick-actions-menu">
+          <button class="menu-item" id="toolbar-import-svg">
+            <span><svg class="cam-icon" width="16" height="16"><use href="#icon-folder-open"></use></svg></span> <span data-i18n="app.toolbar.openFiles">Import Files</span>
+          </button>
+          <div class="menu-divider"></div>
+          <button class="menu-item" id="toolbar-export-canvas">
+            <span><svg class="cam-icon" width="16" height="16"><use href="#icon-image"></use></svg></span> <span data-i18n="app.toolbar.exportCanvas">Export Canvas SVG</span>
+          </button>
+          <div class="menu-divider"></div>
+          <button class="menu-item" id="toolbar-export-manager">
+            <span><svg class="cam-icon" width="16" height="16"><use href="#icon-wrench"></use></svg></span> <span data-i18n="app.toolbar.exportManager">Export G-code</span>
+          </button>
+        </div>
+      </div>
     </div>
 
-    <!-- Skip link -->
-    <a href="#preview-canvas" class="skip-link">Skip to Canvas</a>
-
-    <!-- For non-JS crawlers -->
-    <noscript>
-        <div style="padding: 2rem; max-width: 44rem; margin: 0 auto; background: #1a1a1a; color: #fff;">
-            <h1>EasyShape5000 - CNC Router CAM Workspace</h1>
-            <p>EasyShape5000 is a free, open-source CAM workspace for CNC routers that runs entirely in your browser. It reads SVG vector artwork and STL meshes and produces optimised G-code, with no installation, account or cloud processing.</p>
-            <p>Operations include profile cutting, pocket clearing, drilling and engraving, plus V-carving, 3D relief surfacing and 4th-axis rotary work in both continuous radial and indexed 3+1 kinematics. A scene graph handles grouping, locking, visibility and undo/redo. Toolpaths use staydown clustering and true G2/G3 arc reconstruction, with automatic tool changes and tool length compensation. Ten post-processors are supported, including GRBL, grblHAL, LinuxCNC, Mach3, Fanuc and Roland RML.</p>
-            <p>Nothing is uploaded - all processing is client-side. JavaScript and WebAssembly are required to run the workspace.</p>
-            <p>
-                <a href="doc/" style="color: #3b82f6;">EasyShape5000 documentation</a> ·
-                <a href="doc/guide" style="color: #3b82f6;">Routing workflow guide</a> ·
-                <a href="/" style="color: #3b82f6;">EasyCAM5000 suite</a>
-            </p>
-        </div>
-    </noscript>
-
-    <!-- Loading Overlay -->
-    <div class="loading-overlay" id="loading-overlay" tabindex="-1">
-        <div class="spinner"></div>
-        <div id="loading-text">Loading EasyShape5000...</div>
-        <div id="loading-progress" class="loading-progress" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" aria-label="Application loading progress">0%</div>
+    <div class="toolbar-section toolbar-center">
+      <h1 class="workspace-title" data-i18n="app.toolbar.title">EasyShape5000 - CNC Router CAM Workspace</h1>
     </div>
 
-    <!-- TOP TOOLBAR -->
-    <div class="cam-toolbar toolbar" id="cam-toolbar" role="toolbar" aria-label="Main toolbar">
-        <div class="toolbar-section toolbar-left">
-            <div class="dropdown-menu dropdown">
-                <button class="btn--menu btn" id="quick-actions-btn">
-                    <svg width="20" height="20" viewBox="0 0 20 20">
-                        <rect x="2" y="4" width="16" height="2" fill="currentColor"/>
-                        <rect x="2" y="9" width="16" height="2" fill="currentColor"/>
-                        <rect x="2" y="14" width="16" height="2" fill="currentColor"/>
-                    </svg>
-                    <span>Actions</span>
-                </button>
-                <div class="dropdown-content" id="quick-actions-menu">
-                    <button class="menu-item" id="toolbar-import-svg">
-                        <span><svg class="cam-icon" width="16" height="16"><use href="#icon-folder-open"></use></svg></span> Import Files
-                    </button>
-                    <div class="menu-divider"></div>
-                    <button class="menu-item" id="toolbar-export-canvas">
-                        <span><svg class="cam-icon" width="16" height="16"><use href="#icon-image"></use></svg></span> Export Canvas SVG
-                    </button>
-                    <div class="menu-divider"></div>
-                    <button class="menu-item" id="toolbar-export-manager">
-                        <span><svg class="cam-icon" width="16" height="16"><use href="#icon-wrench"></use></svg></span> Export G-code
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <div class="toolbar-section toolbar-center">
-            <h1 class="workspace-title">EasyShape5000 - CNC Router CAM Workspace</h1>
-        </div>
-
-        <div class="toolbar-section toolbar-right">
-            <button class="btn--tool btn" id="btn-undo" title="Undo (Ctrl+Z)" aria-label="Undo" disabled>
-                <svg class="cam-icon" width="18" height="18"><use href="#icon-undo"></use></svg>
-            </button>
-            <button class="btn--tool btn" id="btn-redo" title="Redo (Ctrl+Shift+Z)" aria-label="Redo" disabled>
-                <svg class="cam-icon" width="18" height="18"><use href="#icon-redo"></use></svg>
-            </button>
-            <div class="toolbar-separator separator"></div>
-            <button class="btn--tool btn" id="btn-toggle-3d" title="Toggle 2D/3D View (F2)" aria-label="Toggle 2D/3D View">
-                <svg class="cam-icon" width="18" height="18"><use href="#icon-view-3d"></use></svg>
-            </button>
-            <button class="btn--tool btn" id="zoom-fit-btn" title="Fit to View (F)" aria-label="Fit to View">
-                 <svg class="cam-icon" width="18" height="18"><use href="#icon-zoom-fit"></use></svg>
-            </button>
-            <button class="btn--tool btn" id="zoom-in-btn" title="Zoom In (+)" aria-label="Zoom In">
-                <svg class="cam-icon" width="18" height="18"><use href="#icon-zoom-in"></use></svg>
-            </button>
-            <button class="btn--tool btn" id="zoom-out-btn" title="Zoom Out (-)" aria-label="Zoom Out">
-                <svg class="cam-icon" width="18" height="18"><use href="#icon-zoom-out"></use></svg>
-            </button>
-            <div class="toolbar-separator separator"></div>
-            <button id="btn-help" class="btn btn--icon" title="Help (F1)" aria-label="Help">?</button>
-
-            <button id="theme-toggle" class="btn btn--icon" title="Toggle Theme" aria-label="Toggle Theme">
-                <svg class="cam-icon" width="16" height="16"><use href="#icon-sun"></use></svg>
-            </button>
-        </div>
+    <div class="toolbar-section toolbar-right">
+      <button class="btn--tool btn" id="btn-undo" title="Undo (Ctrl+Z)" aria-label="Undo" disabled data-i18n-attr="title:app.toolbar.undoTip;aria-label:app.toolbar.undo">
+        <svg class="cam-icon" width="18" height="18"><use href="#icon-undo"></use></svg>
+      </button>
+      <button class="btn--tool btn" id="btn-redo" title="Redo (Ctrl+Shift+Z)" aria-label="Redo" disabled data-i18n-attr="title:app.toolbar.redoTip;aria-label:app.toolbar.redo">
+        <svg class="cam-icon" width="18" height="18"><use href="#icon-redo"></use></svg>
+      </button>
+      <div class="toolbar-separator separator"></div>
+      <button class="btn--tool btn" id="btn-toggle-3d" title="Toggle 2D/3D View (F2)" aria-label="Toggle 2D/3D View" data-i18n-attr="title:app.toolbar.toggle3dTip;aria-label:app.toolbar.toggle3d">
+        <svg class="cam-icon" width="18" height="18"><use href="#icon-view-3d"></use></svg>
+      </button>
+      <div class="toolbar-separator separator"></div>
+      <button class="btn--tool btn" id="zoom-fit-btn" title="Fit to View (F)" aria-label="Fit to View" data-i18n-attr="title:app.toolbar.fitTip;aria-label:app.toolbar.fit">
+          <svg class="cam-icon" width="18" height="18"><use href="#icon-zoom-fit"></use></svg>
+      </button>
+      <button class="btn--tool btn" id="zoom-in-btn" title="Zoom In (+)" aria-label="Zoom In" data-i18n-attr="title:app.toolbar.zoomInTip;aria-label:app.toolbar.zoomIn">
+        <svg class="cam-icon" width="18" height="18"><use href="#icon-zoom-in"></use></svg>
+      </button>
+      <button class="btn--tool btn" id="zoom-out-btn" title="Zoom Out (-)" aria-label="Zoom Out" data-i18n-attr="title:app.toolbar.zoomOutTip;aria-label:app.toolbar.zoomOut">
+        <svg class="cam-icon" width="18" height="18"><use href="#icon-zoom-out"></use></svg>
+      </button>
+      <div class="toolbar-separator separator"></div>
+      <button id="btn-help" class="btn btn--icon" title="Help (F1)" aria-label="Help" data-i18n-attr="title:app.toolbar.helpTip;aria-label:app.toolbar.help">?</button>
+      <div class="toolbar-separator separator"></div>
+      <button id="theme-toggle" class="btn btn--icon" title="Toggle Theme" aria-label="Toggle Theme" data-i18n-attr="title:app.toolbar.theme;aria-label:app.toolbar.theme">
+        <svg class="cam-icon" width="16" height="16"><use href="#icon-sun"></use></svg>
+      </button>
     </div>
+  </div>
 
-    <!-- WORKSPACE - three-column grid -->
-    <div class="cam-workspace workspace" id="cam-workspace">
+  <!-- WORKSPACE - three-column grid -->
+  <div class="cam-workspace workspace" id="cam-workspace">
 
-        <!-- LEFT SIDEBAR - scene tree + operations -->
-        <aside class="sidebar sidebar-left" id="sidebar-left" aria-label="Scene & Operations">
+    <!-- LEFT SIDEBAR - scene tree + operations -->
+    <aside class="sidebar sidebar-left" id="sidebar-left" aria-label="Scene & Operations" data-i18n-attr="aria-label:app.sidebars.left">
 
-            <!-- Operations Panel (generated operation object) -->
-            <div class="sidebar-section operations-section">
-                <header class="section-header">
-                    <h2>Operations</h2>
-                </header>
-                <div class="operations-list" id="operations-bucket-list">
-                    <div class="empty-state" id="ops-empty-state">
-                        Select geometry and generate offsets to create an operation object.
-                    </div>
-                </div>
-            </div>
-
-            <!-- Scene Tree (source geometry) -->
-            <div class="sidebar-section browser-section">
-                <header class="section-header">
-                    <h2>Imported Objects</h2>
-                    <button id="tree-btn-add" class="btn btn--icon btn--compact" title="Add geometry (SVG / STL)" aria-label="Add geometry">
-                        <svg class="cam-icon" width="12" height="12"><use href="#icon-add"></use></svg>
-                    </button>
-                </header>
-
-                <div class="tree-toolbar" id="tree-toolbar">
-                    <button class="btn btn--icon btn--compact" id="tree-btn-group" title="Group (Ctrl+G)" disabled>
-                        <svg class="cam-icon" width="12" height="12"><use href="#icon-group"></use></svg>
-                    </button>
-                    <button class="btn btn--icon btn--compact" id="tree-btn-ungroup" title="Ungroup (Ctrl+Shift+G)" disabled>
-                        <svg class="cam-icon" width="12" height="12"><use href="#icon-ungroup"></use></svg>
-                    </button>
-                    <div class="toolbar-separator separator"></div>
-                    <button class="btn btn--icon btn--compact" id="tree-btn-lock" title="Toggle Lock" disabled>
-                        <svg class="cam-icon" width="12" height="12"><use href="#icon-lock-locked"></use></svg>
-                    </button>
-                    <button class="btn btn--icon btn--compact" id="tree-btn-hide" title="Toggle Visibility" disabled>
-                        <svg class="cam-icon" width="12" height="12"><use href="#icon-eye"></use></svg>
-                    </button>
-                    <button class="btn btn--icon btn--compact" id="tree-btn-delete" title="Delete Selection" disabled>
-                        <svg class="cam-icon" width="12" height="12"><use href="#icon-delete"></use></svg>
-                    </button>
-                </div>
-
-                <div class="tree-view" id="scene-tree-list">
-                    <div class="empty-state" id="scene-empty-state">
-                        <strong>No paths yet</strong> Import an SVG or STL to populate the scene tree.
-                    </div>
-                </div>
-            </div>
-        </aside>
-
-        <!-- CENTRE - canvas -->
-        <main class="workspace-main" aria-label="Canvas">
-            <div class="canvas-container">
-                <canvas id="preview-canvas" tabindex="0" aria-label="2D rendering canvas"></canvas>
-                <div id="viewport-3d" class="viewport-3d" tabindex="-1" role="region" aria-label="3D viewport. Arrow keys orbit, Shift and arrows pan, plus and minus zoom, Home fits." hidden></div>
-                <div id="canvas-loading-overlay" class="canvas-loading-overlay hidden">
-                    <div class="spinner"></div>
-                    <div id="canvas-loading-message" class="loading-message"></div>
-                </div>
-            </div>
-        </main>
-
-        <!-- RIGHT SIDEBAR -->
-        <aside class="sidebar sidebar-right" id="sidebar-right" aria-label="Settings">
-
-            <!-- Stock Setup -->
-            <div class="sidebar-section stock-section">
-                <div class="section-header collapsible-header collapsible" data-target="stock-controls">
-                    <h2>Stock Setup</h2>
-                    <span class="collapse-indicator">▼</span>
-                </div>
-                <div class="section-content collapsible" id="stock-controls">
-                    <div id="stock-fields"></div>
-                    <div class="property-field" role="group" aria-labelledby="stock-origin-label">
-                    <label id="stock-origin-label">Stock Origin Offset</label>
-                    <div class="input-stack">
-                        <div class="input-unit"><input type="number" id="stock-x-offset" value="0" step="0.5" aria-label="Stock origin X offset in mm"> <span class="unit" aria-hidden="true">X mm</span></div>
-                        <div class="input-unit"><input type="number" id="stock-y-offset" value="0" step="0.5" aria-label="Stock origin Y offset in mm"> <span class="unit" aria-hidden="true">Y mm</span></div>
-                    </div>
-                    </div>
-                    <div class="origin-buttons">
-                        <button class="btn btn--compact btn--secondary" id="stock-bottom-left-btn">Bottom-Left</button>
-                        <button class="btn btn--compact btn--secondary" id="stock-center-btn">Center</button>
-                    </div>
-                    <div class="origin-buttons">
-                        <button class="btn btn--compact btn--primary" id="apply-stock">Apply</button>
-                        <button class="btn btn--compact btn--secondary" id="reset-stock">Reset</button>
-                    </div>
-                    <button class="btn btn--compact btn--secondary btn--block" id="fit-stock-btn" title="Fit Stock to Shape Size. 3D objects also set thickness.">Fit to Object</button>
-                </div>
-            </div>
-
-            <!-- Global Machine Parameters -->
-            <div class="sidebar-section machine-section">
-                <div class="section-header collapsible-header collapsible" data-target="machine-controls">
-                    <h2>Machine Settings</h2>
-                    <span class="collapse-indicator">▼</span>
-                </div>
-                <div class="section-content collapsible" id="machine-controls"></div>
-            </div>
-
-            <!-- Operation Inspector -->
-            <div class="sidebar-section inspector-section">
-                <header class="section-header">
-                    <h2>Cut Settings</h2>
-                </header>
-                <div class="property-form" id="right-panel" data-right-panel-state="no-svg">
-
-                    <div class="empty-state" data-panel-state="no-svg">
-                        <strong>No design loaded</strong>
-                        Import an SVG to begin assigning cuts.
-                    </div>
-
-                    <div class="empty-state" data-panel-state="no-selection">
-                        <strong>Nothing selected</strong>
-                        Select a path to create an operation.
-                    </div>
-
-                    <!-- Shape transform - visible when any shape is selected -->
-                    <div class="shape-inspector" data-panel-state="source-selected bucket-stage" id="shape-inspector">
-                        <div class="property-section">
-                            <h3>Shape Transform</h3>
-
-                            <div class="property-field">
-                                <label for="shape-x">X</label>
-                                <div class="input-unit"><input type="number" id="shape-x" step="0.5"><span class="unit">mm</span></div>
-                            </div>
-                            <div class="property-field">
-                                <label for="shape-y">Y</label>
-                                <div class="input-unit"><input type="number" id="shape-y" step="0.5"><span class="unit">mm</span></div>
-                            </div>
-                            <div class="origin-buttons">
-                                <button class="btn btn--compact btn--secondary" id="shape-align-bl">Bot-Left</button>
-                                <button class="btn btn--compact btn--secondary" id="shape-align-center">Center</button>
-                            </div>
-                            <div class="origin-buttons">
-                                <button class="btn btn--compact btn--primary" id="shape-apply-transform">Apply</button>
-                                <button class="btn btn--compact btn--secondary" id="shape-reset-transform">Reset</button>
-                            </div>
-                            <div class="property-field">
-                                <label for="shape-rotation">Rotation</label>
-                                <div class="input-unit"><input type="number" id="shape-rotation" step="5"><span class="unit">°</span></div>
-                            </div>
-                            <div class="origin-buttons">
-                                <button class="btn btn--compact btn--primary" id="shape-apply-rotation">Apply</button>
-                                <button class="btn btn--compact btn--secondary" id="shape-reset-rotation">Reset</button>
-                            </div>
-                            <div class="property-field">
-                                <label for="shape-scale">Scale</label>
-                                <div class="input-unit">
-                                    <input type="number" id="shape-scale" value="1" step="0.05" min="0.01"><span class="unit">x</span>
-                                </div>
-                            </div>
-                            <div class="origin-buttons">
-                                <button class="btn btn--compact btn--primary" id="shape-apply-scale">Apply</button>
-                                <button class="btn btn--compact btn--secondary" id="shape-reset-scale">Reset</button>
-                            </div>
-                            <div class="mirror-section">
-                                <div class="property-field" role="group" aria-labelledby="shape-mirror-label">
-                                    <label id="shape-mirror-label">Mirror</label>
-                                    <div class="field-row">
-                                        <label class="checkbox-label">
-                                            <input type="checkbox" id="shape-mirror-x">
-                                            <span>Horizontal</span>
-                                            <svg class="cam-icon" width="20" height="20"><use href="#icon-mirror-h"></use></svg>
-                                        </label>
-                                        <label class="checkbox-label">
-                                            <input type="checkbox" id="shape-mirror-y">
-                                            <span>Vertical</span>
-                                            <svg class="cam-icon" width="20" height="20"><use href="#icon-mirror-v"></use></svg>
-                                        </label>
-                                    </div>
-                                </div>
-                            </div>
-                            <div>
-                                <span class="meta-line" id="shape-meta-size"></span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Fresh selection: op type tabs + geometry params -->
-                    <div data-panel-state="source-selected">
-                        <div class="op-type-selector" id="op-type-selector"></div>
-                        <div id="fresh-params-form"></div>
-                    </div>
-
-                    <!-- Bucket stage params - populated dynamically -->
-                    <div id="operation-form-container" data-panel-state="source-selected bucket-stage"></div>
-                </div>
-            </div>
-        </aside>
-    </div>
-
-    <!-- FOOTER & STATUS BAR -->
-    <footer class="footer-bar" id="footer-bar">
-        <div class="status-left">
-            <button class="btn btn--icon" id="show-viz-panel-btn" title="Visualization Settings" aria-label="Visualization Settings">
-                <svg class="cam-icon" width="16" height="16"><use href="#icon-eye"></use></svg>
-            </button>
-
-            <div class="coordinate-display" id="coordinate-display">
-                <span>X: <span id="coord-x">0.00</span></span>
-                <span>Y: <span id="coord-y">0.00</span></span>
-                <span>Zoom: <span id="zoom-level">100%</span></span>
-            </div>
-
-            <div class="viz-panel collapsed" id="viz-panel">
-                <div class="section-header" id="viz-panel-header">
-                    <h2>Visualization</h2>
-                    <span class="collapse-indicator">▲</span>
-                </div>
-                <div class="section-content" id="viz-controls">
-                    <div class="control-group">
-                        <h3>Display</h3>
-                        <label class="checkbox-control checkbox-label" for="show-grid" data-i18n="params.grid">
-                            <input type="checkbox" id="show-grid" data-option="showGrid" data-action="render" checked>
-                            <span>Grid</span>
-                        </label>
-                        <label class="checkbox-control checkbox-label" for="show-wireframe" data-i18n="params.wireframe">
-                            <input type="checkbox" id="show-wireframe" data-option="showWireframe" data-action="render">
-                            <span>Wireframe</span>
-                        </label>
-                        <label class="checkbox-control checkbox-label" for="show-bounds" data-i18n="params.boardBounds">
-                            <input type="checkbox" id="show-bounds" data-option="showBounds" data-action="render">
-                            <span>Board Bounds</span>
-                        </label>
-                        <label class="checkbox-control checkbox-label" for="show-rulers" data-i18n="params.rulers">
-                            <input type="checkbox" id="show-rulers" data-option="showRulers" data-action="render" checked>
-                            <span>Rulers</span>
-                        </label>
-                    </div>
-
-                    <div class="control-group">
-                        <h3>Geometry</h3>
-                        <div id="viz-geometry-filters"></div>
-                    </div>
-
-                    <!-- REVIEW - These toggles needs to be reworked once operational orchestration is settled, including data-i18n-tooltip -->
-                    <div class="control-group">
-                        <h3>Toolpaths</h3>
-                        <label class="checkbox-control checkbox-label" for="show-generated">
-                            <input type="checkbox" id="show-generated" checked>
-                            <span>Generated Paths</span>
-                        </label>
-                        <label class="checkbox-control checkbox-label" for="show-tool-preview-shape">
-                            <input type="checkbox" id="show-tool-preview-shape" checked>
-                            <span>Tool Previews</span>
-                        </label>
-                    </div>
-
-                    <div class="control-group">
-                        <h3>Advanced</h3>
-                        <label class="checkbox-control checkbox-label" for="fuse-geometry" data-i18n="params.fusionMode">
-                            <input type="checkbox" id="fuse-geometry" data-option="fuseGeometry" data-action="update">
-                            <span>Fusion Mode</span>
-                        </label>
-                        <label class="checkbox-control checkbox-label" for="show-preprocessed" data-i18n="params.preprocessed">
-                            <input type="checkbox" id="show-preprocessed" data-option="showPreprocessed" data-action="update" data-dependency="fuse-geometry">
-                            <span>Preprocessed</span>
-                        </label>
-                        <label class="checkbox-control checkbox-label" for="enable-arc-reconstruction" data-i18n="params.arcReconstruction">
-                            <input type="checkbox" id="enable-arc-reconstruction" data-option="enableArcReconstruction" data-action="update" data-dependency="fuse-geometry">
-                            <span>Arc Reconstruction</span>
-                        </label>
-                        <label class="checkbox-control checkbox-label" for="debug-points" data-i18n="params.debugPoints">
-                            <input type="checkbox" id="debug-points" data-option="debugPoints" data-action="render">
-                            <span>Debug Points</span>
-                        </label>
-                        <label class="checkbox-control checkbox-label" for="debug-arcs" data-i18n="params.debugArcs">
-                            <input type="checkbox" id="debug-arcs" data-option="debugArcs" data-action="render">
-                            <span>Debug Arcs</span>
-                        </label>
-                        <label class="checkbox-control checkbox-label" for="black-and-white" data-i18n="params.bwMode">
-                            <input type="checkbox" id="black-and-white" data-option="blackAndWhite" data-action="render">
-                            <span>Black & White</span>
-                        </label>
-                    </div>
-
-                    <div class="control-group">
-                        <h3>Log</h3>
-                        <label class="checkbox-control checkbox-label" for="debug-log-toggle" data-i18n="params.verboseDebug">
-                            <input type="checkbox" id="debug-log-toggle" data-action="toggle-debug">
-                            <span>Verbose Debug</span>
-                        </label>
-                    </div>
-                </div>
-            </div>
+      <!-- Operations Panel (generated operation object) -->
+      <div class="sidebar-section operations-section">
+        <header class="section-header">
+          <h2 data-i18n="panels.operations.title">Operations</h2>
+        </header>
+        <div class="operations-list" id="operations-bucket-list">
+          <div class="empty-state" id="ops-empty-state">
+            <span data-i18n="panels.operations.empty">Select geometry and generate offsets to create an operation object.</span>
+          </div>
         </div>
-        <div class="status-bar" id="status-bar" title="Click to expand log">
-            <span class="log-toggle-icon" id="log-toggle-icon">▲</span>
-            <span class="status-text" id="status-text">Ready</span> <span class="visually-hidden" id="status-announce" role="status" aria-live="polite"></span>
-            <span class="visually-hidden" id="status-alert" role="alert" aria-live="assertive"></span>
-            <span class="status-progress progress hidden" id="status-progress" role="progressbar" aria-label="Operation progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-                <span class="progress-bar" id="progress-bar"></span>
+      </div>
+
+      <!-- Scene Tree (source geometry) -->
+      <div class="sidebar-section browser-section">
+        <header class="section-header">
+          <h2 data-i18n="panels.scene.title">Imported Objects</h2>
+          <button id="tree-btn-add" class="btn btn--icon btn--compact" title="Add geometry (SVG / STL)" aria-label="Add geometry" data-i18n-attr="title:panels.scene.addTip;aria-label:panels.scene.add">
+            <svg class="cam-icon" width="12" height="12"><use href="#icon-add"></use></svg>
+          </button>
+        </header>
+
+        <div class="tree-toolbar" id="tree-toolbar">
+          <button class="btn btn--icon btn--compact" id="tree-btn-group" title="Group (Ctrl+G)" disabled data-i18n-attr="title:panels.scene.group">
+            <svg class="cam-icon" width="12" height="12"><use href="#icon-group"></use></svg>
+          </button>
+          <button class="btn btn--icon btn--compact" id="tree-btn-ungroup" title="Ungroup (Ctrl+Shift+G)" disabled data-i18n-attr="title:panels.scene.ungroup">
+            <svg class="cam-icon" width="12" height="12"><use href="#icon-ungroup"></use></svg>
+          </button>
+          <div class="toolbar-separator separator"></div>
+          <button class="btn btn--icon btn--compact" id="tree-btn-lock" title="Toggle Lock" disabled data-i18n-attr="title:panels.scene.lock">
+            <svg class="cam-icon" width="12" height="12"><use href="#icon-lock-locked"></use></svg>
+          </button>
+          <button class="btn btn--icon btn--compact" id="tree-btn-hide" title="Toggle Visibility" disabled data-i18n-attr="title:common.toggleVisibility">
+            <svg class="cam-icon" width="12" height="12"><use href="#icon-eye"></use></svg>
+          </button>
+          <button class="btn btn--icon btn--compact" id="tree-btn-delete" title="Delete Selection" disabled data-i18n-attr="title:panels.scene.delete">
+            <svg class="cam-icon" width="12" height="12"><use href="#icon-delete"></use></svg>
+          </button>
+        </div>
+
+        <div class="tree-view" id="scene-tree-list">
+          <div class="empty-state" id="scene-empty-state">
+            <strong data-i18n="panels.scene.emptyTitle">No paths yet</strong> <span data-i18n="panels.scene.emptyText">Import an SVG or STL to populate the scene tree.</span>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Centre - canvas -->
+    <main class="workspace-main" aria-label="Canvas" data-i18n-attr="aria-label:app.canvas.label">
+      <div class="canvas-container">
+        <canvas id="preview-canvas" tabindex="0" aria-label="2D rendering canvas" data-i18n-attr="aria-label:app.canvas.view2d"></canvas>
+        <div id="viewport-3d" class="viewport-3d" tabindex="-1" role="region" aria-label="3D viewport. Arrow keys orbit, Shift and arrows pan, plus and minus zoom, Home fits." hidden data-i18n-attr="aria-label:app.canvas.view3d"></div>
+      </div>
+    </main>
+
+    <!-- Right Sidebar -->
+    <aside class="sidebar sidebar-right" id="sidebar-right" aria-label="Settings" data-i18n-attr="aria-label:app.sidebars.right">
+
+      <!-- Stock Setup -->
+      <div class="sidebar-section stock-section">
+        <div class="section-header collapsible-header collapsible" data-target="stock-controls">
+          <h2 data-i18n="panels.stock.title">Stock Setup</h2>
+          <span class="collapse-indicator">▼</span>
+        </div>
+        <div class="section-content collapsible" id="stock-controls">
+          <div id="stock-fields"></div>
+          <div class="property-field" role="group" aria-labelledby="stock-origin-label">
+            <label id="stock-origin-label" data-i18n="panels.stock.originOffset">Stock Origin Offset</label>
+            <div class="input-stack">
+              <div class="input-unit"><input type="number" id="stock-x-offset" value="0" step="0.5" aria-label="Stock origin X offset in mm" data-i18n-attr="aria-label:panels.stock.xOffset"> <span class="unit" aria-hidden="true">X <span data-i18n="units.mm"></span></span></div>
+              <div class="input-unit"><input type="number" id="stock-y-offset" value="0" step="0.5" aria-label="Stock origin Y offset in mm" data-i18n-attr="aria-label:panels.stock.yOffset"> <span class="unit" aria-hidden="true">Y <span data-i18n="units.mm"></span></span></div>
+            </div>
+          </div>
+          <div class="origin-buttons">
+            <button class="btn btn--compact btn--secondary" id="stock-bottom-left-btn" data-i18n="params.bottomLeft.label">Bottom-Left</button>
+            <button class="btn btn--compact btn--secondary" id="stock-center-btn" data-i18n="params.center.label">Center</button>
+          </div>
+          <div class="origin-buttons">
+            <button class="btn btn--compact btn--primary" id="apply-stock" data-i18n="common.apply">Apply</button>
+            <button class="btn btn--compact btn--secondary" id="reset-stock" data-i18n="common.reset">Reset</button>
+          </div>
+          <button class="btn btn--compact btn--secondary btn--block" id="fit-stock-btn" title="Fit Stock to Shape Size. 3D objects also set thickness." data-i18n="panels.stock.fit" data-i18n-attr="title:panels.stock.fitTip">Fit to Object</button>
+        </div>
+      </div>
+
+      <!-- Global Machine Parameters -->
+      <div class="sidebar-section machine-section">
+        <div class="section-header collapsible-header collapsible" data-target="machine-controls">
+          <h2 data-i18n="panels.machine.title">Machine Settings</h2>
+          <span class="collapse-indicator">▼</span>
+        </div>
+        <div class="section-content collapsible" id="machine-controls"></div>
+      </div>
+
+      <!-- Operation Inspector -->
+      <div class="sidebar-section inspector-section">
+        <header class="section-header">
+          <h2 data-i18n="panels.inspector.title">Cut Settings</h2>
+        </header>
+        <div class="property-form" id="right-panel" data-right-panel-state="no-svg">
+          <div class="empty-state" data-panel-state="no-svg">
+            <strong data-i18n="panels.inspector.noDesignTitle">No design loaded</strong>
+            <span data-i18n="panels.inspector.noDesignText">Import an SVG to begin assigning cuts.</span>
+          </div>
+
+          <div class="empty-state" data-panel-state="no-selection">
+            <strong data-i18n="panels.inspector.noSelectionTitle">Nothing selected</strong>
+            <span data-i18n="panels.inspector.noSelectionText">Select a path to create an operation.</span>
+          </div>
+
+          <!-- Shape transform - visible when any shape is selected -->
+          <div class="shape-inspector" data-panel-state="source-selected bucket-stage" id="shape-inspector">
+            <div class="property-section">
+              <h3 id="shape-transform-title" data-i18n="panels.transform.title">Shape Transform</h3>
+              <div class="transform-grid" role="group" aria-labelledby="shape-transform-title">
+                <span aria-hidden="true"></span>
+                <span class="transform-head" id="shape-col-offset" data-i18n="panels.transform.offset">Offset</span>
+                <span class="transform-head" id="shape-col-rotation" data-i18n="panels.transform.rotation">Rotation</span>
+                <label class="transform-head" id="shape-axis-x" for="shape-x">X</label>
+                <div class="input-unit">
+                  <input type="number" id="shape-x" step="0.5" aria-labelledby="shape-axis-x shape-col-offset">
+                  <span class="unit" data-i18n="units.mm">mm</span>
+                </div>
+                <div class="input-unit">
+                  <input type="number" id="shape-rotation-x" step="90" aria-labelledby="shape-axis-x shape-col-rotation">
+                  <span class="unit" data-i18n="units.°">°</span>
+                </div>
+                <label class="transform-head" id="shape-axis-y" for="shape-y">Y</label>
+                <div class="input-unit">
+                  <input type="number" id="shape-y" step="0.5" aria-labelledby="shape-axis-y shape-col-offset">
+                  <span class="unit" data-i18n="units.mm">mm</span>
+                </div>
+                <div class="input-unit">
+                  <input type="number" id="shape-rotation-y" step="90" aria-labelledby="shape-axis-y shape-col-rotation">
+                  <span class="unit" data-i18n="units.°">°</span>
+                </div>
+                <label class="transform-head" id="shape-axis-z" for="shape-z">Z</label>
+                <div class="input-unit">
+                  <input type="number" id="shape-z" step="0.5" aria-labelledby="shape-axis-z shape-col-offset">
+                  <span class="unit" data-i18n="units.mm">mm</span>
+                </div>
+                <div class="input-unit">
+                  <input type="number" id="shape-rotation" step="5" aria-labelledby="shape-axis-z shape-col-rotation">
+                  <span class="unit" data-i18n="units.°">°</span>
+                </div>
+              </div>
+              <div class="origin-buttons">
+                <button class="btn btn--compact btn--secondary" id="shape-align-bl" data-i18n="panels.transform.alignBottomLeft">Bot-Left</button>
+                <button class="btn btn--compact btn--secondary hidden" id="shape-align-chuck" data-i18n="panels.transform.alignChuck">Chuck</button>
+                <button class="btn btn--compact btn--secondary" id="shape-align-center" data-i18n="params.center.label">Center</button>
+              </div>
+              <div class="origin-buttons">
+                <button class="btn btn--compact btn--primary" id="shape-apply-transform" data-i18n="common.apply">Apply</button>
+                <button class="btn btn--compact btn--secondary" id="shape-reset-transform" data-i18n="common.reset">Reset</button>
+              </div>
+              <div class="property-field">
+                <label for="shape-scale" data-i18n="panels.transform.scale">Scale</label>
+                <div class="input-unit">
+                  <input type="number" id="shape-scale" value="1" step="0.05" min="0.01"><span class="unit" data-i18n="units.x">x</span>
+                </div>
+              </div>
+              <div class="origin-buttons">
+                <button class="btn btn--compact btn--primary" id="shape-apply-scale" data-i18n="common.apply">Apply</button>
+                <button class="btn btn--compact btn--secondary" id="shape-reset-scale" data-i18n="common.reset">Reset</button>
+              </div>
+              <div class="mirror-section">
+                <div class="property-field" role="group" aria-labelledby="shape-mirror-label">
+                  <label id="shape-mirror-label" data-i18n="panels.transform.mirror">Mirror</label>
+                  <div class="field-row">
+                    <label class="checkbox-label">
+                      <input type="checkbox" id="shape-mirror-x">
+                      <span data-i18n="common.mirrorX">Horizontal</span>
+                      <svg class="cam-icon" width="20" height="20"><use href="#icon-mirror-h"></use></svg>
+                    </label>
+                    <label class="checkbox-label">
+                      <input type="checkbox" id="shape-mirror-y">
+                      <span data-i18n="common.mirrorY">Vertical</span>
+                      <svg class="cam-icon" width="20" height="20"><use href="#icon-mirror-v"></use></svg>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div>
+              <span class="meta-line" id="shape-meta-size"></span>
+            </div>
+          </div>
+
+          <!-- Fresh selection: op type tabs + geometry params -->
+          <div data-panel-state="source-selected">
+            <div class="op-type-selector" id="op-type-selector"></div>
+            <div id="fresh-params-form"></div>
+          </div>
+
+          <!-- Bucket stage params - populated dynamically -->
+          <div id="operation-form-container" data-panel-state="source-selected bucket-stage"></div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <!-- Footer & Status Bar -->
+  <footer class="footer-bar" id="footer-bar">
+    <div class="status-left">
+      <button class="btn btn--icon" id="show-viz-panel-btn" title="Visualization Settings" aria-label="Visualization Settings" data-i18n-attr="title:panels.viz.open;aria-label:panels.viz.open">
+        <svg class="cam-icon" width="16" height="16"><use href="#icon-eye"></use></svg>
+      </button>
+
+      <div class="coordinate-display" id="coordinate-display">
+        <span>X: <span id="coord-x">0.00</span></span>
+        <span>Y: <span id="coord-y">0.00</span></span>
+        <span data-i18n="app.footer.zoom">Zoom: <span id="zoom-level" data-i18n-slot="value">100%</span></span>
+      </div>
+
+      <div class="viz-panel collapsed" id="viz-panel">
+        <div class="section-header" id="viz-panel-header">
+          <h2 data-i18n="panels.viz.title">Visualization</h2>
+          <span class="collapse-indicator">▲</span>
+        </div>
+        <div class="section-content" id="viz-controls">
+          <div class="control-group">
+            <h3 data-i18n="panels.viz.display">Display</h3>
+            <label class="checkbox-control checkbox-label" for="show-grid" data-i18n-help="params.grid">
+              <input type="checkbox" id="show-grid" data-option="showGrid" data-action="render" checked>
+              <span data-i18n="params.grid.label">Grid</span>
+            </label>
+            <label class="checkbox-control checkbox-label" for="show-wireframe" data-i18n-help="params.wireframe">
+              <input type="checkbox" id="show-wireframe" data-option="showWireframe" data-action="render">
+              <span data-i18n="params.wireframe.label">Wireframe</span>
+            </label>
+            <label class="checkbox-control checkbox-label" for="show-bounds" data-i18n-help="params.boardBounds">
+              <input type="checkbox" id="show-bounds" data-option="showBounds" data-action="render">
+              <span data-i18n="params.boardBounds.label">Board Bounds</span>
+            </label>
+            <label class="checkbox-control checkbox-label" for="show-rulers" data-i18n-help="params.rulers">
+              <input type="checkbox" id="show-rulers" data-option="showRulers" data-action="render" checked>
+              <span data-i18n="params.rulers.label">Rulers</span>
+            </label>
+          </div>
+
+          <div class="control-group">
+            <h3 data-i18n="panels.viz.geometry">Geometry</h3>
+            <div id="viz-geometry-filters"></div>
+          </div>
+
+          <!-- REVIEW - These toggles needs to be reworked once operational orchestration is settled, including data-i18n-help -->
+          <div class="control-group">
+              <h3 data-i18n="panels.viz.toolpaths">Toolpaths</h3>
+              <label class="checkbox-control checkbox-label" for="show-generated">
+                <input type="checkbox" id="show-generated" checked>
+                <span data-i18n="panels.viz.generatedPaths">Generated Paths</span>
+              </label>
+              <label class="checkbox-control checkbox-label" for="show-tool-preview-shape">
+                <input type="checkbox" id="show-tool-preview-shape" checked>
+                <span data-i18n="panels.viz.toolPreviews">Tool Previews</span>
+              </label>
+          </div>
+
+          <div class="control-group">
+            <h3 data-i18n="panels.viz.advanced">Advanced</h3>
+            <label class="checkbox-control checkbox-label" for="fuse-geometry" data-i18n-help="params.fusionMode">
+              <input type="checkbox" id="fuse-geometry" data-option="fuseGeometry" data-action="update">
+              <span data-i18n="params.fusionMode.label">Fusion Mode</span>
+            </label>
+            <label class="checkbox-control checkbox-label" for="show-preprocessed" data-i18n-help="params.preprocessed">
+              <input type="checkbox" id="show-preprocessed" data-option="showPreprocessed" data-action="update" data-dependency="fuse-geometry">
+              <span data-i18n="params.preprocessed.label">Preprocessed</span>
+            </label>
+            <label class="checkbox-control checkbox-label" for="enable-arc-reconstruction" data-i18n-help="params.arcReconstruction">
+              <input type="checkbox" id="enable-arc-reconstruction" data-option="enableArcReconstruction" data-action="update" data-dependency="fuse-geometry">
+              <span data-i18n="params.arcReconstruction.label">Arc Reconstruction</span>
+            </label>
+            <label class="checkbox-control checkbox-label" for="debug-points" data-i18n-help="params.debugPoints">
+              <input type="checkbox" id="debug-points" data-option="debugPoints" data-action="render">
+              <span data-i18n="params.debugPoints.label">Debug Points</span>
+            </label>
+            <label class="checkbox-control checkbox-label" for="debug-arcs" data-i18n-help="params.debugArcs">
+              <input type="checkbox" id="debug-arcs" data-option="debugArcs" data-action="render">
+              <span data-i18n="params.debugArcs.label">Debug Arcs</span>
+            </label>
+            <label class="checkbox-control checkbox-label" for="black-and-white" data-i18n-help="params.bwMode">
+              <input type="checkbox" id="black-and-white" data-option="blackAndWhite" data-action="render">
+              <span data-i18n="params.bwMode.label">Black & White</span>
+            </label>
+          </div>
+
+          <div class="control-group">
+            <h3 data-i18n="panels.viz.log">Log</h3>
+            <label class="checkbox-control checkbox-label" for="debug-log-toggle" data-i18n-help="params.verboseDebug">
+              <input type="checkbox" id="debug-log-toggle" data-action="toggle-debug">
+              <span data-i18n="params.verboseDebug.label">Verbose Debug</span>
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="status-bar" id="status-bar" title="Click to expand log" data-i18n-attr="title:status.expandLog">
+      <span class="log-toggle-icon" id="log-toggle-icon" aria-label="Toggle status log" data-i18n-attr="aria-label:status.toggleLog">▲</span>
+      <span class="status-text" id="status-text">Ready</span> <span class="visually-hidden" id="status-announce" role="status" aria-live="polite"></span>
+      <span class="visually-hidden" id="status-alert" role="alert" aria-live="assertive"></span>
+      <span class="status-progress progress hidden" id="status-progress" role="progressbar" aria-label="Operation progress" data-i18n-attr="aria-label:status.progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+        <span class="progress-bar" id="progress-bar"></span>
+      </span>
+    </div>
+    <div class="status-right" id="status-right">
+      <div class="status-info license-info">
+        <a href="https://github.com/RicardoJCMarques/EasyCAM5000/blob/main/CHANGELOG.md" title="Version" target="_blank" draggable="false" aria-label="Changelog (opens in a new tab)" data-i18n-attr="title:app.footer.versionTip;aria-label:app.footer.versionAria">v1.7.0</a> |
+        <a href="/" title="Return to Homepage" draggable="false" data-i18n="app.footer.home" data-i18n-attr="title:app.footer.homeTip">Home</a> |
+        <a href="../LICENSE" target="_blank" title="View License" draggable="false" aria-label="View AGPLv3 License (opens in a new tab)" data-i18n-attr="title:app.footer.licenseTip;aria-label:app.footer.licenseAria">AGPLv3</a> |
+        <a href="doc/" target="_blank" title="Documentation" draggable="false" aria-label="Documentation (opens in a new tab)" data-i18n="app.footer.doc" data-i18n-attr="title:app.footer.docTip;aria-label:app.footer.docAria">Doc</a> |
+        <a href="https://github.com/RicardoJCMarques/EasyCAM5000/issues" target="_blank" title="Repo" draggable="false" aria-label="GitHub Issues (opens in new tab)" data-i18n="app.footer.issues" data-i18n-attr="title:app.footer.issuesTip;aria-label:app.footer.issuesAria">Help</a> |
+        <a href="https://github.com/RicardoJCMarques/EasyCAM5000" target="_blank" title="Repo" draggable="false" aria-label="GitHub (opens in new tab)" data-i18n-attr="title:app.footer.repoTip;aria-label:app.footer.repoAria">GitHub</a> |
+        <a href="#support" title="Support the Project" draggable="false" aria-label="Opens Support modal" data-i18n="app.footer.support" data-i18n-attr="title:app.footer.supportTip;aria-label:app.footer.supportAria">Support Development</a> |
+        <a href="https://www.eltryus.design/" draggable="false" aria-label="Eltryus, developer of EasyCAM5000" data-i18n="app.footer.developer" data-i18n-attr="aria-label:app.footer.developerAria">by ELTRYUS</a>
+      </div>
+    </div>
+    <div class="status-log-panel" id="status-log-panel">
+      <div class="status-log-history" id="status-log-history"></div>
+    </div>
+  </footer>
+
+  <!-- Templates -->
+  <template id="invalidation-panel-template">
+    <div class="warning-panel invalidation-panel">
+      <div class="warning-header">
+        <span class="file-icon"><svg class="cam-icon" width="14" height="14"><use href="#icon-warning"></use></svg></span>
+        <span data-i18n="panels.invalidation.title">Geometry Invalidated</span>
+      </div>
+      <p class="warning-message"></p>
+      <button class="btn btn--secondary btn--block invalidation-redo-btn" data-i18n="panels.invalidation.redo">Delete Invalid Geometry & Redo</button>
+    </div>
+  </template>
+
+  <!-- Welcome Modal -->
+  <div id="welcome-modal" class="modal" role="dialog" aria-labelledby="welcome-title">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div class="header-text-group">
+          <h2>
+            <span id="welcome-title" data-i18n="modals.welcome.title">Welcome to EasyShape5000</span>
+            <span class="welcome-tagline" data-i18n="modals.welcome.tagline">CAM for CNC routing, from 2.5D profiles to 3D relief.</span>
+          </h2>
+          <span class="modal-subtitle" data-i18n="modals.welcome.sibling">Also in the EasyCAM5000 suite: <a href="../easytrace5000/" data-i18n-slot="link">EasyTrace5000</a>, for PCB fabrication.</span>
+        </div>
+        <button class="modal-close" type="button" aria-label="Close" data-i18n-attr="aria-label:common.close">
+          <svg class="cam-icon" width="20" height="20"><use href="#icon-close"></use></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="viewport-warning viewport-warning--info" id="welcome-viewport-warning">
+          <svg class="cam-icon" width="20" height="20"><use href="#icon-warning"></use></svg>
+          <div class="viewport-warning-content">
+            <strong data-i18n="modals.narrow.title">This tool recommends/requires a wider screen.</strong>
+            <span data-i18n="modals.narrow.text">If possible, rotate your device or switch to a larger screen.</span>
+          </div>
+        </div>
+        <div class="welcome-bar">
+          <div class="welcome-prefs" role="group" aria-label="Preferences" data-i18n-attr="aria-label:modals.welcome.prefs.label">
+            <label class="welcome-pref" title="Language" data-i18n-attr="title:params.language.label">
+              <svg class="cam-icon" width="18" height="18" aria-hidden="true"><use href="#icon-language"></use></svg>
+              <span class="visually-hidden" data-i18n="params.language.label">Language</span>
+              <select id="welcome-language"></select>
+            </label>
+            <label class="welcome-pref" title="Theme" data-i18n-attr="title:params.theme.label">
+              <svg class="cam-icon" width="18" height="18" aria-hidden="true"><use href="#icon-theme"></use></svg>
+              <span class="visually-hidden" data-i18n="params.theme.label">Theme</span>
+              <select id="welcome-theme"></select>
+            </label>
+          </div>
+          <div class="welcome-devices" role="group" aria-label="Machine output" data-i18n-attr="aria-label:modals.welcome.devices.label">
+            <button type="button" class="welcome-device" data-kind="setup">
+              <svg class="cam-icon" width="18" height="18" aria-hidden="true"><use href="#icon-wrench"></use></svg>
+            </button>
+            <button type="button" class="welcome-device" data-kind="toolLibrary">
+              <svg class="cam-icon" width="18" height="18" aria-hidden="true"><use href="#icon-op-drilling"></use></svg>
+            </button>
+          </div>
+        </div>
+        <div class="pipeline-selection" role="group" aria-label="Select your workspace mode" data-i18n-attr="aria-label:modals.welcome.subtitle">
+          <a href="#quickstart" class="pipeline-card pipeline-card--stable" id="pipeline-cnc" data-pipeline="cnc" draggable="false" aria-labelledby="pipeline-cnc-title pipeline-cnc-badge" aria-describedby="pipeline-cnc-text">
+            <div class="pipeline-icon" aria-hidden="true">
+              <svg class="cam-icon" width="24" height="24"><use href="#icon-cnc"></use></svg>
+            </div>
+            <div class="pipeline-body">
+              <div class="pipeline-head">
+                <h3 id="pipeline-cnc-title" data-i18n="modals.welcome.pipelines.cnc.title">2D Workspace</h3>
+                <span class="pipeline-badge pipeline-badge--stable" id="pipeline-cnc-badge" data-i18n="modals.welcome.status.ready">Ready</span>
+              </div>
+              <p class="pipeline-desc" id="pipeline-cnc-text" data-i18n="modals.welcome.pipelines.cnc.text">2.5D profiles, pockets, engraving, and V-carving.</p>
+            </div>
+            <span class="pipeline-action" aria-hidden="true" data-i18n="modals.welcome.pipelines.cnc.action">Start 2D</span>
+          </a>
+          <a href="#quickstart" class="pipeline-card pipeline-card--dev" id="pipeline-3d" data-pipeline="3d" draggable="false" aria-labelledby="pipeline-3d-title pipeline-3d-badge" aria-describedby="pipeline-3d-text">
+            <div class="pipeline-icon" aria-hidden="true">
+              <svg class="cam-icon" width="24" height="24"><use href="#icon-cnc-3d"></use></svg>
+            </div>
+            <div class="pipeline-body">
+              <div class="pipeline-head">
+                <h3 id="pipeline-3d-title" data-i18n="modals.welcome.pipelines.3d.title">3D Workspace</h3>
+                <span class="pipeline-badge pipeline-badge--dev" id="pipeline-3d-badge" data-i18n="modals.welcome.status.beta">Beta</span>
+              </div>
+              <p class="pipeline-desc" id="pipeline-3d-text" data-i18n="modals.welcome.pipelines.3d.text">Relief maps, flat and rotary, plus V-carving.</p>
+            </div>
+            <span class="pipeline-action" aria-hidden="true" data-i18n="modals.welcome.pipelines.3d.action">Start 3D</span>
+          </a>
+        </div>
+        <div class="sponsors-section">
+          <h4 data-i18n="modals.welcome.sponsors.title">Project Sponsors</h4>
+          <div class="sponsor-grid">
+            <a href="https://fablabbenfica.pt/fabacademyLisboa/" class="sponsor-slot sponsor-slot--filled" target="_blank" rel="noopener noreferrer" title="Fab Academy @ Fab Lab Benfica" draggable="false" aria-label="Visit Fab Lab Benfica's Fab Academy Page." data-i18n-attr="aria-label:modals.welcome.sponsors.fabAcademyAria">
+              <img src="../images/sponsors/sponsor-FabAcademy@FabLabBenfica.webp" alt="Sponsor - Fab Academy @ Fab Lab Benfica" width="260" height="125" loading="lazy" decoding="async" data-i18n-attr="alt:modals.welcome.sponsors.fabAcademyAlt">
+            </a>
+            <a href="#support" class="sponsor-slot sponsor-slot--empty" draggable="false" aria-label="Sponsor Slot Available" data-i18n-attr="aria-label:modals.welcome.sponsors.slotAria">
+              <div class="slot-content">
+                <svg class="cam-icon" width="48" height="48"><use href="#icon-sponsor"></use></svg>
+                <span data-i18n="modals.welcome.sponsors.yourLogo">Your Logo</span>
+              </div>
+            </a>
+            <a href="#support" class="sponsor-slot sponsor-slot--empty" draggable="false" aria-label="Sponsor Slot Available" data-i18n-attr="aria-label:modals.welcome.sponsors.slotAria">
+              <div class="slot-content">
+                <svg class="cam-icon" width="48" height="48"><use href="#icon-sponsor"></use></svg>
+                <span data-i18n="modals.welcome.sponsors.yourLogo">Your Logo</span>
+              </div>
+            </a>
+          </div>
+          <a href="#support" class="sponsor-cta" draggable="false" aria-label="Opens the Support Project modal" data-i18n="modals.welcome.sponsors.cta" data-i18n-attr="aria-label:modals.welcome.sponsors.ctaAria">Learn about becoming a sponsor</a>
+        </div>
+      </div>
+      <div class="modal-footer welcome-footer">
+        <div class="welcome-footer-links">
+          <a href="https://github.com/RicardoJCMarques/EasyCAM5000/blob/main/CHANGELOG.md" title="Version" target="_blank" draggable="false" aria-label="Changelog (opens in a new tab)" data-i18n-attr="title:app.footer.versionTip;aria-label:app.footer.versionAria">v1.7.0</a>
+          <span class="separator" aria-hidden="true"></span>
+          <a href="doc/" target="_blank" draggable="false" aria-label="Documentation (opens in a new tab)" data-i18n="app.footer.doc" data-i18n-attr="aria-label:app.footer.docAria">Documentation</a>
+          <span class="separator" aria-hidden="true"></span>
+          <a href="#help" draggable="false" aria-label="Opens Help modal" data-i18n="app.footer.help" data-i18n-attr="aria-label:app.footer.helpAria">Help</a>
+          <span class="separator" aria-hidden="true"></span>
+          <a href="https://github.com/RicardoJCMarques/EasyCAM5000/issues" target="_blank" rel="noopener" draggable="false" aria-label="Report a problem on GitHub Issues (opens in a new tab)" data-i18n="app.footer.issues" data-i18n-attr="aria-label:app.footer.issuesAria">Report a problem</a>
+          <span class="separator" aria-hidden="true"></span>
+          <a href="https://github.com/RicardoJCMarques/EasyCAM5000" target="_blank" draggable="false" aria-label="GitHub Repository (opens in a new tab)" data-i18n-attr="aria-label:app.footer.repoAria">GitHub</a>
+          <span class="separator" aria-hidden="true"></span>
+          <a href="../LICENSE" target="_blank" draggable="false" aria-label="AGPLv3 License (opens in a new tab)" data-i18n-attr="aria-label:app.footer.licenseAria">AGPLv3</a> |
+          <a href="https://www.eltryus.design/" draggable="false" aria-label="Eltryus, developer of EasyCAM5000" data-i18n="app.footer.developer" data-i18n-attr="aria-label:app.footer.developerAria">by ELTRYUS</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quickstart Modal -->
+  <div id="quickstart-modal" class="modal" role="dialog" aria-labelledby="qs-title">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div class="header-text-group">
+          <h2 id="qs-title">
+            <span class="pipeline-icon-anchor">
+              <svg class="cam-icon icon-cnc" width="24" height="24"><use href="#icon-cnc"></use></svg>
+              <svg class="cam-icon icon-cnc-3d" width="24" height="24"><use href="#icon-cnc-3d"></use></svg>
             </span>
+            <span data-i18n="modals.quickstart.title">Start a Project</span>
+          </h2>
+          <span class="modal-subtitle" data-i18n="modals.quickstart.subtitle">Load vector or mesh design files</span>
         </div>
-        <div class="status-right" id="status-right">
-            <div class="status-info license-info">
-                <a href="https://github.com/RicardoJCMarques/EasyCAM5000/blob/main/CHANGELOG.md" title="Version" draggable="false">v1.4.0</a> |
-                <a href="/" title="Return to Homepage" draggable="false">Home</a> |
-                <a href="../LICENSE" target="_blank" title="View License" draggable="false" aria-label="View AGPLv3 License (opens in a new tab)">AGPLv3</a> |
-                <a href="doc/" target="_blank" title="Documentation" draggable="false" aria-label="Documentation (opens in a new tab)">Doc</a> |
-                <a href="https://github.com/RicardoJCMarques/EasyCAM5000/issues" target="_blank" title="Repo" draggable="false" aria-label="GitHub Issues (opens in new tab)">Help</a> |
-                <a href="https://github.com/RicardoJCMarques/EasyCAM5000" target="_blank" title="Repo" draggable="false" aria-label="GitHub (opens in new tab)">GitHub</a> |
-                <a href="#support" title="Support the Project" draggable="false" aria-label="Opens Support modal">Support Development</a> |
-                <a href="https://www.eltryus.design/" draggable="false" aria-label="Eltryus, developer of EasyCAM5000">by ELTRYUS</a>
-            </div>
+        <button class="modal-close" type="button" aria-label="Close" data-i18n-attr="aria-label:common.close">
+          <svg class="cam-icon" width="20" height="20"><use href="#icon-close"></use></svg>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <div class="viewport-warning viewport-warning--caution" id="quickstart-viewport-warning">
+          <svg class="cam-icon" width="24" height="24"><use href="#icon-warning"></use></svg>
+          <div class="viewport-warning-content">
+            <strong data-i18n="modals.narrow.title">This tool recommends/requires a wider screen.</strong>
+            <span data-i18n="modals.narrow.text">If possible, rotate your device or switch to a larger screen.</span>
+          </div>
         </div>
-        <div class="status-log-panel" id="status-log-panel">
-            <div class="status-log-history" id="status-log-history"></div>
+
+        <div class="quickstart-content">
+          <div class="quickstart-example-row">
+            <label for="quickstart-example-select" data-i18n="modals.quickstart.example">Load example:</label>
+            <select id="quickstart-example-select" class="example-select"></select>
+            <button class="btn btn--secondary" id="load-example-btn" aria-label="Load selected example project" data-i18n="common.load" data-i18n-attr="aria-label:modals.quickstart.loadAria">Load</button>
+          </div>
+
+          <div class="quickstart-upload-section">
+            <p data-i18n="modals.quickstart.dropIntro">Drop your design file below to begin:</p>
+            <div class="quickstart-upload-grid quickstart-upload-grid--single" id="quickstart-upload-grid">
+              <div class="quickstart-drop-zone" data-op-type="unassigned" id="qs-unassigned-zone" role="button" tabindex="0" aria-label="Upload Vector or Mesh File. Click or drag file here." data-i18n-attr="aria-label:modals.quickstart.zones.unassigned">
+                <svg class="cam-icon" width="32" height="32" style="margin-bottom: 8px; color: var(--color-text-secondary);"><use href="#icon-image"></use></svg>
+                <span class="zone-label" aria-hidden="true" style="font-size: 1.1rem; font-weight: 500;" data-i18n="modals.quickstart.designFile">Design File</span>
+                <span class="zone-types" aria-hidden="true">.svg, .stl</span>
+                <span class="zone-hint" aria-hidden="true" style="margin-top: 4px;" data-i18n="modals.quickstart.zoneHint">Click or drop</span>
+                <span class="zone-file"></span>
+                <input type="file" accept=".svg,.stl" hidden>
+              </div>
+            </div>
+            <button class="btn btn--primary btn--block" id="process-quickstart-files-btn" disabled aria-label="Process uploaded files and open workspace" data-i18n="modals.quickstart.process" data-i18n-attr="aria-label:modals.quickstart.processAria">Process Files</button>
+            <p class="quickstart-canvas-hint" data-i18n="modals.quickstart.hint">Note: You can also drag files directly onto the workspace canvas. Open <strong data-i18n-slot="strong">Stock Setup</strong> in the right sidebar to configure your material size.</p>
+          </div>
         </div>
-    </footer>
-
-    <!-- TEMPLATES -->
-    <template id="invalidation-panel-template">
-        <div class="warning-panel invalidation-panel">
-            <div class="warning-header">
-                <span class="file-icon"><svg class="cam-icon" width="14" height="14"><use href="#icon-warning"></use></svg></span>
-                <span>Geometry Invalidated</span>
-            </div>
-            <p class="warning-message"></p>
-            <button class="btn btn--secondary btn--block invalidation-redo-btn">Delete Invalid Geometry & Redo</button>
-        </div>
-    </template>
-
-    <!-- WELCOME MODAL -->
-    <div id="welcome-modal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>Welcome to EasyShape5000</h2>
-                <button class="modal-close" id="welcome-close" aria-label="Close">
-                    <svg class="cam-icon" width="20" height="20"><use href="#icon-close"></use></svg>
-                </button>
-            </div>
-            <div class="modal-body">
-                <div class="viewport-warning viewport-warning--info" id="welcome-viewport-warning">
-                    <svg class="cam-icon" width="20" height="20"><use href="#icon-warning"></use></svg>
-                    <div class="viewport-warning-content">
-                        <strong>Screen too narrow. If possible, rotate your device.</strong>
-                        <span>UI is optimized for small screens but only in a horizontal orientation.</span>
-                    </div>
-                </div>
-
-                <p class="welcome-intro">EasyShape5000 is a CAM tool for CNC routing.</p>
-
-                <div class="modal-notice modal-notice--info" id="welcome-firstrelease-notice">
-                    <svg class="cam-icon" width="20" height="20"><use href="#icon-warning"></use></svg>
-                    <div class="modal-notice-content">
-                        <strong>Warning about 3D Operations:</strong>
-                        <p>While 2D foundations are shared with <a href="../easytrace5000/">EasyTrace5000</a>, more testing of the new 3D sub-systems is needed.</p>
-                        <p>Tool-changing logic was added recently - please <a href="https://github.com/RicardoJCMarques/EasyCAM5000/issues" target="_blank" rel="noopener">report unexpected behavior</a>.</p>
-                    </div>
-                </div>
-
-                <p class="pipeline-subtitle">Select your workspace mode</p>
-
-                <div class="pipeline-selection">
-                    <a href="#quickstart" class="pipeline-card pipeline-card--active" data-pipeline="cnc" id="pipeline-cnc" draggable="false" aria-label="Select 2D Workspace">
-                        <div class="pipeline-icon" aria-hidden="true">
-                            <svg class="cam-icon" width="48" height="48"><use href="#icon-cnc"></use></svg>
-                        </div>
-                        <h3>2D Workspace</h3>
-                        <span class="pipeline-badge pipeline-badge--stable">Standard</span>
-                        <p class="pipeline-desc">Standard 2.5D routing for profiles, pockets, engraving, and V-carving.</p>
-                        <span class="pipeline-action" aria-hidden="true">Start 2D</span>
-                    </a>
-
-                    <a href="#quickstart" class="pipeline-card pipeline-card--dev" data-pipeline="3d" id="pipeline-3d" draggable="false" aria-label="Select 3D Workspace (experimental)">
-                        <div class="pipeline-icon" aria-hidden="true">
-                            <svg class="cam-icon" width="48" height="48"><use href="#icon-image"></use></svg>
-                        </div>
-                        <h3>3D Workspace</h3>
-                        <span class="pipeline-badge pipeline-badge--dev">Experimental</span>
-                        <p class="pipeline-desc">Upgraded 3D workspace for Relief Maps, Flat and Rotary, plus V-Carving.</p>
-                        <span class="pipeline-action" aria-hidden="true">Start 3D</span>
-                    </a>
-                </div>
-
-                <div class="sponsors-section">
-                    <h4>Project Sponsors</h4>
-                    <div class="sponsor-grid">
-                        <a href="https://fablabbenfica.pt/fabacademyLisboa/" class="sponsor-slot sponsor-slot--filled" target="_blank" rel="noopener noreferrer" title="Fab Academy @ Fab Lab Benfica" draggable="false" aria-label="Visit Fab Lab Benfica's Fab Academy Page.">
-                            <img src="../images/sponsors/sponsor-FabAcademy@FabLabBenfica.webp" alt="Sponsor - Fab Academy @ Fab Lab Benfica" width="260" height="125" loading="lazy" decoding="async">
-                        </a>
-                        <a href="#support" class="sponsor-slot sponsor-slot--empty" id="sponsor-slot-2" draggable="false" aria-label="Sponsor Slot Available">
-                            <div class="slot-content">
-                                <svg class="cam-icon" width="48" height="48"><use href="#icon-sponsor"></use></svg>
-                                <span style="margin-top: 4px;">Your Logo</span>
-                            </div>
-                        </a>
-                        <a href="#support" class="sponsor-slot sponsor-slot--empty" id="sponsor-slot-3" draggable="false" aria-label="Sponsor Slot Available">
-                            <div class="slot-content">
-                                <svg class="cam-icon" width="48" height="48"><use href="#icon-sponsor"></use></svg>
-                                <span style="margin-top: 4px;">Your Logo</span>
-                            </div>
-                        </a>
-                    </div>
-                    <a href="#support" class="sponsor-cta" id="sponsor-contact-cta" draggable="false" aria-label="Opens the Support Project modal">Learn about becoming a sponsor</a>
-                </div>
-            </div>
-            <div class="modal-footer welcome-footer">
-                <div class="welcome-footer-links">
-                    <a href="https://github.com/RicardoJCMarques/EasyCAM5000/blob/main/CHANGELOG.md" title="Version" target="_blank" draggable="false" aria-label="Changelog (opens in a new tab)">v1.4.0</a>
-                    <span class="separator" aria-hidden="true"></span>
-                    <a href="doc/" target="_blank" draggable="false" aria-label="Documentation (opens in a new tab)">Documentation</a>
-                    <span class="separator" aria-hidden="true"></span>
-                    <a href="#help" id="welcome-help-link" draggable="false" aria-label="Opens Help modal">Help</a>
-                    <span class="separator" aria-hidden="true"></span>
-                    <a href="https://github.com/RicardoJCMarques/EasyCAM5000" target="_blank" draggable="false" aria-label="GitHub Repository (opens in a new tab)">GitHub</a>
-                    <span class="separator" aria-hidden="true"></span>
-                    <a href="../LICENSE" target="_blank" draggable="false" aria-label="AGPLv3 License (opens in a new tab)">AGPLv3</a> |
-                    <a href="https://www.eltryus.design/" draggable="false" aria-label="Eltryus, developer of EasyCAM5000">by ELTRYUS</a>
-                </div>
-            </div>
-        </div>
+      </div>
+      <div class="modal-footer quickstart-footer">
+        <button class="btn btn--secondary" id="quickstart-back-btn" aria-label="Return to Welcome modal" data-i18n="common.back" data-i18n-attr="aria-label:modals.quickstart.backAria">Back</button>
+        <label class="checkbox-label">
+          <input type="checkbox" id="dont-show-quickstart">
+          <span data-i18n="modals.quickstart.dontShow">Don't show this again</span>
+        </label>
+        <button class="btn btn--secondary" id="start-empty-btn" aria-label="Close modal and start with empty workspace" data-i18n="modals.quickstart.startEmpty" data-i18n-attr="aria-label:modals.quickstart.startEmptyAria">Start Empty</button>
+      </div>
     </div>
+  </div>
 
-    <!-- QUICKSTART MODAL -->
-    <div id="quickstart-modal" class="modal" role="dialog" aria-labelledby="qs-title">
-        <div class="modal-content" style="max-width: min(680px, 95vw);">
-            <div class="modal-header">
-                <div class="header-text-group">
-                    <h2 id="qs-title">
-                        <span class="pipeline-icon-anchor">
-                            <svg class="cam-icon icon-cnc" width="24" height="24"><use href="#icon-cnc"></use></svg>
-                        </span>
-                        Start a Project
-                    </h2>
-                    <span class="modal-subtitle">Load vector or mesh design files</span>
-                </div>
-                <button class="modal-close" data-modal-close aria-label="Close">
-                    <svg class="cam-icon" width="20" height="20"><use href="#icon-close"></use></svg>
+  <!-- Support Modal -->
+  <div id="support-modal" class="modal" role="dialog" aria-labelledby="support-title">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="support-title" data-i18n="modals.support.title">Support EasyShape5000</h2>
+        <button class="modal-close" type="button" aria-label="Close" data-i18n-attr="aria-label:common.close">
+          <svg class="cam-icon" width="20" height="20"><use href="#icon-close"></use></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="support-content">
+          <p class="support-intro" data-i18n="modals.support.intro">This project is free and open-source. Your support helps cover development time, hosting costs, and test hardware.</p>
+          <div class="support-options">
+            <div class="support-card support-card--sponsorship">
+              <h3>
+                <svg class="cam-icon" width="24" height="24"><use href="#icon-sponsor"></use></svg>
+                <span data-i18n="modals.support.sponsor.title">Become a Sponsor</span>
+              </h3>
+              <p data-i18n="modals.support.sponsor.text">Gain visibility with your logo on the welcome screen, documentation, and repository.</p>
+              <div class="support-email-container">
+                <span class="support-email-hint" aria-hidden="true" data-i18n="modals.support.sponsor.copyHint">Click to copy email</span>
+                <button class="support-email-btn" id="support-email-copy" type="button" aria-label="Copy sponsor email address to clipboard" data-i18n-attr="aria-label:modals.support.sponsor.copyAria">
+                  <span id="support-email-text"></span>
+                  <svg class="cam-icon" width="14" height="14"><use href="#icon-copy"></use></svg>
                 </button>
+              </div>
             </div>
-
-            <div class="modal-body">
-                <div class="viewport-warning viewport-warning--caution" id="quickstart-viewport-warning">
-                    <svg class="cam-icon" width="24" height="24"><use href="#icon-warning"></use></svg>
-                    <div class="viewport-warning-content">
-                        <strong>This tool recommends/requires a wider screen. UI may be harder to use or fully broken.</strong>
-                        <span> If possible, rotate your device or switch to a larger screen.</span>
-                    </div>
-                </div>
-
-                <div class="quickstart-content">
-                    <div class="quickstart-example-row">
-                        <label for="pcb-example-select">Load example:</label>
-                        <select id="pcb-example-select" class="example-select"></select>
-                        <button class="btn btn--secondary" id="load-example-btn" aria-label="Load selected example project">Load</button>
-                    </div>
-
-                    <div class="quickstart-upload-section">
-                        <p>Drop your design file below to begin:</p>
-
-                        <div class="quickstart-upload-grid quickstart-upload-grid--single" id="quickstart-upload-grid">
-                            <div class="quickstart-drop-zone" data-op-type="unassigned" id="qs-unassigned-zone" role="button" tabindex="0" aria-label="Upload Vector or Mesh File. Click or drag file here.">
-                                <svg class="cam-icon" width="32" height="32" style="margin-bottom: 8px; color: var(--color-text-secondary);"><use href="#icon-image"></use></svg>
-                                <span class="zone-label" aria-hidden="true" style="font-size: 1.1rem; font-weight: 500;">Design File</span>
-                                <span class="zone-types" aria-hidden="true">.svg, .stl</span>
-                                <span class="zone-hint" aria-hidden="true" style="margin-top: 4px;">Click or drop</span>
-                                <span class="zone-file"></span>
-                                <input type="file" accept=".svg,.stl" hidden>
-                            </div>
-                        </div>
-
-                        <button class="btn btn--primary btn--block" id="process-quickstart-files-btn" disabled aria-label="Process uploaded files and open workspace">Process Files</button>
-
-                        <p class="quickstart-canvas-hint">Note: You can also drag files directly onto the workspace canvas. Open <strong>Stock Setup</strong> in the right sidebar to configure your material size.</p>
-                    </div>
-                </div>
+            <div class="support-card support-card--kofi">
+              <h3>
+                <svg class="cam-icon" width="18" height="18"><use href="#icon-heart"></use></svg>
+                <span data-i18n="modals.support.donate.title">Support the Project</span>
+              </h3>
+              <p data-i18n="modals.support.donate.text">Individual contributions directly fund the project's infrastructure and development time.</p>
+              <div style="margin-top: auto;">
+                <a href="https://ko-fi.com/eltryus" target="_blank" class="btn btn--kofi" draggable="false" data-i18n="modals.support.donate.kofi">Support on Ko-fi</a>
+              </div>
             </div>
-
-            <div class="modal-footer quickstart-footer">
-                <button class="btn btn--secondary" id="quickstart-back-btn" aria-label="Return to Welcome modal">Back</button>
-                <label class="checkbox-label">
-                    <input type="checkbox" id="dont-show-quickstart">
-                    <span>Don't show this again</span>
-                </label>
-                <button class="btn btn--secondary" id="start-empty-btn" aria-label="Close modal and start with empty workspace">Start Empty</button>
-            </div>
+          </div>
         </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn--secondary" id="support-back-btn" data-i18n="common.back">Back</button>
+      </div>
     </div>
+  </div>
 
-    <!-- SUPPORT MODAL -->
-    <div id="support-modal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>Support EasyShape5000</h2>
-                <button class="modal-close" id="support-close" aria-label="Close">
-                    <svg class="cam-icon" width="20" height="20"><use href="#icon-close"></use></svg>
-                </button>
+  <!-- Help Modal -->
+  <div id="help-modal" class="modal" role="dialog" aria-labelledby="help-title">
+    <div class="modal-content modal--help">
+      <div class="modal-header">
+        <h2 id="help-title" data-i18n="modals.help.title">Workflow & Keyboard Shortcuts</h2>
+        <button class="modal-close" type="button" aria-label="Close" data-i18n-attr="aria-label:common.close">
+          <svg class="cam-icon" width="20" height="20"><use href="#icon-close"></use></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="help-content">
+          <section class="help-section">
+            <h3 data-i18n="modals.help.workflow.title">Workflow</h3>
+            <div class="workflow-steps">
+              <div class="workflow-step"><span class="step-number">1</span><div class="step-content"><strong data-i18n="modals.help.workflow.importFiles.title">Import Files</strong><p data-i18n="modals.help.workflow.importFiles.text">Load your design from Illustrator, Inkscape, or Affinity Designer</p></div></div>
+              <div class="workflow-step"><span class="step-number">2</span><div class="step-content"><strong data-i18n="modals.help.workflow.assignOperations.title">Assign Operations</strong><p data-i18n="modals.help.workflow.assignOperations.text">Select paths and assign Profile, Pocket, Drill, or Engrave</p></div></div>
+              <div class="workflow-step"><span class="step-number">3</span><div class="step-content"><strong data-i18n="modals.help.workflow.setParameters.title">Set Parameters</strong><p data-i18n="modals.help.workflow.setParameters.text">Configure tool, depth, feeds, and strategy for each operation</p></div></div>
+              <div class="workflow-step"><span class="step-number">4</span><div class="step-content"><strong data-i18n="modals.help.workflow.exportGcode.title">Export G-code</strong><p data-i18n="modals.help.workflow.exportGcode.text">Generate and download machine-ready files</p></div></div>
             </div>
-            <div class="modal-body">
-                <div class="support-content">
-                    <p class="support-intro">This project is free and open-source. Your support helps cover development time, hosting costs, and test hardware.</p>
-                    <div class="support-options">
-                        <div class="support-card support-card--sponsorship">
-                            <h3>
-                                <svg class="cam-icon" width="24" height="24"><use href="#icon-sponsor"></use></svg>
-                                Become a Sponsor
-                            </h3>
-                            <p>Gain visibility with your logo on the welcome screen, documentation, and repository.</p>
-                            <div class="support-email-container">
-                                <span class="support-email-hint" aria-hidden="true">Click to copy email</span>
-                                <button class="support-email-btn" id="support-email-copy" type="button" aria-label="Copy sponsor email address to clipboard">
-                                    <span id="support-email-text">sponsor@eltryus.design</span>
-                                    <svg class="cam-icon" width="14" height="14"><use href="#icon-copy"></use></svg>
-                                </button>
-                            </div>
-                        </div>
-                        <div class="support-card support-card--kofi">
-                            <h3>
-                                <svg class="cam-icon" width="18" height="18"><use href="#icon-heart"></use></svg>
-                                Support the Project
-                            </h3>
-                            <p>Individual contributions directly fund the project's infrastructure and development time.</p>
-                            <div style="margin-top: auto;">
-                                <a href="https://ko-fi.com/eltryus" target="_blank" class="btn btn--kofi" draggable="false">Support on Ko-fi</a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+          </section>
+          <section class="help-section">
+            <h3 data-i18n="modals.help.shortcuts.title">Keyboard Shortcuts</h3>
+            <div class="shortcut-group">
+              <h4 data-i18n="modals.help.shortcuts.general">General</h4>
+              <div class="shortcut-list">
+                <div class="shortcut-item"><span class="shortcut-keys"><kbd>F2</kbd></span><span class="shortcut-desc" data-i18n="modals.help.shortcuts.toggle3d">Switch between 2D and 3D rendering</span></div>
+                <div class="shortcut-item"><span class="shortcut-keys"><kbd data-i18n="keys.ctrl">Ctrl</kbd>+<kbd>Z</kbd></span><span class="shortcut-desc" data-i18n="modals.help.shortcuts.undo">Undo</span></div>
+                <div class="shortcut-item"><span class="shortcut-keys"><kbd data-i18n="keys.ctrl">Ctrl</kbd>+<kbd data-i18n="keys.shift">Shift</kbd>+<kbd>Z</kbd></span><span class="shortcut-desc" data-i18n="modals.help.shortcuts.redo">Redo</span></div>
+                <div class="shortcut-item"><span class="shortcut-keys"><kbd data-i18n="keys.ctrl">Ctrl</kbd>+<kbd>A</kbd></span><span class="shortcut-desc" data-i18n="modals.help.shortcuts.selectAll">Select all</span></div>
+                <div class="shortcut-item"><span class="shortcut-keys"><kbd data-i18n="keys.ctrl">Ctrl</kbd>+<kbd>G</kbd></span><span class="shortcut-desc" data-i18n="modals.help.shortcuts.group">Group selection</span></div>
+                <div class="shortcut-item"><span class="shortcut-keys"><kbd data-i18n="keys.delete">Delete</kbd></span><span class="shortcut-desc" data-i18n="modals.help.shortcuts.deleteSelection">Delete selection</span></div>
+                <div class="shortcut-item"><span class="shortcut-keys"><kbd data-i18n="keys.escape">Esc</kbd></span><span class="shortcut-desc" data-i18n="modals.help.shortcuts.deselect">Deselect / Close modal</span></div>
+                <div class="shortcut-item"><span class="shortcut-keys"><kbd>I</kbd></span><span class="shortcut-desc" data-i18n="modals.help.shortcuts.importSvg">Import SVG</span></div>
+              </div>
             </div>
-            <div class="modal-footer">
-                <button class="btn btn--secondary" id="support-back-btn">Back</button>
+            <div class="shortcut-group">
+              <h4 data-i18n="modals.help.shortcuts.view">View</h4>
+              <div class="shortcut-list">
+                <div class="shortcut-item"><span class="shortcut-keys"><kbd>F</kbd> / <kbd data-i18n="keys.home">Home</kbd></span><span class="shortcut-desc" data-i18n="modals.help.shortcuts.fit">Fit to view</span></div>
+                <div class="shortcut-item"><span class="shortcut-keys"><kbd>+</kbd> / <kbd>-</kbd></span><span class="shortcut-desc" data-i18n="modals.help.shortcuts.zoomInOut">Zoom in / out</span></div>
+                <div class="shortcut-item"><span class="shortcut-keys"><kbd>G</kbd></span><span class="shortcut-desc" data-i18n="modals.help.shortcuts.toggleGrid">Toggle grid</span></div>
+                <div class="shortcut-item"><span class="shortcut-keys"><kbd>F6</kbd></span><span class="shortcut-desc" data-i18n="modals.help.shortcuts.focusZones">Cycle focus zones</span></div>
+              </div>
             </div>
+          </section>
+
+          <!-- Issues -->
+          <section class="help-section">
+            <h3 data-i18n="modals.help.feedback.title">Issues &amp; Feedback</h3>
+            <p class="help-feedback" data-i18n="modals.help.feedback.text">Having problems with something? Search the open issues or start a new one on the <a href="https://github.com/RicardoJCMarques/EasyCAM5000/issues" target="_blank" rel="noopener" draggable="false" aria-label="GitHub issue tracker (opens in a new tab)" data-i18n-slot="link" data-i18n-attr="aria-label:modals.help.feedback.linkAria">GitHub issue tracker</a>.</p>
+          </section>
         </div>
+      </div>
+      <div class="modal-footer">
+        <a href="doc/" target="_blank" class="btn btn--secondary" draggable="false" aria-label="Read Full Documentation (opens in a new tab)" data-i18n="modals.help.docs" data-i18n-attr="aria-label:modals.help.docsAria">Full Documentation</a>
+        <button class="btn btn--primary" id="help-close-btn" data-i18n="modals.help.gotIt">Got it</button>
+      </div>
     </div>
+  </div>
 
-    <!-- HELP MODAL -->
-    <div id="help-modal" class="modal" role="dialog" aria-labelledby="help-title">
-        <div class="modal-content modal--help">
-            <div class="modal-header">
-                <h2 id="help-title">Workflow & Keyboard Shortcuts</h2>
-                <button class="modal-close" data-modal-close aria-label="Close">
-                    <svg class="cam-icon" width="20" height="20"><use href="#icon-close"></use></svg>
-                </button>
+  <!-- Export Manager Modal -->
+  <div id="exporter-manager-modal" class="modal" role="dialog" aria-labelledby="exporter-title">
+    <div class="modal-content modal--exporter">
+      <div class="modal-header">
+        <h2 id="exporter-title" data-i18n="modals.exporter.title">Operations & Export Manager</h2>
+        <button class="modal-close" type="button" aria-label="Close" data-i18n-attr="aria-label:common.close">
+          <svg class="cam-icon" width="20" height="20"><use href="#icon-close"></use></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="gcode-options">
+          <h3 data-i18n="modals.exporter.operationsTitle">Select Operations to Process</h3>
+          <p class="help-text" id="exporter-order-help" data-i18n="modals.exporter.orderHint">Check to include. Drag to set the order inside combined files.</p>
+          <div class="operation-order" id="exporter-operation-order"></div>
+          <div id="exporter-shared-options">
+            <h3 data-i18n="modals.exporter.outputTitle">Output Files</h3>
+            <div class="property-field field-group">
+              <label for="exporter-filename" data-i18n="modals.exporter.filename.label">Base Name</label>
+              <input type="text" id="exporter-filename">
+              <p class="exporter-summary" id="exporter-summary"></p>
             </div>
-            <div class="modal-body">
-                <div class="help-content">
-                    <section class="help-section">
-                        <h3>Workflow</h3>
-                        <div class="workflow-steps">
-                            <div class="workflow-step"><span class="step-number">1</span><div class="step-content"><strong>Import Files</strong><p>Load your design from Illustrator, Inkscape, or Affinity Designer</p></div></div>
-                            <div class="workflow-step"><span class="step-number">2</span><div class="step-content"><strong>Assign Operations</strong><p>Select paths and assign Profile, Pocket, Drill, or Engrave</p></div></div>
-                            <div class="workflow-step"><span class="step-number">3</span><div class="step-content"><strong>Set Parameters</strong><p>Configure tool, depth, feeds, and strategy for each operation</p></div></div>
-                            <div class="workflow-step"><span class="step-number">4</span><div class="step-content"><strong>Export G-code</strong><p>Generate and download machine-ready files</p></div></div>
-                        </div>
-                    </section>
-                    <section class="help-section">
-                        <h3>Keyboard Shortcuts</h3>
-                        <div class="shortcut-group">
-                            <h4>General</h4>
-                            <div class="shortcut-list">
-                                <div class="shortcut-item"><span class="shortcut-keys"><kbd>F2</kbd></span><span class="shortcut-desc">Switch between 2D and 3D rendering</span></div>
-                                <div class="shortcut-item"><span class="shortcut-keys"><kbd>Ctrl</kbd>+<kbd>Z</kbd></span><span class="shortcut-desc">Undo</span></div>
-                                <div class="shortcut-item"><span class="shortcut-keys"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd></span><span class="shortcut-desc">Redo</span></div>
-                                <div class="shortcut-item"><span class="shortcut-keys"><kbd>Ctrl</kbd>+<kbd>A</kbd></span><span class="shortcut-desc">Select all</span></div>
-                                <div class="shortcut-item"><span class="shortcut-keys"><kbd>Ctrl</kbd>+<kbd>G</kbd></span><span class="shortcut-desc">Group selection</span></div>
-                                <div class="shortcut-item"><span class="shortcut-keys"><kbd>Delete</kbd></span><span class="shortcut-desc">Delete selection</span></div>
-                                <div class="shortcut-item"><span class="shortcut-keys"><kbd>Esc</kbd></span><span class="shortcut-desc">Deselect / Close modal</span></div>
-                                <div class="shortcut-item"><span class="shortcut-keys"><kbd>I</kbd></span><span class="shortcut-desc">Import SVG</span></div>
-                            </div>
-                        </div>
-                        <div class="shortcut-group">
-                            <h4>View</h4>
-                            <div class="shortcut-list">
-                                <div class="shortcut-item"><span class="shortcut-keys"><kbd>F</kbd> / <kbd>Home</kbd></span><span class="shortcut-desc">Fit to view</span></div>
-                                <div class="shortcut-item"><span class="shortcut-keys"><kbd>+</kbd> / <kbd>-</kbd></span><span class="shortcut-desc">Zoom in / out</span></div>
-                                <div class="shortcut-item"><span class="shortcut-keys"><kbd>G</kbd></span><span class="shortcut-desc">Toggle grid</span></div>
-                                <div class="shortcut-item"><span class="shortcut-keys"><kbd>F6</kbd></span><span class="shortcut-desc">Cycle focus zones</span></div>
-                            </div>
-                        </div>
-                    </section>
-
-                    <!-- Issues -->
-                    <section class="help-section">
-                        <h3>Issues &amp; Feedback</h3>
-                        <p class="help-text">Having problems with something? Search the open issues or start a new one on the <a href="https://github.com/RicardoJCMarques/EasyCAM5000/issues" target="_blank" rel="noopener" draggable="false">GitHub issue tracker<span class="visually-hidden"> (opens in a new tab)</span></a>.</p>
-                    </section>
-                </div>
+            <div class="property-field field-group export-option" id="exporter-single-file-field">
+              <label class="checkbox-label">
+                <input type="checkbox" id="exporter-single-file">
+                <span data-i18n="modals.exporter.singleFile.label">Export as single file</span>
+                <small class="option-reason"></small>
+              </label>
             </div>
-
-            <div class="modal-footer">
-                <a href="doc/" target="_blank" class="btn btn--secondary" draggable="false" aria-label="Read Full Documentation (opens in a new tab)">Full Documentation</a>
-                <button class="btn btn--primary" id="help-close-btn">Got it</button>
+            <div class="property-field field-group export-option" id="exporter-split-drills-field">
+              <label class="checkbox-label">
+                <input type="checkbox" id="exporter-split-drills">
+                <span data-i18n="modals.exporter.splitDrills.label">Split drill files by bit</span>
+                <small class="option-reason"></small>
+              </label>
             </div>
+            <div class="property-field field-group export-option" id="exporter-zip-field">
+              <label class="checkbox-label">
+                <input type="checkbox" id="exporter-zip" checked>
+                <span data-i18n="modals.exporter.zip.label">Bundle files into one .zip</span>
+                <small class="option-reason"></small>
+              </label>
+            </div>
+            <div class="property-field field-group export-option">
+              <label class="checkbox-label">
+                <input type="checkbox" id="exporter-include-comments" checked>
+                <span data-i18n="modals.exporter.includeComments.label">Include operation comments</span>
+                <small class="option-reason"></small>
+              </label>
+            </div>
+            <div class="property-field field-group export-option">
+              <label class="checkbox-label">
+                <input type="checkbox" id="exporter-verbose-comments">
+                <span data-i18n="modals.exporter.verboseComments.label">Verbose comments</span>
+                <small class="option-reason"></small>
+              </label>
+            </div>
+          </div>
+          <div id="exporter-cnc-options" data-pipeline-group="router">
+            <h3 data-i18n="modals.exporter.cncTitle">CNC Output Options</h3>
+            <div class="property-field field-group" id="post-summary">
+              <p class="help-text" style="margin: 0">
+                <span data-i18n="modals.exporter.postProcessor">Using post-processor: <strong id="post-summary-label" data-i18n-slot="post">Grbl</strong>.</span>
+                <span data-i18n="modals.exporter.settingsHint">Change in Machine Settings (right sidebar).</span>
+                <span id="tool-library-summary" class="is-hidden" data-i18n="modals.exporter.toolLibrary">Tools from the custom library <strong id="tool-library-summary-label" data-i18n-slot="file">tools.json</strong>.</span>
+              </p>
+            </div>
+            <div class="property-field field-group export-option">
+              <label class="checkbox-label">
+                <input type="checkbox" id="exporter-tool-changes">
+                <span data-i18n="modals.exporter.toolChanges.label">Insert tool change commands</span>
+                <small class="option-reason"></small>
+              </label>
+            </div>
+            <div class="property-field field-group export-option" id="exporter-group-by-tool-field">
+              <label class="checkbox-label">
+                <input type="checkbox" id="exporter-group-by-tool">
+                <span data-i18n="modals.exporter.groupByTool.label">Group operations by tool</span>
+                <small class="option-reason"></small>
+              </label>
+            </div>
+            <div class="property-field field-group export-option">
+              <label class="checkbox-label">
+                <input type="checkbox" id="exporter-optimize-paths" checked>
+                <span data-i18n="modals.exporter.optimize.label">Optimize path order (whole job)</span>
+              </label>
+            </div>
+          </div>
         </div>
-    </div>
-
-    <!-- EXPORT MANAGER MODAL -->
-    <div id="exporter-manager-modal" class="modal" role="dialog" aria-labelledby="exporter-title">
-        <div class="modal-content modal--exporter">
-            <div class="modal-header">
-                <h2 id="exporter-title">Operations & Export Manager</h2>
-                <button class="modal-close" id="exporter-close" aria-label="Close">
-                    <svg class="cam-icon" width="20" height="20"><use href="#icon-close"></use></svg>
-                </button>
-            </div>
-
-            <div class="modal-body">
-                <div class="gcode-options">
-                    <h3>Select Operations to Process</h3>
-                    <p class="help-text" id="exporter-order-help">Check to include. Drag to set the order inside combined files.</p>
-                    <div class="operation-order" id="exporter-operation-order"></div>
-                    <div id="exporter-shared-options">
-                        <h3>Output Files</h3>
-                        <div class="property-field field-group">
-                            <label for="exporter-filename">Base Name</label>
-                            <input type="text" id="exporter-filename" value="pcb-output" placeholder="pcb-output">
-                            <p class="exporter-summary" id="exporter-summary"></p>
-                        </div>
-                        <div class="property-field field-group export-option" id="exporter-single-file-field">
-                            <label class="checkbox-label">
-                                <input type="checkbox" id="exporter-single-file">
-                                <span>Export as single file</span>
-                                <small class="option-reason"></small>
-                            </label>
-                        </div>
-                        <div class="property-field field-group export-option" id="exporter-split-drills-field">
-                            <label class="checkbox-label">
-                                <input type="checkbox" id="exporter-split-drills">
-                                <span>Split drill files by bit</span>
-                                <small class="option-reason"></small>
-                            </label>
-                        </div>
-                        <div class="property-field field-group export-option" id="exporter-zip-field">
-                            <label class="checkbox-label">
-                                <input type="checkbox" id="exporter-zip" checked>
-                                <span>Bundle files into one .zip</span>
-                                <small class="option-reason"></small>
-                            </label>
-                        </div>
-                        <div class="property-field field-group export-option">
-                            <label class="checkbox-label">
-                                <input type="checkbox" id="exporter-include-comments" checked>
-                                <span>Include operation comments</span>
-                                <small class="option-reason"></small>
-                            </label>
-                        </div>
-                    </div>
-                    <div id="exporter-cnc-options" data-pipeline-group="router">
-                        <h3>CNC Output Options</h3>
-                        <div class="property-field field-group export-option">
-                            <label class="checkbox-label">
-                                <input type="checkbox" id="exporter-tool-changes">
-                                <span>Insert tool change commands</span>
-                                <small class="option-reason"></small>
-                            </label>
-                        </div>
-                        <div class="property-field field-group export-option" id="exporter-group-by-tool-field">
-                            <label class="checkbox-label">
-                                <input type="checkbox" id="exporter-group-by-tool">
-                                <span>Group operations by tool</span>
-                                <small class="option-reason"></small>
-                            </label>
-                        </div>
-                        <div class="property-field field-group export-option">
-                            <label class="checkbox-label">
-                                <input type="checkbox" id="exporter-optimize-paths" checked>
-                                <span>Optimize path order (whole job)</span>
-                            </label>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="exporter-preview" id="exporter-cnc-preview">
-                    <h3>G-code Preview</h3>
-                    <div class="property-field" id="exporter-operation-selector" style="display: none;">
-                        <label for="exporter-preview-select">Previewing:</label>
-                        <select id="exporter-preview-select"></select>
-                    </div>
-                    <div class="preview-stats" id="exporter-preview-stats">
-                        <span>Lines: <strong id="exporter-line-count">0</strong></span>
-                        <span>Operations: <strong id="exporter-op-count">0</strong></span>
-                        <span>Est. Time: <strong id="exporter-est-time">--:--</strong></span>
-                        <span>Distance: <strong id="exporter-distance">0mm</strong></span>
-                    </div>
-                    <div class="preview-text-container">
-                        <textarea id="exporter-preview-text" readonly rows="15" placeholder="G-code preview will appear here..." aria-label="G-code output preview"></textarea>
-                        <button id="exporter-copy-btn" class="btn btn--icon btn--compact btn-copy-floating" title="Copy to clipboard" aria-label="Copy to clipboard">
-                            <svg class="cam-icon icon-copy" width="14" height="14"><use href="#icon-copy"></use></svg>
-                            <svg class="cam-icon icon-check" width="14" height="14"><use href="#icon-check"></use></svg>
-                        </button>
-                    </div>
-                    <div class="preview-warnings" id="exporter-warnings" style="display: none;"></div>
-                </div>
-            </div>
-            <div id="exporter-tool-warning" class="is-hidden"></div>
-            <div class="modal-footer exporter-footer">
-                <button class="btn btn--secondary" id="exporter-cancel-btn" aria-label="Cancel and close modal">Cancel</button>
-                <div class="exporter-actions">
-                    <button class="btn btn--secondary" id="exporter-calculate-btn" aria-label="Generate G-code preview">Calculate Toolpaths</button>
-                    <button class="btn btn--primary" id="exporter-execute-btn" aria-label="Export selected files">Export Files</button>
-                </div>
-            </div>
+        <div class="exporter-preview" id="exporter-cnc-preview">
+          <h3 data-i18n="modals.exporter.previewTitle">G-code Preview</h3>
+          <div class="property-field" id="exporter-operation-selector" style="display: none;">
+            <label for="exporter-preview-select" data-i18n="modals.exporter.previewing">Previewing:</label>
+            <select id="exporter-preview-select"></select>
+          </div>
+          <div class="preview-stats" id="exporter-preview-stats">
+            <span data-i18n="modals.exporter.stats.lines">Lines: <strong id="exporter-line-count" data-i18n-slot="value">0</strong></span>
+            <span data-i18n="modals.exporter.stats.operations">Operations: <strong id="exporter-op-count" data-i18n-slot="value">0</strong></span>
+            <span data-i18n="modals.exporter.stats.time">Est. Time: <strong id="exporter-est-time" data-i18n-slot="value">--:--</strong></span>
+            <span data-i18n="modals.exporter.stats.distance">Distance: <strong id="exporter-distance" data-i18n-slot="value">0mm</strong></span>
+          </div>
+          <div class="preview-text-container">
+            <textarea id="exporter-preview-text" readonly rows="15" placeholder="Click &quot;Calculate Toolpaths&quot; to generate G-code" aria-label="G-code output preview" data-i18n-attr="placeholder:modals.exporter.previewPlaceholder;aria-label:modals.exporter.previewAria"></textarea>
+            <button id="exporter-copy-btn" class="btn btn--icon btn--compact btn-copy-floating" title="Copy to clipboard" aria-label="Copy to clipboard" data-i18n-attr="title:modals.exporter.copy;aria-label:modals.exporter.copy">
+              <svg class="cam-icon icon-copy" width="14" height="14"><use href="#icon-copy"></use></svg>
+              <svg class="cam-icon icon-check" width="14" height="14"><use href="#icon-check"></use></svg>
+            </button>
+          </div>
+          <div class="preview-warnings" id="exporter-warnings" style="display: none;"></div>
         </div>
-    </div>
-
-    <!-- Drill Tooling Modal -->
-    <div id="drill-tooling-modal" class="modal" role="dialog" aria-labelledby="drill-tooling-title">
-        <div class="modal-content modal--drill-tooling">
-            <div class="modal-header">
-                <div class="header-text-group">
-                    <h2 id="drill-tooling-title">Drill Tooling</h2>
-                    <span class="modal-subtitle" id="drill-tooling-subtitle"></span>
-                </div>
-                <button class="modal-close" data-modal-close aria-label="Close">
-                    <svg class="cam-icon" width="20" height="20"><use href="#icon-close"></use></svg>
-                </button>
-            </div>
-            <div class="modal-body" id="drill-tooling-body"></div>
-            <div class="modal-footer">
-                <button class="btn btn--primary" id="drill-tooling-done">Done</button>
-            </div>
+      </div>
+      <div class="property-field field-group export-option">
+        <label class="checkbox-label">
+          <input type="checkbox" id="exporter-optimize-paths" checked>
+          <span data-i18n="modals.exporter.optimize.label">Optimize path order (whole job)</span>
+        </label>
+      </div>
+      <div id="exporter-tool-warning" class="is-hidden"></div>
+      <div class="modal-footer exporter-footer">
+        <button class="btn btn--secondary" id="exporter-cancel-btn" aria-label="Cancel and close modal">Cancel</button>
+        <div class="exporter-actions">
+          <button class="btn btn--secondary" id="exporter-calculate-btn" aria-label="Generate G-code preview">Calculate Toolpaths</button>
+          <button class="btn btn--primary" id="exporter-execute-btn" aria-label="Export selected files">Export Files</button>
         </div>
+      </div>
     </div>
+  </div>
 
-    <!-- Warning / Confirmation Modal -->
-    <div id="warning-modal" class="modal" role="alertdialog" aria-labelledby="warning-title">
-        <div class="modal-content modal-warning">
-            <div class="modal-header">
-                <h2 id="warning-title" class="warning-title">Warning</h2>
-                <button class="modal-close" data-modal-close aria-label="Close">
-                    <svg class="cam-icon" width="20" height="20"><use href="#icon-close"></use></svg>
-                </button>
-            </div>
-            <div class="modal-body">
-                <div class="warning-body"></div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn--secondary warning-cancel">Cancel</button>
-                <button class="btn btn--primary warning-confirm">OK</button>
-            </div>
+  <!-- Drill Tooling Modals -->
+  <div id="drill-tooling-modal" class="modal" role="dialog" aria-labelledby="drill-tooling-title">
+    <div class="modal-content modal--drill-tooling">
+      <div class="modal-header">
+        <div class="header-text-group">
+          <h2 id="drill-tooling-title" data-i18n="modals.drillTooling.title">Drill Tooling</h2>
+          <span class="modal-subtitle" id="drill-tooling-subtitle"></span>
         </div>
+        <button class="modal-close" type="button" aria-label="Close" data-i18n-attr="aria-label:common.close">
+          <svg class="cam-icon" width="20" height="20"><use href="#icon-close"></use></svg>
+        </button>
+      </div>
+      <div class="modal-body" id="drill-tooling-body"></div>
+      <div class="modal-footer">
+        <button class="btn btn--primary" id="drill-tooling-done" data-i18n="common.done">Done</button>
+      </div>
     </div>
+  </div>
 
-    <!-- Hidden file inputs -->
-    <input type="file" id="file-input-hidden" hidden multiple="multiple">
+  <template id="drill-tooling-template">
+    <div class="drill-tooling-presets" data-stage="geometry">
+      <button class="btn btn--secondary btn--compact" data-preset="flatten" data-i18n="modals.drillTooling.presets.flatten">Reset to Defaults</button>
+      <button class="btn btn--secondary btn--compact" data-preset="match" data-i18n="modals.drillTooling.presets.match">Auto-match Tool Library</button>
+    </div>
+    <table class="drill-tooling-table">
+      <thead>
+        <tr>
+          <th scope="col" data-help="size"><span data-i18n="modals.drillTooling.columns.size">Size</span></th>
+          <th scope="col" data-help="features"><span data-i18n="modals.drillTooling.columns.features">Features</span></th>
+          <th scope="col" data-help="strategy"><span data-i18n="modals.drillTooling.columns.strategy">Strategy</span></th>
+          <th scope="col" data-help="tool"><span data-i18n="modals.drillTooling.columns.tool">Tool ⌀ (mm)</span></th>
+          <th scope="col" data-help="toolNumber"><span data-i18n="modals.drillTooling.columns.toolNumber">T#</span></th>
+          <th scope="col" data-stage="strategy" data-help="peck"><span data-i18n="modals.drillTooling.columns.peck">Peck</span></th>
+          <th scope="col" data-stage="machine" data-help="feed"><span data-i18n="modals.drillTooling.columns.feed">Feed</span></th>
+          <th scope="col" data-stage="machine" data-help="plunge"><span data-i18n="modals.drillTooling.columns.plunge">Plunge</span></th>
+          <th scope="col" data-stage="machine" data-help="rpm"><span data-i18n="modals.drillTooling.columns.rpm">RPM</span></th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+    <p class="modal-notice" data-stage="geometry" data-i18n="modals.drillTooling.notice.geometry">Holes and slots of one size get a row each. Give every row a strategy, a cutter and a T number; a skipped row needs neither. Changing a strategy or cutter discards generated paths; a T number does not.</p>
+    <p class="modal-notice" data-stage="strategy" data-i18n="modals.drillTooling.notice.strategy">Peck depth per row. Leave it empty to use the operation's Peck Depth. Strategy, cutter and T number are set at the XY Geometry stage.</p>
+    <p class="modal-notice" data-stage="machine" data-i18n="modals.drillTooling.notice.machine">Feeds and spindle speed per row. Leave a field empty to use the operation's value. Strategy, cutter and T number are set at the XY Geometry stage.</p>
+  </template>
 
-    <!-- Scripts -->
-    <script defer src="../config.js"></script>
-    <script defer src="../themes/theme-loader.js"></script>
-    <script defer src="../language/language-manager.js"></script>
-    <script defer src="../geometry/clipper2z.js"></script>
-    <script defer src="../utils/transform-math.js"></script>
-    <script defer src="../utils/transform-math-3d.js"></script>
-    <script defer src="../geometry/geometry-processor.js"></script>
-    <script defer src="../geometry/geometry-curve-registry.js"></script>
-    <script defer src="../geometry/geometry-arc-reconstructor.js"></script>
-    <script defer src="../geometry/geometry-clipper-wrapper.js"></script>
-    <script defer src="../geometry/geometry-utils-points.js"></script>
-    <script defer src="../geometry/geometry-utils-tessellation.js"></script>
-    <script defer src="../geometry/geometry-utils.js"></script>
-    <script defer src="../geometry/geometry-utils-topology.js"></script>
-    <script defer src="../geometry/delaunator.5.0.0.min.js"></script>
-    <script defer src="../geometry/geometry-utils-vcarve.js"></script>
-    <script defer src="../geometry/geometry-utils-toolprofile.js"></script>
-    <script defer src="../geometry/geometry-utils-field.js"></script>
-    <script defer src="../geometry/geometry-utils-sections.js"></script>
-    <script defer src="../geometry/geometry-utils-fieldpaths.js"></script>
-    <script defer src="../geometry/geometry-utils-heightmap.js"></script>
-    <script defer src="../geometry/geometry-utils-cylmap.js"></script>
-    <script defer src="../geometry/geometry-utils-fieldpipeline.js"></script>
-    <script defer src="../geometry/geometry-utils-relief.js"></script>
-    <script defer src="../geometry/geometry-utils-rotary.js"></script>
-    <script defer src="../geometry/geometry-offsetter.js"></script>
-    <script defer src="../utils/coordinate-system.js"></script>
-    <script defer src="../parsers/primitives.js"></script>
-    <script defer src="../parsers/parser-core.js"></script>
-    <script defer src="../parsers/parser-svg.js"></script>
-    <script defer src="../parsers/parser-stl.js"></script>
-    <script defer src="../parsers/parser-plotter.js"></script>
-    <script defer src="../renderer/renderer-core.js"></script>
-    <script defer src="../renderer/renderer-primitives.js"></script>
-    <script defer src="../renderer/renderer-overlay.js"></script>
-    <script defer src="../renderer/renderer-layer.js"></script>
-    <!-- The 3D preview stack (renderer3d/*) is ESM and is NOT a bundle member:
-         CamController.open3DPreview dynamic-imports renderer3d-core.js on
-         first use, and the specifier resolves against THIS document, not
-         against cam-controller.js. three/* resolves through the importmap
-         above. Don't add them as <script src> or build.js will concatenate
-         ESM into the classic bundle. -->
-    <script defer src="../ui/tool-library.js"></script>
-    <script defer src="../ui/ui-tooltip.js"></script>
-    <script defer src="../ui/ui-operation-registry.js"></script>
-    <script defer src="../ui/ui-input-renderer.js"></script>
-    <script defer src="../ui/ui-status-manager.js"></script>
-    <script defer src="../ui/ui-controls.js"></script>
-    <script defer src="../ui/ui-base-app.js"></script>
-    <script defer src="../ui/ui-base-operation-panel.js"></script>
-    <script defer src="../ui/ui-modal-manager.js"></script>
-    <script defer src="../toolpath/toolpath-primitives.js"></script>
-    <script defer src="../toolpath/toolpath-optimizer.js"></script>
-    <script defer src="../toolpath/toolpath-machine-processor.js"></script>
-    <script defer src="../toolpath/toolpath-tab-planner.js"></script>
-    <script defer src="../toolpath/toolpath-3d-translator.js"></script>
-    <script defer src="../toolpath/toolpath-geometry-translator.js"></script>
-    <script defer src="../export/processors/base-processor.js"></script>
-    <script defer src="../operations/base-operation-handler.js"></script>
-    <script defer src="../operations/field-operation-handler.js"></script>
-    <script defer src="../operations/offset-operation-handler.js"></script>
-    <script defer src="../operations/drill-operation-handler.js"></script>
-    <script defer src="../operations/shape-vcarve-handler.js"></script>
-    <script defer src="../operations/shape-relief-handler.js"></script>
-    <script defer src="../operations/shape-rotary-handler.js"></script>
-    <script defer src="../operations/shape-rotary-indexed-handler.js"></script>
-    <script defer src="../operations/shape-profile-handler.js"></script>
-    <script defer src="../operations/shape-pocket-handler.js"></script>
-    <script defer src="../operations/shape-engrave-handler.js"></script>
-    <!-- <script defer src="../operations/shape-pattern-handler.js"></script> -->
-    <script defer src="../export/processors/grbl-processor.js"></script>
-    <script defer src="../export/processors/makera-processor.js"></script>
-    <script defer src="../export/processors/grblHAL-processor.js"></script>
-    <script defer src="../export/processors/roland-processor.js"></script>
-    <script defer src="../export/processors/uccnc-processor.js"></script>
-    <script defer src="../export/processors/marlin-processor.js"></script>
-    <script defer src="../export/processors/mach3-processor.js"></script>
-    <script defer src="../export/processors/linuxcnc-processor.js"></script>
-    <script defer src="../export/processors/fanuc-processor.js"></script>
-    <script defer src="../export/processors/winpcnc-processor.js"></script>
-    <script defer src="../export/gcode-generator.js"></script>
-    <script defer src="../export/graphics-exporter.js"></script>
-    <script defer src="../export/zip-writer.js"></script>
-    <script defer src="../utils/canvas-exporter.js"></script>
-    <script defer src="../core/operation-store.js"></script>
-    <script defer src="../core/parameter-store.js"></script>
-    <script defer src="../core/pipeline-context.js"></script>
-    <script defer src="../core/operation-ingest.js"></script>
-    <script defer src="../core/cam-core.js"></script>
-    <script defer src="../core/cam-controller.js"></script>
-    <script defer src="../input/input-manager.js"></script>
-    <script defer src="../input/tool-controller.js"></script>
-    <script defer src="../input/tools-common.js"></script>
-    <script defer src="../input/canvas-readout.js"></script>
-    <script defer src="../input/command-manager.js"></script>
-    <script defer src="../input/tools-interactive.js"></script>
-    <script defer src="../input/keyboard-manager.js"></script>
-    <script defer src="ui-nav-scene-panel.js"></script>
-    <script defer src="ui-shape-buckets-panel.js"></script>
-    <script defer src="ui-shape-operation-panel.js"></script>
-    <script defer src="ui-core-shape.js"></script>
-    <script defer src="cam-easyshape5000.js"></script>
+  <template id="drill-tooling-row-template">
+    <tr>
+      <td class="drill-tooling-size"><span data-i18n="units.mm">mm</span></td>
+      <td class="drill-tooling-features"></td>
+      <td>
+        <select data-field="strategy">
+          <option value="peck" data-i18n="modals.drillTooling.strategies.peck">Peck</option>
+          <option value="mill" data-i18n="modals.drillTooling.strategies.mill">Mill</option>
+          <option value="skip" data-i18n="modals.drillTooling.strategies.skip">Skip</option>
+        </select>
+      </td>
+      <td><input type="number" min="0.01" step="0.001" data-field="toolDiameter"></td>
+      <td><input type="number" min="1" step="1" data-field="toolNumber" placeholder="T#" required></td>
+      <td data-stage="strategy"><input type="number" min="0" step="0.05" data-field="peckDepth" data-i18n-attr="placeholder:modals.drillTooling.inherit"></td>
+      <td data-stage="machine"><input type="number" min="1" step="1" data-field="feedRate" data-i18n-attr="placeholder:modals.drillTooling.inherit"></td>
+      <td data-stage="machine"><input type="number" min="1" step="1" data-field="plungeRate" data-i18n-attr="placeholder:modals.drillTooling.inherit"></td>
+      <td data-stage="machine"><input type="number" min="100" step="100" data-field="spindleSpeed" data-i18n-attr="placeholder:modals.drillTooling.inherit"></td>
+    </tr>
+  </template>
 
-    <!-- Bootstrap -->
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            // Load the SVG Sprite
-            fetch('../images/icons/sprite.svg')
-                .then(response => {
-                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                    return response.text();
-                })
-                .then(svgText => {
-                    const div = document.createElement('div');
-                    div.innerHTML = svgText;
-                    const svg = div.querySelector('svg');
-                    if (svg) {
-                        svg.setAttribute('aria-hidden', 'true');
-                        svg.style.cssText = 'position: absolute; width: 0; height: 0; visibility: hidden;';
-                        document.body.insertBefore(svg, document.body.firstChild);
-                    }
-                })
-                .catch(err => console.warn('Failed to load icon sprite:', err));
+  <!-- Warning / Confirmation Modal -->
+  <div id="warning-modal" class="modal" role="alertdialog" aria-labelledby="warning-title" aria-describedby="warning-body">
+    <div class="modal-content modal-warning">
+      <div class="modal-header">
+        <h2 id="warning-title" class="warning-title" data-i18n="modals.warning.title">Warning</h2>
+        <button class="modal-close" type="button" aria-label="Close" data-i18n-attr="aria-label:common.close">
+          <svg class="cam-icon" width="20" height="20"><use href="#icon-close"></use></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="warning-body" id="warning-body"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn--secondary warning-cancel" data-i18n="common.cancel">Cancel</button>
+        <button class="btn btn--primary warning-confirm" data-i18n="common.ok" data-autofocus>OK</button>
+      </div>
+    </div>
+  </div>
 
-            // Theme toggle logic
-            const themeBtn = document.getElementById('theme-toggle');
-            if (themeBtn && window.ThemeLoader) {
-                const useEl = themeBtn.querySelector('use');
-                const initialTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+  <!-- Hidden file inputs -->
+  <input type="file" id="file-input-hidden" hidden multiple="multiple">
 
-                if (useEl) useEl.setAttribute('href', initialTheme === 'dark' ? '#icon-sun' : '#icon-moon');
+  <!-- Scripts -->
+  <script defer src="../config.js"></script>
+  <script defer src="../geometry/clipper2z.js"></script>
+  <script defer src="../utils/transform-math.js"></script>
+  <script defer src="../utils/transform-math-3d.js"></script>
+  <script defer src="../geometry/geometry-processor.js"></script>
+  <script defer src="../geometry/geometry-curve-registry.js"></script>
+  <script defer src="../geometry/geometry-arc-reconstructor.js"></script>
+  <script defer src="../geometry/geometry-clipper-wrapper.js"></script>
+  <script defer src="../geometry/geometry-utils-points.js"></script>
+  <script defer src="../geometry/geometry-utils-tessellation.js"></script>
+  <script defer src="../geometry/geometry-utils.js"></script>
+  <script defer src="../geometry/geometry-utils-topology.js"></script>
+  <script defer src="../geometry/delaunator.5.0.0.min.js"></script>
+  <script defer src="../geometry/geometry-utils-vcarve.js"></script>
+  <script defer src="../geometry/geometry-utils-toolprofile.js"></script>
+  <script defer src="../geometry/geometry-utils-field.js"></script>
+  <script defer src="../geometry/geometry-utils-sections.js"></script>
+  <script defer src="../geometry/geometry-utils-fieldpaths.js"></script>
+  <script defer src="../geometry/geometry-utils-heightmap.js"></script>
+  <script defer src="../geometry/geometry-utils-cylmap.js"></script>
+  <script defer src="../geometry/geometry-utils-fieldpipeline.js"></script>
+  <script defer src="../geometry/geometry-utils-relief.js"></script>
+  <script defer src="../geometry/geometry-utils-rotary.js"></script>
+  <script defer src="../geometry/geometry-offsetter.js"></script>
+  <script defer src="../utils/coordinate-system.js"></script>
+  <script defer src="../parsers/primitives.js"></script>
+  <script defer src="../parsers/parser-core.js"></script>
+  <script defer src="../parsers/parser-svg.js"></script>
+  <script defer src="../parsers/parser-stl.js"></script>
+  <script defer src="../parsers/parser-plotter.js"></script>
+  <script defer src="../renderer/renderer-core.js"></script>
+  <script defer src="../renderer/renderer-primitives.js"></script>
+  <script defer src="../renderer/renderer-overlay.js"></script>
+  <script defer src="../renderer/renderer-layer.js"></script>
+  <!-- The 3D preview stack (renderer3d/*) is ESM and is NOT a bundle member:
+       CamController.load3D imports renderer3d-core.js from RENDERER3D_URL, which
+       resolves against this page. three/* resolves through the importmap above.
+       Don't add them as <script src> or build.js will concatenate ESM into the
+       classic bundle. -->
+  <script defer src="../tools/tool-library.js"></script>
+  <script defer src="../ui/ui-tooltip.js"></script>
+  <script defer src="../ui/ui-operation-registry.js"></script>
+  <script defer src="../ui/ui-input-renderer.js"></script>
+  <script defer src="../ui/ui-status-manager.js"></script>
+  <script defer src="../ui/ui-controls.js"></script>
+  <script defer src="../ui/ui-base-app.js"></script>
+  <script defer src="../ui/ui-base-operation-panel.js"></script>
+  <script defer src="../ui/ui-modal-manager.js"></script>
+  <script defer src="../toolpath/toolpath-primitives.js"></script>
+  <script defer src="../toolpath/toolpath-optimizer.js"></script>
+  <script defer src="../toolpath/toolpath-machine-processor.js"></script>
+  <script defer src="../toolpath/toolpath-tab-planner.js"></script>
+  <script defer src="../toolpath/toolpath-3d-translator.js"></script>
+  <script defer src="../toolpath/toolpath-geometry-translator.js"></script>
+  <script defer src="../export/processors/base-processor.js"></script>
+  <script defer src="../operations/base-operation-handler.js"></script>
+  <script defer src="../operations/field-operation-handler.js"></script>
+  <script defer src="../operations/offset-operation-handler.js"></script>
+  <script defer src="../operations/drill-operation-handler.js"></script>
+  <script defer src="../operations/shape-vcarve-handler.js"></script>
+  <script defer src="../operations/shape-relief-handler.js"></script>
+  <script defer src="../operations/shape-rotary-handler.js"></script>
+  <script defer src="../operations/shape-rotary-indexed-handler.js"></script>
+  <script defer src="../operations/shape-profile-handler.js"></script>
+  <script defer src="../operations/shape-pocket-handler.js"></script>
+  <script defer src="../operations/shape-engrave-handler.js"></script>
+  <!-- <script defer src="../operations/shape-pattern-handler.js"></script> -->
+  <script defer src="../export/processors/makera-processor.js"></script>
+  <script defer src="../export/processors/roland-processor.js"></script>
+  <script defer src="../export/processors/fanuc-processor.js"></script>
+  <script defer src="../export/processors/winpcnc-processor.js"></script>
+  <script defer src="../export/gcode-generator.js"></script>
+  <script defer src="../export/graphics-exporter.js"></script>
+  <script defer src="../export/zip-writer.js"></script>
+  <script defer src="../utils/canvas-exporter.js"></script>
+  <script defer src="../core/operation-store.js"></script>
+  <script defer src="../core/parameter-store.js"></script>
+  <script defer src="../core/pipeline-context.js"></script>
+  <script defer src="../core/operation-ingest.js"></script>
+  <script defer src="../core/cam-core.js"></script>
+  <script defer src="../core/cam-controller.js"></script>
+  <script defer src="../core/file-rules.js"></script>
+  <script defer src="../core/custom-files.js"></script>
+  <script defer src="../input/input-manager.js"></script>
+  <script defer src="../input/tool-controller.js"></script>
+  <script defer src="../input/tools-common.js"></script>
+  <script defer src="../input/canvas-readout.js"></script>
+  <script defer src="../input/command-manager.js"></script>
+  <script defer src="../input/tools-interactive.js"></script>
+  <script defer src="../input/keyboard-manager.js"></script>
+  <script defer src="../themes/theme-loader.js"></script>
+  <script defer src="../language/language-pack-rules.js"></script>
+  <script defer src="../language/language-manager.js"></script>
+  <script defer src="ui-nav-scene-panel.js"></script>
+  <script defer src="ui-shape-buckets-panel.js"></script>
+  <script defer src="ui-shape-operation-panel.js"></script>
+  <script defer src="ui-core-shape.js"></script>
+  <script defer src="cam-easyshape5000.js"></script>
 
-                themeBtn.addEventListener('click', async () => {
-                    const theme = await window.ThemeLoader.toggleTheme();
-                    if (useEl) useEl.setAttribute('href', theme === 'dark' ? '#icon-sun' : '#icon-moon');
-                });
-            }
+  <!-- Bootstrap -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      // Load the SVG Sprite
+      fetch('../images/icons/sprite.svg')
+        .then(response => {
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          return response.text();
+        })
+        .then(svgText => {
+          const div = document.createElement('div');
+          div.innerHTML = svgText;
+          const svg = div.querySelector('svg');
+          if (svg) {
+            svg.setAttribute('aria-hidden', 'true');
+            svg.style.cssText = 'position: absolute; width: 0; height: 0; visibility: hidden;';
+            document.body.insertBefore(svg, document.body.firstChild);
+          }
+        })
+        .catch(err => console.warn('Failed to load icon sprite:', err));
 
-            // App Initialization
-            console.log('EasyShape5000 Router Workspace Loading...');
-            const loadingText = document.getElementById('loading-text');
-            const loadingProgress = document.getElementById('loading-progress');
-            if (loadingText) loadingText.textContent = 'Ready';
-            if (loadingProgress) {
-                loadingProgress.textContent = '100%';
-                loadingProgress.setAttribute('aria-valuenow', 100);
-            }
-
-            // Dynamically call the correct start function based on the app
-            if (typeof window.startShapeApp === 'function') {
-                startShapeApp().catch(err => {
-                    console.error('Fatal startup error:', err);
-                    if (loadingText) loadingText.textContent = 'Startup failed. See console.';
-                });
-            } else {
-                console.error('Fatal: startShapeApp() not found after script load');
-                if (loadingText) loadingText.textContent = 'Fatal Error: App failed to load';
-                // Help developers debug
-                console.error('Check browser console for script loading errors');
-            }
+      // Theme toggle. Every theme but the default is a file, slow to
+      // arrive off localhost: the button waits for it, and the icon
+      // follows each change, including a saved theme that lands after
+      // this runs.
+      const themeBtn = document.getElementById('theme-toggle');
+      if (themeBtn && window.ThemeLoader) {
+        const useEl = themeBtn.querySelector('use');
+        const syncIcon = () => useEl?.setAttribute('href', document.documentElement.getAttribute('data-theme-base') === 'light' ? '#icon-moon' : '#icon-sun');
+        window.addEventListener('themechange', syncIcon);
+        syncIcon();
+        themeBtn.addEventListener('click', async () => {
+          themeBtn.disabled = true;
+          try {
+            await window.ThemeLoader.toggleTheme();
+          } catch (error) {
+            console.error('Theme toggle failed:', error);
+          } finally {
+            themeBtn.disabled = false;
+          }
         });
-    </script>
+      }
+
+      // App Initialization
+      console.log('EasyShape5000 Router Workspace Loading...');
+      const loadingText = document.getElementById('loading-text');
+      const loadingProgress = document.getElementById('loading-progress');
+      if (loadingProgress) {
+        loadingProgress.textContent = '100%';
+        loadingProgress.setAttribute('aria-valuenow', 100);
+      }
+
+      // Dynamically call the correct start function based on the app
+      if (typeof window.startShapeApp === 'function') {
+        startShapeApp().catch(err => {
+          console.error('Fatal startup error:', err);
+          if (loadingText) loadingText.textContent = 'Startup failed. See console.';
+        });
+      } else {
+        console.error('Fatal: startShapeApp() not found after script load');
+        if (loadingText) loadingText.textContent = 'Fatal Error: App failed to load';
+        // Help developers debug
+        console.error('Check browser console for script loading errors');
+      }
+    });
+  </script>
 </body>
 </html>

@@ -1,0 +1,66 @@
+{
+  "_projectInfo": {
+    "file": "export/processors/fanuc.json",
+    "description": "Post-processor setup: Fanuc",
+    "author": "Eltryus - Ricardo Marques",
+    "see": "https://github.com/RicardoJCMarques/EasyCAM5000",
+    "license": "AGPL-3.0-or-later",
+    "copyright": "Copyright (C) 2025-2026 Eltryus - Ricardo Marques"
+  },
+  "meta": { "kind": "setup" },
+  "id": "fanuc",
+  "label": "Fanuc",
+  "logic": "fanuc",
+  "maturity": "radioactive",
+  "flags": {
+    "fileExtension": ".nc",
+    "commentStyle": "parenthesis",
+    "supportsComments": true,
+    "supportsUnits": true,
+    "supportsCoolant": true,
+    "supportsLineNumbers": true,
+    "lineNumberMax": 999999,
+    "modalCommands": true,
+    "coordinateDecimals": 4,
+    "rotaryDecimals": 4,
+    "feedDecimals": 1,
+    "spindleDecimals": 0,
+    "maxSpindleSpeed": 24000,
+    "spindle": { "on": "M3", "off": "M5", "scale": null },
+    "dwellUnit": "ms",
+    "dwellWord": "P",
+    "supportsArcCommands": true,
+    "arcFormat": "IJ",
+    "supportsCannedCycles": true,
+    "supportsToolChange": true,
+    "useM6": true,
+    "initialToolUsesM6": false,
+    "emitsInitialTool": true,
+    "pauseAfterToolChange": false,
+    "toolLengthComp": ["table", "table-implicit", "none"],
+    "supportsAbsoluteZ": true,
+    "rotary": {
+      "routes": ["a-word", "wrapped-linear"],
+      "axisWords": ["A", "B"],
+      "inverseTime": true,
+      "maxInverseTime": 9999.99,
+      "continuous": true
+    }
+  },
+  "defaults": {
+    "startCode": "",
+    "endCode": "",
+    "toolLengthCompMode": "table",
+    "rotaryRoute": "a-word",
+    "indexDwell": 0,
+    "lineNumbers": true,
+    "lineNumberStep": 5
+  },
+  "locks": {},
+  "_notes": {
+    "lineNumbers": "Real, and on by default. Fanuc operators edit at the control and search by block number; an unnumbered program is painful to work with. Steps of 5 leave room to insert.",
+    "dwellUnit": "G04 P is milliseconds, integer, with no decimal point.",
+    "rotary": "A (about X) and B (about Y) are the words the rotary geometry can produce; C would need a table about Z, which the CylMap slicer cannot express. G93 is native and the only correct feed mode for mixed linear/rotary motion: the control cannot synchronise mm with degrees under G94. maxInverseTime: Fanuc alarms on F overflow under G93, and microscopic segments are exactly what a relief raster produces. indexDwell is 0: a machining-centre rotary has a hydraulic or pneumatic clamp and exact-stop. Raise it in Machine Settings if the table is belt-driven.",
+    "defaults": "generateHeader and generateFooter emit the whole safe-start and park sequence. These are the user's EXTRAS, appended inside the right place in each sequence."
+  }
+}

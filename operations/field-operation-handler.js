@@ -3,19 +3,17 @@
  * @description The field operation layer - everything the three
  *              field-driven 3D handlers (relief, radial rotary, indexed
  *              3+1) share:
- *
- *              FieldWorkerClient      - the worker pool. Also used by
- *                                       ShapeVCarveHandler; its run()
- *                                       and warmUp() contract is fixed.
- *              FieldParams            - the single interpretation point
- *                                       for workholding, tuning and
- *                                       model/machine orientation.
- *              FieldOperationHandler  - orchestration skeleton: token,
- *                                       validation, the buildJobs()
- *                                       fan-out with per-job sync
- *                                       fallback, field caching, pass
- *                                       grouping and result messaging.
- *
+ *              FieldWorkerClient     - the worker pool. Also used by
+ *                                      ShapeVCarveHandler; its run()
+ *                                      and warmUp() contract is fixed.
+ *              FieldParams           - the single interpretation point
+ *                                      for workholding, tuning and
+ *                                      model/machine orientation.
+ *              FieldOperationHandler - orchestration skeleton: token,
+ *                                      validation, the buildJobs()
+ *                                      fan-out with per-job sync
+ *                                      fallback, field caching, pass
+ *                                      grouping and result messaging.
  *              Subclasses implement buildJobs(), validateSource() and
  *              buildSharedMetadata(). One job or N, the flow is the same.
  * @author      Eltryus - Ricardo Marques
@@ -27,945 +25,911 @@
  */
 
 (function() {
-    'use strict';
-    const ROOT = globalThis;
+  'use strict';
+  const ROOT = globalThis;
 
-    // ─── Field worker pool ────────────────────────────────────────────
-    // N workers (defaults to cores-1, capped). Jobs go to the least-busy
-    // worker; per-primitive vcarve jobs and per-face indexed jobs
-    // therefore parallelize across cores. A worker that errors rejects
-    // only ITS jobs and leaves the pool; when the pool is empty the
-    // client disables itself and the sync paths take over - nothing is
-    // lost, only moved back to the main thread.
-    const FieldWorkerClient = {
-        _pool: null,        // null = untried, [] = disabled, [workers] = live
-        _seq: 0,
+  // ─── Field worker pool ────────────────────────────────────────────
+  // N workers (defaults to cores-1, capped). Jobs go to the least-busy
+  // worker; per-primitive vcarve jobs and per-face indexed jobs
+  // therefore parallelize across cores. A worker that errors rejects
+  // only ITS jobs and leaves the pool; when the pool is empty the
+  // client disables itself and the sync paths take over - nothing is
+  // lost, only moved back to the main thread.
+  const FieldWorkerClient = {
+    _pool: null, // null = untried, [] = disabled, [workers] = live
+    _seq: 0,
 
-        /**
-         * Auto by default. One core is left for the main thread and the pool caps
-         * at 8 - the field jobs are memory-bound past that, not CPU-bound.
-         * navigator is absent in Node, so the 4 is the headless default rather
-         * than a fallback for an old browser.
-         */
-        _poolSize() {
-            const cfg = ROOT.CAMConfig.defaults.fieldWorkerPool;
-            if (cfg > 0) return cfg;
-            const hw = (typeof navigator !== 'undefined' && navigator.hardwareConcurrency) || 4;
-            return Math.max(2, Math.min(hw - 1, 8));
-        },
+    /**
+     * Auto by default. One core is left for the main thread and the pool caps
+     * at 8 - the field jobs are memory-bound past that, not CPU-bound.
+     * navigator is absent in Node, so the 4 is the headless default rather
+     * than a fallback for an old browser.
+     */
+    _poolSize() {
+      const cfg = ROOT.CAMConfig.defaults.fieldWorkerPool;
+      if (cfg > 0) return cfg;
+      const hw = (typeof navigator !== 'undefined' && navigator.hardwareConcurrency) || 4;
+      return Math.max(2, Math.min(hw - 1, 8));
+    },
 
-        _constantsCache: null,
+    _constantsCache: null,
 
-        /**
-         * Structured clone rejects functions, and CAMConfig.constants
-         * carries at least one (storageKeys.forApp) - postMessage threw
-         * "Function object could not be cloned" and every field job fell
-         * back to the main thread. Strip rather than whitelist: a
-         * whitelist goes stale the moment a worker module reads a new
-         * key. Runs once per session; the result is shipped once per
-         * worker, not once per job.
-         */
-        _constants() {
-            if (this._constantsCache) return this._constantsCache;
-            const strip = (v) => {
-                if (typeof v === 'function' || v === undefined) return undefined;
-                if (v === null || typeof v !== 'object') return v;
-                if (Array.isArray(v)) return v.map(strip);
-                const out = {};
-                for (const k of Object.keys(v)) {
-                    const c = strip(v[k]);
-                    if (c !== undefined) out[k] = c;
-                }
-                return out;
-            };
-            this._constantsCache = strip(ROOT.CAMConfig.constants);
-            return this._constantsCache;
-        },
-
-        _spawn(url) {
-            if (typeof Worker === 'undefined') throw new Error('Worker unavailable'); // Drop out when workers are blocked or not available. _get() already treats a throw as "no pool" and falls back to the sync path
-            const entry = { worker: null, jobs: new Map() };
-            const w = new Worker(url);
-            w.onmessage = (e) => {
-                const job = entry.jobs.get(e.data.id);
-                if (!job) return;
-                // Progress heartbeat: a liveness cue, not a terminal
-                // message - the job entry stays live.
-                if (e.data.progress) {
-                    job.onProgress?.(e.data.progress);
-                    return;
-                }
-                entry.jobs.delete(e.data.id);
-                if (e.data.ok) {
-                    job.resolve(e.data);
-                } else {
-                    const err = new Error(e.data.error);
-                    // The main-thread stack ends at _spawn, which is where the
-                    // worker was CREATED, not where it threw. Keep the worker's
-                    // own stack or a module-level typo is unlocatable.
-                    if (e.data.stack) err.stack = `${err.stack}\n--- worker ---\n${e.data.stack}`;
-                    // Set by the worker on anything thrown out of the
-                    // slicer or a generator: the same inputs on the main
-                    // thread throw again, so the caller must not retry.
-                    err.fatal = e.data.fatal === true;
-                    job.reject(err);
-                }
-            };
-            w.onerror = (e) => {
-                console.warn('[FieldWorker] worker failed, removing from pool:',
-                    e.message || e);
-                for (const j of entry.jobs.values()) {
-                    const err = new Error('field worker error');
-                    err.fatal = false;   // transport failure - the sync path is valid
-                    j.reject(err);
-                }
-                entry.jobs.clear();
-                w.terminate();
-                const i = this._pool.indexOf(entry);
-                if (i >= 0) this._pool.splice(i, 1);
-            };
-            entry.worker = w;
-            return entry;
-        },
-
-        /**
-         * Call once at app init (idle) so the first generation doesn't
-         * pay importScripts cold-start. Safe to skip - lazy init works.
-         */
-        warmUp() { this._get(); },
-
-        _get() {
-            if (this._pool !== null) return this._pool;
-            try {
-                const url = '../geometry/field-worker.js';
-                const n = this._poolSize();
-                this._pool = [];
-                for (let i = 0; i < n; i++) this._pool.push(this._spawn(url));
-            } catch (_) {
-                this._pool = [];
-            }
-            return this._pool;
-        },
-
-        /**
-         * @param {Object} job - { kind, ... } message fields. Known kinds:
-         *   relief/rotary: { kind, mesh, sliceOptions, genOptions }
-         *   vcarve:        { kind, prim, genOptions }
-         * Fields outside that list (a resolved-params bag, a face index)
-         * stay on the caller's side - only the ones below are posted.
-         * @returns {Promise|null} null = pool unavailable, use sync path
-         */
-        run(job, onProgress = null) {
-            const pool = this._get();
-            if (pool.length === 0) return null;
-
-            // Least-busy dispatch
-            let entry = pool[0];
-            for (const e of pool) if (e.jobs.size < entry.jobs.size) entry = e;
-
-            const id = ++this._seq;
-            // The worker defers importScripts to its first job and installs
-            // this as self.CAMConfig BEFORE the modules load, so their
-            // top-level debugState snapshots bind to a LIVE object; later
-            // jobs mutate that same object, so a mid-session debug toggle
-            // reaches every warm worker on its next job.
-            const dbg = ROOT.CAMConfig.defaults.debug;
-            const msg = {
-                id, kind: job.kind, genOptions: job.genOptions,
-                debug: { enabled: dbg.enabled === true }
-            };
-            // Constants never change in a session and the tree is ~10KB of
-            // UI strings the structured clone would re-walk on every job.
-            // Message order per worker is guaranteed, so the first job to
-            // reach it is the one that carries them.
-            if (!entry.configSent) {
-                msg.constants = this._constants();
-                entry.configSent = true;
-            }
-            const transfer = [];
-            if (job.mesh) {
-                // Copy before transfer: the operation keeps its mesh intact,
-                // which is also what makes an N-face fan-out over one mesh safe.
-                msg.triangles = job.mesh.triangles.slice();
-                msg.sliceOptions = job.sliceOptions;
-                transfer.push(msg.triangles.buffer);
-            }
-            if (job.prim) msg.prim = job.prim; // plain data, structured clone
-            // Caller-supplied transferables. postMessage's structured clone
-            // runs SYNCHRONOUSLY on the calling thread, so a job that ships
-            // thousands of {x,y} objects bills the main thread for the clone
-            // AND blocks the dispatch of the next job. Anything packed into a
-            // typed array (vcarve contours, floor loops) is listed here and
-            // moves in O(1) instead. genOptions is walked by the clone, so
-            // buffers nested inside it are transferred correctly too.
-            if (job.transfer) transfer.push(...job.transfer);
-
-            // No job deadline: long compensation runs are legitimate
-            // (minutes on fine grids / deep windows), and timing out
-            // triggers the sync fallback - DOUBLING the work on the main
-            // thread. A genuinely dead worker still rejects via onerror
-            // and leaves the pool; progress heartbeats are the liveness
-            // signal instead.
-            return new Promise((resolve, reject) => {
-                entry.jobs.set(id, { resolve, reject, onProgress });
-                entry.worker.postMessage(msg, transfer);
-            });
+    /**
+     * Structured clone rejects functions, and CAMConfig.constants
+     * carries at least one (storageKeys.forApp) - postMessage threw
+     * "Function object could not be cloned" and every field job fell
+     * back to the main thread. Strip rather than whitelist: a
+     * whitelist goes stale the moment a worker module reads a new
+     * key. Runs once per session; the result is shipped once per
+     * worker, not once per job.
+     */
+    _constants() {
+      if (this._constantsCache) return this._constantsCache;
+      const strip = (v) => {
+        if (typeof v === 'function' || v === undefined) return undefined;
+        if (v === null || typeof v !== 'object') return v;
+        if (Array.isArray(v)) return v.map(strip);
+        const out = {};
+        for (const k of Object.keys(v)) {
+          const c = strip(v[k]);
+          if (c !== undefined) out[k] = c;
         }
-    };
-    ROOT.FieldWorkerClient = FieldWorkerClient; // vcarve handler uses it too
+        return out;
+      };
+      this._constantsCache = strip(ROOT.CAMConfig.constants);
+      return this._constantsCache;
+    },
 
-    // ════════════════════════════════════════════════════════════════
-    // FieldParams - the shared parameter interpretation point.
-    //
-    // Radial and indexed read the SAME schema keys for workholding, so
-    // they must read them through the same code or the two engines can
-    // interpret one user choice two ways.
-    // ════════════════════════════════════════════════════════════════
-    const FieldParams = {
-
-        /**
-         * Null-safe rotation composition (null = identity - the builders
-         * already treat an absent orient that way). A genuine product is
-         * run through assertRotation so a reflection cannot slip into a
-         * slice frame; a lone factor passes through, both suppliers being
-         * pure rotations by construction. Without this, the DEFAULT radial
-         * config (rotaryAxis 'x', model lying down) hands mul() two nulls.
-         */
-        composeOrient(a, b) {
-            const T = ROOT.Transform3D;
-            if (a && b) return T.assertRotation(T.mul(a, b), 'field orient');
-            return a || b || null;
-        },
-
-        /**
-         * Workholding, both kinematics.
-         *
-         * Conventions: chuck = LOW end of the rotary axis, tail = HIGH.
-         * Nothing downstream re-derives which end is which.
-         *
-         * coreRadius is the DRIVE STUB and it is never zero by accident.
-         * Radial removal cannot reach the axis, so a cylinder of at least
-         * this radius survives the whole machined length by construction -
-         * it carries torque from the chuck and a tailstock centre bears on
-         * it. It is in the maths for EVERY holding mode; zeroing it for a
-         * cantilevered job commands the tool onto the axis and parts the
-         * work off. A cantilevered job wants a SMALL stub (the schema
-         * allows 0, floored by the generator) and finishes as a sandable nib.
-         *
-         * Each end resolves to TWO independent facts:
-         *
-         // REVIEW - These termination comments are a bit confusinng.
-         * material - what the target holds PAST the model edge.
-         *  'stub'     the drive cylinder ('stop'); the zone is never
-         *             machined, the low target just stops the compensator
-         *             ramping off phantom stock.
-         *  'rollover' per-line edge value - mm (mm is a DEPTH): an explicit
-         *             separation groove past the edge.
-         *  'free'     ('taper' mode) no band at all - the window extends
-         *             kernelR + mm and the waste floor + tool profile form
-         *             the falloff.
-         *
-         *   reach - how far past the model edge the tool CENTRE may travel.
-         *     ONE number, consumed by the slicer padding AND the generator's
-         *     machinable window. SIGNED on 'stop': negative trims the window
-         *     inward (a slanted base, a slope the tip cannot enter cleanly),
-         *     positive machines further out into the waste. Never re-floor
-         *     it - that discards the whole negative half of the parameter.
-         *
-         * No material may mean "real stock continues here, leave it": on a
-         * between-centers job it applies to BOTH ends and leaves everything
-         * past the model at full stock radius - the tool snaps out to the
-         * blank instead of terminating.
-         */
-        // REVIEW - Some branch combinations generate perfectly acceptable
-        //          geometry; only the ones that deform should be documented
-        //          as incompatible rather than removed.
-        /**
-         * TODO(workholding-solid) - 'stop', 'rollover' and 'taper' should stop
-         * being three branches and become one synthetic end solid (cylinder /
-         * cone / prism) composed into the target before rasterization, the way
-         * commercial rotary CAM expects a fixture stub to already be in the
-         * model. The stub then defines the end, a base that is neither flat nor
-         * perpendicular stops mattering, and the workholding is visible in the
-         * preview before cutting.
-         */
-        // REVIEW - There used to be a termination with the reach set as "reach = kernelR + raw;" and it produced interesting termination geometry as the final fallback instead of just raw.
-        //          Confirm in the future if it's worth implementing as an extra strategy.
-        workholding(p) {
-            const holdingMode = p.rotaryHoldingMode ?? 'between_centers';
-            const toolD = Math.max(0.02, p.toolDiameter);
-            const kernelR = toolD / 2;
-            // Tool-derived: a 0 mm rollover would be indistinguishable from an
-            // outward extension of the model's edge.
-            const autoLip = toolD * ROOT.CAMConfig.constants.rotary.autoLipFraction;
-            const end = (mode, mm) => {
-                const m = mode || 'stop';
-                const raw = Number(mm) || 0;
-                const len = Math.abs(raw);
-                let material, reach, amount;
-                if (m === 'rollover') {
-                    material = 'rollover';
-                    amount = len > 0 ? len : autoLip;
-                    reach = kernelR + amount;
-                } else if (m === 'taper') {
-                    // FREE END. No composed band: the window runs one
-                    // cutting radius (+mm) past the model and the target out
-                    // there is the waste floor, so the taper is the tool
-                    // profile eroding the end wall - stub radius on radial,
-                    // severance plane on indexed.
-                    material = 'free';
-                    amount = len;
-                    reach = kernelR + len;
-                } else {
-                    // 'stop'
-                    material = 'stub';
-                    amount = 0;
-                    // NO tool-radius allowance: the window ends at the
-                    // model's own axial extent, because that is where the
-                    // chuck and the tailstock are. The allowance that lets
-                    // a tool centre pass an edge to form a wall exists only
-                    // in the CROSS direction (collarCells), where the
-                    // neighbour is waste. Signed: negative trims inward.
-                    reach = raw;
-                }
-                return { mode: m, mm: amount, material, reach };
-            };
-            return {
-                holdingMode,
-                coreRadius: p.rotaryMinRadius ?? 2,
-                ends: {
-                    chuck: end(p.rotaryChuckEndMode, p.rotaryChuckEndMm),
-                    tail: end(p.rotaryTailEndMode, p.rotaryTailEndMm)
-                }
-            };
-        },
-
-        /**
-         * Model → machine orientation (VISUAL). Lays an upright model down
-         * along the machine's rotary axis, in WORLD coordinates. Null = the
-         * model already lies along it.
-         */
-        visualOrient(machineAxis, upright) {
-            if (!upright) return null;
-            return (machineAxis === 'y')
-                ? [1, 0, 0,   0, 0, 1,   0, -1, 0]   // R_x(-90°): +Z → +Y
-                : [0, 0, 1,   0, 1, 0,  -1, 0, 0];   // R_y(+90°): +Z → +X
-        },
-
-        /**
-         * Machine rotary axis → CylMapBuilder's internal axial X (INTERNAL).
-         * A pure rotation, never a reflection: a reflection mirrors the
-         * slicing frame, so θ runs opposite to the machine's right-hand-rule
-         * B and the sign has to be undone at the machine boundary.
-         *
-         * CONSEQUENCE: no rotation maps +Y→+X while keeping +X→+Y, so the
-         * sliced cross-u axis is -worldX for a B(y) job. cm.axisB is
-         * therefore the NEGATED world coordinate of the axis line - see
-         * axisBSign(). Cross-v stays +worldZ, so axisC needs no sign.
-         *
-         * Indexed slices in world orientation and needs NEITHER this nor
-         * axisBSign - do not port them there.
-         */
-        internalOrient(machineAxis) {
-            return (machineAxis === 'y')
-                ? [0, 1, 0,  -1, 0, 0,   0, 0, 1]    // R_z(-90°): +Y → +X
-                : null;
-        },
-
-        /**
-         * Axial datum for a machine-frame job. The sliced axial coordinate IS
-         * the exported X (A jobs) or Y (B jobs) - nothing downstream re-datums a
-         * machine-frame chain - so without this the job lands wherever the model
-         * happened to sit along that axis inside its source file.
-         * modelMin/modelMax EXCLUDE grid padding: reach past an end is
-         * legitimately negative.
-         * @returns {number} mm to ADD to every sliced axial coordinate
-         */
-        axialDatum(p, modelMin, modelMax) {
-            const offset = Number(p.rotaryAxialOffset) || 0;
-            switch (p.rotaryAxialDatum ?? 'model-start') {
-                case 'scene': return offset;
-                case 'model-center': return offset - (modelMin + modelMax) / 2;
-                default: return offset - modelMin;
-            }
-        },
-
-        /**
-         * Shifts a field job into its datum, in place: the packed axial lane of
-         * every emitted chain and the container's own axial origin, so the
-         * generator output, the published metadata and the blank placement can
-         * never disagree about where axial zero is.
-         * @param {number} lane 0 = positions[i] is axial, 1 = positions[i+1]
-         */
-        applyAxialShift(primitives, container, shift, lane, containerKey) {
-            // Loud on a bad number. A silently-skipped datum looks exactly like
-            // a datum that ran and resolved to zero, and the only way to tell
-            // them apart is a capture.
-            if (!Number.isFinite(shift)) {
-                console.warn(`[FieldParams] axial datum is ${shift} - job left in scene coordinates. The handler did not resolve one.`);
-                container.axialShift = 0;
-                return;
-            }
-            container.axialShift = shift;
-            if (!shift) return;
-            container[containerKey] += shift;
-            for (const prim of primitives) {
-                const pos = prim.positions;
-                if (pos) for (let i = lane; i < pos.length; i += 3) pos[i] += shift;
-            }
-        },
-
-        /**
-         * cm.axisB (sliced cross-u) ↔ world. See internalOrient.
-         */
-        axisBSign(machineAxis) {
-            return (machineAxis === 'y') ? -1 : 1;
+    _spawn(url) {
+      if (typeof Worker === 'undefined') throw new Error('Worker unavailable'); // Drop out when workers are blocked or not available. _get() already treats a throw as "no pool" and falls back to the sync path
+      const entry = { worker: null, jobs: new Map() };
+      const w = new Worker(url);
+      w.onmessage = (e) => {
+        const job = entry.jobs.get(e.data.id);
+        if (!job) return;
+        // Progress heartbeat: a liveness cue, not a terminal
+        // message - the job entry stays live.
+        if (e.data.progress) {
+          job.onProgress?.(e.data.progress);
+          return;
         }
-    };
-    ROOT.FieldParams = FieldParams;
-
-    const DEG = Math.PI / 180;
-
-    // ════════════════════════════════════════════════════════════════
-    // IndexedBlank - the 3+1 prism, resolved once per generation.
-    //
-    // ONE vertex pass produces every projection the geometry needs, and
-    // ONE object derives every scalar from it. The pass works because the
-    // face-normal projection is affine in the axis centre:
-    //     nu·(u - cu) + nv·(v - cv) = (nu·u + nv·v) - (nu·cu + nv·cv)
-    // so the per-face extremes can be accumulated alongside the bounds
-    // that define the centre, instead of in a second pass after it.
-    //
-    // Nothing here returns a sentinel: Infinity (blankCircumRadius) or
-    // null (facetHalfWidth) escapes into `> 0` tests downstream and reads
-    // as "disabled".
-    // ════════════════════════════════════════════════════════════════
-    const IndexedBlank = {
-
-        /**
-         * @param {Float32Array} triangles - 9 floats per triangle
-         * @param {Object} o
-         * @param {string} o.machineAxis     - 'x' (A word) | 'y' (B word)
-         * @param {number[]|null} o.visualOrient - row-major 3x3, or null
-         * @param {number[]} o.angles        - face angles, degrees
-         * @param {number} o.offB, o.offC    - WORLD axis offsets
-         * @returns {Object} survey - axis line, per-face support, extents
-         */
-        survey(triangles, o) {
-            const m = o.visualOrient;
-            const angles = o.angles;
-            const n = angles.length;
-            // cross-u is world Y for an A(x) job, world X for a B(y) job;
-            // cross-v is world Z in both.
-            const uIsX = (o.machineAxis === 'y');
-
-            // Face normals in the visual frame: n_k = R(-θk)·ẑ. Routed
-            // through Transform3D, never hand-derived: this is one of the
-            // four coupled sign sites.
-            const T = ROOT.Transform3D;
-            const nu = new Float64Array(n);
-            const nv = new Float64Array(n);
-            for (let k = 0; k < n; k++) {
-                const d = T.applyVec(T.rotAboutAxis(o.machineAxis, -angles[k]), [0, 0, 1]);
-                nu[k] = uIsX ? d[0] : d[1];
-                nv[k] = d[2];
-            }
-
-            let minU = Infinity, maxU = -Infinity;
-            let minV = Infinity, maxV = -Infinity;
-            let minA = Infinity, maxA = -Infinity;
-            const pMax = new Float64Array(n).fill(-Infinity);
-            const pMin = new Float64Array(n).fill(Infinity);
-
-            for (let i = 0; i < triangles.length; i += 3) {
-                let x = triangles[i], y = triangles[i + 1], z = triangles[i + 2];
-                if (m) {
-                    const ox = m[0] * x + m[1] * y + m[2] * z;
-                    const oy = m[3] * x + m[4] * y + m[5] * z;
-                    const oz = m[6] * x + m[7] * y + m[8] * z;
-                    x = ox; y = oy; z = oz;
-                }
-                const u = uIsX ? x : y;
-                const a = uIsX ? y : x;
-                if (u < minU) minU = u; if (u > maxU) maxU = u;
-                if (z < minV) minV = z; if (z > maxV) maxV = z;
-                if (a < minA) minA = a; if (a > maxA) maxA = a;
-                for (let k = 0; k < n; k++) {
-                    const d = nu[k] * u + nv[k] * z;
-                    if (d > pMax[k]) pMax[k] = d;
-                    if (d < pMin[k]) pMin[k] = d;
-                }
-            }
-
-            const cu = (minU + maxU) / 2 + (o.offB || 0);
-            const cv = (minV + maxV) / 2 + (o.offC || 0);
-
-            const perFace = new Array(n);
-            let supportMax = 0, backMax = 0;
-            for (let k = 0; k < n; k++) {
-                const c = nu[k] * cu + nv[k] * cv;
-                perFace[k] = pMax[k] - c;
-                const back = -(pMin[k] - c);
-                if (perFace[k] > supportMax) supportMax = perFace[k];
-                if (back > backMax) backMax = back;
-            }
-
-            const halfU = Math.max(maxU - cu, cu - minU);
-            const halfV = Math.max(maxV - cv, cv - minV);
-
-            return {
-                // Axis line in the VISUAL frame. The axial component is ZERO
-                // by contract - it must pass through unshifted so every face
-                // shares the same station index.
-                Cvis: uIsX ? [cu, 0, cv] : [0, cu, cv],
-                perFace, supportMax, backMax,
-                halfU, halfV,
-                crossHalfSpan: Math.max(halfU, halfV),
-                modelCircumRadius: Math.hypot(halfU, halfV),
-                // Rotation about the machine axis leaves this fixed, so it is
-                // the same in every face's frame - which is what makes one
-                // locked cell size possible.
-                axialExt: maxA - minA,
-                axialMin: minA,
-                axialMax: maxA
-            };
-        },
-
-        /**
-         * Every prism scalar, derived once. Warnings come out as issues[]
-         * so the caller has one place to drain them.
-         *
-         * @param {Object} survey - from survey()
-         * @param {Object} o
-         * @param {number[]} o.angles
-         * @param {number} o.blankWidth   - across flats; 0 = derive
-         * @param {number} o.toolDiameter
-         * @param {number} o.coreRadius   - requested drive stub
-         * @param {number} o.overcutUser  - 0 = auto (one cutting radius)
-         * @param {number} o.depthUser    - 0 = auto
-         */
-        resolve(survey, o) {
-            const issues = [];
-            const angles = o.angles;
-            const toolD = Math.max(0.02, o.toolDiameter || 3);
-
-            // Across-flats/2, and it IS the shared Z datum the operator
-            // touches off. Deriving it from the model is a fallback, never
-            // the intent - say so.
-            const derived = !(o.blankWidth > 0);
-            const apothem = derived ? survey.supportMax : o.blankWidth / 2;
-            if (derived) {
-                issues.push(`indexedBlankWidth not set - derived ` +
-                    `${(2 * apothem).toFixed(2)}mm across flats from the model's own ` +
-                    `face-normal support. The physical blank must be at least this ` +
-                    `wide, and Z0 is its face top.`);
-            } else if (survey.supportMax > apothem + 1e-6) {
-                const worst = survey.perFace.reduce(
-                    (b, v, i) => (v > survey.perFace[b] ? i : b), 0);
-                issues.push(`Model reaches ${survey.supportMax.toFixed(2)}mm from the ` +
-                    `axis on the ${angles[worst].toFixed(0)}° face, past the blank ` +
-                    `apothem (${apothem.toFixed(2)}mm) - that material is TRUNCATED ` +
-                    `to the face plane. Set indexedBlankWidth to at least ` +
-                    `${(2 * survey.supportMax).toFixed(2)}mm.`);
-            }
-
-            // The widest angular gap owns both the corner and the facet.
-            let gapMax = 0;
-            if (angles.length >= 2) {
-                const norm = angles.map(a => ((a % 360) + 360) % 360).sort((x, y) => x - y);
-                gapMax = 360 - (norm[norm.length - 1] - norm[0]);   // wrap-around
-                for (let i = 1; i < norm.length; i++) {
-                    const g = norm[i] - norm[i - 1];
-                    if (g > gapMax) gapMax = g;
-                }
-            } else {
-                gapMax = 360;
-            }
-            const halfGap = (gapMax / 2) * DEG;
-            const cosHalf = Math.cos(halfGap);
-
-            // Cross half-width of the stock this setup can see. A gap >= 180
-            // means the opposing faces tile the whole section, so this face
-            // owns everything out to the stock's own extent - a FINITE
-            // number, not the Infinity/null that read as "disabled".
-            const stockHalfSpan = Math.max(apothem, survey.crossHalfSpan);
-            const facetHalfWidth = (cosHalf <= 1e-6 || gapMax >= 180 - 1e-6)
-                ? stockHalfSpan
-                : Math.min(apothem * Math.tan(halfGap), stockHalfSpan);
-
-            // Rotation clearance is the CORNER, not the apothem, and the
-            // model may legitimately overhang the blank.
-            const clearRadius = Math.max(
-                survey.modelCircumRadius,
-                cosHalf > 1e-6 ? apothem / cosHalf : stockHalfSpan);
-
-            // Severance over-cut. Never gated on the core: the stub is a
-            // cross-band about the axis, the over-cut deepens the waste
-            // OUTSIDE it. Disjoint cells; a job can and should have both.
-            const overcut = (o.overcutUser > 0) ? o.overcutUser : toolD / 2;
-            const coreRadius = Math.min(Math.max(0, o.coreRadius ?? 0), apothem);
-            if (coreRadius > 0 && coreRadius < toolD / 2) {
-                issues.push(`Drive stub radius ${coreRadius.toFixed(2)}mm is under the ` +
-                    `tool radius ${(toolD / 2).toFixed(2)}mm - the stub is formed as ` +
-                    `the tool's offset of the core cylinder (safe, but wider than set).`);
-            }
-
-            // Depth WINDOW, not the floor: it bounds mapDepths' clamp and
-            // nothing else. backMax is a vertex-cloud extent, so this is
-            // generous by design.
-            const maxDepth = apothem + Math.max(overcut, survey.backMax);
-            let depthWindow = (o.depthUser > 0) ? o.depthUser : maxDepth;
-            if (depthWindow > maxDepth + 1e-9) {
-                issues.push(`indexedDepth clamped to ${maxDepth.toFixed(2)}mm below ` +
-                    `the face plane.`);
-                depthWindow = maxDepth;
-            }
-            if (depthWindow < apothem + overcut - 1e-6) {
-                issues.push(`Depth window ${depthWindow.toFixed(2)}mm stops ` +
-                    `${(apothem + overcut - depthWindow).toFixed(2)}mm short of the ` +
-                    `severance depth - every surface past machine Z ` +
-                    `${(apothem - depthWindow).toFixed(2)} is TRUNCATED to a flat ` +
-                    `plane. Leave indexedDepth at 0 (auto) unless you are ` +
-                    `deliberately limiting engagement.`);
-            }
-
-            return {
-                apothem, blankWidth: 2 * apothem, derivedBlank: derived,
-                gapMax, facetHalfWidth, stockHalfSpan, clearRadius,
-                coreRadius, overcut, depthWindow,
-                supportMax: survey.supportMax, backMax: survey.backMax,
-                issues
-            };
-        },
-
-        describe(p) {
-            return `apothem=${p.apothem.toFixed(2)}mm` +
-                `${p.derivedBlank ? '(derived)' : ''} ` +
-                `facet=${p.facetHalfWidth.toFixed(2)}mm ` +
-                `corner=${p.clearRadius.toFixed(2)}mm ` +
-                `core=${p.coreRadius.toFixed(2)}mm ` +
-                `overcut=${p.overcut.toFixed(2)}mm ` +
-                `window=${p.depthWindow.toFixed(2)}mm (gap ${p.gapMax.toFixed(1)}°)`;
+        entry.jobs.delete(e.data.id);
+        if (e.data.ok) {
+          job.resolve(e.data);
+        } else {
+          const err = new Error(e.data.error);
+          err.i18n = e.data.i18n;
+          // The main-thread stack ends at _spawn, which is where the
+          // worker was CREATED, not where it threw. Keep the worker's
+          // own stack or a module-level typo is unlocatable.
+          if (e.data.stack) err.stack = `${err.stack}\n--- worker ---\n${e.data.stack}`;
+          // Set by the worker on anything thrown out of the
+          // slicer or a generator: the same inputs on the main
+          // thread throw again, so the caller must not retry.
+          err.fatal = e.data.fatal === true;
+          job.reject(err);
         }
-    };
-    ROOT.IndexedBlank = IndexedBlank;
-
-    // ════════════════════════════════════════════════════════════════
-    // FieldOperationHandler
-    // ════════════════════════════════════════════════════════════════
-
-    class FieldOperationHandler extends BaseOperationHandler {
-
-        // Descriptive-only for 3D chains: the optimizer routes is3DContour
-        // groups via ordered3D/unordered3D and `continue`s before reading
-        // policy. Kept for the day it branches on policy instead of flags.
-        getToolpathPolicy() {
-            return { staydownPartition: 'proximity' };
+      };
+      w.onerror = (e) => {
+        console.warn('[FieldWorker] worker failed, removing from pool:',
+          e.message || e);
+        for (const j of entry.jobs.values()) {
+          const err = new Error('field worker error');
+          err.fatal = false;   // transport failure - the sync path is valid
+          j.reject(err);
         }
+        entry.jobs.clear();
+        w.terminate();
+        const i = this._pool.indexOf(entry);
+        if (i >= 0) this._pool.splice(i, 1);
+      };
+      entry.worker = w;
+      return entry;
+    },
 
-        // ── Orchestration ────────────────────────────────────────────
+    /**
+     * Call once at app init (idle) so the first generation doesn't
+     * pay importScripts cold-start. Safe to skip - lazy init works.
+     */
+    warmUp() {
+      this._get();
+    },
 
-        async orchestrateGeneration(operation, params, core, options = {}) {
-            const guard = this.validateSource(operation);
-            if (guard) return guard;
+    _get() {
+      if (this._pool !== null) return this._pool;
+      try {
+        const url = '../geometry/field-worker.js';
+        const n = this._poolSize();
+        this._pool = [];
+        for (let i = 0; i < n; i++) this._pool.push(this._spawn(url));
+      } catch (_) {
+        this._pool = [];
+      }
+      return this._pool;
+    },
 
-            // Monotonic per-operation token: each run stamps a new value; any
-            // earlier run still in flight sees the mismatch and discards its
-            // result instead of clobbering the newer field.
-            const token = this.beginRun(operation, options, core);
-            const opParams = core.pipelineContext.compileOperationParams(operation, params);
-            const merged = { ...params, ...opParams };
+    /**
+     * @param {Object} job - { kind, ... } message fields. Known kinds:
+     *  relief/rotary: { kind, mesh, sliceOptions, genOptions }
+     *  vcarve:        { kind, prim, genOptions }
+     * Fields outside that list (a resolved-params bag, a face index)
+     * stay on the caller's side - only the ones below are posted.
+     * @returns {Promise|null} null = pool unavailable, use sync path
+     */
+    run(job, onProgress = null) {
+      const pool = this._get();
+      if (pool.length === 0) return null;
+      // Least-busy dispatch
+      let entry = pool[0];
+      for (const e of pool) if (e.jobs.size < entry.jobs.size) entry = e;
+      const id = ++this._seq;
+      // The worker defers importScripts to its first job and installs
+      // this as self.CAMConfig BEFORE the modules load, so their
+      // top-level debugState snapshots bind to a LIVE object; later
+      // jobs mutate that same object, so a mid-session debug toggle
+      // reaches every warm worker on its next job.
+      const dbg = ROOT.CAMConfig.defaults.debug;
+      const msg = {
+        id, kind: job.kind, genOptions: job.genOptions,
+        debug: { enabled: dbg.enabled === true }
+      };
+      // Constants never change in a session and the tree is ~10KB of
+      // UI strings the structured clone would re-walk on every job.
+      // Message order per worker is guaranteed, so the first job to
+      // reach it is the one that carries them.
+      if (!entry.configSent) {
+        msg.constants = this._constants();
+        entry.configSent = true;
+      }
+      const transfer = [];
+      if (job.mesh) {
+        // Copy before transfer: the operation keeps its mesh intact,
+        // which is also what makes an N-face fan-out over one mesh safe.
+        msg.triangles = job.mesh.triangles.slice();
+        msg.sliceOptions = job.sliceOptions;
+        transfer.push(msg.triangles.buffer);
+      }
+      if (job.prim) msg.prim = job.prim; // plain data, structured clone
+      // Caller-supplied transferables. postMessage's structured clone
+      // runs SYNCHRONOUSLY on the calling thread, so a job that ships
+      // thousands of {x,y} objects bills the main thread for the clone
+      // AND blocks the dispatch of the next job. Anything packed into a
+      // typed array (vcarve contours, floor loops) is listed here and
+      // moves in O(1) instead. genOptions is walked by the clone, so
+      // buffers nested inside it are transferred correctly too.
+      if (job.transfer) transfer.push(...job.transfer);
+      // No job deadline: long compensation runs are legitimate
+      // (minutes on fine grids / deep windows), and timing out
+      // triggers the sync fallback - DOUBLING the work on the main
+      // thread. A genuinely dead worker still rejects via onerror
+      // and leaves the pool; progress heartbeats are the liveness
+      // signal instead.
+      return new Promise((resolve, reject) => {
+        entry.jobs.set(id, { resolve, reject, onProgress });
+        entry.worker.postMessage(msg, transfer);
+      });
+    },
 
-            await this.generateGeometry(operation, merged);
-
-            if (this.isStale(operation, token)) {
-                return {
-                    success: false,
-                    message: 'Generation superseded by a newer request',
-                    status: 'warning'
-                };
-            }
-
-            const total = operation.offsets?.reduce(
-                (s, o) => s + (o.primitives?.length || 0), 0) || 0;
-
-            // Builder, generator and resolver warnings, collected across
-            // every job. Console output is dev-only and hidden behind the
-            // generating overlay; this is the user-visible path, and it
-            // lands in the status log automatically via setStatus. It must
-            // fire on the EMPTY result too - that is the case the warnings
-            // exist to explain.
-            const warnings = operation._fieldWarnings || [];
-            const suffix = warnings.length > 0 ? ` - ${warnings.join(' ')}` : '';
-
-            if (total === 0) {
-                return {
-                    success: false,
-                    message: this.emptyMessage() + suffix,
-                    status: 'warning'
-                };
-            }
-
-            const passes = operation.offsets.map(o => o.type).join(' + ');
-            return {
-                success: true,
-                message: `Generated ${total} ${this.passTypePrefix()} path(s) ` +
-                    `[${passes}]` + suffix,
-                status: warnings.length > 0 ? 'warning' : 'success'
-            };
+    /**
+     * Terminates the pool and rejects every job in flight, fatal so no
+     * caller retries it on the main thread. Cancel's way out of a job
+     * that may never answer; the next run() spawns a fresh pool.
+     */
+    cancelAll() {
+      for (const entry of this._pool || []) {
+        for (const job of entry.jobs.values()) {
+          const err = new Error('cancelled');
+          err.fatal = true;
+          err.cancelled = true;
+          job.reject(err);
         }
+        entry.worker.terminate();
+      }
+      this._pool = null;
+    }
+  };
+  ROOT.FieldWorkerClient = FieldWorkerClient; // vcarve handler uses it too
 
-        // ── Generation - one job or N, the same flow ─────────────────
-
-        async generateGeometry(operation, settings) {
-            const label = this.pipelineLabel();
-            const token = operation._genToken; // stamped by orchestrateGeneration
-            this.debug(`=== ${label} PIPELINE START ===`);
-            this.debug(`Operation: ${operation.id} (${operation.type})`);
-
-            const warnings = [];
-            operation._fieldWarnings = warnings;
-
-            const jobs = this.buildJobs(operation, settings, warnings);
-            if (!jobs || jobs.length === 0) {
-                operation.offsets = [];
-                return [];
-            }
-
-            const n = jobs.length;
-            const prog = this.makeProgressAggregator(operation._onProgress || null, n);
-
-            // Dispatch ALL jobs first - the least-busy pool parallelizes them.
-            const pendings = jobs.map((job, k) => {
-                const p = FieldWorkerClient.run(job, prog.tick(k));
-                // Every job is dispatched before the first is awaited, so a
-                // throw while awaiting job 0 leaves jobs 1..n-1 rejecting
-                // into nothing and the real error gets buried under
-                // "Uncaught (in promise)". The sink marks them handled; the
-                // loop below still sees each rejection through its own
-                // catch, because `p` is what it awaits.
-                p?.catch(() => {});
-                return p;
-            });
-
-            const containers = [];
-            const allPrimitives = [];
-
-            for (let k = 0; k < n; k++) {
-                let res = null;
-                if (pendings[k]) {
-                    try {
-                        res = await pendings[k];
-                    } catch (err) {
-                        // A generator/slicer error is deterministic - the sync
-                        // path runs the same code on the same inputs and pays
-                        // the whole slice a second time before throwing again.
-                        if (err.fatal) throw err;
-                        this.debug(`Job ${k}: worker unavailable (${err.message}) ` +
-                            `- main-thread fallback`);
-                    }
-                }
-
-                let container, primitives;
-                if (res) {
-                    container = FieldSpace.rehydrate(res.field);
-                    primitives = this.rehydratePrimitives(res.primitives);
-                    this.debug(`Job ${k}: worker → ${primitives.length} chain(s)`);
-                } else {
-                    const sync = this.runJobSync(jobs[k]);
-                    container = sync.container;
-                    primitives = sync.primitives;
-                    this.debug(`Job ${k}: sync → ${primitives.length} chain(s)`);
-                }
-
-                // ONE token namespace (operation._genToken) - never a parallel
-                // counter. Bail before mutating anything.
-                if (this.isStale(operation, token)) {
-                    this.debug(`${label} superseded mid-run - discarded`);
-                    return operation.offsets || [];
-                }
-
-                for (const w of container.meta?.warnings || []) {
-                    if (!warnings.includes(w)) warnings.push(w);
-                }
-
-                this.onJobPrimitives(primitives, jobs[k], container);
-                containers.push(container);
-                allPrimitives.push(...primitives);
-                prog.done(k);
-            }
-
-            const ctx = { containers, jobs, settings, warnings };
-            this.cacheFields(operation, ctx);
-
-            operation.offsets = this.groupByPass(
-                allPrimitives, operation, this.buildSharedMetadata(ctx), settings);
-
-            this.debug(`Generated ${allPrimitives.length} primitive(s) across ` +
-                `${n} job(s), ${operation.offsets.length} pass group(s)`);
-            this.debug(`=== ${label} PIPELINE COMPLETE ===`);
-            return operation.offsets;
+  // ────────────────────────────────────────────────────────────────────
+  // FieldParams - the shared parameter interpretation point.
+  // Radial and indexed read the SAME schema keys for workholding, so
+  // they must read them through the same code or the two engines can
+  // interpret one user choice two ways.
+  // ────────────────────────────────────────────────────────────────────
+  const FieldParams = {
+    /**
+     * Workholding, both kinematics.
+     *
+     * Ends are POSITIONAL: `low` and `high` along the rotary axis. The
+     * machine's rotaryChuckSide says which end the chuck holds, so the
+     * chuck-end and tail-end parameters land on the right end here, and
+     * nothing downstream knows a chuck from a tailstock.
+     *
+     * coreRadius is the DRIVE STUB and it is never zero by accident.
+     * Radial removal cannot reach the axis, so a cylinder of at least
+     * this radius survives the whole machined length by construction -
+     * it carries torque from the chuck and a tailstock centre bears on
+     * it. It is in the maths for EVERY holding mode; zeroing it for a
+     * cantilevered job commands the tool onto the axis and parts the
+     * work off. A cantilevered job wants a SMALL stub (the schema
+     * allows 0, floored by the generator) and finishes as a sandable nib.
+     *
+     * Each end resolves to TWO independent facts: // REVIEW - These termination comments are a bit confusinng.
+     *  material - what the target holds PAST the model edge.
+     *  'stub'     the drive cylinder ('stop'); the zone is never
+     *             machined, the low target just stops the compensator
+     *             ramping off phantom stock.
+     *  'rollover' per-line edge value - mm (mm is a DEPTH): an explicit
+     *             separation groove past the edge.
+     *  'free'     ('taper' mode) no band at all - the window extends
+     *             kernelR + mm and the waste floor + tool profile form
+     *             the falloff.
+     *  reach - how far past the model edge the tool CENTRE may travel.
+     *   ONE number, consumed by the slicer padding AND the generator's
+     *   machinable window. SIGNED on 'stop': negative trims the window
+     *   inward (a slanted base, a slope the tip cannot enter cleanly),
+     *   positive machines further out into the waste. Never re-floor
+     *   it - that discards the whole negative half of the parameter.
+     *
+     * No material may mean "real stock continues here, leave it": on a
+     * between-centers job it applies to BOTH ends and leaves everything
+     * past the model at full stock radius - the tool snaps out to the
+     * blank instead of terminating.
+     */
+    // REVIEW - Some branch combinations generate perfectly acceptable
+    //          geometry; only the ones that deform should be documented
+    //          as incompatible rather than removed.
+    /**
+     * TODO(workholding-solid) - 'stop', 'rollover' and 'taper' should stop
+     * being three branches and become one synthetic end solid (cylinder /
+     * cone / prism) composed into the target before rasterization, the way
+     * commercial rotary CAM expects a fixture stub to already be in the
+     * model. The stub then defines the end, a base that is neither flat nor
+     * perpendicular stops mattering, and the workholding is visible in the
+     * preview before cutting.
+     */
+    // REVIEW - There used to be a termination with the reach set as "reach = kernelR + raw;" and it produced interesting termination geometry as the final fallback instead of just raw.
+    //          Confirm in the future if it's worth implementing as an extra strategy.
+    workholding(p) {
+      const holdingMode = p.rotaryHoldingMode ?? 'between_centers';
+      const toolD = Math.max(0.02, p.toolDiameter);
+      const kernelR = toolD / 2;
+      // Tool-derived: a 0 mm rollover would be indistinguishable from an
+      // outward extension of the model's edge.
+      const autoLip = toolD * ROOT.CAMConfig.constants.rotary.autoLipFraction;
+      const end = (mode, mm) => {
+        const m = mode || 'stop';
+        const raw = Number(mm) || 0;
+        const len = Math.abs(raw);
+        let material, reach, amount;
+        if (m === 'rollover') {
+          material = 'rollover';
+          amount = len > 0 ? len : autoLip;
+          reach = kernelR + amount;
+        } else if (m === 'taper') {
+          // FREE END. No composed band: the window runs one
+          // cutting radius (+mm) past the model and the target out
+          // there is the waste floor, so the taper is the tool
+          // profile eroding the end wall - stub radius on radial,
+          // severance plane on indexed.
+          material = 'free';
+          amount = len;
+          reach = kernelR + len;
+        } else {
+          // 'stop'
+          material = 'stub';
+          amount = 0;
+          // NO tool-radius allowance: the window ends at the
+          // model's own axial extent, because that is where the
+          // chuck and the tailstock are. The allowance that lets
+          // a tool centre pass an edge to form a wall exists only
+          // in the CROSS direction (collarCells), where the
+          // neighbour is waste. Signed: negative trims inward.
+          reach = raw;
         }
+        return { mode: m, mm: amount, material, reach };
+      };
+      const chuck = end(p.rotaryChuckEndMode, p.rotaryChuckEndMm);
+      const tail = end(p.rotaryTailEndMode, p.rotaryTailEndMm);
+      return {
+        holdingMode,
+        coreRadius: p.rotaryMinRadius ?? 2,
+        ends: p.rotaryChuckSide === 'high' ? { low: tail, high: chuck } : { low: chuck, high: tail },
+      };
+    },
 
-        /**
-         * Main-thread execution of the same job the worker would run -
-         * same builders, same generators, same options. The triangle
-         * buffer is safe to reuse: FieldWorkerClient.run() slices a copy
-         * before transferring.
-         */
-        runJobSync(job) {
-            const isRotary = job.kind === 'rotary';
-            const container = isRotary
-                ? CylMapBuilder.fromMesh(job.mesh.triangles, job.sliceOptions)
-                : HeightmapBuilder.fromMesh(job.mesh.triangles, job.sliceOptions);
-            const primitives = isRotary
-                ? RotaryGenerator.generateRotaryPaths(container, job.genOptions)
-                : ReliefGenerator.generateReliefPaths(container, job.genOptions);
-            return { container, primitives };
+    /**
+     * Machine rotary axis → CylMapBuilder's internal axial X (INTERNAL).
+     * A pure rotation, never a reflection: a reflection mirrors the
+     * slicing frame, so θ runs opposite to the machine's right-hand-rule
+     * B and the sign has to be undone at the machine boundary.
+     * CONSEQUENCE: no rotation maps +Y→+X while keeping +X→+Y, so the
+     * sliced cross-u axis is -worldX for a B(y) job. The axis line itself
+     * stays at (0, 0): a rotation about the origin leaves the radial
+     * frame's axis where it is.
+     * Indexed slices in world orientation and needs none of this - do not
+     * port it there.
+     */
+    internalOrient(machineAxis) {
+      return machineAxis === 'y'
+        ? [0, 1, 0, -1, 0, 0, 0, 0, 1] // R_z(-90°): +Y → +X
+        : null;
+    },
+
+    /**
+     * The radial scene's frame, from the settings: the rotary axis runs along
+     * `axis` through the origin, the chuck holds its `chuckSide` end, and a mesh
+     * with no radialAnchor of its own sits along it per `anchor`. Every placement
+     * in that scene reads it - the generators' input and the 3D view alike.
+     */
+    radialFrame(settings) {
+      return {
+        axis: settings.gcode.rotaryAxis === 'y' ? 'y' : 'x',
+        chuckSide: settings.gcode.rotaryChuckSide === 'high' ? 'high' : 'low',
+        anchor: settings.rotary.placement
+      };
+    }
+  };
+  ROOT.FieldParams = FieldParams;
+
+  const DEG = Math.PI / 180;
+
+  // ────────────────────────────────────────────────────────────────────
+  // IndexedBlank - the 3+1 prism, resolved once per generation.
+  // ONE vertex pass produces every projection the geometry needs, and
+  // ONE object derives every scalar from it. The pass works because the
+  // face-normal projection is affine in the axis centre:
+  //  nu·(u - cu) + nv·(v - cv) = (nu·u + nv·v) - (nu·cu + nv·cv)
+  // so the per-face extremes can be accumulated alongside the bounds
+  // that define the centre, instead of in a second pass after it.
+  // Nothing here returns a sentinel: Infinity (blankCircumRadius) or
+  // null (facetHalfWidth) escapes into `> 0` tests downstream and reads
+  // as "disabled".
+  // ────────────────────────────────────────────────────────────────────
+  const IndexedBlank = {
+    /**
+     * @param {Float32Array} triangles - 9 floats per triangle, radial frame: the
+     *   rotary axis is the machine axis line through the origin
+     * @param {Object} o
+     * @param {string} o.machineAxis - 'x' (A word) | 'y' (B word)
+     * @param {number[]} o.angles - face angles, degrees
+     * @returns {Object} survey - per-face support and extents about the axis
+     */
+    survey(triangles, o) {
+      const angles = o.angles;
+      const n = angles.length;
+      // cross-u is world Y for an A(x) job, world X for a B(y) job;
+      // cross-v is world Z in both.
+      const uIsX = o.machineAxis === 'y';
+      // Face normals in the visual frame: n_k = R(-θk)·ẑ. Routed
+      // through Transform3D, never hand-derived: this is one of the
+      // four coupled sign sites.
+      const T = ROOT.Transform3D;
+      const nu = new Float64Array(n);
+      const nv = new Float64Array(n);
+      for (let k = 0; k < n; k++) {
+        const d = T.applyVec(T.rotAboutAxis(o.machineAxis, -angles[k]), [0, 0, 1]);
+        nu[k] = uIsX ? d[0] : d[1];
+        nv[k] = d[2];
+      }
+      let minU = Infinity, maxU = -Infinity;
+      let minV = Infinity, maxV = -Infinity;
+      let minA = Infinity, maxA = -Infinity;
+      const pMax = new Float64Array(n).fill(-Infinity);
+      const pMin = new Float64Array(n).fill(Infinity);
+      for (let i = 0; i < triangles.length; i += 3) {
+        const x = triangles[i], y = triangles[i + 1], z = triangles[i + 2];
+        const u = uIsX ? x : y;
+        const a = uIsX ? y : x;
+        if (u < minU) minU = u;
+        if (u > maxU) maxU = u;
+        if (z < minV) minV = z;
+        if (z > maxV) maxV = z;
+        if (a < minA) minA = a;
+        if (a > maxA) maxA = a;
+        for (let k = 0; k < n; k++) {
+          const d = nu[k] * u + nv[k] * z;
+          if (d > pMax[k]) pMax[k] = d;
+          if (d < pMin[k]) pMin[k] = d;
         }
+      }
+      // Measured from the axis, not from the box centre: the placement put
+      // the part where it sits on the axis, off-centre included.
+      const perFace = Array.from(pMax);
+      let supportMax = 0, backMax = 0;
+      for (let k = 0; k < n; k++) {
+        if (pMax[k] > supportMax) supportMax = pMax[k];
+        if (-pMin[k] > backMax) backMax = -pMin[k];
+      }
+      const halfU = Math.max(maxU, -minU);
+      const halfV = Math.max(maxV, -minV);
+      return {
+        perFace, supportMax, backMax,
+        halfU, halfV,
+        crossHalfSpan: Math.max(halfU, halfV),
+        modelCircumRadius: Math.hypot(halfU, halfV),
+        // Rotation about the machine axis leaves this fixed, so it is
+        // the same in every face's frame - which is what makes one
+        // locked cell size possible.
+        axialExt: maxA - minA
+      };
+    },
 
-        /**
-         * Aggregated progress across a parallel fan-out.
-         *
-         * Sums EVERY job's own partial. `done` advances in await order and
-         * cannot describe concurrent work: reading (done + oneInFlight)/n
-         * makes a 4-job bar oscillate inside [0, 0.25] for the whole long
-         * phase, then snap 0.25 → 0.5 → 0.75 → 1.0 as the already-finished
-         * promises resolve. The label reports the aggregate, not whichever
-         * job ticked last - naming one branch of a parallel run is what
-         * made it flicker.
-         *
-         * A single job passes the worker's structured tick through
-         * untouched; the state manager owns the one formatter.
-         */
-        makeProgressAggregator(onProgress, n) {
-            if (!onProgress || n === 1) {
-                return { tick: () => onProgress, done: () => {} };
-            }
-            const frac = new Float64Array(n);
-            let doneCount = 0;
-            return {
-                tick: (k) => (p) => {
-                    frac[k] = Math.min(1, Math.max(0, p.frac || 0));
-                    let sum = 0;
-                    for (let i = 0; i < n; i++) sum += frac[i];
-                    onProgress({
-                        frac: Math.min(0.999, sum / n),
-                        label: `Jobs ${doneCount}/${n} done - ${p.label || 'Working'}`
-                    });
-                },
-                done: (k) => { frac[k] = 1; doneCount++; }
-            };
+    /**
+     * Every prism scalar, derived once. Warnings come out as issues[]
+     * so the caller has one place to drain them.
+     *
+     * @param {Object} survey - from survey()
+     * @param {Object} o
+     * @param {number[]} o.angles
+     * @param {number} o.blankWidth - across flats; null = derive
+     * @param {number} o.toolDiameter
+     * @param {number} o.coreRadius - requested drive stub
+     * @param {number} o.overcutUser - null = one cutting radius; 0 stops on the axis
+     * @param {number} o.depthUser - null = auto
+     */
+    resolve(survey, o) {
+      const issues = [];
+      const angles = o.angles;
+      const toolD = Math.max(0.02, o.toolDiameter || 3);
+
+      // Across-flats/2, and it IS the shared Z datum the operator
+      // touches off. Deriving it from the model is a fallback, never
+      // the intent - say so.
+      const derived = !(o.blankWidth > 0);
+      const apothem = derived ? survey.supportMax : o.blankWidth / 2;
+      if (derived) {
+        issues.push({
+          key: 'messages.rotary.indexed.blankDerived',
+          values: {
+            width: (2 * apothem).toFixed(2),
+            param: { key: 'params.indexedBlankWidth.label' }
+          }
+        });
+      } else if (survey.supportMax > apothem + 1e-6) {
+        const worst = survey.perFace.reduce((b, v, i) => (v > survey.perFace[b] ? i : b), 0);
+        issues.push({
+          key: 'messages.rotary.indexed.modelTruncated',
+          values: {
+            reach: survey.supportMax.toFixed(2),
+            angle: angles[worst].toFixed(0),
+            apothem: apothem.toFixed(2),
+            width: (2 * survey.supportMax).toFixed(2),
+            param: { key: 'params.indexedBlankWidth.label' }
+          }
+        });
+      }
+
+      // The widest angular gap owns both the corner and the facet.
+      let gapMax = 0;
+      if (angles.length >= 2) {
+        const norm = angles.map(a => ((a % 360) + 360) % 360).sort((x, y) => x - y);
+        gapMax = 360 - (norm[norm.length - 1] - norm[0]);   // wrap-around
+        for (let i = 1; i < norm.length; i++) {
+          const g = norm[i] - norm[i - 1];
+          if (g > gapMax) gapMax = g;
         }
+      } else {
+        gapMax = 360;
+      }
+      const halfGap = (gapMax / 2) * DEG;
+      const cosHalf = Math.cos(halfGap);
 
-        /**
-         * Worker records → packed 3D primitives.
-         *
-         * The worker has no primitives.js, so FieldPaths.toPrimitive falls
-         * through to its plain-object branch and flattenPrimitives ships
-         * { positions, properties } records. Those MUST be rebuilt into
-         * Polyline3DPrimitives here: Toolpath3DTranslator.extractChains gates
-         * on `type === 'path3d' && positions`, so a raw record falls to the
-         * empty-contours branch and every chain is dropped with a console
-         * warning.
-         *
-         * A non-finite coordinate is a hard failure, not something to
-         * coerce: this path bypasses fromPoints (whose check the sync
-         * fallback gets for free) and flattenPrimitives writes `z ?? 0`,
-         * which passes NaN straight through. A NaN Z reaching the
-         * translator lands at the blank surface (rotary) or the face plane
-         * (indexed) - a silent blob, never an error.
-         */
-        rehydratePrimitives(list) {
-            const out = [];
-            for (const p of list) {
-                const pos = p.positions;
-                for (let i = 0; i < pos.length; i++) {
-                    if (!Number.isFinite(pos[i])) {
-                        const err = new Error(
-                            `[${this.constructor.name}] non-finite coordinate from ` +
-                            `the field worker - upstream generator bug. Geometry ` +
-                            `discarded rather than shipped.`);
-                        err.fatal = true;
-                        throw err;
-                    }
-                }
-                out.push(new Polyline3DPrimitive(pos, p.properties));
-            }
-            return out;
-        }
+      // Cross half-width of the stock this setup can see. A gap >= 180
+      // means the opposing faces tile the whole section, so this face
+      // owns everything out to the stock's own extent - a FINITE
+      // number, not the Infinity/null that read as "disabled".
+      const stockHalfSpan = Math.max(apothem, survey.crossHalfSpan);
+      const facetHalfWidth = (cosHalf <= 1e-6 || gapMax >= 180 - 1e-6)
+        ? stockHalfSpan
+        : Math.min(apothem * Math.tan(halfGap), stockHalfSpan);
 
-        /** Publishes the representative field for this operation. */
-        cacheFields(operation, ctx) {
-            const container = ctx.containers[0];
-            operation.fieldPrimitive = container ? (container instanceof CylMap ? new CylMapPrimitive(container) : new HeightmapPrimitive(container)) : null;
-        }
+      // Rotation clearance is the CORNER, not the apothem, and the
+      // model may legitimately overhang the blank.
+      const clearRadius = Math.max(
+        survey.modelCircumRadius,
+        cosHalf > 1e-6 ? apothem / cosHalf : stockHalfSpan);
 
-        /**
-         * Splits generator output into one offset group per machining pass
-         * so the UI can toggle/delete them independently. Both groups are
-         * flagged is3DToolpath; every primitive already carries
-         * is3DContour + machiningPhase (the phase key Toolpath3DTranslator
-         * ranks by).
-         */
-        groupByPass(primitives, operation, sharedMeta, settings) {
-            const prefix = this.passTypePrefix();
-            const roughing = primitives.filter(p => p.properties?.machiningPhase === 'roughing');
-            const finishing = primitives.filter(p => p.properties?.machiningPhase !== 'roughing');
+      // Severance over-cut. Never gated on the core: the stub is a
+      // cross-band about the axis, the over-cut deepens the waste
+      // OUTSIDE it. Disjoint cells; a job can and should have both.
+      const overcut = o.overcutUser ?? toolD / 2;
+      const coreRadius = Math.min(Math.max(0, o.coreRadius ?? 0), apothem);
+      if (coreRadius > 0 && coreRadius < toolD / 2) {
+        issues.push({
+          key: 'messages.rotary.indexed.stubUnderTool',
+          values: {stub: coreRadius.toFixed(2), tool: (toolD / 2).toFixed(2)}
+        });
+      }
 
-            const offsets = [];
-            if (roughing.length > 0) {
-                offsets.push({
-                    id: `${prefix}_rough_${operation.id}`,
-                    distance: 0,
-                    pass: 1,
-                    type: `${prefix}-roughing`,
-                    primitives: roughing,
-                    metadata: { ...sharedMeta },
-                    settings: { ...settings }
-                });
-            }
-            if (finishing.length > 0) {
-                offsets.push({
-                    id: `${prefix}_finish_${operation.id}`,
-                    distance: 0,
-                    pass: offsets.length + 1,
-                    type: `${prefix}-finishing`,
-                    primitives: finishing,
-                    metadata: { ...sharedMeta },
-                    settings: { ...settings }
-                });
-            }
-            return offsets;
-        }
+      // Depth WINDOW, not the floor: it bounds mapDepths' clamp and
+      // nothing else. backMax is a vertex-cloud extent, so this is
+      // generous by design.
+      const maxDepth = apothem + Math.max(overcut, survey.backMax);
+      let depthWindow = (o.depthUser > 0) ? o.depthUser : maxDepth;
+      if (depthWindow > maxDepth + 1e-9) {
+        issues.push({
+          key: 'messages.rotary.indexed.depthClamped',
+          values: {
+            depth: maxDepth.toFixed(2),
+            param: { key: 'params.indexedDepth.label' }
+          }
+        });
+        depthWindow = maxDepth;
+      }
+      if (depthWindow < apothem + overcut - 1e-6) {
+        issues.push({
+          key: 'messages.rotary.indexed.depthWindowShort',
+          values: {
+            window: depthWindow.toFixed(2),
+            short: (apothem + overcut - depthWindow).toFixed(2),
+            z: (apothem - depthWindow).toFixed(2),
+            param: { key: 'params.indexedDepth.label' }
+          }
+        });
+      }
 
-        /** Shared mesh-source lookup (operation.sourceMesh). */
-        getMeshSource(operation) {
-            const m = operation.sourceMesh;
-            return (m?.triangles?.length) ? m : null;
-        }
+      return {
+        apothem, blankWidth: 2 * apothem, derivedBlank: derived,
+        gapMax, facetHalfWidth, stockHalfSpan, clearRadius,
+        coreRadius, overcut, depthWindow,
+        supportMax: survey.supportMax, backMax: survey.backMax,
+        issues
+      };
+    },
 
-        // ── Subclass contract ────────────────────────────────────────
-        // buildJobs(operation, settings, warnings)
-        //                     - the work, as [{ kind, mesh, sliceOptions,
-        //                       genOptions, ...caller data }]. Return []
-        //                       for "nothing to do". May push warnings.
-        // validateSource(operation)
-        //                     - guard result, or null to proceed. Settings
-        //                       are not resolved yet; anything needing them
-        //                       belongs in buildJobs.
-        // buildSharedMetadata - offset-group metadata from
-        //                       { containers, jobs, settings, warnings }.
-        // onJobPrimitives     - per-job stamping hook (primitives, job, container).
+    describe(p) {
+      return `apothem=${p.apothem.toFixed(2)}mm` +
+        `${p.derivedBlank ? '(derived)' : ''} ` +
+        `facet=${p.facetHalfWidth.toFixed(2)}mm ` +
+        `corner=${p.clearRadius.toFixed(2)}mm ` +
+        `core=${p.coreRadius.toFixed(2)}mm ` +
+        `overcut=${p.overcut.toFixed(2)}mm ` +
+        `window=${p.depthWindow.toFixed(2)}mm (gap ${p.gapMax.toFixed(1)}°)`;
+    }
+  };
+  ROOT.IndexedBlank = IndexedBlank;
 
-        buildJobs() { throw new Error(`${this.constructor.name}.buildJobs() not implemented`); }
-        validateSource() { throw new Error(`${this.constructor.name}.validateSource() not implemented`); }
-        buildSharedMetadata() { return {}; }
-        onJobPrimitives() {}
-        passTypePrefix() { return 'field'; }
-        emptyMessage() { return 'No paths generated'; }
-        pipelineLabel() { return this.passTypePrefix().toUpperCase(); }
+  // ────────────────────────────────────────────────────────────────────
+  // FieldOperationHandler
+  // ────────────────────────────────────────────────────────────────────
+
+  class FieldOperationHandler extends BaseOperationHandler {
+    // Descriptive-only for 3D chains: the optimizer routes is3DContour
+    // groups via ordered3D/unordered3D and `continue`s before reading
+    // policy. Kept for the day it branches on policy instead of flags.
+    getToolpathPolicy() {
+      return { staydownPartition: 'proximity' };
     }
 
-    ROOT.FieldOperationHandler = FieldOperationHandler;
+    // ── Orchestration ────────────────────────────────────────────
+
+    async orchestrateGeneration(operation, params, core, options = {}) {
+      const guard = this.validateSource(operation);
+      if (guard) return guard;
+
+      // Monotonic per-operation token: each run stamps a new value; any
+      // earlier run still in flight sees the mismatch and discards its
+      // result instead of clobbering the newer field.
+      const token = this.beginRun(operation, options, core);
+      const opParams = core.pipelineContext.compileOperationParams(operation, params);
+      const merged = { ...params, ...opParams, ...this.machineParams(core.settings) };
+
+      await this.generateGeometry(operation, merged);
+
+      if (this.isStale(operation, token)) {
+        return {
+          success: false,
+          message: { key: 'messages.operations.superseded' },
+          status: 'warning'
+        };
+      }
+
+      const total = operation.offsets?.reduce(
+          (s, o) => s + (o.primitives?.length || 0), 0) || 0;
+
+      // Builder, generator and resolver warnings, collected across
+      // every job. Console output is dev-only and hidden behind the
+      // generating overlay; this is the user-visible path, and it
+      // lands in the status log automatically via setStatus. It must
+      // fire on the EMPTY result too - that is the case the warnings
+      // exist to explain.
+      const warnings = operation._fieldWarnings || [];
+      // notes: sentences the UI appends to the message.
+      if (total === 0) return {
+        success: false,
+        message: this.emptyMessage(),
+        notes: warnings,
+        status: 'warning'
+      };
+      // Offset types are '<prefix>-roughing' and '<prefix>-finishing' (groupByPass).
+      const passes = operation.offsets.map(o => ({key: `messages.operations.passRoles.${o.type.split('-').pop()}`}));
+      return {
+        success: true,
+        message: {
+          key: 'messages.operations.fieldGenerated',
+          values: {count: total, kind: {key: `messages.operations.fieldKinds.${this.passTypePrefix()}`}, passes}
+        },
+        notes: warnings,
+        status: warnings.length > 0 ? 'warning' : 'success'
+      };
+    }
+
+    /**
+     * Machine Settings a kind of field job reads beside its own
+     * parameters, onto the same bag. None by default.
+     */
+    machineParams(settings) {
+      return null;
+    }
+
+    // ── Generation - one job or N, the same flow ─────────────────
+
+    async generateGeometry(operation, settings) {
+      const label = this.pipelineLabel();
+      const token = operation._genToken; // stamped by orchestrateGeneration
+      this.debug(`=== ${label} PIPELINE START ===`);
+      this.debug(`Operation: ${operation.id} (${operation.type})`);
+
+      const warnings = [];
+      operation._fieldWarnings = warnings;
+
+      const jobs = this.buildJobs(operation, settings, warnings);
+      if (!jobs || jobs.length === 0) {
+        operation.offsets = [];
+        return [];
+      }
+
+      const n = jobs.length;
+      const prog = this.makeProgressAggregator(operation._onProgress || null, n);
+
+      // Dispatch ALL jobs first - the least-busy pool parallelizes them.
+      const pendings = jobs.map((job, k) => {
+        const p = FieldWorkerClient.run(job, prog.tick(k));
+        // Every job is dispatched before the first is awaited, so a
+        // throw while awaiting job 0 leaves jobs 1..n-1 rejecting
+        // into nothing and the real error gets buried under
+        // "Uncaught (in promise)". The sink marks them handled; the
+        // loop below still sees each rejection through its own
+        // catch, because `p` is what it awaits.
+        p?.catch(() => {});
+        return p;
+      });
+
+      const containers = [];
+      const allPrimitives = [];
+
+      for (let k = 0; k < n; k++) {
+        let res = null;
+        if (pendings[k]) {
+          try {
+            res = await pendings[k];
+          } catch (err) {
+            // A generator/slicer error is deterministic - the sync
+            // path runs the same code on the same inputs and pays
+            // the whole slice a second time before throwing again.
+            if (err.fatal) throw err;
+            this.debug(`Job ${k}: worker unavailable (${err.message}) - main-thread fallback`);
+          }
+        }
+
+        let container, primitives;
+        if (res) {
+          container = FieldSpace.rehydrate(res.field);
+          primitives = this.rehydratePrimitives(res.primitives);
+          this.debug(`Job ${k}: worker → ${primitives.length} chain(s)`);
+        } else {
+          const sync = this.runJobSync(jobs[k]);
+          container = sync.container;
+          primitives = sync.primitives;
+          this.debug(`Job ${k}: sync → ${primitives.length} chain(s)`);
+        }
+
+        // ONE token namespace (operation._genToken) - never a parallel
+        // counter. Bail before mutating anything.
+        if (this.isStale(operation, token)) {
+          this.debug(`${label} superseded mid-run - discarded`);
+          return operation.offsets || [];
+        }
+
+        // Worker warnings arrive as fresh objects, so equal ones compare by content.
+        for (const w of container.meta?.warnings || []) {
+          if (!warnings.some(x => JSON.stringify(x) === JSON.stringify(w))) warnings.push(w);
+        }
+
+        this.onJobPrimitives(primitives, jobs[k], container);
+        containers.push(container);
+        allPrimitives.push(...primitives);
+        prog.done(k);
+      }
+
+      const ctx = { containers, jobs, settings, warnings };
+      this.cacheFields(operation, ctx);
+
+      const o = jobs[0].genOptions;
+      const metadata = {
+        ...this.buildSharedMetadata(ctx),
+        roughStepover: o.roughing ? o.roughStepover : null, // mm; null when the mode skips the pass
+        finishStepover: o.finishing ? o.finishStepover : null
+      };
+      operation.offsets = this.groupByPass(allPrimitives, operation, metadata, settings);
+
+      this.debug(`Generated ${allPrimitives.length} primitive(s) across ${n} job(s), ${operation.offsets.length} pass group(s)`);
+      this.debug(`=== ${label} PIPELINE COMPLETE ===`);
+      return operation.offsets;
+    }
+
+    /**
+     * Main-thread execution of the same job the worker would run -
+     * same builders, same generators, same options. The triangle
+     * buffer is safe to reuse: FieldWorkerClient.run() slices a copy
+     * before transferring.
+     */
+    runJobSync(job) {
+      const isRotary = job.kind === 'rotary';
+      const container = isRotary
+        ? CylMapBuilder.fromMesh(job.mesh.triangles, job.sliceOptions)
+        : HeightmapBuilder.fromMesh(job.mesh.triangles, job.sliceOptions);
+      const primitives = isRotary
+        ? RotaryGenerator.generateRotaryPaths(container, job.genOptions)
+        : ReliefGenerator.generateReliefPaths(container, job.genOptions);
+      return { container, primitives };
+    }
+
+    /**
+     * Aggregated progress across a parallel fan-out.
+     * Sums EVERY job's own partial. `done` advances in await order and
+     * cannot describe concurrent work: reading (done + oneInFlight)/n
+     * makes a 4-job bar oscillate inside [0, 0.25] for the whole long
+     * phase, then snap 0.25 → 0.5 → 0.75 → 1.0 as the already-finished
+     * promises resolve. The label reports the aggregate, not whichever
+     * job ticked last - naming one branch of a parallel run is what
+     * made it flicker.
+     * A single job passes the worker's structured tick through
+     * untouched; the state manager owns the one formatter.
+     */
+    makeProgressAggregator(onProgress, n) {
+      if (!onProgress || n === 1) return { tick: () => onProgress, done: () => {} };
+      const frac = new Float64Array(n);
+      let doneCount = 0;
+      return {
+        tick: (k) => (p) => {
+          frac[k] = Math.min(1, Math.max(0, p.frac || 0));
+          let sum = 0;
+          for (let i = 0; i < n; i++) sum += frac[i];
+          onProgress({
+            frac: Math.min(0.999, sum / n),
+            label: {
+              key: 'progress.jobs',
+              values: {done: doneCount, total: n, stage: p.label || {key: 'status.working'}}
+            }
+          });
+        },
+        done: (k) => { frac[k] = 1; doneCount++; }
+      };
+    }
+
+    /**
+     * Worker records → packed 3D primitives.
+     * The worker has no primitives.js, so FieldPaths.toPrimitive falls
+     * through to its plain-object branch and flattenPrimitives ships
+     * { positions, properties } records. Those MUST be rebuilt into
+     * Polyline3DPrimitives here: Toolpath3DTranslator.extractChains gates
+     * on `type === 'path3d' && positions`, so a raw record falls to the
+     * empty-contours branch and every chain is dropped with a console
+     * warning.
+     * A non-finite coordinate is a hard failure, not something to
+     * coerce: this path bypasses fromPoints (whose check the sync
+     * fallback gets for free) and flattenPrimitives writes `z ?? 0`,
+     * which passes NaN straight through. A NaN Z reaching the
+     * translator lands at the blank surface (rotary) or the face plane
+     * (indexed) - a silent blob, never an error.
+     */
+    rehydratePrimitives(list) {
+      const out = [];
+      for (const p of list) {
+        const pos = p.positions;
+        for (let i = 0; i < pos.length; i++) {
+          if (!Number.isFinite(pos[i])) {
+            const err = new Error(`[${this.constructor.name}] non-finite coordinate from ` +
+              `the field worker - upstream generator bug. Geometry discarded rather than shipped.`);
+            err.fatal = true;
+            throw err;
+          }
+        }
+        out.push(new Polyline3DPrimitive(pos, p.properties));
+      }
+      return out;
+    }
+
+    /** Publishes the representative field for this operation. */
+    cacheFields(operation, ctx) {
+      const container = ctx.containers[0];
+      operation.fieldPrimitive = container ? (container instanceof CylMap ? new CylMapPrimitive(container) : new HeightmapPrimitive(container)) : null;
+    }
+
+    /**
+     * Splits generator output into one offset group per machining pass
+     * so the UI can toggle/delete them independently. Both groups are
+     * flagged is3DToolpath; every primitive already carries
+     * is3DContour + machiningPhase (the phase key Toolpath3DTranslator
+     * ranks by).
+     */
+    groupByPass(primitives, operation, sharedMeta, settings) {
+      const prefix = this.passTypePrefix();
+      const roughing = primitives.filter(p => p.properties?.machiningPhase === 'roughing');
+      const finishing = primitives.filter(p => p.properties?.machiningPhase !== 'roughing');
+      const offsets = [];
+      if (roughing.length > 0) {
+        offsets.push({
+          id: `${prefix}_rough_${operation.id}`,
+          distance: 0,
+          pass: 1,
+          type: `${prefix}-roughing`,
+          primitives: roughing,
+          metadata: { ...sharedMeta },
+          settings: { ...settings }
+        });
+      }
+      if (finishing.length > 0) {
+        offsets.push({
+          id: `${prefix}_finish_${operation.id}`,
+          distance: 0,
+          pass: offsets.length + 1,
+          type: `${prefix}-finishing`,
+          primitives: finishing,
+          metadata: { ...sharedMeta },
+          settings: { ...settings }
+        });
+      }
+      return offsets;
+    }
+
+    /** Shared mesh-source lookup (operation.sourceMesh). */
+    getMeshSource(operation) {
+      const m = operation.sourceMesh;
+      return (m?.triangles?.length) ? m : null;
+    }
+
+    // ── Subclass contract ────────────────────────────────────────
+    // buildJobs(operation, settings, warnings)
+    //                     - the work, as [{ kind, mesh, sliceOptions,
+    //                       genOptions, ...caller data }]. Return []
+    //                       for "nothing to do". May push warnings.
+    // validateSource(operation)
+    //                     - guard result, or null to proceed. Settings
+    //                       are not resolved yet; anything needing them
+    //                       belongs in buildJobs.
+    // buildSharedMetadata - offset-group metadata from
+    //                       { containers, jobs, settings, warnings }.
+    // onJobPrimitives     - per-job stamping hook (primitives, job, container).
+
+    buildJobs() {
+      throw new Error(`${this.constructor.name}.buildJobs() not implemented`);
+    }
+
+    validateSource() {
+      throw new Error(`${this.constructor.name}.validateSource() not implemented`);
+    }
+
+    buildSharedMetadata() {
+      return {};
+    }
+
+    onJobPrimitives() {}
+
+    passTypePrefix() {
+      return 'field';
+    }
+
+    emptyMessage() {
+      return {key: 'messages.operations.noPaths'};
+    }
+
+    pipelineLabel() {
+      return this.passTypePrefix().toUpperCase();
+    }
+  }
+
+  ROOT.FieldOperationHandler = FieldOperationHandler;
 })();

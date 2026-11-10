@@ -10,916 +10,834 @@
  */
 
 (function() {
-    'use strict';
-    const ROOT = globalThis;
-
-    const C = ROOT.CAMConfig.constants;
-    const D = ROOT.CAMConfig.defaults;
-    const PRECISION = C.precision.coordinate;
-    const EPSILON = C.precision.epsilon;
-    const debugState = D.debug;
-
-    const GeometryUtils = {
-
-        /**
-         * Single authority for "is this ring a full circle".
-         *
-         * Provenance (one shared curveId, registry type 'circle') is the primary
-         * evidence - the Clipper Z word exists to carry exactly this. The two
-         * geometric clauses only have to reject a ring the boolean CLIPPED:
-         *   - closedSweep catches a removed wedge whose endpoints stayed coincident
-         *   - endGap catches a removed wedge that left a visible chord
-         * Both tolerances scale off the tessellation step 2*PI*r/N, never off
-         * precision.coordinate - the quantization grid is an order of magnitude
-         * finer than the chord, so a coordinate-scaled bound can never be met.
-         *
-         * Works on an open ring (last point one chord from the first) and on an
-         * explicitly closed one (last point duplicating the first).
-         */
-        analyzeCircleRing(points, opts = {}) {
-            const reject = (reason, extra) => ({ isFullCircle: false, reason, ...extra });
-
-            if (!points || points.length < 3) return reject('too-few-points');
-
-            const registry = ROOT.globalCurveRegistry;
-            if (!registry) return reject('no-registry');
-
-            let curveId = null;
-            for (const pt of points) {
-                const id = pt.curveId;
-                if (!id || id <= 0) return reject('untagged-point');
-                if (curveId === null) curveId = id;
-                else if (id !== curveId) return reject('mixed-curve-ids', { curveId });
-            }
-
-            const curveData = registry.getCurve(curveId);
-            if (!curveData || curveData.type !== 'circle') {
-                return reject('not-a-circle', { curveId });
-            }
-
-            const cx = curveData.center.x;
-            const cy = curveData.center.y;
-            const n = points.length;
-            const TAU = 2 * Math.PI;
-
-            const fold = (d) => (d > Math.PI ? d - TAU : (d < -Math.PI ? d + TAU : d));
-
-            let openSweep = 0;
-            let prevAngle = Math.atan2(points[0].y - cy, points[0].x - cx);
-            const firstAngle = prevAngle;
-            for (let i = 1; i < n; i++) {
-                const a = Math.atan2(points[i].y - cy, points[i].x - cx);
-                openSweep += fold(a - prevAngle);
-                prevAngle = a;
-            }
-            const closedSweep = openSweep + fold(firstAngle - prevAngle);
-
-            const chord = (TAU * curveData.radius) / n;
-            const endGap = Math.hypot(points[n - 1].x - points[0].x, points[n - 1].y - points[0].y);
-
-            const angleTolerance = opts.angleTolerance ?? (TAU / n) * 1.5;
-            const gapTolerance = opts.gapTolerance ?? chord * 1.5;
-
-            const sweepOk = Math.abs(Math.abs(closedSweep) - TAU) <= angleTolerance;
-            const gapOk = endGap <= gapTolerance;
-
-            const result = {
-                isFullCircle: sweepOk && gapOk,
-                reason: sweepOk ? (gapOk ? 'ok' : 'end-gap') : 'sweep',
-                curveId,
-                curveData,
-                center: { x: cx, y: cy },
-                radius: curveData.radius,
-                clockwise: closedSweep < 0,
-                openSweep,
-                closedSweep,
-                chord,
-                endGap
-            };
-            return result;
-        },
-
-        /**
-         * Converts an open trace (polyline) into overlapping stroke polygons.
-         * Places a circle at every vertex (handling end-caps and joints) and 
-         * a rectangle along every segment.
-         * @param {Array} points - Array of {x,y} points forming the trace.
-         * @param {number} strokeWidth - The full width of the trace.
-         * @returns {Array<PathPrimitive>} Array of overlapping primitives to be unioned.
-         */
-        traceToPolygon(contour, strokeWidth, props = {}) {
-            const boundaryStrokes = [];
-            const offsetDist = strokeWidth / 2;
-            const points = contour.points || contour; // Fallback if points array is passed directly
-
-            if (!points || points.length < 2) return [];
-
-            // Strip stroke properties
-            const cleanProps = { 
-                ...props, fill: true, closed: true,
-                stroke: false, strokeWidth: 0, isTrace: false  
-            };
-
-            // Build an Arc Map
-            const arcMap = new Map();
-            if (contour.arcSegments) {
-                contour.arcSegments.forEach(arc => {
-                    arcMap.set(arc.startIndex, arc);
-                });
-            }
-
-            // Generate End Caps & Joints
-            for (let i = 0; i < points.length; i++) {
-                const pt = points[i];
-
-                let curveId = null;
-                if (ROOT.globalCurveRegistry) {
-                    curveId = ROOT.globalCurveRegistry.register({
-                        type: 'circle', center: { x: pt.x, y: pt.y },
-                        radius: offsetDist, clockwise: cleanProps.polarity === 'clear',
-                        source: (i === 0 || i === points.length - 1) ? 'end_cap' : 'trace_joint'
-                    });
-                }
-
-                const circlePrim = {
-                    type: 'circle', center: pt, radius: offsetDist, properties: { ...cleanProps }
-                };
-
-                const circlePath = GeometryTessellation.circleToPath(circlePrim);
-                if (circlePath) {
-                    delete circlePath.properties.stroke;
-                    delete circlePath.properties.strokeWidth;
-                    delete circlePath.properties.isTrace;
-
-                    if (curveId && circlePath.contours[0]) {
-                        circlePath.contours[0].curveIds = [curveId];
-                        circlePath.contours[0].points.forEach(p => p.curveId = curveId);
-                        circlePath.contours[0].arcSegments.forEach(arc => arc.curveId = curveId);
-                    }
-                    boundaryStrokes.push(circlePath);
-                }
-            }
-
-            //Generate Line/Arc Segments
-            for (let i = 0; i < points.length - 1; i++) {
-                const p1 = points[i];
-                const p2 = points[i + 1];
-                const arc = arcMap.get(i);
-
-                if (arc && arc.endIndex !== undefined) {
-                    const endPt = points[arc.endIndex]; 
-
-                    const mockArc = {
-                        type: 'arc', radius: arc.radius, center: arc.center, clockwise: arc.clockwise,
-                        startAngle: arc.startAngle, endAngle: arc.endAngle,
-                        startPoint: p1, endPoint: endPt,
-                        properties: { polarity: 'dark' }
-                    };
-
-                    const arcStroke = this.arcToPolygon(mockArc, strokeWidth);
-                    if (arcStroke) boundaryStrokes.push(arcStroke);
-
-                    if (arc.endIndex > i) {
-                        i = arc.endIndex - 1; 
-                    } else if (arc.endIndex < i) {
-                        // Do not break. Fast-forward to the end of the array so the wrapped arc is processed, and the loop naturally finishes.
-                        i = points.length - 1;
-                    }
-                } else {
-                    // Standard linear segment logic
-                    const dx = p2.x - p1.x;
-                    const dy = p2.y - p1.y;
-                    const segLen = Math.hypot(dx, dy);
-
-                    // Skip microscopic segments
-                    if (segLen < PRECISION * 2) continue;
-
-                    // Generate pure, unshifted rectangle bounds
-                    const ux = dx / segLen;
-                    const uy = dy / segLen;
-
-                    const nx = (-uy) * offsetDist;
-                    const ny = (ux) * offsetDist;
-
-                    const isHole = cleanProps.polarity === 'clear';
-
-                    // Natively assign array order based on winding requirement (CCW for outers, CW for holes in Y-up)
-                    const rectPoints = isHole ? [
-                        { x: p1.x + nx, y: p1.y + ny },
-                        { x: p2.x + nx, y: p2.y + ny },
-                        { x: p2.x - nx, y: p2.y - ny },
-                        { x: p1.x - nx, y: p1.y - ny }
-                    ] : [
-                        { x: p1.x - nx, y: p1.y - ny },
-                        { x: p2.x - nx, y: p2.y - ny },
-                        { x: p2.x + nx, y: p2.y + ny },
-                        { x: p1.x + nx, y: p1.y + ny }
-                    ];
-
-                    const rectPath = new PathPrimitive([{
-                        points: rectPoints, isHole: isHole, nestingLevel: 0,
-                        parentId: null, arcSegments: [], curveIds: []
-                    }], { ...cleanProps });
-
-                    // Explicit delete for rectangles too
-                    delete rectPath.properties.stroke;
-                    delete rectPath.properties.strokeWidth;
-                    delete rectPath.properties.isTrace;
-
-                    boundaryStrokes.push(rectPath);
-                }
-            }
-
-            return boundaryStrokes;
-        },
-
-        /**
-         * Converts a closed contour into overlapping stroke polygons.
-         * Fixes spikes by merging micro-segments, while strictly protecting registered curve points.
-         */
-        closedContourToStrokePolygons(contour, strokeWidth) {
-            const boundaryStrokes = [];
-            const offsetDist = strokeWidth / 2;
-
-            // Threshold to absorb micro-segments that cause floating-point normal breakdown. Arbitrary, adjust as necessary.
-            const minSegLen = Math.max(PRECISION, offsetDist * 0.02);
-
-            let rawPoints = contour.points;
-            if (!rawPoints || rawPoints.length < 2) return [];
-
-            // Clean closing duplicates
-            const first = rawPoints[0];
-            const last = rawPoints[rawPoints.length - 1];
-            let sliced = false;
-
-            const dx = first.x - last.x;
-            const dy = first.y - last.y;
-            if (rawPoints.length > 2 && (dx * dx + dy * dy) < PRECISION * PRECISION) {
-                rawPoints = rawPoints.slice(0, -1);
-                sliced = true;
-            }
-
-            const lenRaw = rawPoints.length;
-            const arcMapRaw = new Map();
-            const arcEndIndices = new Set();
-
-            // Wrap indices safely if the duplicate closing point was removed
-            if (contour.arcSegments) {
-                contour.arcSegments.forEach(arc => {
-                    let start = arc.startIndex;
-                    let end = arc.endIndex;
-
-                    if (sliced) {
-                        if (start >= lenRaw) start = 0;
-                        if (end >= lenRaw) end = 0;
-                    }
-
-                    if (start < lenRaw && end < lenRaw) {
-                        arcMapRaw.set(start, { ...arc, startIndex: start, endIndex: end });
-                        arcEndIndices.add(end);
-                    }
-                });
-            }
-
-            const points = [];
-            const indexMap = new Array(lenRaw).fill(0);
-            let lastKeptIndex = 0;
-
-            points.push(rawPoints[0]);
-            indexMap[0] = 0;
-
-            // Point Consolidation Pass
-            for (let i = 1; i < lenRaw; i++) {
-                const p1 = rawPoints[lastKeptIndex];
-                const p2 = rawPoints[i];
-                const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
-
-                // Protect registered curve points AND arc start/end indices
-                const isProtected = (p2.curveId && p2.curveId > 0) || 
-                                    arcMapRaw.has(lastKeptIndex) || 
-                                    arcMapRaw.has(i) ||
-                                    arcEndIndices.has(i);
-
-                if (dist >= minSegLen || isProtected) {
-                    points.push(p2);
-                    indexMap[i] = points.length - 1;
-                    lastKeptIndex = i;
-                } else {
-                    indexMap[i] = points.length - 1;
-                }
-            }
-
-            const len = points.length;
-            if (len < 2) return [];
-
-            // Remap arc indices to the new consolidated points array
-            const arcMap = new Map();
-            arcMapRaw.forEach((arc, oldStart) => {
-                const newStart = indexMap[oldStart];
-                const newEnd = indexMap[arc.endIndex];
-                if (newStart !== newEnd) {
-                    arcMap.set(newStart, { ...arc, startIndex: newStart, endIndex: newEnd });
-                }
-            });
-
-            // Generate Stroke Geometry
-            for (let i = 0; i < len; i++) {
-                const p1 = points[i];
-                const p2 = points[(i + 1) % len];
-
-                const dx = p2.x - p1.x;
-                const dy = p2.y - p1.y;
-                const segLen = Math.hypot(dx, dy);
-
-                if (segLen < PRECISION) continue;
-
-                // Add Vertex Joint (Circle)
-                const circlePrim = {
-                    type: 'circle',
-                    center: p1,
-                    radius: offsetDist,
-                    properties: { polarity: 'dark', fill: true, closed: true }
-                };
-                const circlePath = GeometryTessellation.circleToPath(circlePrim);
-                if (circlePath) {
-                    delete circlePath.properties.stroke;
-                    delete circlePath.properties.strokeWidth;
-                    delete circlePath.properties.isTrace;
-                    boundaryStrokes.push(circlePath);
-                }
-
-                // Add Segment Body
-                const arc = arcMap.get(i);
-                if (arc && arc.endIndex !== undefined) {
-
-                    // Safe endpoint fetch
-                    const endPt = points[arc.endIndex]; 
-
-                    const mockArc = {
-                        type: 'arc', radius: arc.radius, center: arc.center, clockwise: arc.clockwise,
-                        startAngle: arc.startAngle, endAngle: arc.endAngle,
-                        startPoint: p1, endPoint: endPt,
-                        properties: { polarity: 'dark' }
-                    };
-
-                    const arcStroke = this.arcToPolygon(mockArc, strokeWidth);
-                    if (arcStroke) boundaryStrokes.push(arcStroke);
-
-                    // Advance index safely, handling wraparound
-                    if (arc.endIndex > i) {
-                        i = arc.endIndex - 1; 
-                    } else if (arc.endIndex < i) {
-                        break; 
-                    }
-                } else {
-                    const nx = (-dy / segLen) * offsetDist;
-                    const ny = (dx / segLen) * offsetDist;
-
-                    const rectPoints = [
-                        { x: p1.x - nx, y: p1.y - ny },
-                        { x: p2.x - nx, y: p2.y - ny },
-                        { x: p2.x + nx, y: p2.y + ny },
-                        { x: p1.x + nx, y: p1.y + ny }
-                    ];
-
-                    boundaryStrokes.push(new PathPrimitive([{
-                        points: rectPoints, isHole: false, nestingLevel: 0,
-                        parentId: null, arcSegments: [], curveIds: []
-                    }], { polarity: 'dark', fill: true, closed: true }));
-                }
-            }
-            return boundaryStrokes;
-        },
-
-        /**
-         * Converts an arc to a polygon, returning a structured object containing points, arcSegments, and curveIds.
-         */
-        arcToPolygon(arc, width) {
-            this.debug(`arcToPolygon called for Arc ${arc.id}, r=${arc.radius.toFixed(3)}, width=${width.toFixed(3)}`);
-
-            const points = [];
-            const halfWidth = width / 2;
-            const innerR = Math.max(0, arc.radius - halfWidth);
-            const outerR = arc.radius + halfWidth;
-
-            const center = arc.center;
-            const clockwise = arc.clockwise;
-            const startRad = arc.startAngle;
-            const endRad = arc.endAngle;
-
-            // Register main curves
-            const outerArcId = ROOT.globalCurveRegistry?.register({
-                type: 'arc', center: center, radius: outerR, startAngle: startRad, endAngle: endRad,
-                clockwise: clockwise, isOffsetDerived: true, source: 'arc_outer'
-            });
-
-            const innerArcId = innerR > C.precision.coordinate ? ROOT.globalCurveRegistry?.register({
-                type: 'arc', center: center, radius: innerR, startAngle: startRad, endAngle: endRad,
-                clockwise: clockwise, isOffsetDerived: true, source: 'arc_inner'
-            }) : null;
-
-            const arcSegmentsCount = GeometryTessellation.getOptimalSegments(arc.radius, 'arc');
-
-            // Calculate angular sweep
-            let angleSpan = endRad - startRad;
-            if (clockwise) { 
-                if (angleSpan > 0) angleSpan -= 2 * Math.PI; 
-            } else { 
-                if (angleSpan < 0) angleSpan += 2 * Math.PI; 
-            }
-
-            const outerPoints = [];
-            const innerPoints = [];
-
-            // Tessellate the inner and outer paths
-            for (let i = 0; i <= arcSegmentsCount; i++) {
-                const t = i / arcSegmentsCount; 
-                const angle = startRad + angleSpan * t;
-
-                outerPoints.push({ 
-                    x: center.x + outerR * Math.cos(angle), 
-                    y: center.y + outerR * Math.sin(angle), 
-                    curveId: outerArcId, 
-                    segmentIndex: i, 
-                    totalSegments: arcSegmentsCount + 1, 
-                    t: t 
-                });
-
-                innerPoints.push({ 
-                    x: center.x + innerR * Math.cos(angle), 
-                    y: center.y + innerR * Math.sin(angle), 
-                    curveId: innerArcId, 
-                    segmentIndex: i, 
-                    totalSegments: arcSegmentsCount + 1, 
-                    t: t 
-                });
-            }
-
-            const isHole = arc.properties?.polarity === 'clear';
-            const arcSegmentsMetadata = [];
-
-            // Assemble the flat-capped polygon
-            // Just the outer arc, followed by the reversed inner arc. 
-            // The straight lines connecting them at the ends are implicitly created.
-            const innerPointsReversed = innerPoints.slice().reverse();
-
-            points.push(...outerPoints);
-            points.push(...innerPointsReversed);
-
-            // Metadata mapping
-            arcSegmentsMetadata.push({ 
-                startIndex: 0, 
-                endIndex: outerPoints.length - 1, 
-                center: center, 
-                radius: outerR, 
-                startAngle: startRad, 
-                endAngle: endRad, 
-                clockwise: clockwise, 
-                curveId: outerArcId 
-            });
-
-            if (innerR > C.precision.coordinate) {
-                arcSegmentsMetadata.push({ 
-                    startIndex: outerPoints.length, 
-                    endIndex: points.length - 1, 
-                    center: center, 
-                    radius: innerR, 
-                    startAngle: endRad, 
-                    endAngle: startRad, 
-                    clockwise: !clockwise, 
-                    curveId: innerArcId 
-                });
-            }
-
-            // Deduplicate closure if it's a full 360 loop touching itself
-            const first = points[0];
-            const last = points[points.length - 1];
-            if (Math.hypot(first.x - last.x, first.y - last.y) < C.precision.coordinate) {
-                points.pop();
-                arcSegmentsMetadata.forEach(a => {
-                    if (a.endIndex === points.length) a.endIndex = 0;
-                    if (a.startIndex === points.length) a.startIndex = 0;
-                });
-            }
-
-            const contour = {
-                points: points,
-                isHole: isHole,
-                nestingLevel: 0,
-                parentId: null,
-                arcSegments: arcSegmentsMetadata,
-                curveIds: [outerArcId, innerArcId].filter(Boolean)
-            };
-
-            // Ensure correct geometric winding for Clipper
-            const constructedAsCW = clockwise;
-            const wantCW = isHole;
-
-            if (constructedAsCW !== wantCW) {
-                GeometryTopology.reverseContourWinding(contour);
-                this.debug('arcToPolygon: reversed winding to match polarity');
-            }
-
-            return new PathPrimitive([contour], {
-                ...arc.properties,
-                fill: true,
-                stroke: false,
-                closed: true
-            });
-        },
-
-        /**
-         * This is the central tessellation point for the GeometryProcessor.
-         */
-        primitiveToPath(primitive) {
-            if (primitive.type === 'path' && !primitive.properties?.isStroke) {
-                return primitive;
-            }
-
-            const props = primitive.properties || {};
-            const isStroke = (props.stroke && !props.fill) || props.isTrace;
-
-            if (isStroke && props.strokeWidth > 0) {
-                if (primitive.type === 'arc') {
-                    return this.arcToPolygon(primitive, props.strokeWidth);
-                } else if (primitive.type === 'path' && primitive.contours?.[0]) {
-                    return this.traceToPolygon(primitive.contours[0], props.strokeWidth, props);
-                }
-            }
-
-            // Use toPath for curve-containing primitives
-            switch (primitive.type) {
-                case 'circle':
-                    return GeometryTessellation.circleToPath(primitive);
-
-                case 'obround':
-                    return GeometryTessellation.obroundToPath(primitive);
-
-                case 'rectangle': {
-                    const isHole = primitive.properties?.polarity === 'clear';
-                    const points = GeometryTessellation.rectangleToPoints(primitive, isHole);
-                    if (points.length === 0) return null;
-                    return new PathPrimitive([{
-                        points: points,
-                        isHole: isHole,
-                        nestingLevel: 0,
-                        parentId: null,
-                        arcSegments: [],
-                        curveIds: []
-                    }], {
-                        ...primitive.properties,
-                        originalType: 'rectangle'
-                    });
-                }
-
-                case 'arc': {
-                    const points = GeometryTessellation.arcToPoints(primitive);
-                    if (points.length === 0) return null;
-                    // Preserve arc segment metadata
-                    // TODO [ARC-ENCODING] - SPAN arc over the tessellation.
-                    return new PathPrimitive([{
-                        points: points,
-                        isHole: false,
-                        nestingLevel: 0,
-                        parentId: null,
-                        arcSegments: [{
-                            startIndex: 0,
-                            endIndex: points.length - 1,
-                            center: primitive.center,
-                            radius: primitive.radius,
-                            startAngle: primitive.startAngle,
-                            endAngle: primitive.endAngle,
-                            clockwise: primitive.clockwise
-                        }],
-                        curveIds: []
-                    }], {
-                        ...primitive.properties,
-                        originalType: 'arc'
-                    });
-                }
-
-                case 'elliptical_arc': {
-                    const points = GeometryTessellation.ellipticalArcToPoints(primitive);
-                    if (points.length === 0) return null;
-                    return new PathPrimitive([{
-                        points: points,
-                        isHole: false,
-                        nestingLevel: 0,
-                        parentId: null,
-                        arcSegments: [],
-                        curveIds: []
-                    }], {
-                        ...primitive.properties,
-                        originalType: 'elliptical_arc'
-                    });
-                }
-
-                case 'bezier': {
-                    const points = GeometryTessellation.bezierToPoints(primitive);
-                    if (points.length === 0) return null;
-                    return new PathPrimitive([{
-                        points: points,
-                        isHole: false,
-                        nestingLevel: 0,
-                        parentId: null,
-                        arcSegments: [],
-                        curveIds: []
-                    }], {
-                        ...primitive.properties,
-                        originalType: 'bezier'
-                    });
-                }
-
-                default:
-                    console.warn(`[GeoUtils] primitiveToPath: Unknown type ${primitive.type}`);
-                    return null;
-            }
-        },
-
-        /**
-         * Analytic primitive → PathPrimitive for ON-PATH work (engrave now,
-         * score/drag-knife later). Three contract differences from
-         * primitiveToPath, all load-bearing for a cutter that follows the
-         * line instead of a boundary:
-         *   - stroke width is ignored; primitiveToPath returns the stroke
-         *     OUTLINE for stroked arcs and paths, which is a boundary;
-         *   - `closed` is never fabricated, so open shapes stay open;
-         *   - arcs stay analytic as CHORD arcs (endIndex === startIndex + 1).
-         * Bezier and elliptical arcs have no analytic arc form and come back
-         * as open tessellated polylines.
-         */
-        primitiveToCenterlinePath(primitive) {
-            if (!primitive) return null;
-            const props = primitive.properties || {};
-
-            switch (primitive.type) {
-                case 'path':
-                    return primitive;
-
-                case 'circle': {
-                    const p = {
-                        x: primitive.center.x + primitive.radius,
-                        y: primitive.center.y
-                    };
-                    return new PathPrimitive([{
-                        points: [{ x: p.x, y: p.y }, { x: p.x, y: p.y }],
-                        isFullCircle: true,
-                        isHole: false,
-                        nestingLevel: 0,
-                        parentId: null,
-                        arcSegments: [{
-                            startIndex: 0,
-                            endIndex: 1,
-                            center: { x: primitive.center.x, y: primitive.center.y },
-                            radius: primitive.radius,
-                            startAngle: 0,
-                            endAngle: 0,
-                            sweepAngle: 2 * Math.PI,
-                            clockwise: false
-                        }],
-                        curveIds: []
-                    }], { ...props, originalType: 'circle', closed: true });
-                }
-
-                case 'arc': {
-                    const full = GeometryTopology.isPrimitiveClosed(primitive, PRECISION);
-                    let sweep = primitive.endAngle - primitive.startAngle;
-                    if (full) {
-                        sweep = primitive.clockwise ? -2 * Math.PI : 2 * Math.PI;
-                    } else if (primitive.clockwise && sweep > 0) {
-                        sweep -= 2 * Math.PI;
-                    } else if (!primitive.clockwise && sweep < 0) {
-                        sweep += 2 * Math.PI;
-                    }
-
-                    const contour = {
-                        points: [
-                            { x: primitive.startPoint.x, y: primitive.startPoint.y },
-                            { x: primitive.endPoint.x, y: primitive.endPoint.y }
-                        ],
-                        isHole: false,
-                        nestingLevel: 0,
-                        parentId: null,
-                        arcSegments: [{
-                            startIndex: 0,
-                            endIndex: 1,
-                            center: { x: primitive.center.x, y: primitive.center.y },
-                            radius: primitive.radius,
-                            startAngle: primitive.startAngle,
-                            endAngle: primitive.endAngle,
-                            sweepAngle: sweep,
-                            clockwise: primitive.clockwise
-                        }],
-                        curveIds: []
-                    };
-                    if (full) contour.isFullCircle = true;
-
-                    return new PathPrimitive([contour], {
-                        ...props, originalType: 'arc', closed: full
-                    });
-                }
-
-                case 'rectangle': {
-                    const points = GeometryTessellation.rectangleToPoints(primitive, false);
-                    if (points.length === 0) return null;
-                    return new PathPrimitive([{
-                        points: points,
-                        isHole: false,
-                        nestingLevel: 0,
-                        parentId: null,
-                        arcSegments: [],
-                        curveIds: []
-                    }], { ...props, originalType: 'rectangle', closed: true });
-                }
-
-                case 'obround':
-                    return GeometryTessellation.obroundToPath(primitive);
-
-                case 'bezier':
-                case 'elliptical_arc': {
-                    const points = (primitive.type === 'bezier')
-                        ? GeometryTessellation.bezierToPoints(primitive)
-                        : GeometryTessellation.ellipticalArcToPoints(primitive);
-                    if (!points || points.length < 2) return null;
-                    return new PathPrimitive([{
-                        points: points,
-                        isHole: false,
-                        nestingLevel: 0,
-                        parentId: null,
-                        arcSegments: [],
-                        curveIds: []
-                    }], { ...props, originalType: primitive.type, closed: false });
-                }
-
-                default:
-                    console.warn(`[GeoUtils] primitiveToCenterlinePath: unsupported type ${primitive.type}`);
-                    return null;
-            }
-        },
-
-        /**
-         * Returns a new primitive with all coordinates transformed by an
-         * affine matrix { a, b, c, d, e, f }. Preserves circle/obround
-         * types under uniform scale or pure translation so drill
-         * classification still works. Falls back to PathPrimitive for
-         * non-uniform or rotated analytic shapes.
-         */
-        // REVIEW - Consider if it's worth merging with the transform in the svg parser, replace epsilons and coordinate epsilons with config links like PRECISION
-        transformPrimitive(primitive, matrix) {
-            if (!primitive || !matrix) return primitive;
-
-            // Identity shortcut
-            if (TransformMath.isIdentity(matrix)) {
-                return primitive;
-            }
-
-            const applyPt = (p) => TransformMath.applyToPoint(matrix, p);
-
-            // Detect transform class
-            const scale = Math.sqrt(matrix.a * matrix.a + matrix.b * matrix.b);
-
-            const hasRotation = Math.abs(matrix.b) > EPSILON || Math.abs(matrix.c) > EPSILON;
-            const isTranslationOnly = !hasRotation && Math.abs(scale - 1) < EPSILON;
-
-            // Circle: preserve under uniform scale (rotation doesn't matter for circles)
-            if (primitive.type === 'circle') {
-                return new CirclePrimitive(
-                    applyPt(primitive.center),
-                    primitive.radius * scale,
-                    { ...primitive.properties }
-                );
-            }
-
-            // Obround: preserve under pure translation
-            if (primitive.type === 'obround' && isTranslationOnly) {
-                return new ObroundPrimitive(
-                    applyPt(primitive.position),
-                    primitive.width, primitive.height,
-                    { ...primitive.properties }
-                );
-            }
-
-            // Rectangle: preserve under pure translation
-            if (primitive.type === 'rectangle' && isTranslationOnly) {
-                return new RectanglePrimitive(
-                    applyPt(primitive.position),
-                    primitive.width, primitive.height,
-                    { ...primitive.properties }
-                );
-            }
-
-            // General case: convert to path, transform all points
-            let pathPrim = primitive;
-            if (primitive.type !== 'path') {
-                pathPrim = this.primitiveToPath(primitive);
-                if (!pathPrim) return null;
-            }
-
-            const newContours = pathPrim.contours.map(c => {
-                const newPoints = c.points.map(p => {
-                    const x = matrix.a * p.x + matrix.c * p.y + matrix.e;
-                    const y = matrix.b * p.x + matrix.d * p.y + matrix.f;
-                    // Single-literal construction keeps every point on ONE
-                    // V8 hidden class (no post-hoc property additions).
-                    if (p.curveId > 0) {
-                        return {
-                            x, y,
-                            curveId: p.curveId,
-                            segmentIndex: p.segmentIndex,
-                            totalSegments: p.totalSegments,
-                            t: p.t
-                        };
-                    }
-                    return { x, y };
-                });
-
-                // Helper: transform an angle through the linear part of the matrix
-                const transformAngle = (angle) => {
-                    const cosA = Math.cos(angle);
-                    const sinA = Math.sin(angle);
-                    const newX = matrix.a * cosA + matrix.c * sinA;
-                    const newY = matrix.b * cosA + matrix.d * sinA;
-                    return Math.atan2(newY, newX);
-                };
-
-                const det = matrix.a * matrix.d - matrix.b * matrix.c;
-
-                const newArcs = (c.arcSegments || []).map(a => {
-                    const newArc = {
-                        ...a,
-                        center: applyPt(a.center),
-                        radius: a.radius * scale, // exact: UI scale is always uniform (sx===sy); elliptical (non-uniform) arcs are intentionally unsupported - see transformPrimitive header
-                        startPoint: a.startPoint ? applyPt(a.startPoint) : undefined,
-                        endPoint: a.endPoint ? applyPt(a.endPoint) : undefined
-                    };
-
-                    // Transform angles through the matrix
-                    if (a.startAngle !== undefined) newArc.startAngle = transformAngle(a.startAngle);
-                    if (a.endAngle !== undefined) newArc.endAngle = transformAngle(a.endAngle);
-
-                    // Reflections flip arc winding and sweep direction
-                    if (det < 0) {
-                        newArc.clockwise = !a.clockwise;
-                        if (a.sweepAngle !== undefined) newArc.sweepAngle = -a.sweepAngle;
-                    }
-
-                    return newArc;
-                });
-
-                // Non-uniform or reflective transforms may flip winding
-                let isHole = c.isHole;
-                if (det < 0) isHole = !isHole; // Reflection flips winding
-
-                return {
-                    points: newPoints,
-                    isHole: isHole,
-                    isFullCircle: c.isFullCircle,
-                    nestingLevel: c.nestingLevel || 0,
-                    parentId: c.parentId || null,
-                    arcSegments: newArcs,
-                    curveIds: c.curveIds ? [...c.curveIds] : []
-                };
-            });
-
-            const result = new PathPrimitive(newContours, {
-                ...pathPrim.properties
-            });
-
-            if (pathPrim.curveIds) result.curveIds = [...pathPrim.curveIds];
-            return result;
-        },
-
-        /**
-         * Returns a representative interior point for a primitive.
-         * Uses the geometric centroid of the first contour's vertices.
-         * For convex shapes (circles, rectangles, obrounds) the centroid is always interior. For concave shapes the centroid is a practical approximation that works for all standard PCB primitives.
-         */
-        getRepresentativePoint(primitive) {
-            const points = primitive.contours?.[0]?.points;
-            if (points && points.length >= 3) {
-                let sumX = 0, sumY = 0;
-                for (let i = 0; i < points.length; i++) {
-                    sumX += points[i].x;
-                    sumY += points[i].y;
-                }
-                return { x: sumX / points.length, y: sumY / points.length };
-            }
-            // Fallback for analytic primitives that somehow survived without contours
-            if (primitive.center) return { ...primitive.center };
-            const bounds = primitive.getBounds();
-            if (bounds && isFinite(bounds.minX)) {
-                return { x: (bounds.minX + bounds.maxX) / 2, y: (bounds.minY + bounds.maxY) / 2 };
-            }
-            return null;
-        },
-
-        debug(message, data = null) {
-            if (!debugState.enabled) return;
-            data ? console.log(`[GeometryUtils] ${message}`, data)
-                 : console.log(`[GeometryUtils] ${message}`);
+  'use strict';
+
+  const ROOT = globalThis;
+  const C = ROOT.CAMConfig.constants;
+  const D = ROOT.CAMConfig.defaults;
+  const PRECISION = C.precision.coordinate;
+  const EPSILON = C.precision.epsilon;
+  const debugState = D.debug;
+
+  const GeometryUtils = {
+    /**
+     * Single authority for "is this ring a full circle".
+     * Provenance (one shared curveId, registry type 'circle') is the primary
+     * evidence - the Clipper Z word exists to carry exactly this. The two
+     * geometric clauses only have to reject a ring the boolean CLIPPED:
+     *  - closedSweep catches a removed wedge whose endpoints stayed coincident
+     *  - endGap catches a removed wedge that left a visible chord
+     * Both tolerances scale off the tessellation step 2*PI*r/N, never off
+     * precision.coordinate - the quantization grid is an order of magnitude
+     * finer than the chord, so a coordinate-scaled bound can never be met.
+     *
+     * Works on an open ring (last point one chord from the first) and on an
+     * explicitly closed one (last point duplicating the first).
+     */
+    analyzeCircleRing(points, opts = {}) {
+      const reject = (reason, extra) => ({ isFullCircle: false, reason, ...extra });
+
+      if (!points || points.length < 3) return reject('too-few-points');
+
+      const registry = ROOT.globalCurveRegistry;
+      if (!registry) return reject('no-registry');
+
+      let curveId = null;
+      for (const pt of points) {
+        const id = pt.curveId;
+        if (!id || id <= 0) return reject('untagged-point');
+        if (curveId === null) curveId = id;
+        else if (id !== curveId) return reject('mixed-curve-ids', { curveId });
+      }
+
+      const curveData = registry.getCurve(curveId);
+      if (!curveData || curveData.type !== 'circle') return reject('not-a-circle', { curveId });
+
+      const cx = curveData.center.x;
+      const cy = curveData.center.y;
+      const n = points.length;
+      const TAU = 2 * Math.PI;
+
+      const fold = (d) => (d > Math.PI ? d - TAU : (d < -Math.PI ? d + TAU : d));
+
+      let openSweep = 0;
+      let prevAngle = Math.atan2(points[0].y - cy, points[0].x - cx);
+      const firstAngle = prevAngle;
+      for (let i = 1; i < n; i++) {
+        const a = Math.atan2(points[i].y - cy, points[i].x - cx);
+        openSweep += fold(a - prevAngle);
+        prevAngle = a;
+      }
+      const closedSweep = openSweep + fold(firstAngle - prevAngle);
+
+      const chord = (TAU * curveData.radius) / n;
+      const endGap = Math.hypot(points[n - 1].x - points[0].x, points[n - 1].y - points[0].y);
+
+      const angleTolerance = opts.angleTolerance ?? (TAU / n) * 1.5;
+      const gapTolerance = opts.gapTolerance ?? chord * 1.5;
+
+      const sweepOk = Math.abs(Math.abs(closedSweep) - TAU) <= angleTolerance;
+      const gapOk = endGap <= gapTolerance;
+
+      const result = {
+        isFullCircle: sweepOk && gapOk,
+        reason: sweepOk ? (gapOk ? 'ok' : 'end-gap') : 'sweep',
+        curveId,
+        curveData,
+        center: { x: cx, y: cy },
+        radius: curveData.radius,
+        clockwise: closedSweep < 0,
+        openSweep,
+        closedSweep,
+        chord,
+        endGap
+      };
+      return result;
+    },
+
+    /**
+     * Converts an open trace (polyline) into overlapping stroke polygons.
+     * Places a circle at every vertex (handling end-caps and joints) and 
+     * a rectangle along every segment.
+     * @param {Array} points - Array of {x,y} points forming the trace.
+     * @param {number} strokeWidth - The full width of the trace.
+     * @returns {Array<PathPrimitive>} Array of overlapping primitives to be unioned.
+     */
+    traceToPolygon(contour, strokeWidth, props = {}) {
+      const boundaryStrokes = [];
+      const offsetDist = strokeWidth / 2;
+      const points = contour.points || contour; // Fallback if points array is passed directly
+
+      if (!points || points.length < 2) return [];
+
+      // Strip stroke properties
+      const cleanProps = { 
+        ...props, fill: true, closed: true,
+        stroke: false, strokeWidth: 0, isTrace: false  
+      };
+
+      // Build an Arc Map
+      const arcMap = new Map();
+      if (contour.arcSegments) contour.arcSegments.forEach(arc => { arcMap.set(arc.startIndex, arc); });
+
+      // Generate End Caps & Joints
+      for (let i = 0; i < points.length; i++) {
+        const pt = points[i];
+
+        let curveId = null;
+        if (ROOT.globalCurveRegistry) {
+          curveId = ROOT.globalCurveRegistry.register({
+            type: 'circle', center: { x: pt.x, y: pt.y },
+            radius: offsetDist, clockwise: cleanProps.polarity === 'clear',
+            source: (i === 0 || i === points.length - 1) ? 'end_cap' : 'trace_joint'
+          });
         }
-    };
 
-    Object.assign(GeometryUtils, ROOT.GeometryPoints);
-    ROOT.GeometryUtils = GeometryUtils;
+        const circlePrim = { type: 'circle', center: pt, radius: offsetDist, properties: { ...cleanProps } };
+
+        const circlePath = GeometryTessellation.circleToPath(circlePrim);
+        if (circlePath) {
+          delete circlePath.properties.stroke;
+          delete circlePath.properties.strokeWidth;
+          delete circlePath.properties.isTrace;
+
+          if (curveId && circlePath.contours[0]) {
+            circlePath.contours[0].curveIds = [curveId];
+            circlePath.contours[0].points.forEach(p => p.curveId = curveId);
+            circlePath.contours[0].arcSegments.forEach(arc => arc.curveId = curveId);
+          }
+          boundaryStrokes.push(circlePath);
+        }
+      }
+
+      //Generate Line/Arc Segments
+      for (let i = 0; i < points.length - 1; i++) {
+        const p1 = points[i];
+        const p2 = points[i + 1];
+        const arc = arcMap.get(i);
+
+        if (arc && arc.endIndex !== undefined) {
+          const endPt = points[arc.endIndex]; 
+
+          const mockArc = {
+            type: 'arc', radius: arc.radius, center: arc.center, clockwise: arc.clockwise,
+            startAngle: arc.startAngle, endAngle: arc.endAngle,
+            startPoint: p1, endPoint: endPt,
+            properties: { polarity: 'dark' }
+          };
+
+          const arcStroke = this.arcToPolygon(mockArc, strokeWidth);
+          if (arcStroke) boundaryStrokes.push(arcStroke);
+
+          if (arc.endIndex > i) {
+            i = arc.endIndex - 1; 
+          } else if (arc.endIndex < i) {
+            // Do not break. Fast-forward to the end of the array so the wrapped arc is processed, and the loop naturally finishes.
+            i = points.length - 1;
+          }
+        } else {
+          // Standard linear segment logic
+          const dx = p2.x - p1.x;
+          const dy = p2.y - p1.y;
+          const segLen = Math.hypot(dx, dy);
+
+          // Skip microscopic segments
+          if (segLen < PRECISION * 2) continue;
+
+          // Generate pure, unshifted rectangle bounds
+          const ux = dx / segLen;
+          const uy = dy / segLen;
+
+          const nx = (-uy) * offsetDist;
+          const ny = (ux) * offsetDist;
+
+          const isHole = cleanProps.polarity === 'clear';
+
+          // Natively assign array order based on winding requirement (CCW for outers, CW for holes in Y-up)
+          const rectPoints = isHole ? [
+            { x: p1.x + nx, y: p1.y + ny },
+            { x: p2.x + nx, y: p2.y + ny },
+            { x: p2.x - nx, y: p2.y - ny },
+            { x: p1.x - nx, y: p1.y - ny }
+          ] : [
+            { x: p1.x - nx, y: p1.y - ny },
+            { x: p2.x - nx, y: p2.y - ny },
+            { x: p2.x + nx, y: p2.y + ny },
+            { x: p1.x + nx, y: p1.y + ny }
+          ];
+
+          const rectPath = new PathPrimitive([{
+            points: rectPoints, isHole: isHole, nestingLevel: 0,
+            parentId: null, arcSegments: [], curveIds: []
+          }], { ...cleanProps });
+
+          delete rectPath.properties.stroke;
+          delete rectPath.properties.strokeWidth;
+          delete rectPath.properties.isTrace;
+
+          boundaryStrokes.push(rectPath);
+        }
+      }
+
+      return boundaryStrokes;
+    },
+
+    /**
+     * Converts a closed contour into overlapping stroke polygons.
+     * Fixes spikes by merging micro-segments, while strictly protecting registered curve points.
+     */
+    closedContourToStrokePolygons(contour, strokeWidth) {
+      const boundaryStrokes = [];
+      const offsetDist = strokeWidth / 2;
+
+      // Threshold to absorb micro-segments that cause floating-point normal breakdown. Arbitrary, adjust as necessary.
+      const minSegLen = Math.max(PRECISION, offsetDist * 0.02);
+
+      let rawPoints = contour.points;
+      if (!rawPoints || rawPoints.length < 2) return [];
+
+      // Clean closing duplicates
+      const first = rawPoints[0];
+      const last = rawPoints[rawPoints.length - 1];
+      let sliced = false;
+
+      const dx = first.x - last.x;
+      const dy = first.y - last.y;
+      if (rawPoints.length > 2 && (dx * dx + dy * dy) < PRECISION * PRECISION) {
+        rawPoints = rawPoints.slice(0, -1);
+        sliced = true;
+      }
+
+      const lenRaw = rawPoints.length;
+      const arcMapRaw = new Map();
+      const arcEndIndices = new Set();
+
+      // Wrap indices safely if the duplicate closing point was removed
+      if (contour.arcSegments) {
+        contour.arcSegments.forEach(arc => {
+          let start = arc.startIndex;
+          let end = arc.endIndex;
+          if (sliced) {
+            if (start >= lenRaw) start = 0;
+            if (end >= lenRaw) end = 0;
+          }
+          if (start < lenRaw && end < lenRaw) {
+            arcMapRaw.set(start, { ...arc, startIndex: start, endIndex: end });
+            arcEndIndices.add(end);
+          }
+        });
+      }
+
+      const points = [];
+      const indexMap = new Array(lenRaw).fill(0);
+      let lastKeptIndex = 0;
+
+      points.push(rawPoints[0]);
+      indexMap[0] = 0;
+
+      // Point Consolidation Pass
+      for (let i = 1; i < lenRaw; i++) {
+        const p1 = rawPoints[lastKeptIndex];
+        const p2 = rawPoints[i];
+        const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+
+        // Protect registered curve points AND arc start/end indices
+        const isProtected = (p2.curveId && p2.curveId > 0) || arcMapRaw.has(lastKeptIndex) || arcMapRaw.has(i) || arcEndIndices.has(i);
+
+        if (dist >= minSegLen || isProtected) {
+          points.push(p2);
+          indexMap[i] = points.length - 1;
+          lastKeptIndex = i;
+        } else {
+          indexMap[i] = points.length - 1;
+        }
+      }
+
+      const len = points.length;
+      if (len < 2) return [];
+
+      // Remap arc indices to the new consolidated points array
+      const arcMap = new Map();
+      arcMapRaw.forEach((arc, oldStart) => {
+        const newStart = indexMap[oldStart];
+        const newEnd = indexMap[arc.endIndex];
+        if (newStart !== newEnd) arcMap.set(newStart, { ...arc, startIndex: newStart, endIndex: newEnd });
+      });
+
+      // Generate Stroke Geometry
+      for (let i = 0; i < len; i++) {
+        const p1 = points[i];
+        const p2 = points[(i + 1) % len];
+        const dx = p2.x - p1.x;
+        const dy = p2.y - p1.y;
+        const segLen = Math.hypot(dx, dy);
+        if (segLen < PRECISION) continue;
+
+        // Add Vertex Joint (Circle)
+        const circlePrim = {
+          type: 'circle',
+          center: p1,
+          radius: offsetDist,
+          properties: { polarity: 'dark', fill: true, closed: true }
+        };
+        const circlePath = GeometryTessellation.circleToPath(circlePrim);
+        if (circlePath) {
+          delete circlePath.properties.stroke;
+          delete circlePath.properties.strokeWidth;
+          delete circlePath.properties.isTrace;
+          boundaryStrokes.push(circlePath);
+        }
+
+        // Add Segment Body
+        const arc = arcMap.get(i);
+        if (arc && arc.endIndex !== undefined) {
+          // Safe endpoint fetch
+          const endPt = points[arc.endIndex]; 
+          const mockArc = {
+            type: 'arc', radius: arc.radius, center: arc.center, clockwise: arc.clockwise,
+            startAngle: arc.startAngle, endAngle: arc.endAngle,
+            startPoint: p1, endPoint: endPt,
+            properties: { polarity: 'dark' }
+          };
+          const arcStroke = this.arcToPolygon(mockArc, strokeWidth);
+          if (arcStroke) boundaryStrokes.push(arcStroke);
+
+          // Advance index safely, handling wraparound
+          if (arc.endIndex > i) {
+            i = arc.endIndex - 1; 
+          } else if (arc.endIndex < i) {
+            break; 
+          }
+        } else {
+          const nx = (-dy / segLen) * offsetDist;
+          const ny = (dx / segLen) * offsetDist;
+          const rectPoints = [
+            { x: p1.x - nx, y: p1.y - ny },
+            { x: p2.x - nx, y: p2.y - ny },
+            { x: p2.x + nx, y: p2.y + ny },
+            { x: p1.x + nx, y: p1.y + ny }
+          ];
+          boundaryStrokes.push(new PathPrimitive([{
+            points: rectPoints, isHole: false, nestingLevel: 0,
+            parentId: null, arcSegments: [], curveIds: []
+          }], { polarity: 'dark', fill: true, closed: true }));
+        }
+      }
+      return boundaryStrokes;
+    },
+
+    /**
+     * Converts an arc to a polygon, returning a structured
+     * object containing points, arcSegments, and curveIds.
+     */
+    arcToPolygon(arc, width) {
+      this.debug(`arcToPolygon called for Arc ${arc.id}, r=${arc.radius.toFixed(3)}, width=${width.toFixed(3)}`);
+      const points = [];
+      const halfWidth = width / 2;
+      const innerR = Math.max(0, arc.radius - halfWidth);
+      const outerR = arc.radius + halfWidth;
+      const center = arc.center;
+      const clockwise = arc.clockwise;
+      const startRad = arc.startAngle;
+      const endRad = arc.endAngle;
+
+      // Register main curves
+      const outerArcId = ROOT.globalCurveRegistry?.register({
+        type: 'arc', center: center, radius: outerR, startAngle: startRad, endAngle: endRad,
+        clockwise: clockwise, isOffsetDerived: true, source: 'arc_outer'
+      });
+      const innerArcId = innerR > C.precision.coordinate ? ROOT.globalCurveRegistry?.register({
+        type: 'arc', center: center, radius: innerR, startAngle: startRad, endAngle: endRad,
+        clockwise: clockwise, isOffsetDerived: true, source: 'arc_inner'
+      }) : null;
+      const arcSegmentsCount = GeometryTessellation.getOptimalSegments(arc.radius, 'arc');
+
+      // Calculate angular sweep
+      let angleSpan = endRad - startRad;
+      if (clockwise) { 
+        if (angleSpan > 0) angleSpan -= 2 * Math.PI; 
+      } else { 
+        if (angleSpan < 0) angleSpan += 2 * Math.PI; 
+      }
+
+      const outerPoints = [];
+      const innerPoints = [];
+
+      // Tessellate the inner and outer paths
+      for (let i = 0; i <= arcSegmentsCount; i++) {
+        const t = i / arcSegmentsCount;
+        const angle = startRad + angleSpan * t;
+
+        outerPoints.push({ 
+          x: center.x + outerR * Math.cos(angle),
+          y: center.y + outerR * Math.sin(angle),
+          curveId: outerArcId,
+          segmentIndex: i,
+          totalSegments: arcSegmentsCount + 1,
+          t: t
+        });
+
+        innerPoints.push({ 
+          x: center.x + innerR * Math.cos(angle),
+          y: center.y + innerR * Math.sin(angle),
+          curveId: innerArcId,
+          segmentIndex: i,
+          totalSegments: arcSegmentsCount + 1,
+          t: t
+        });
+      }
+
+      const isHole = arc.properties?.polarity === 'clear';
+      const arcSegmentsMetadata = [];
+
+      // Assemble the flat-capped polygon
+      // Just the outer arc, followed by the reversed inner arc. 
+      // The straight lines connecting them at the ends are implicitly created.
+      const innerPointsReversed = innerPoints.slice().reverse();
+
+      points.push(...outerPoints);
+      points.push(...innerPointsReversed);
+
+      // Metadata mapping
+      arcSegmentsMetadata.push({
+        startIndex: 0,
+        endIndex: outerPoints.length - 1,
+        center: center,
+        radius: outerR,
+        startAngle: startRad,
+        endAngle: endRad,
+        clockwise: clockwise,
+        curveId: outerArcId
+      });
+
+      if (innerR > C.precision.coordinate) {
+        arcSegmentsMetadata.push({
+          startIndex: outerPoints.length,
+          endIndex: points.length - 1,
+          center: center,
+          radius: innerR,
+          startAngle: endRad,
+          endAngle: startRad,
+          clockwise: !clockwise,
+          curveId: innerArcId
+        });
+      }
+
+      // Deduplicate closure if it's a full 360 loop touching itself
+      const first = points[0];
+      const last = points[points.length - 1];
+      if (Math.hypot(first.x - last.x, first.y - last.y) < C.precision.coordinate) {
+        points.pop();
+        arcSegmentsMetadata.forEach(a => {
+          if (a.endIndex === points.length) a.endIndex = 0;
+          if (a.startIndex === points.length) a.startIndex = 0;
+        });
+      }
+
+      const contour = {
+        points: points,
+        isHole: isHole,
+        nestingLevel: 0,
+        parentId: null,
+        arcSegments: arcSegmentsMetadata,
+        curveIds: [outerArcId, innerArcId].filter(Boolean)
+      };
+
+      // Ensure correct geometric winding for Clipper
+      const constructedAsCW = clockwise;
+      const wantCW = isHole;
+
+      if (constructedAsCW !== wantCW) {
+        GeometryTopology.reverseContourWinding(contour);
+        this.debug('arcToPolygon: reversed winding to match polarity');
+      }
+
+      return new PathPrimitive([contour], {
+        ...arc.properties,
+        fill: true,
+        stroke: false,
+        closed: true
+      });
+    },
+
+    /** This is the central tessellation point for the GeometryProcessor. */
+    primitiveToPath(primitive) {
+      if (primitive.type === 'path' && !primitive.properties?.isStroke) return primitive; // REVIEW - Possibly useless safety check?
+
+      const props = primitive.properties || {};
+      const isStroke = (props.stroke && !props.fill) || props.isTrace;
+
+      if (isStroke && props.strokeWidth > 0) {
+        if (primitive.type === 'arc') {
+          return this.arcToPolygon(primitive, props.strokeWidth);
+        } else if (primitive.type === 'path' && primitive.contours?.[0]) {
+          return this.traceToPolygon(primitive.contours[0], props.strokeWidth, props);
+        }
+      }
+
+      // Use toPath for curve-containing primitives
+      switch (primitive.type) {
+        case 'circle':
+          return GeometryTessellation.circleToPath(primitive);
+        case 'obround':
+          return GeometryTessellation.obroundToPath(primitive);
+        case 'rectangle': {
+          const isHole = primitive.properties?.polarity === 'clear';
+          const points = GeometryTessellation.rectangleToPoints(primitive, isHole);
+          if (points.length === 0) return null;
+          return new PathPrimitive([{
+            points: points,
+            isHole: isHole,
+            nestingLevel: 0,
+            parentId: null,
+            arcSegments: [],
+            curveIds: []
+          }], {
+            ...primitive.properties,
+            originalType: 'rectangle'
+          });
+        }
+        case 'arc': {
+          const points = GeometryTessellation.arcToPoints(primitive);
+          if (points.length === 0) return null;
+          // Preserve arc segment metadata
+          // TODO(arc-encoding) - SPAN arc over the tessellation.
+          return new PathPrimitive([{
+            points: points,
+            isHole: false,
+            nestingLevel: 0,
+            parentId: null,
+            arcSegments: [{
+              startIndex: 0,
+              endIndex: points.length - 1,
+              center: primitive.center,
+              radius: primitive.radius,
+              startAngle: primitive.startAngle,
+              endAngle: primitive.endAngle,
+              clockwise: primitive.clockwise
+            }],
+            curveIds: []
+          }], { ...primitive.properties, originalType: 'arc' });
+        }
+        case 'elliptical_arc': {
+          const points = GeometryTessellation.ellipticalArcToPoints(primitive);
+          if (points.length === 0) return null;
+          return new PathPrimitive([{
+            points: points,
+            isHole: false,
+            nestingLevel: 0,
+            parentId: null,
+            arcSegments: [],
+            curveIds: []
+          }], {...primitive.properties, originalType: 'elliptical_arc'});
+        }
+        case 'bezier': {
+          const points = GeometryTessellation.bezierToPoints(primitive);
+          if (points.length === 0) return null;
+          return new PathPrimitive([{
+            points: points,
+            isHole: false,
+            nestingLevel: 0,
+            parentId: null,
+            arcSegments: [],
+            curveIds: []
+          }], {...primitive.properties, originalType: 'bezier'});
+        }
+        default:
+          console.warn(`[GeoUtils] primitiveToPath: Unknown type ${primitive.type}`);
+          return null;
+      }
+    },
+
+    /**
+     * Analytic primitive → PathPrimitive for ON-PATH work (engrave now,
+     * score/drag-knife later). Three contract differences from
+     * primitiveToPath, all load-bearing for a cutter that follows the
+     * line instead of a boundary:
+     *  - stroke width is ignored; primitiveToPath returns the stroke
+     *    OUTLINE for stroked arcs and paths, which is a boundary;
+     *  - `closed` is never fabricated, so open shapes stay open;
+     *  - arcs stay analytic as CHORD arcs (endIndex === startIndex + 1).
+     * Bezier and elliptical arcs have no analytic arc form and come back
+     * as open tessellated polylines.
+     */
+    primitiveToCenterlinePath(primitive) {
+      const props = primitive.properties || {};
+      switch (primitive.type) {
+        case 'path':
+          return primitive;
+        case 'circle': {
+          const p = {
+            x: primitive.center.x + primitive.radius,
+            y: primitive.center.y
+          };
+          return new PathPrimitive([{
+            points: [{ x: p.x, y: p.y }, { x: p.x, y: p.y }],
+            isFullCircle: true,
+            isHole: false,
+            nestingLevel: 0,
+            parentId: null,
+            arcSegments: [{
+              startIndex: 0,
+              endIndex: 1,
+              center: { x: primitive.center.x, y: primitive.center.y },
+              radius: primitive.radius,
+              startAngle: 0,
+              endAngle: 0,
+              sweepAngle: 2 * Math.PI,
+              clockwise: false
+            }],
+            curveIds: []
+          }], { ...props, originalType: 'circle', closed: true });
+        }
+        case 'arc': {
+          const full = GeometryTopology.isPrimitiveClosed(primitive, PRECISION);
+          let sweep = primitive.endAngle - primitive.startAngle;
+          if (full) {
+            sweep = primitive.clockwise ? -2 * Math.PI : 2 * Math.PI;
+          } else if (primitive.clockwise && sweep > 0) {
+            sweep -= 2 * Math.PI;
+          } else if (!primitive.clockwise && sweep < 0) {
+            sweep += 2 * Math.PI;
+          }
+          const contour = {
+            points: [
+              { x: primitive.startPoint.x, y: primitive.startPoint.y },
+              { x: primitive.endPoint.x, y: primitive.endPoint.y }
+            ],
+            isHole: false,
+            nestingLevel: 0,
+            parentId: null,
+            arcSegments: [{
+              startIndex: 0,
+              endIndex: 1,
+              center: { x: primitive.center.x, y: primitive.center.y },
+              radius: primitive.radius,
+              startAngle: primitive.startAngle,
+              endAngle: primitive.endAngle,
+              sweepAngle: sweep,
+              clockwise: primitive.clockwise
+            }],
+            curveIds: []
+          };
+          if (full) contour.isFullCircle = true;
+          return new PathPrimitive([contour], {
+            ...props, originalType: 'arc', closed: full
+          });
+        }
+        case 'rectangle': {
+          const points = GeometryTessellation.rectangleToPoints(primitive, false);
+          if (points.length === 0) return null;
+          return new PathPrimitive([{
+            points: points,
+            isHole: false,
+            nestingLevel: 0,
+            parentId: null,
+            arcSegments: [],
+            curveIds: []
+          }], { ...props, originalType: 'rectangle', closed: true });
+        }
+        case 'obround':
+          return GeometryTessellation.obroundToPath(primitive);
+        case 'bezier':
+        case 'elliptical_arc': {
+          const points = (primitive.type === 'bezier')
+            ? GeometryTessellation.bezierToPoints(primitive)
+            : GeometryTessellation.ellipticalArcToPoints(primitive);
+          if (!points || points.length < 2) return null;
+          return new PathPrimitive([{
+            points: points,
+            isHole: false,
+            nestingLevel: 0,
+            parentId: null,
+            arcSegments: [],
+            curveIds: []
+          }], { ...props, originalType: primitive.type, closed: false });
+        }
+        default:
+          console.warn(`[GeoUtils] primitiveToCenterlinePath: unsupported type ${primitive.type}`);
+          return null;
+      }
+    },
+
+    /**
+     * Returns a new primitive with all coordinates transformed by an
+     * affine matrix { a, b, c, d, e, f }. Preserves circle/obround
+     * types under uniform scale or pure translation so drill
+     * classification still works. Falls back to PathPrimitive for
+     * non-uniform or rotated analytic shapes.
+     */
+    transformPrimitive(primitive, matrix) {
+      if (!primitive || !matrix) return primitive;
+      // Identity shortcut
+      if (TransformMath.isIdentity(matrix)) return primitive;
+      const applyPt = p => TransformMath.applyToPoint(matrix, p);
+      // Detect transform class
+      const scale = Math.sqrt(matrix.a * matrix.a + matrix.b * matrix.b);
+      // The linear part itself: a mirror also has unit scale and no rotation.
+      const isTranslationOnly = Math.abs(matrix.a - 1) < EPSILON && Math.abs(matrix.d - 1) < EPSILON && Math.abs(matrix.b) < EPSILON && Math.abs(matrix.c) < EPSILON;
+      // Circle: preserve under uniform scale (rotation doesn't matter for circles)
+      if (primitive.type === 'circle') return new CirclePrimitive(applyPt(primitive.center), primitive.radius * scale, { ...primitive.properties });
+      // Obround: preserve under pure translation
+      if (primitive.type === 'obround' && isTranslationOnly) return new ObroundPrimitive(applyPt(primitive.position), primitive.width, primitive.height, { ...primitive.properties });
+      // Rectangle: preserve under pure translation
+      if (primitive.type === 'rectangle' && isTranslationOnly) return new RectanglePrimitive(applyPt(primitive.position), primitive.width, primitive.height, { ...primitive.properties });
+      // General case: convert to path, transform all points
+      let pathPrim = primitive;
+      if (primitive.type !== 'path') {
+        pathPrim = this.primitiveToPath(primitive);
+        if (!pathPrim) return null;
+      }
+      const det = matrix.a * matrix.d - matrix.b * matrix.c;
+      // Helper: transform an angle through the linear part of the matrix
+      const transformAngle = angle => {
+        const cosA = Math.cos(angle);
+        const sinA = Math.sin(angle);
+        const newX = matrix.a * cosA + matrix.c * sinA;
+        const newY = matrix.b * cosA + matrix.d * sinA;
+        return Math.atan2(newY, newX);
+      };
+      // Reconstruction and circle detection read a curve's centre from the
+      // registry, not from the arc. A moved arc that kept its id would send
+      // them to the old place, so each curve is registered again where it
+      // now is, and its arcs and points take the new id.
+      const registry = ROOT.globalCurveRegistry;
+      const idMap = new Map();
+      const reregister = arc => {
+        if (!(arc.curveId > 0)) return;
+        if (!idMap.has(arc.curveId)) {
+          const old = registry?.getCurve(arc.curveId);
+          const id = old ? registry.register({
+            ...old,
+            center: arc.center,
+            radius: arc.radius,
+            startAngle: arc.startAngle,
+            endAngle: arc.endAngle,
+            sweepAngle: arc.sweepAngle,
+            clockwise: arc.clockwise
+          }) : null;
+          idMap.set(arc.curveId, id || arc.curveId);
+        }
+        arc.curveId = idMap.get(arc.curveId);
+      };
+      const remap = id => idMap.get(id) ?? id;
+      const newContours = pathPrim.contours.map(c => {
+        const newArcs = (c.arcSegments || []).map(a => {
+          const newArc = {
+            ...a,
+            center: applyPt(a.center),
+            radius: a.radius * scale, // exact: UI scale is always uniform (sx===sy); elliptical (non-uniform) arcs are intentionally unsupported - see transformPrimitive header
+            startPoint: a.startPoint ? applyPt(a.startPoint) : undefined,
+            endPoint: a.endPoint ? applyPt(a.endPoint) : undefined
+          };
+          // Transform angles through the matrix
+          if (a.startAngle !== undefined) newArc.startAngle = transformAngle(a.startAngle);
+          if (a.endAngle !== undefined) newArc.endAngle = transformAngle(a.endAngle);
+          // Reflections flip arc winding and sweep direction
+          if (det < 0) {
+            newArc.clockwise = !a.clockwise;
+            if (a.sweepAngle !== undefined) newArc.sweepAngle = -a.sweepAngle;
+          }
+          reregister(newArc);
+          return newArc;
+        });
+        const newPoints = c.points.map(p => {
+          const x = matrix.a * p.x + matrix.c * p.y + matrix.e;
+          const y = matrix.b * p.x + matrix.d * p.y + matrix.f;
+          // Single-literal construction keeps every point on ONE
+          // V8 hidden class (no post-hoc property additions).
+          if (p.curveId > 0) return { x, y, curveId: remap(p.curveId), segmentIndex: p.segmentIndex, totalSegments: p.totalSegments, t: p.t };
+          return { x, y };
+        });
+        // A reflection reverses winding, not nesting: isHole stands, and the
+        // contour is reversed back to the winding isHole implies.
+        const contour = {
+          points: newPoints,
+          isHole: c.isHole,
+          isFullCircle: c.isFullCircle,
+          nestingLevel: c.nestingLevel || 0,
+          parentId: c.parentId || null,
+          arcSegments: newArcs,
+          curveIds: (c.curveIds || []).map(remap)
+        };
+        if (det < 0) GeometryTopology.reverseContourWinding(contour);
+        return contour;
+      });
+      const result = new PathPrimitive(newContours, { ...pathPrim.properties });
+      // After a reflection the contours hold the flipped ids, so the list is rebuilt from them.
+      if (pathPrim.curveIds) result.curveIds = [...new Set(newContours.flatMap(c => c.curveIds))];
+      return result;
+    },
+
+    /**
+     * Returns a representative interior point for a primitive.
+     * Uses the geometric centroid of the first contour's vertices.
+     * For convex shapes (circles, rectangles, obrounds) the centroid is always interior. For concave shapes the centroid is a practical approximation that works for all standard PCB primitives.
+     */
+    getRepresentativePoint(primitive) {
+      const points = primitive.contours?.[0]?.points;
+      if (points && points.length >= 3) {
+        let sumX = 0, sumY = 0;
+        for (let i = 0; i < points.length; i++) {
+          sumX += points[i].x;
+          sumY += points[i].y;
+        }
+        return { x: sumX / points.length, y: sumY / points.length };
+      }
+      // Fallback for analytic primitives that somehow survived without contours
+      if (primitive.center) return { ...primitive.center };
+      const bounds = primitive.getBounds();
+      if (bounds && isFinite(bounds.minX)) return { x: (bounds.minX + bounds.maxX) / 2, y: (bounds.minY + bounds.maxY) / 2 };
+      return null;
+    },
+
+    debug(message, data = null) {
+      if (!debugState.enabled) return;
+      data ? console.log(`[GeometryUtils] ${message}`, data)
+           : console.log(`[GeometryUtils] ${message}`);
+    }
+  };
+
+  Object.assign(GeometryUtils, ROOT.GeometryPoints);
+  ROOT.GeometryUtils = GeometryUtils;
 })();

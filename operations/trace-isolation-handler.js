@@ -10,36 +10,29 @@
  */
 
 (function() {
-    'use strict';
-    const ROOT = globalThis;
+  'use strict';
+  const ROOT = globalThis;
 
-    class TraceIsolationHandler extends OffsetOperationHandler {
+  class TraceIsolationHandler extends OffsetOperationHandler {
+    isCopperOperation() { return true; }
 
-        isCopperOperation() { return true; }
-
-        getToolpathPolicy() {
-            return {
-                staydownPartition: 'proximity'
-            };
-        }
-
-        /** Tier 1 only: isolation carries thousands of primitives and the inter-primitive merge is O(n²). */
-        resolveSourceTopology(operation) {
-            return this.resolveContourTopology(operation.primitives);
-        }
-
-        /**
-         * Laser clearance zone: expanded copper minus original copper (halo around traces).
-         */
-        async getClearanceZone(operation, settings) {
-            const step = settings.toolDiameter * (settings.stepOver / 100);
-            const isolationWidth = settings.isolationWidth
-                || (settings.toolDiameter + Math.max(0, (settings.passes || 1) - 1) * step)
-                || 0.3;
-            this.debug(`Isolation clearance width: ${isolationWidth.toFixed(3)}mm`);
-            return this.generateClearancePolygon(operation, isolationWidth);
-        }
+    getToolpathPolicy() {
+      return { staydownPartition: 'proximity' };
     }
 
-    ROOT.TraceIsolationHandler = TraceIsolationHandler;
+    /** Tier 1 only: isolation carries thousands of primitives and the inter-primitive merge is O(n²). */
+    resolveSourceTopology(operation) {
+      return this.resolveContourTopology(operation.primitives);
+    }
+
+    /** Laser clearance zone: expanded copper minus original copper (halo around traces). */
+    async getClearanceZone(operation, settings) {
+      const step = settings.toolDiameter * (settings.stepOver / 100);
+      const isolationWidth = settings.isolationWidth || (settings.toolDiameter + Math.max(0, (settings.passes) - 1) * step);
+      this.debug(`Isolation clearance width: ${isolationWidth.toFixed(3)}mm`);
+      return this.generateClearancePolygon(operation, isolationWidth);
+    }
+  }
+
+  ROOT.TraceIsolationHandler = TraceIsolationHandler;
 })();

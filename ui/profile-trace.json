@@ -9,16 +9,16 @@
   },
   "meta": {
     "app": "EasyTrace5000",
-    "version": "1.1"
+    "version": "1.2"
   },
   "clipper2scale": 10000,
   "chains": {
     "2d": {
-      "stages":    ["geometry", "output"],
+      "stages": ["geometry", "output"],
       "artifacts": ["offsets"]
     },
     "2.5d": {
-      "stages":    ["geometry", "strategy", "machine", "output"],
+      "stages": ["geometry", "strategy", "machine", "output"],
       "artifacts": ["offsets", "preview", "toolpath"]
     }
   },
@@ -26,48 +26,42 @@
     "isolation": {
       "handler": "TraceIsolationHandler",
       "toolSizing": "effective",
-      "label": "Copper Isolation",
-      "extensions": [".gbr", ".gbl", ".gtl", ".gbx", ".svg"],
+      "extensions": [".gbr", ".ger", ".gtl", ".gbl", ".gbx", ".svg"],
       "defaultTool": "vbit_45deg_0.2mm",
-      "machineClasses": {"router": "2.5d", "laser": "2d"}
+      "machineClasses": { "router": "2.5d", "laser": "2d" }
     },
     "clearing": {
       "handler": "TraceClearingHandler",
       "toolSizing": "effective",
-      "label": "Copper Clearing",
-      "extensions": [".gbr", ".gbl", ".gtl", ".gbx", ".svg"],
+      "extensions": [".gbr", ".ger", ".gtl", ".gbl", ".gbx", ".svg"],
       "defaultTool": "em_0.8mm_flat",
-      "machineClasses": {"router": "2.5d", "laser": "2d"}
-    },
-    "cutout": {
-      "handler": "TraceCutoutHandler",
-      "label": "Board Cutout",
-      "extensions": [".gbr", ".gko", ".gml", ".gm1", ".svg"],
-      "defaultTool": "em_1.0mm_flat",
-      "machineClasses": { "router": "2.5d", "laser": "2d"},
-      "defaults": { "depthPerPass": 0.3 },
-      "cutsThrough": true
+      "machineClasses": { "router": "2.5d", "laser": "2d" }
     },
     "drill": {
       "handler": "DrillHandler",
-      "label": "Drill",
-      "extensions": [".drl", ".xln", ".txt", ".tap", ".svg"],
+      "extensions": [".drl", ".xln", ".txt", ".tap", ".drill", ".exc", ".svg"],
       "defaultTool": "em_1.0mm_flat",
       "machineClasses": { "router": "2.5d", "laser": "2d" },
       "defaults": { "laserCutSide": "inside" },
       "cutsThrough": true
     },
+    "cutout": {
+      "handler": "TraceCutoutHandler",
+      "extensions": [".gbr", ".ger", ".gko", ".gml", ".gm1", ".svg"],
+      "defaultTool": "em_1.0mm_flat",
+      "machineClasses": { "router": "2.5d", "laser": "2d" },
+      "defaults": { "depthPerPass": 0.3 },
+      "cutsThrough": true
+    },
     "stencil": {
       "handler": "TraceStencilHandler",
-      "label": "Stencil",
-      "extensions": [".gbr", ".gtp", ".gbp", ".svg"],
+      "extensions": [".gbr", ".ger", ".gtp", ".gbp", ".gts", ".gbs", ".svg"],
       "defaultTool": "em_0.5mm_flat",
-      "machineClasses": {"router": "2.5d", "knife": "2d"}
+      "machineClasses": { "router": "2.5d", "knife": "2d" }
     }
   },
   "examples": {
     "exampleSMD1": {
-      "name": "Example 1 - SMD",
       "files": {
         "isolation": "../examples/exampleSMD1/isolation.gbr",
         "drill": "../examples/exampleSMD1/drill.drl",
@@ -77,7 +71,6 @@
       }
     },
     "exampleThroughHole1": {
-      "name": "Example 2 - Through-Hole",
       "files": {
         "isolation": "../examples/exampleThroughHole1/Gerber_BottomLayer.gbl",
         "drill": "../examples/exampleThroughHole1/Excellon_PTH_Through.drl",
@@ -85,59 +78,40 @@
       }
     },
     "line": {
-      "name": "Line Test",
       "files": { "isolation": "../examples/LineTest.svg" }
     },
     "calibration": {
-      "name": "100mm Step/mm Square",
       "files": { "cutout": "../examples/100mmSquare.svg" }
     }
   },
   "ui": {
-    "categories": {
-      "post": "Post-Processor",
-      "stock": "Stock",
-      "heights": "Heights & Feeds",
-      "rotary": "4th Axis",
-      "laser": "Laser Output",
-      "stencil": "Stencil Settings",
-      "tool": "Tool Selection",
-      "offset": "Offset Generation",
-      "laser_geometry": "Isolation",
-      "laser_strategy": "Clearing Strategy",
-      "laser_cutout": "Cut Settings",
-      "strategy": "Cutting Strategy",
-      "depth": "Depth Settings",
-      "cutout": "Cutout Settings",
-      "drill": "Peck Drill Parameters",
-      "feeds": "Feeds & Speeds",
-      "toolpath": "Toolpath Options",
-      "machine": "Machine Configuration",
-      "laser_export": "Export Settings",
-      "general": "General Settings"
-    },
-    "stages": {
-      "geometry": { "label": "XY Geometry", "icon": "icon-geometry-stage" },
-      "strategy": { "label": "Z Strategy", "icon": "icon-stage-offsets" },
-      "machine": { "label": "Feeds & Toolpaths", "icon": "icon-machine-stage" },
-      "output": { "label": "Output", "icon": "icon-output-stage" }
-    },
+    "exportOrder": ["isolation", "clearing", "drill", "cutout", "stencil"],
+    "categories": [
+      "post",
+      "stock",
+      "heights",
+      "rotary",
+      "laser",
+      "stencil",
+      "tool",
+      "offset",
+      "laser_geometry",
+      "laser_strategy",
+      "laser_cutout",
+      "strategy",
+      "depth",
+      "cutout",
+      "drill",
+      "feeds",
+      "toolpath",
+      "machine",
+      "laser_export",
+      "general"
+    ],
     "artifacts": {
-      "offsets": { "label": "Offsets", "label3d": "3D Paths", "icon": "icon-stage-offsets" },
-      "preview": { "label": "Preview", "icon": "icon-stage-preview" },
-      "toolpath": { "label": "Toolpaths", "icon": "icon-toolpath-stage" }
-    },
-    "text": {
-      "noToolsAvailable": "No tools available",
-      "gcodePlaceholder": "Click \"Calculate Toolpaths\" to generate G-code",
-      "gcodeNoExportAlert": "No G-code to export",
-      "statusReady": "Ready - Add PCB files to begin - Click here to expand log",
-      "statusLoading": "Loading...",
-      "statusProcessing": "Processing...",
-      "statusSuccess": "Operation completed successfully",
-      "statusError": "An error occurred",
-      "statusWarning": "Warning",
-      "logHintViz": "Toggle verbose debug messages in the Viz Panel."
+      "offsets": { "icon": "icon-stage-offsets" },
+      "preview": { "icon": "icon-stage-preview" },
+      "toolpath": { "icon": "icon-toolpath-stage" }
     },
     "shortcuts": [
       { "combo": "1", "action": "cycleCategory", "args": ["isolation"] },
@@ -153,19 +127,14 @@
     "machine.stock.margin": null,
     "machine.stock.material": null,
     "machine.stock.zeroReference": null,
-    "gcode.rotaryRoute": null,
-    "gcode.indexDwell": null,
+    "gcode.absoluteZ": null,
+    "machine.view.rotaryGrid": null,
+    "machine.view.rotaryWorkholding": null,
     "machine.stock.thicknessCopper": { "default": 0.035 }
   },
   "parameters": {
-    "meta": {
-      "app": "EasyTrace5000",
-      "version": "0.2",
-      "description": "Operation parameter definitions (Tool data delegated to ToolLibrary)"
-    },
     "drillMultiTool": {
       "type": "checkbox",
-      "label": "Multi-Tool Drilling",
       "stage": "geometry",
       "category": "tool",
       "operationTypes": "drill",
@@ -173,7 +142,6 @@
     },
     "tool": {
       "type": "select",
-      "label": "Tool",
       "stage": "geometry",
       "category": "tool",
       "conditional": "!drillMultiTool",
@@ -181,7 +149,6 @@
     },
     "toolNumber": {
       "type": "number",
-      "label": "Tool Number",
       "stage": "geometry",
       "category": "tool",
       "default": 1,
@@ -194,7 +161,6 @@
     },
     "toolDiameter": {
       "type": "number",
-      "label": "Tool Diameter",
       "unit": "mm",
       "min": 0.01,
       "max": 10.0,
@@ -206,7 +172,6 @@
     },
     "passes": {
       "type": "number",
-      "label": "Number of Passes",
       "min": 1,
       "max": 30,
       "step": 1,
@@ -217,7 +182,6 @@
     },
     "stepOver": {
       "type": "number",
-      "label": "Step Over",
       "unit": "%",
       "min": 10,
       "max": 99,
@@ -229,7 +193,6 @@
     },
     "combineOffsets": {
       "type": "checkbox",
-      "label": "Combine Passes",
       "default": true,
       "stage": "geometry",
       "category": "offset",
@@ -237,20 +200,18 @@
     },
     "cutSide": {
       "type": "select",
-      "label": "Cut Side",
       "default": "outside",
       "stage": "geometry",
       "category": "cutout",
       "operationTypes": "cutout",
       "options": [
-        { "value": "outside", "label": "Outside" },
-        { "value": "inside", "label": "Inside" },
-        { "value": "on", "label": "On Line" }
+        { "value": "outside" },
+        { "value": "inside" },
+        { "value": "on" }
       ]
     },
     "cutDepth": {
       "type": "number",
-      "label": "Cut Depth",
       "unit": "mm",
       "min": -10,
       "max": 0,
@@ -264,7 +225,6 @@
     },
     "multiDepth": {
       "type": "checkbox",
-      "label": "Multi-depth Cutting",
       "default": true,
       "stage": "strategy",
       "category": "depth",
@@ -272,7 +232,6 @@
     },
     "depthPerPass": {
       "type": "number",
-      "label": "Depth per Pass",
       "unit": "mm",
       "min": 0.001,
       "max": 5,
@@ -285,19 +244,17 @@
     },
     "entryType": {
       "type": "select",
-      "label": "Entry Type",
       "stage": "strategy",
       "category": "strategy",
       "default": "plunge",
       "operationTypes": ["isolation", "clearing", "cutout", "stencil"],
       "options": [
-        { "value": "plunge", "label": "Plunge (Vertical)" }
+        { "value": "plunge" }
       ]
     },
     "_comment_drill_geo": "═══ DRILL GEOMETRY ═══",
     "millHoles": {
       "type": "checkbox",
-      "label": "Mill Oversize Holes",
       "stage": "geometry",
       "category": "drill",
       "operationTypes": "drill",
@@ -306,7 +263,6 @@
     },
     "drillStepOver": {
       "type": "number",
-      "label": "Mill Stepover",
       "unit": "%",
       "stage": "geometry",
       "category": "drill",
@@ -318,10 +274,8 @@
       "conditional": "!drillMultiTool && millHoles"
     },
     "_comment_drill_mill_strat": "═══ DRILL MILLING DEPTH (strategy, conditional on millHoles) ═══",
-
     "drillMultiDepth": {
       "type": "checkbox",
-      "label": "Multi-depth Milling",
       "stage": "strategy",
       "category": "depth",
       "operationTypes": "drill",
@@ -330,7 +284,6 @@
     },
     "drillDepthPerPass": {
       "type": "number",
-      "label": "Depth Per Pass",
       "unit": "mm",
       "stage": "strategy",
       "category": "depth",
@@ -343,20 +296,18 @@
     },
     "drillEntryType": {
       "type": "select",
-      "label": "Entry Method",
       "stage": "strategy",
       "category": "depth",
       "operationTypes": "drill",
       "default": "helix",
       "conditional": "millHoles",
       "options": [
-        { "value": "helix", "label": "Helix (Spiral entry)" },
-        { "value": "plunge", "label": "Plunge (Vertical)" }
+        { "value": "helix" },
+        { "value": "plunge" }
       ]
     },
     "peckDepth": {
       "type": "number",
-      "label": "Peck Depth",
       "unit": "mm",
       "min": 0,
       "max": 5,
@@ -368,7 +319,6 @@
     },
     "dwellTime": {
       "type": "number",
-      "label": "Dwell Time",
       "unit": "s",
       "min": 0,
       "max": 10,
@@ -380,7 +330,6 @@
     },
     "retractHeight": {
       "type": "number",
-      "label": "Retract Height",
       "unit": "mm",
       "min": 0,
       "max": 10,
@@ -392,22 +341,20 @@
     },
     "cannedCycle": {
       "type": "select",
-      "label": "Canned Cycle",
       "stage": "strategy",
       "category": "drill",
       "operationTypes": "drill",
       "default": "none",
       "options": [
-        { "value": "none", "label": "None (G0 + G1)" },
-        { "value": "G81", "label": "G81 - Simple Drill" },
-        { "value": "G82", "label": "G82 - Dwell" },
-        { "value": "G83", "label": "G83 - Peck" },
-        { "value": "G73", "label": "G73 - Peck (Stepped)" }
+        { "value": "none" },
+        { "value": "G81" },
+        { "value": "G82" },
+        { "value": "G83" },
+        { "value": "G73" }
       ]
     },
     "tabs": {
       "type": "number",
-      "label": "Number of Tabs",
       "min": 0,
       "max": 12,
       "step": 1,
@@ -418,7 +365,6 @@
     },
     "tabWidth": {
       "type": "number",
-      "label": "Tab Width",
       "unit": "mm",
       "min": 0.1,
       "max": 10,
@@ -430,7 +376,6 @@
     },
     "tabHeight": {
       "type": "number",
-      "label": "Tab Height",
       "unit": "mm",
       "min": 0.1,
       "max": 5,
@@ -442,7 +387,6 @@
     },
     "feedRate": {
       "type": "number",
-      "label": "Feed Rate",
       "unit": "mm/min",
       "min": 1,
       "max": 5000,
@@ -452,7 +396,6 @@
     },
     "plungeRate": {
       "type": "number",
-      "label": "Plunge Rate",
       "unit": "mm/min",
       "min": 1,
       "max": 2000,
@@ -462,7 +405,6 @@
     },
     "spindleSpeed": {
       "type": "number",
-      "label": "Spindle Speed",
       "unit": "RPM",
       "min": 100,
       "max": 30000,
@@ -473,7 +415,6 @@
     },
     "spindleDwell": {
       "type": "number",
-      "label": "Dwell",
       "unit": "s",
       "min": 0,
       "max": 60,
@@ -484,7 +425,6 @@
     },
     "laserIsolationWidth": {
       "type": "number",
-      "label": "Isolation Width",
       "unit": "mm",
       "step": 0.01,
       "min": 0.05,
@@ -497,7 +437,6 @@
     },
     "laserClearingPadding": {
       "type": "number",
-      "label": "Clearing Padding",
       "unit": "mm",
       "step": 0.1,
       "min": 0,
@@ -510,21 +449,19 @@
     },
     "laserClearStrategy": {
       "type": "select",
-      "label": "Clearing Strategy",
       "default": "filled",
       "stage": "geometry",
       "category": "laser_strategy",
       "machineClasses": ["laser"],
       "operationTypes": ["isolation", "clearing"],
       "options": [
-        { "value": "filled", "label": "Filled Polygon - Laser software controls fill" },
-        { "value": "offset", "label": "Offset Paths - Concentric, streak-proof" },
-        { "value": "hatch", "label": "Hatch Fill - Directional line coverage" }
+        { "value": "filled" },
+        { "value": "offset" },
+        { "value": "hatch" }
       ]
     },
     "laserSpotSize": {
       "type": "number",
-      "label": "Laser Spot Size",
       "unit": "mm",
       "step": 0.01,
       "min": 0.01,
@@ -538,7 +475,6 @@
     },
     "laserSpacingMode": {
       "type": "select",
-      "label": "Spacing Method",
       "default": "stepover",
       "stage": "geometry",
       "category": "laser_strategy",
@@ -546,14 +482,13 @@
       "operationTypes": ["isolation", "clearing"],
       "conditional": "laserClearStrategy:offset,hatch",
       "options": [
-        { "value": "stepover", "label": "Step Over %" },
-        { "value": "lpcm", "label": "Lines per cm" },
-        { "value": "lpi", "label": "Lines per inch" }
+        { "value": "stepover" },
+        { "value": "lpcm" },
+        { "value": "lpi" }
       ]
     },
     "laserStepOver": {
       "type": "number",
-      "label": "Step Over",
       "unit": "%",
       "step": 5,
       "min": 10,
@@ -567,7 +502,6 @@
     },
     "laserLinesPerCm": {
       "type": "number",
-      "label": "Lines per cm",
       "unit": "lines/cm",
       "step": 1,
       "min": 1,
@@ -581,7 +515,6 @@
     },
     "laserLinesPerInch": {
       "type": "number",
-      "label": "Lines per inch",
       "unit": "lines/inch",
       "step": 5,
       "min": 5,
@@ -595,7 +528,6 @@
     },
     "laserHatchPasses": {
       "type": "number",
-      "label": "Hatch Passes",
       "step": 1,
       "min": 1,
       "max": 8,
@@ -608,7 +540,6 @@
     },
     "laserHatchAngle": {
       "type": "number",
-      "label": "Hatch Base Angle",
       "unit": "°",
       "step": 5,
       "min": 0,
@@ -622,20 +553,18 @@
     },
     "laserCutSide": {
       "type": "select",
-      "label": "Cut Side",
       "default": "outside",
       "stage": "geometry",
       "category": "laser_cutout",
       "machineClasses": ["laser"],
       "operationTypes": ["cutout", "drill"],
       "options": [
-        { "value": "outside", "label": "Outside (Kerf outward)" },
-        { "value": "inside", "label": "Inside (Kerf inward)" },
-        { "value": "on", "label": "On Line (No compensation)" }
+        { "value": "outside" },
+        { "value": "inside" },
+        { "value": "on" }
       ]
     },
     "stencilMachine": {
-      "label": "Output",
       "type": "select",
       "stage": "geometry",
       "category": "stencil",
@@ -644,13 +573,12 @@
       "bindsMachineClass": true,
       "default": "router",
       "options": [
-        { "value": "router", "label": "CNC Milling (G-code)" },
-        { "value": "knife", "label": "Vinyl / CO2 Laser (SVG)" }
+        { "value": "router" },
+        { "value": "knife" }
       ]
     },
     "stencilOffset": {
       "type": "number",
-      "label": "Aperture Offset",
       "unit": "mm",
       "step": 0.01,
       "min": -1.0,
@@ -663,7 +591,6 @@
     },
     "stencilIgnoreRegions": {
       "type": "checkbox",
-      "label": "Ignore Solid Regions (Pads Only)",
       "default": true,
       "stage": "geometry",
       "category": "stencil",
@@ -672,7 +599,6 @@
     },
     "stencilExcludeDrillPads": {
       "type": "checkbox",
-      "label": "Exclude Pads Over Drill Holes",
       "default": true,
       "stage": "geometry",
       "category": "stencil",
@@ -681,7 +607,6 @@
     },
     "stencilAddRegHoles": {
       "type": "checkbox",
-      "label": "Add Registration Holes",
       "default": false,
       "stage": "geometry",
       "category": "stencil",
@@ -690,7 +615,6 @@
     },
     "stencilRegDiameter": {
       "type": "number",
-      "label": "Registration Hole Diameter",
       "unit": "mm",
       "step": 0.1,
       "min": 0.5,
@@ -704,7 +628,6 @@
     },
     "stencilRegMargin": {
       "type": "number",
-      "label": "Registration Hole Margin",
       "unit": "mm",
       "step": 0.5,
       "min": 1.0,
@@ -718,7 +641,6 @@
     },
     "stencilCornerRadius": {
       "type": "number",
-      "label": "Corner Radius",
       "unit": "mm",
       "step": 0.01,
       "min": 0,
@@ -727,18 +649,15 @@
       "stage": "geometry",
       "category": "stencil",
       "operationTypes": "stencil",
-      "machineClasses": ["knife"],
-      "help": "Rounds aperture corners. A drag knife cannot pivot in place and a laser dwells at a direction reversal; both cut a rounded corner more predictably than a square one. 0 leaves corners square. Costs one extra boolean pass per aperture."
+      "machineClasses": ["knife"]
     },
-        "optimizeToolpath": {
+    "optimizeToolpath": {
       "type": "checkbox",
-      "label": "Optimize Path Order",
       "default": true,
       "stage": "machine",
       "category": "toolpath",
       "machineClasses": ["router"],
-      "invalidates": false,
-      "help": "Reorders cuts within this operation to cut rapid travel. Off keeps the generation order. The job exporter has its own setting for a combined program."
+      "invalidates": false
     }
   }
 }

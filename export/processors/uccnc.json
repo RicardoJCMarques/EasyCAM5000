@@ -1,0 +1,67 @@
+{
+  "_projectInfo": {
+    "file": "export/processors/uccnc.json",
+    "description": "Post-processor setup: UCCNC",
+    "author": "Eltryus - Ricardo Marques",
+    "see": "https://github.com/RicardoJCMarques/EasyCAM5000",
+    "license": "AGPL-3.0-or-later",
+    "copyright": "Copyright (C) 2025-2026 Eltryus - Ricardo Marques"
+  },
+  "meta": {
+    "kind": "setup"
+  },
+  "id": "uccnc",
+  "label": "UCCNC",
+  "logic": "rs274",
+  "maturity": "experimental",
+  "flags": {
+    "fileExtension": ".nc",
+    "commentStyle": "parenthesis",
+    "supportsComments": true,
+    "supportsUnits": true,
+    "supportsCoolant": true,
+    "supportsLineNumbers": true,
+    "lineNumberMax": 99999,
+    "modalCommands": true,
+    "coordinateDecimals": 3,
+    "rotaryDecimals": 3,
+    "feedDecimals": 1,
+    "spindleDecimals": 0,
+    "maxSpindleSpeed": 24000,
+    "spindle": { "on": "M3", "off": "M5", "scale": null },
+    "dwellUnit": "ms",
+    "dwellWord": "P",
+    "supportsArcCommands": true,
+    "arcFormat": "IJ",
+    "supportsCannedCycles": true,
+    "supportsToolChange": true,
+    "useM6": true,
+    "initialToolUsesM6": false,
+    "emitsInitialTool": true,
+    "pauseAfterToolChange": true,
+    "toolLengthComp": ["table", "none"],
+    "supportsAbsoluteZ": false,
+    "rotary": {
+      "routes": ["a-word", "wrapped-linear"],
+      "axisWords": ["A", "B"],
+      "inverseTime": true,
+      "maxInverseTime": 9999.99,
+      "continuous": true
+    }
+  },
+  "defaults": {
+    "startCode": "G64",
+    "endCode": "M5\nG0 X0 Y0\nM30",
+    "toolLengthCompMode": "table",
+    "rotaryRoute": "a-word",
+    "indexDwell": 0.3,
+    "lineNumbers": false,
+    "lineNumberStep": 10
+  },
+  "locks": {},
+  "_notes": {
+    "dwellUnit": "G4 P is milliseconds on UCCNC.",
+    "toolLengthComp": "Mach3-compatible: G43 H<n> against the control's tool table.",
+    "rotary": "Drives A/B/C and supports G93 inverse time. DRAFT - verify G93 on your build, and confirm the axis is configured ROTATIONAL (degrees) rather than linear, or 'a-word' degrees will be read as millimetres. indexDwell drives anything; Machine Settings overrides it."
+  }
+}

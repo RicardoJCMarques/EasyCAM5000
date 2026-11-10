@@ -13,22 +13,22 @@
    CSS RESET
    ============================================================================ */
 * {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }
 
 a {
-    color: inherit;
-    text-decoration: none;
-    cursor: pointer;
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
 }
 
 /* ============================================================================
    ROOT BASELINE
    ============================================================================ */
 html {
-    font-size: 16px; /* Explicit font-size baseline for rem calculations */
+  font-size: 16px; /* Explicit font-size baseline for rem calculations */
 }
 
 /* ============================================================================
@@ -36,114 +36,114 @@ html {
    Colors loaded from theme JSON via theme-loader.js
    ============================================================================ */
 :root {
-    /* Spacing Scale */
-    --spacing-xs: 0.25rem;    /* 4px */
-    --spacing-sm: 0.5rem;     /* 8px */
-    --spacing-md: 0.75rem;    /* 12px */
-    --spacing-lg: 1rem;       /* 16px */
-    --spacing-xl: 1.5rem;     /* 24px */
-    --spacing-xxl: 2rem;      /* 32px */
+  /* Spacing Scale */
+  --spacing-xs: 0.25rem; /* 4px */
+  --spacing-sm: 0.5rem; /* 8px */
+  --spacing-md: 0.75rem; /* 12px */
+  --spacing-lg: 1rem; /* 16px */
+  --spacing-xl: 1.5rem; /* 24px */
+  --spacing-xxl: 2rem; /* 32px */
 
-    /* Border Radius */
-    --radius-sm: 0.125rem;    /* 2px */
-    --radius: 0.25rem;        /* 4px */
-    --radius-md: 0.375rem;    /* 6px */
-    --radius-lg: 0.5rem;      /* 8px */
+  /* Border Radius */
+  --radius-sm: 0.125rem; /* 2px */
+  --radius: 0.25rem; /* 4px */
+  --radius-md: 0.375rem;  /* 6px */
+  --radius-lg: 0.5rem; /* 8px */
 
-    /* Shadows */
-    --shadow-sm: 0 1px 2px color-mix(in srgb, var(--color-bw-black) 30%, transparent);
-    --shadow-md: 0 2px 8px color-mix(in srgb, var(--color-bw-black) 30%, transparent);
-    --shadow-lg: 0 4px 16px color-mix(in srgb, var(--color-bw-black) 40%, transparent);
+  /* Shadows */
+  --shadow-sm: 0 1px 2px color-mix(in srgb, var(--color-bw-black) 30%, transparent);
+  --shadow-md: 0 2px 8px color-mix(in srgb, var(--color-bw-black) 30%, transparent);
+  --shadow-lg: 0 4px 16px color-mix(in srgb, var(--color-bw-black) 40%, transparent);
 
-    /* Typography */
-    --font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
-    --font-mono: 'SF Mono', Consolas, 'Courier New', monospace;
-    --font-size-xs: 0.75rem;      /* 12px */
-    --font-size-sm: 0.8125rem;    /* 13px */
-    --font-size-base: 0.875rem;   /* 14px */
-    --font-size-lg: 0.9375rem;    /* 15px */
-    --font-size-xl: 1.0625rem;    /* 17px */
-    --font-size-xxl: 1.1875rem;   /* 19px */
-    --line-height-tight: 1.25;
-    --line-height-base: 1.6;
-    --line-height-relaxed: 1.75;
-    
-    /* Breakpoint Scale - documented here, restated literally in @media
-       (custom properties are not valid inside media queries).
-         --bp-lg  1000px  sidebars collapse
-         --bp-md   768px  single-column workspace
-         --bp-sm   600px  compact toolbar
-         --bp-xs   480px  phone portrait */
+  /* Typography */
+  --font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
+  --font-mono: 'SF Mono', Consolas, 'Courier New', monospace;
+  --font-size-xs: 0.75rem; /* 12px */
+  --font-size-sm: 0.8125rem; /* 13px */
+  --font-size-base: 0.875rem; /* 14px */
+  --font-size-lg: 0.9375rem; /* 15px */
+  --font-size-xl: 1.0625rem; /* 17px */
+  --font-size-xxl: 1.1875rem; /* 19px */
+  --line-height-tight: 1.25;
+  --line-height-base: 1.6;
+  --line-height-relaxed: 1.75;
+  
+  /* 
+   * Breakpoint Scale - documented here, restated literally in @media
+   * (custom properties are not valid inside media queries).
+   * --bp-lg 1000px sidebars collapse
+   * --bp-md 768px single-column workspace
+   * --bp-sm 600px compact toolbar
+   * --bp-xs 480px phone portrait
+   */
 
-    /* Z-Index Scale */
-    --z-base: 1;
-    --z-dropdown: 100;
-    --z-sticky: 200;
-    --z-overlay: 800;
-    --z-modal: 1000;
-    --z-tooltip: 10000;
+  /* Z-Index Scale */
+  --z-base: 1;
+  --z-dropdown: 100;
+  --z-sticky: 200;
+  --z-overlay: 800;
+  --z-modal: 1000;
+  --z-tooltip: 10000;
 
-    /* Touch Targets */
-    --touch-target-min: 2.75rem;      /* 44px */
-    --touch-target-compact: 2.25rem;  /* 36px */
-    
-    /* Environment insets */
-    --safe-area-top: env(safe-area-inset-top, 0px);
-    --safe-area-bottom: env(safe-area-inset-bottom, 0px);
-    --safe-area-left: env(safe-area-inset-left, 0px);
-    --safe-area-right: env(safe-area-inset-right, 0px);
+  /* Touch Targets */
+  --touch-target-min: 2.75rem; /* 44px */
+  --touch-target-compact: 2.25rem; /* 36px */
+  
+  /* Environment insets */
+  --safe-area-top: env(safe-area-inset-top, 0px);
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-area-left: env(safe-area-inset-left, 0px);
+  --safe-area-right: env(safe-area-inset-right, 0px);
 
-    /* Layout Scale */
-    --toolbar-height-base: 3.375rem;
-    --status-bar-height: 2.75rem;
-    --section-header-height: 2.25rem;
+  /* Layout Scale */
+  --toolbar-height-base: 3.375rem;
+  --status-bar-height: 2.75rem;
+  --section-header-height: 2.25rem;
 
-    --sidebar-left-width: clamp(15.5rem, 20vw, 21rem);
-    --sidebar-right-width: clamp(15.5rem, 20vw, 22rem);
+  --sidebar-left-width: clamp(15.5rem, 20vw, 21rem);
+  --sidebar-right-width: clamp(15.5rem, 20vw, 22rem);
 
-    /* Chrome bands including the device inset, so .workspace can subtract both
-       ends from the viewport height in one calc. */
-    --header-layout-height: calc(var(--toolbar-height-base) + var(--safe-area-top));
-    --footer-total-height: calc(var(--status-bar-height) + var(--safe-area-bottom));
+  /* Chrome bands including the device inset, so .workspace can subtract both
+      ends from the viewport height in one calc. */
+  --header-layout-height: calc(var(--toolbar-height-base) + var(--safe-area-top));
+  --footer-total-height: calc(var(--status-bar-height) + var(--safe-area-bottom));
 
-    /* Set DEFAULTS to the safe fallback */
-    --vh-dynamic: 100vh;
-    --vh-full: 100vh;
-    --vh-small: 100vh;
+  /* Set DEFAULTS to the safe fallback */
+  --vh-full: 100vh;
+  --vh-small: 100vh;
 }
 
 /* Overwrite with modern units only if supported */
 @supports (height: 100dvh) {
-    :root {
-        --vh-dynamic: 100dvh;
-        --vh-full: 100dvh;
-    }
+  :root {
+    --vh-full: 100dvh;
+  }
 }
 
 @supports (height: 100svh) {
-    :root {
-        --vh-small: 100svh;
-    }
+  :root {
+    --vh-small: 100svh;
+  }
 }
 
 /* ============================================================================
    TYPOGRAPHY
    ============================================================================ */
 body {
-    font-family: var(--font-family);
-    font-size: var(--font-size-base);
-    line-height: var(--line-height-base);
-    color: var(--color-text-primary);
-    background: var(--color-bg-primary);
-    overflow: hidden;
-    user-select: none;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
+  font-family: var(--font-family);
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-base);
+  color: var(--color-text-primary);
+  background: var(--color-bg-primary);
+  overflow: hidden;
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 h1, h2, h3, h4, h5, h6 {
-    line-height: var(--line-height-tight);
-    font-weight: 600;
+  line-height: var(--line-height-tight);
+  font-weight: 600;
 }
 
 h1 { font-size: var(--font-size-xxl); }
@@ -154,8 +154,8 @@ h5 { font-size: var(--font-size-sm); }
 h6 { font-size: var(--font-size-xs); }
 
 code, pre {
-    font-family: var(--font-mono);
-    font-size: var(--font-size-sm);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
 }
 
 /*
@@ -164,63 +164,63 @@ code, pre {
    This catches links in paragraphs, lists, and docs automatically.
 */
 a:not([class]) {
-    color: var(--color-accent-primary);
-    font-weight: 500;
+  color: var(--color-accent-primary);
+  font-weight: 500;
 }
 
 a:not([class]):hover {
-    color: var(--color-accent-hover);
-    text-decoration: underline;
+  color: var(--color-accent-hover);
+  text-decoration: underline;
 }
 
 /* ============================================================================
    SKIP LINK (Accessibility)
    ============================================================================ */
 .skip-link {
-    position: absolute;
-    top: -3rem;
-    left: 0;
-    background: var(--color-accent-primary);
-    color: var(--color-bw-white);
-    padding: var(--spacing-sm) var(--spacing-md);
-    z-index: calc(var(--z-modal) + 10); /* Above modals */
-    text-decoration: none;
-    font-weight: 600;
-    border-radius: 0 0 var(--radius) 0
+  position: absolute;
+  top: -3rem;
+  left: 0;
+  background: var(--color-accent-primary);
+  color: var(--color-text-on-emphasis);
+  padding: var(--spacing-sm) var(--spacing-md);
+  z-index: calc(var(--z-modal) + 10); /* Above modals */
+  text-decoration: none;
+  font-weight: 600;
+  border-radius: 0 0 var(--radius) 0
 }
 
 .skip-link:focus {
-    top: 0;
-    outline: 2px solid var(--color-border-focus);
-    outline-offset: 2px;
+  top: 0;
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: 2px;
 }
 
 /* Tree item focus indicators */
 .file-node-content:focus-visible,
 .geometry-node-content:focus-visible,
 .category-header:focus-visible {
-    outline: 2px solid var(--color-border-focus);
-    outline-offset: -2px;
-    border-radius: var(--radius);
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: -2px;
+  border-radius: var(--radius);
 }
 
 /* ============================================================================
    UTILITY CLASSES
    ============================================================================ */
 .hidden {
-    display: none !important;
+  display: none !important;
 }
 
 .visually-hidden {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-    border-width: 0;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
 }
 
 /* Text Utilities */
@@ -248,73 +248,73 @@ a:not([class]):hover {
 
 /* Utility to force an item to span the entire grid row */
 .col-span-full {
-    grid-column: 1 / -1;
+  grid-column: 1 / -1;
 }
 
 /* Document wide, grab cursor during panning enforcement */
 html.is-panning,
 html.is-panning * {
-    cursor: grabbing !important;
+  cursor: grabbing !important;
 }
 
 /* ============================================================================
    SCROLLBARS
    ============================================================================ */
 ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-    background: var(--color-bg-primary);
+  background: var(--color-bg-primary);
 }
 
 ::-webkit-scrollbar-thumb {
-    background: var(--color-border-secondary);
-    border-radius: var(--radius);
+  background: var(--color-border-secondary);
+  border-radius: var(--radius);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: var(--color-text-disabled);
+  background: var(--color-text-disabled);
 }
 
 /* ============================================================================
    FOCUS INDICATORS
    ============================================================================ */
 *:focus-visible {
-    outline: 2px solid var(--color-border-focus);
-    outline-offset: 2px;
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: 2px;
 }
 
 button:focus-visible,
 input:focus-visible,
 select:focus-visible,
 textarea:focus-visible {
-    outline: 2px solid var(--color-border-focus);
-    outline-offset: 2px;
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: 2px;
 }
 
 /* ============================================================================
    SVG DEFAULTS
    ============================================================================ */
 svg {
-    color: inherit;
-    vertical-align: middle;
+  color: inherit;
+  vertical-align: middle;
 }
 
 svg[fill="currentColor"] {
-    fill: currentColor;
-    stroke: none;
+  fill: currentColor;
+  stroke: none;
 }
 
 /* ============================================================================
-   ICON SPRITE SYSTEM // REVIEW - .btn svg rules could overlap/clash
+   ICON SPRITE SYSTEM
    ============================================================================ */
 
 .cam-icon {
-    display: inline-block;
-    vertical-align: middle;
-    flex-shrink: 0;
+  display: inline-block;
+  vertical-align: middle;
+  flex-shrink: 0;
 }
 
 /* ============================================================================
@@ -325,32 +325,32 @@ svg[fill="currentColor"] {
    Making non-interactive children click-transparent forces clicks to register on the <label> itself, which reliably toggles the input. */
 .checkbox-label > *:not(input):not(button):not(.tooltip-trigger),
 .radio-label > *:not(input):not(button):not(.tooltip-trigger) {
-    pointer-events: none;
+  pointer-events: none;
 }
 
 /* ============================================================================
 MOTION AND FORCED COLOURS
 ============================================================================*/
 @media (prefers-reduced-motion: reduce) {
-    *, *::before, *::after {
-        animation-duration: 0.01ms !important;
-        animation-iteration-count: 1 !important;
-        transition-duration: 0.01ms !important;
-        scroll-behavior: auto !important;
-    }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 @media (forced-colors: active) {
-    /* Backgrounds are dropped in forced-colors, so a button that relied on one
-       for its edge becomes invisible. A transparent border is repainted. */
-    .btn, .btn--icon, .op-type-tab, .menu-item, .section-header {
-        border: 1px solid transparent;
-    }
-    .path-row[aria-selected="true"], .group-row[aria-selected="true"],
-    .bucket-header.selected, .stage-node.selected {
-        forced-color-adjust: none;
-        background: Highlight;
-        color: HighlightText;
-    }
-    .canvas-container { forced-color-adjust: none; }
+  /* Backgrounds are dropped in forced-colors, so a button that relied on one
+    for its edge becomes invisible. A transparent border is repainted. */
+  .btn, .btn--icon, .op-type-tab, .menu-item, .section-header {
+    border: 1px solid transparent;
+  }
+  .path-row[aria-selected="true"], .group-row[aria-selected="true"],
+  .bucket-header.selected, .stage-node.selected {
+    forced-color-adjust: none;
+    background: Highlight;
+    color: HighlightText;
+  }
+  .canvas-container { forced-color-adjust: none; }
 }

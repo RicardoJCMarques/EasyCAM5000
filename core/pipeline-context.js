@@ -28,700 +28,658 @@
  *  core.handlers / core.getHandler(type)   toolpath policy only
  */
 
-(function () {
-    'use strict';
+(function() {
+  'use strict';
 
-    const ROOT = globalThis;
-    const C = ROOT.CAMConfig.constants;
-    const D = ROOT.CAMConfig.defaults;
-    const EPSILON = C.precision.epsilon;
-    const debugState = D.debug;
+  const ROOT = globalThis;
+  const C = ROOT.CAMConfig.constants;
+  const D = ROOT.CAMConfig.defaults;
+  const EPSILON = C.precision.epsilon;
+  const debugState = D.debug;
 
-    class PipelineContextBuilder {
-        constructor(core) {
-            this.core = core;
-        }
-
-        // ═══════════════════════════════════════════════════════════
-        // Tooling
-        // ═══════════════════════════════════════════════════════════
-
-        /**
-         * Resolves the tool descriptor for one operation.
-         * The T word is the operator's decision. Both profiles declare
-         * `toolNumber` with default 1, min 1, max 99, and BaseOperationPanel
-         * .runGeneration refuses to generate when the field is cleared - so a
-         * router operation always arrives with a number the operator either
-         * accepted or typed. On a machine with no changer, 1 on every
-         * operation is the correct answer and the default gives it for free.
-         * A null number is a ROUTE FACT rather than a gap: `toolNumber`
-         * carries no `machineClasses`, so getStageParameters filters it to
-         * router, and laser and knife/vector never render the field or emit a
-         * T word. A post that receives null emits nothing, because there is
-         * nothing to emit - not because a value is being withheld.
-         * Gaps are reported, not blocked: DrillHandler flags unassigned rows,
-         * describeToolSharing reports one number carrying two diameters, and
-         * the export modal renders both.
-         * @param {Object} operation
-         * @param {Object} params merged parameterStore values
-         */
-        resolveToolDescriptor(operation, params) {
-            const record = this.core.toolLibrary.getTool(params.tool) || null;
-            const pick = value => {
-                const n = Number(value);
-                return Number.isInteger(n) && n > 0 ? n : null;
-            };
-            const descriptor = {
-                number: pick(params.toolNumber),
-                id: params.tool || null,
-                name: record?.name || params.tool || null,
-                type: record?.type || null,
-                diameter: params.toolDiameter,
-                spindleSpeed: params.spindleSpeed,
-                spindleDwell: params.spindleDwell,
-                operationId: operation.id,
-                operationLabel: `${operation.type}: ${operation.file?.name || operation.id}`,
-                cutsWithOwnTool: true
-            };
-            // Multi-tool drilling: generation is refused until every active row
-            // has its own cutter and T number, so the operation's tool cuts
-            // nothing and claims no number. The map key is the string
-            // DrillHandler.diameterKey produces, so the export table, the
-            // split-drill path and the descriptor agree without re-deriving it.
-            // Single-tool drilling cuts everything with the operation's number;
-            // a drillMap repeating it per diameter would report a tool colliding
-            // with itself in describeToolSharing.
-            if (operation.type === 'drill' && DrillHandler.isMultiTool(params)) {
-                descriptor.cutsWithOwnTool = false;
-                const active = Object.values(operation.drillTable?.rows || {}).filter(row => row.strategy !== 'skip');
-                if (active.length > 0) {
-                    descriptor.drillMap = {};
-                    for (const row of active) {
-                        const effectiveDiam = row.toolDiameter > 0 ? row.toolDiameter : row.diameter;
-                        descriptor.drillMap[row.key] = {
-                            number: pick(row.toolNumber),
-                            diameter: effectiveDiam,
-                            strategy: row.strategy,
-                            name: row.toolId || `${row.strategy === 'mill' ? 'Mill' : 'Drill'} ${effectiveDiam}mm`
-                        };
-                    }
-                }
-            }
-            return descriptor;
-        }
-
-        /**
-         * Reports T numbers shared by tools of Different sizes.
-         * Identity is the effective diameter, not the library id. A tool id is
-         * a naming convenience with no enforcement behind it - `drill_1.0mm`
-         * and `em_1.0mm_flat` are different records and very often the same
-         * physical cutter in the same collet, especially since millHoles
-         * defaults to true and most drill work never touches a drill bit.
-         * Comparing ids flagged exactly the case most likely to be correct.
-         * Same number + same diameter is silent. Same number + different
-         * diameters is the only thing worth saying, and it is a note, not a
-         * refusal: the operator knows their spindle, EasyCAM does not.
-         * @param {Array} descriptors from resolveToolDescriptor
-         * @returns {Array<{number:number, entries:Array<{label:string, diameter:number}>}>}
-         */
-        describeToolSharing(descriptors) {
-            // 0.01mm separates 3.175 from 3.0 without splitting 3.175 from a
-            // rounded 3.18. precision.coordinate (0.001) is too tight for a
-            // hand-entered diameter.
-            const DIAMETER_TOLERANCE = 0.01;
-            const byNumber = new Map();
-            const record = (label, number, diameter) => {
-                if (number == null || !(diameter > 0)) return;
-                let entries = byNumber.get(number);
-                if (!entries) {
-                    entries = [];
-                    byNumber.set(number, entries);
-                }
-                if (!entries.some(e => Math.abs(e.diameter - diameter) < DIAMETER_TOLERANCE)) {
-                    entries.push({ label, diameter });
-                }
-            };
-            for (const d of descriptors) {
-                if (d.cutsWithOwnTool) record(d.operationLabel, d.number, d.diameter);
-                for (const [key, entry] of Object.entries(d.drillMap || {})) {
-                    record(`${d.operationLabel} - ${key}mm holes`, entry.number, entry.diameter);
-                }
-            }
-            const shared = [];
-            for (const [number, entries] of byNumber) {
-                if (entries.length > 1) shared.push({ number, entries });
-            }
-            return shared.sort((a, b) => a.number - b.number);
-        }
-
-        /**
-         * Resolves tool descriptors for a set of operations without building
-         * contexts or running a pipeline.
-         */
-        stageToolDescriptors(operationIds, parameterStore) {
-            const core = this.core;
-            const ids = operationIds || core.operations.filter(op => core.store.isExportReady(op)).map(op => op.id);
-            const staged = [];
-
-            for (const opId of ids) {
-                try {
-                    const operation = core.store.getOperation(opId);
-                    if (!operation) continue;
-                    const params = parameterStore.getAllParameters(opId);
-                    staged.push({
-                        opId: opId,
-                        operation: operation,
-                        tool: this.resolveToolDescriptor(operation, params)
-                    });
-                } catch (err) {
-                    console.warn(`[PipelineContext] tool staging skipped ${opId}: ${err.message}`);
-                }
-            }
-            return staged;
-        }
-
-        /**
-         * Everything the export modal needs to know about tooling.
-         * `fileGroups` lists the operation ids written into each output file;
-         * without it every operation is its own file. A file that holds more
-         * than one T number is the one case that needs the changer.
-         */
-        describeExportTooling(operationIds, parameterStore, fileGroups = null) {
-            const staged = this.stageToolDescriptors(operationIds, parameterStore);
-            const numbersOf = new Map();
-            for (const { opId, tool } of staged) {
-                const numbers = new Set();
-                if (tool.cutsWithOwnTool !== false && tool.number > 0) numbers.add(tool.number);
-                for (const entry of Object.values(tool.drillMap || {})) {
-                    if (entry.number > 0) numbers.add(entry.number);
-                }
-                numbersOf.set(opId, numbers);
-            }
-            const groups = fileGroups || staged.map((s) => [s.opId]);
-            const hasMultiToolFile = groups.some((ids) => {
-                const inFile = new Set();
-                for (const id of ids) {
-                    for (const n of numbersOf.get(id) || []) inFile.add(n);
-                }
-                return inFile.size > 1;
-            });
-            return { shared: this.describeToolSharing(staged.map((s) => s.tool)), hasMultiToolFile, staged };
-        }
-
-        /**
-         * Whether this job can use tool changes, and what to tell the operator if
-         * not.
-         * Returns a decision, not markup: the caller writes the DOM.
-         * @param {Object} intent {operationIds}
-         * @param {ParameterStore} parameterStore
-         * @param {Object} [tooling] describeExportTooling's answer for the planned files
-         * @returns {{supported:boolean, tlcMode:string, hint:?string,
-         *  warnings:Array<string>, shared:Array}}
-         */
-        describeToolChangeSupport(intent, parameterStore, tooling = null) {
-            const post = this.core.gcodeGenerator.getProcessorInfo(this.core.settings.gcode.postProcessor);
-            const caps = post?.capabilities || {};
-            if (!tooling) {
-                const routerIds = (intent.operationIds || []).filter(
-                    (id) => this.core.machineClassOf(this.core.store.getOperation(id)) === 'router',
-                );
-                tooling = routerIds.length
-                    ? this.describeExportTooling(routerIds, parameterStore)
-                    : { shared: [], hasMultiToolFile: false, staged: [] };
-            }
-            const warnings = [];
-            for (const group of tooling.shared) {
-                warnings.push(
-                    `T${group.number} is used by ${group.entries.map((e) => `${e.label} (⌀${e.diameter})`).join(' and ')}` +
-                        ' - same slot, different cutters.',
-                );
-            }
-            const supported = caps.supportsToolChange !== false;
-            let hint = null;
-            if (tooling.hasMultiToolFile && !supported) {hint =
-                `${post?.label || 'This post'} has no tool change, but a file in this job holds more than one tool. ` +
-                'Turn off single-file export, split the drill files, or give those operations one tool number.';
-            }
-            return {
-                supported,
-                tlcMode: this.core.settings.gcode?.toolLengthCompMode || 'none',
-                hint,
-                warnings,
-                shared: tooling.shared
-            };
-        }
-
-        /**
-         * Drill-milling parameter aliases. JSON can't carry two keys with the
-         * same name and different conditionals, so the profiles prefix the
-         * drill variants. One precedence rule for every alias pair: the
-         * prefixed key wins on a drill operation, the plain key otherwise.
-         */
-        resolveDrillAlias(operation, params, plainKey, drillKey) {
-            return operation.type === 'drill' && params[drillKey] !== undefined ? params[drillKey] : params[plainKey];
-        }
-
-        // ═══════════════════════════════════════════════════════════
-        // Parameter compilation and depth
-        // ═══════════════════════════════════════════════════════════
-
-        /**
-         * Offset Strategy Builder
-         * Translates pipeline-specific UI parameters into a pipeline-agnostic
-         * strategy object. Called before any handler runs - handlers never
-         * need to check pipeline type.
-         * @param {Object} operation - The operation with .type and .bounds
-         * @param {Object} params - Flat map from parameterStore.getAllParameters()
-         * @returns {Object} Strategy object ready for any handler
-         */
-        compileOperationParams(operation, params) {
-            const core = this.core;
-            const isLaser = core.machineClassOf(operation) === 'laser';
-            const exportFormat = isLaser ? core.settings.laser.exportFormat : null;
-            const isPNG = exportFormat === 'png';
-            const resolveDrillAlias = (a, b) => this.resolveDrillAlias(operation, params, a, b);
-
-            // Tool dimension
-            const toolDiameter = isLaser ? core.settings.laser.spotSize : params.toolDiameter;
-
-            // Step distance
-            let stepDistance = null;
-            let stepOver = null;
-            if (isLaser) {
-                if (isPNG) {
-                    stepDistance = toolDiameter;
-                } else {
-                    const mode = params.laserSpacingMode;
-                    switch (mode) {
-                        case 'lpcm':
-                            stepDistance = 10 / Math.max(params.laserLinesPerCm, 1);
-                            break;
-                        case 'lpi':
-                            stepDistance = 25.4 / Math.max(params.laserLinesPerInch, 1);
-                            break;
-                        case 'stepover':
-                        default:
-                            stepDistance = toolDiameter * (params.laserStepOver / 100);
-                            break;
-                    }
-                }
-            } else {
-                stepOver = resolveDrillAlias('stepOver', 'drillStepOver');
-            }
-
-            // Clear strategy
-            let clearStrategy = 'offset';
-            if (isLaser) clearStrategy = isPNG ? 'filled' : params.laserClearStrategy;
-
-            // Per-operation-type
-            let passes = null;
-            let targetWidth = null;
-            let cutSide = null;
-            let combineOffsets = false;
-
-            switch (operation.type) {
-                // Shared operation types
-                case 'drill':
-                    passes = 1;
-                    cutSide = (isLaser && params.laserCutSide) || 'inside';
-                    break;
-
-                // EasyTrace5000 operation types
-                case 'isolation':
-                    if (isLaser) {
-                        targetWidth = params.laserIsolationWidth || 0.4;
-                    } else {
-                        passes = params.passes || 3;
-                        combineOffsets = params.combineOffsets !== false;
-                    }
-                    break;
-                case 'clearing':
-                    combineOffsets = true;
-                    // No targetWidth - handler loop runs until geometry collapses.
-                    passes = 500;
-                    break;
-                case 'cutout':
-                    passes = 1;
-                    cutSide = isLaser ? params.laserCutSide || 'outside' : params.cutSide || 'outside';
-                    break;
-                case 'stencil':
-                    // Distance comes from stencilOffset and the cutter radius, not
-                    // from a pass ladder - see TraceStencilHandler.passDistance.
-                    passes = 1;
-                    combineOffsets = false;
-                    break;
-
-                // EasyShape5000 operation types
-                case 'profile':
-                    passes = 1;
-                    cutSide = params.cutSide || 'outside';
-                    break;
-                case 'pocket':
-                    combineOffsets = true;
-                    passes = 500;
-                    break;
-                case 'engrave':
-                    passes = 1;
-                    cutSide = 'on';
-                    break;
-                case 'vcarve':
-                case 'relief':
-                case 'rotary':
-                    // Depth comes from the generated 3D geometry, not pass distances. No cutSide, no stepOver, single logical pass.
-                    passes = 1;
-                    combineOffsets = false;
-                    break;
-            }
-
-            return {
-                toolDiameter: toolDiameter,
-                stepDistance: stepDistance,
-                stepOver: stepOver,
-                targetWidth: targetWidth,
-                passes: passes,
-                cutSide: cutSide,
-                clearStrategy: clearStrategy,
-                combineOffsets: combineOffsets,
-                isLaser: isLaser,
-                hatchAngle: params.laserHatchAngle,
-                hatchPasses: params.laserHatchPasses,
-                isolationWidth: isLaser ? params.laserIsolationWidth : null
-            };
-        }
-
-        /**
-         * Z of the material surface in machine coordinates.
-         * Rotary owns its own Z0 (centreline or blank face), so stock
-         * thickness never applies to it.
-         */
-        resolveSurfaceZ(operation) {
-            const stock = this.core.settings.machine.stock || {};
-            const isBedZero = stock.zeroReference && stock.zeroReference !== 'material';
-            return (isBedZero && operation.type !== 'rotary' && stock.thickness) || 0;
-        }
-
-        /**
-         * Calculates the final Z-depth levels for a toolpath.
-         */
-        calculateDepthLevels(cutDepth, depthPerPass, multiDepth, surfaceZ = 0) {
-            const totalCutDist = Math.abs(cutDepth);
-            const finalDepth = surfaceZ - totalCutDist;
-            const step = Math.abs(depthPerPass);
-
-            if (!multiDepth || step <= 0 || totalCutDist <= step) return [finalDepth]; // Single pass
-
-            const levels = [];
-            let currentDepth = surfaceZ;
-
-            // Loop while currentDepth is greater than (less negative than) finalDepth
-            while (currentDepth - step > finalDepth - EPSILON) {
-                currentDepth -= step;
-                levels.push(currentDepth);
-            }
-
-            // Ensure the final depth is always included if not already last
-            if (levels.length === 0 || levels[levels.length - 1] > finalDepth) levels.push(finalDepth);
-
-            return levels;
-        }
-
-        /**
-         * Depth ladders for the drill rows that override depth-per-pass or
-         * multi-depth. Built here because calculateDepthLevels is the only
-         * ladder in the app and a second copy in the translator would drift.
-         * Returns null when no row overrides, so the common case allocates
-         * nothing.
-         */
-        buildDrillDepthLevels(operation, params, depthPerPass, multiDepth, surfaceZ) {
-            if (!params?.drillMultiTool) return null;
-            const rows = operation.drillTable?.rows;
-            if (!rows) return null;
-
-            let levels = null;
-            for (const [key, row] of Object.entries(rows)) {
-                const step = row.mill?.depthPerPass;
-                const multi = row.mill?.multiDepth;
-                if (step != null || multi != null) {
-                    if (!levels) levels = {};
-                    levels[key] = this.calculateDepthLevels(params.cutDepth, step ?? depthPerPass, multi ?? multiDepth, surfaceZ);
-                }
-            }
-            return levels;
-        }
-
-        // ═══════════════════════════════════════════════════════════
-        // Transforms
-        // ═══════════════════════════════════════════════════════════
-
-        /**
-         * Returns the current workspace transform from the scene.
-         */
-        getTransforms() {
-            const t = this.core.scene.transform;
-
-            // Workspace matrix (rotation + mirror, NO origin) - still published
-            // separately because GraphicsExporter composes origin itself.
-            const wsMatrix = TransformMath.clone(this.core.scene.getWorkspaceMatrix());
-
-            // The machine matrix: T(-origin) x workspace. The only transform
-            // the toolpath pipeline applies, once, in GeometryTranslator.
-            const machineMatrix = TransformMath.multiply(
-                TransformMath.translation(-t.origin.x, -t.origin.y),
-                wsMatrix
-            );
-
-            return {
-                origin: { ...t.origin },
-                rotation: t.rotation,
-                rotationCenter: { ...t.rotationCenter },
-                mirrorX: t.mirrorX,
-                mirrorY: t.mirrorY,
-                mirrorCenter: { ...t.mirrorCenter },
-                // Derived, cloned so frozen contexts can't share the cache:
-                matrix: wsMatrix,
-                machineMatrix: machineMatrix,
-                machineIsIdentity: TransformMath.isIdentity(machineMatrix),
-                windingFlipped: this.core.scene.windingFlipped()
-            };
-        }
-
-        // ═══════════════════════════════════════════════════════════
-        // Context assembly
-        // ═══════════════════════════════════════════════════════════
-
-        /**
-         * Pipeline Context Builder
-         * Assembles all data for a single operation into a
-         * self-contained context object. Delegates offset direction
-         * to the registered handler so the core never checks
-         * operation type names for geometric decisions.
-         */
-        buildPipelineContext(operationId, parameterStore, resolvedTool = null) {
-            const core = this.core;
-            const operation = core.store.getOperation(operationId);
-            if (!operation) throw new Error(`Operation ${operationId} not found.`);
-
-            // Get all parameters from manager
-            const params = parameterStore.getAllParameters(operationId);
-            const resolveDrillAlias = (a, b) => this.resolveDrillAlias(operation, params, a, b);
-
-            // Drill milling aliases - JSON can't have duplicate keys with different
-            // conditionals, so both apps' profiles uses prefixed names (drillMultiDepth,
-            // drillDepthPerPass, drillEntryType) for operation-specific params that
-            // share names. Map them to the standard names the pipeline expects.
-            // REVIEW - Check if there's a better approach to this - there's already a new per app/operation input defaults override?
-            // More Operations have unique parameter modifiers and defaults now, might as well just review everything for consistency and keep the system but improve implementation?
-            const isDrill = operation.type === 'drill';
-            const mappedMultiDepth = resolveDrillAlias('multiDepth', 'drillMultiDepth');
-            const mappedDepthPerPass = resolveDrillAlias('depthPerPass', 'drillDepthPerPass');
-            const mappedEntryType = resolveDrillAlias('entryType', 'drillEntryType');
-            const mappedStepOver = resolveDrillAlias('stepOver', 'drillStepOver');
-
-            // Get global settings
-            const machine = core.settings.machine;
-            const gcode = core.settings.gcode;
-            const processorInfo = core.gcodeGenerator?.getProcessorInfo(gcode.postProcessor);
-
-            // Rotary 4th-axis export route. The post declares which routes it
-            // can emit (descriptor.capabilities.rotary.routes, preference
-            // order); gcode.rotaryRoute is the user's pick from the
-            // machine-settings dropdown. '' or an undeclared value = auto
-            // (first declared route). No declared routes = 'off', and any
-            // developed plan is dropped downstream with a pipeline warning.
-            const rotaryCaps = processorInfo?.capabilities?.rotary || { routes: [], axisWords: [], inverseTime: false, maxInverseTime: 0 };
-
-            // Indexed 3+1 needs a REAL rotary word: there is no arc to
-            // substitute, so 'wrapped-linear' is not a valid encoding for it.
-            const isIndexedOp = operation.offsets?.[0]?.metadata?.indexed === true;
-            const preferred = isIndexedOp && rotaryCaps.routes.includes('a-word') ? 'a-word' : rotaryCaps.routes[0] || 'off';
-            const wantRoute = gcode.rotaryRoute || '';
-            const rotaryRoute = rotaryCaps.routes.includes(wantRoute) ? wantRoute : preferred;
-            if (wantRoute && wantRoute !== rotaryRoute) {
-                console.warn(`[PipelineContext] Post '${gcode.postProcessor}' does not declare rotary route '${wantRoute}' - using '${rotaryRoute}'.`);
-            }
-
-            // Compute derived values
-            const offsetDistances = (operation.offsets || []).map(o => o.distance);
-
-            // Transform Values
-            const transforms = this.getTransforms();
-            const surfaceZ = this.resolveSurfaceZ(operation);
-            const depthLevels = this.calculateDepthLevels(params.cutDepth, mappedDepthPerPass, mappedMultiDepth, surfaceZ);
-
-            // Laser context (null for CNC pipeline)
-            let laserContext = null;
-            if (core.machineClassOf(operation) === 'laser') {
-                const laserMachine = core.settings.laser;
-                const strategy = this.compileOperationParams(operation, params);
-                let computedPasses = 0;
-                if (strategy.targetWidth > 0 && strategy.stepDistance > 0) {
-                    const span = strategy.targetWidth - strategy.toolDiameter;
-                    if (span >= 0) computedPasses = Math.floor(span / strategy.stepDistance) + 1;
-                }
-                // Spread strategy and layer on machine-level fields that compileOperationParams doesn't cover
-                laserContext = {
-                    ...strategy,
-                    spotSize: laserMachine.spotSize,
-                    exportFormat: laserMachine.exportFormat,
-                    exportDPI: laserMachine.exportDPI,
-                    computedPasses: computedPasses
-                };
-            }
-
-            // Assemble final context
-            const context = {
-                // Metadata
-                operationId: operation.id,
-                operationType: operation.type,
-                fileName: operation.file.name,
-
-                // Global Settings
-                machine: {
-                    surfaceZ: surfaceZ,
-                    safeZ: machine.heights.safeZ + surfaceZ,
-                    travelZ: machine.heights.travelZ + surfaceZ,
-                    feedHeight: machine.heights.feedHeight + surfaceZ,
-                    rapidFeedRate: machine.speeds.rapidFeed,
-                    maxFeedRate: machine.speeds.maxFeed
-                },
-
-                // Processor-specific settings (Roland, Makera, etc.)
-                gcode: { ...gcode, supportsCannedCycles: processorInfo?.capabilities?.supportsCannedCycles },
-                processorSettings: { ...(core.settings.processorSettings || {}) },
-
-                // Operation Parameters
-                // `number` is machine-resolved and always >= 1. `drillNumbers`
-                // maps originalDiameter.toFixed(3) → tool number for peck
-                // groups; null on every non-drill operation.
-                tool: (() => {
-                    const t = resolvedTool || this.resolveToolDescriptor(operation, params);
-                    return {
-                        number: t.number, // null = unassigned, on purpose
-                        id: t.id,
-                        name: t.name,
-                        type: t.type,
-                        diameter: params.toolDiameter,
-                        spindleSpeed: params.spindleSpeed,
-                        spindleDwell: params.spindleDwell,
-                        // diameterKey → T number; unassigned rows stay null
-                        drillNumbers: t.drillMap
-                            ? Object.fromEntries(Object.entries(t.drillMap).map(([key, entry]) => [key, entry.number]))
-                            : null,
-                        // False when the operation mills nothing of its own, so
-                        // tool batching can sort it by the bits it actually calls
-                        // rather than by a number no move in it ever uses.
-                        cutsWithOwnTool: t.cutsWithOwnTool !== false
-                    };
-                })(),
-
-                cutting: {
-                    feedRate: params.feedRate,
-                    plungeRate: params.plungeRate,
-                    spindleSpeed: params.spindleSpeed,
-                    spindleDwell: params.spindleDwell
-                },
-
-                strategy: {
-                    cutDepth: params.cutDepth,
-                    depthPerPass: mappedDepthPerPass,
-                    multiDepth: mappedMultiDepth,
-                    passes: params.passes,
-                    stepOver: mappedStepOver,
-                    entryType: mappedEntryType,
-                    drill: {
-                        millHoles: params.millHoles,
-                        peckDepth: params.peckDepth,
-                        dwellTime: params.dwellTime,
-                        cannedCycle: params.cannedCycle,
-                        retractHeight: params.retractHeight
-                    },
-                    cutout: {
-                        tabs: params.tabs,
-                        tabWidth: params.tabWidth,
-                        tabHeight: params.tabHeight,
-                        cutSide: params.cutSide
-                    },
-                    vcarve: {
-                        vbitAngle: params.vbitAngle,
-                        vbitTipDiameter: params.vbitTipDiameter,
-                        vcarveMaxDepth: params.vcarveMaxDepth,
-                        vcarveStartDepth: params.vcarveStartDepth
-                    }
-                },
-
-                // Computed Values
-                computed: {
-                    offsetDistances: offsetDistances,
-                    depthLevels: depthLevels,
-                    drillDepthLevels: this.buildDrillDepthLevels(operation, params, mappedDepthPerPass, mappedMultiDepth, surfaceZ),
-                    toolpathPolicy: core.handlers.has(operation.type) ? core.getHandler(operation.type).getToolpathPolicy() : null
-                },
-
-                // Authoritative for everything per-diameter that is NOT baked
-                // into geometry - tool number, feeds, peck cycle. The
-                // geometry-affecting fields were resolved at generation and are
-                // stamped on the primitives themselves. Null in single-tool mode
-                // so the translator falls through to the operation's values.
-                drillTable: (isDrill && params.drillMultiTool && operation.drillTable) || null,
-
-                // Transform Values
-                transforms: transforms,
-
-                // Config the machine processor reads off the context
-                config: {
-                    entry: D.toolpath.generation.entry,
-                    drilling: D.toolpath.generation.drilling
-                },
-
-                // Laser-specific (only populated in laser/hybrid pipeline)
-                laser: laserContext,
-
-                // Rotary 4th-axis export routing.
-                export: {
-                    rotaryRoute: rotaryRoute,
-
-                    // The user's PINNED machine-settings pick, unresolved.
-                    // '' = auto. insertIndexMoves needs to tell "auto landed
-                    // on wrapped-linear" (promotable to a-word) from "the user
-                    // says this machine IS axis replacement" (not promotable).
-                    requestedRoute: wantRoute,
-
-                    // [INDEXED] Full declared list, not just the resolved
-                    // pick: indexed 3+1 requires 'a-word' specifically and
-                    // auto-switches to it (with a warning) when the post
-                    // declares it but auto-resolution preferred another
-                    // route. See MachineProcessor.insertIndexMoves.
-                    routes: rotaryCaps.routes,
-                    axisWords: rotaryCaps.axisWords,
-                    inverseTime: rotaryCaps.inverseTime === true,
-                    maxInverseTime: rotaryCaps.maxInverseTime,
-
-                    // Machine setting wins; blank falls back to the post's
-                    // declared default. This is a property of the rotary
-                    // HARDWARE (belt vs geared/servo with a brake), so it
-                    // cannot live in the post alone - one controller drives
-                    // both kinds.
-                    indexDwell: gcode.indexDwell === '' || gcode.indexDwell == null
-                        ? rotaryCaps.indexDwell || 0
-                        : Math.max(0, Number(gcode.indexDwell) || 0),
-                    continuous: rotaryCaps.continuous !== false
-                }
-            };
-
-            // Posts declare their own machine limits; the core does not
-            // know which one is loaded.
-            core.gcodeGenerator?.getProcessor(gcode.postProcessor)?.prepareContext?.(context, operation);
-
-            Object.freeze(context);
-            return context;
-        }
-
-        debug(message, data = null) {
-            if (!debugState.enabled) return;
-            if (data) console.log(`[PipelineContext] ${message}`, data);
-            else console.log(`[PipelineContext] ${message}`);
-        }
+  class PipelineContextBuilder {
+    constructor(core) {
+      this.core = core;
     }
 
-    ROOT.PipelineContextBuilder = PipelineContextBuilder;
+    // ────────────────────────────────────────────────────────────────────
+    // Tooling
+    // ────────────────────────────────────────────────────────────────────
+
+    /**
+     * Resolves the tool descriptor for one operation. The T number is the
+     * operator's: a router operation always arrives with one (default 1,
+     * and runGeneration refuses an empty field). null is a route fact, not
+     * a gap: laser and knife never render the field or emit a T word. Gaps
+     * are reported, not blocked: DrillHandler flags unassigned rows and
+     * describeToolSharing one number on two diameters.
+     * @param {Object} operation
+     * @param {Object} params merged parameterStore values
+     */
+    resolveToolDescriptor(operation, params) {
+      const record = this.core.toolLibrary.getTool(params.tool) || null;
+      const pick = value => {
+        const n = Number(value);
+        return Number.isInteger(n) && n > 0 ? n : null;
+      };
+      const descriptor = {
+        number: pick(params.toolNumber),
+        id: params.tool || null,
+        // The library's name for the tool: its own `name`, or a descriptor
+        // that words the generated one wherever it is shown.
+        name: record ? ToolLibrary.label(record) : null,
+        type: record?.type || null,
+        diameter: params.toolDiameter,
+        spindleSpeed: params.spindleSpeed,
+        spindleDwell: params.spindleDwell,
+        operationId: operation.id,
+        operationLabel: {
+          key: 'messages.export.operationLabel',
+          values: {
+            type: { key: `ops.${operation.type}.short` },
+            name: operation.file?.name || operation.id
+          }
+        },
+        cutsWithOwnTool: true
+      };
+      // Multi-tool drilling: generation is refused until every active row
+      // has its own cutter and T number, so the operation's tool cuts
+      // nothing. drillMap is keyed by DrillHandler.rowKey, like the table.
+      // Single-tool drilling has none: one number cuts everything, and a map
+      // repeating it would report the tool sharing with itself.
+      if (operation.type === 'drill' && DrillHandler.isMultiTool(params)) {
+        descriptor.cutsWithOwnTool = false;
+        const active = Object.values(operation.drillTable?.rows || {}).filter(row => row.strategy !== 'skip');
+        if (active.length > 0) {
+            descriptor.drillMap = {};
+          for (const row of active) {
+            const effectiveDiam = row.toolDiameter > 0 ? row.toolDiameter : row.diameter;
+            descriptor.drillMap[row.key] = {
+              number: pick(row.toolNumber),
+              diameter: effectiveDiam,
+              strategy: row.strategy
+            };
+          }
+        }
+      }
+      return descriptor;
+    }
+
+    /**
+     * Reports T numbers carried by tools of different sizes. Identity is the
+     * effective diameter, not the library id: drill_1.0mm and em_1.0mm_flat
+     * are often the same cutter in the same collet. The same number on the
+     * same diameter is silent; on another diameter it is a note, not a
+     * refusal.
+     * @param {Array} descriptors from resolveToolDescriptor
+     * @returns {Array<{number:number, entries:Array<{label:Object, diameter:number}>}>}
+     */
+    describeToolSharing(descriptors) {
+      // 0.01mm separates 3.175 from 3.0 without splitting 3.175 from a
+      // rounded 3.18. precision.coordinate (0.001) is too tight for a
+      // hand-entered diameter.
+      const DIAMETER_TOLERANCE = 0.01;
+      const byNumber = new Map();
+      const record = (label, number, diameter) => {
+        if (number == null || !(diameter > 0)) return;
+        let entries = byNumber.get(number);
+        if (!entries) {
+          entries = [];
+          byNumber.set(number, entries);
+        }
+        if (!entries.some(e => Math.abs(e.diameter - diameter) < DIAMETER_TOLERANCE)) {
+          entries.push({ label, diameter });
+        }
+      };
+      for (const d of descriptors) {
+        if (d.cutsWithOwnTool) record(d.operationLabel, d.number, d.diameter);
+        for (const [key, entry] of Object.entries(d.drillMap || {})) {
+          record({ key: 'messages.export.featureLabel', values: { operation: d.operationLabel, feature: DrillHandler.rowLabel(key) } }, entry.number, entry.diameter);
+        }
+      }
+      const shared = [];
+      for (const [number, entries] of byNumber) {
+        if (entries.length > 1) shared.push({ number, entries });
+      }
+      return shared.sort((a, b) => a.number - b.number);
+    }
+
+    /**
+     * Resolves tool descriptors for a set of operations without building
+     * contexts or running a pipeline.
+     */
+    stageToolDescriptors(operationIds, parameterStore) {
+      const core = this.core;
+      const ids = operationIds || core.operations.filter(op => core.store.isExportReady(op)).map(op => op.id);
+      const staged = [];
+
+      for (const opId of ids) {
+        try {
+          const operation = core.store.getOperation(opId);
+          if (!operation) continue;
+          const params = parameterStore.getAllParameters(opId);
+          staged.push({
+            opId: opId,
+            operation: operation,
+            tool: this.resolveToolDescriptor(operation, params)
+          });
+        } catch (err) {
+          console.warn(`[PipelineContext] tool staging skipped ${opId}: ${err.message}`);
+        }
+      }
+      return staged;
+    }
+
+    /**
+     * Everything the export modal needs to know about tooling.
+     * `fileGroups` lists the operation ids written into each output file;
+     * without it every operation is its own file. A file that holds more
+     * than one T number is the one case that needs the changer.
+     */
+    describeExportTooling(operationIds, parameterStore, fileGroups = null) {
+      const staged = this.stageToolDescriptors(operationIds, parameterStore);
+      const numbersOf = new Map();
+      for (const { opId, tool } of staged) {
+        const numbers = new Set();
+        if (tool.cutsWithOwnTool !== false && tool.number > 0) numbers.add(tool.number);
+        for (const entry of Object.values(tool.drillMap || {})) {
+          if (entry.number > 0) numbers.add(entry.number);
+        }
+        numbersOf.set(opId, numbers);
+      }
+      const groups = fileGroups || staged.map((s) => [s.opId]);
+      const hasMultiToolFile = groups.some((ids) => {
+        const inFile = new Set();
+        for (const id of ids) {
+          for (const n of numbersOf.get(id) || []) inFile.add(n);
+        }
+        return inFile.size > 1;
+      });
+      return { shared: this.describeToolSharing(staged.map((s) => s.tool)), hasMultiToolFile, staged };
+    }
+
+    /**
+     * Whether this job can use tool changes, and what to tell the operator if
+     * not.
+     * Returns a decision, not markup: the caller writes the DOM.
+     * @param {Object} intent {operationIds}
+     * @param {ParameterStore} parameterStore
+     * @param {Object} [tooling] describeExportTooling's answer for the planned files
+     * @returns {{supported:boolean, hint:?Object, shared:Array}}
+     */
+    describeToolChangeSupport(intent, parameterStore, tooling = null) {
+      const post = this.core.gcodeGenerator.getProcessorInfo(this.core.settings.gcode.postProcessor);
+      if (!tooling) {
+        const routerIds = (intent.operationIds || []).filter(
+          (id) => this.core.machineClassOf(this.core.store.getOperation(id)) === 'router',
+        );
+        tooling = routerIds.length
+          ? this.describeExportTooling(routerIds, parameterStore)
+          : { shared: [], hasMultiToolFile: false, staged: [] };
+      }
+      const supported = post.capabilities.supportsToolChange;
+      let hint = null;
+      if (tooling.hasMultiToolFile && !supported) {
+        hint = {
+          key: 'messages.export.noToolChange',
+          values: { post: post.label }
+        };
+      }
+      return { supported, hint, shared: tooling.shared };
+    }
+
+    /**
+     * Drill-milling parameter aliases. JSON can't carry two keys with the
+     * same name and different conditionals, so the profiles prefix the
+     * drill variants. One precedence rule for every alias pair: the
+     * prefixed key wins on a drill operation, the plain key otherwise.
+     */
+    resolveDrillAlias(operation, params, plainKey, drillKey) {
+      return operation.type === 'drill' && params[drillKey] !== undefined ? params[drillKey] : params[plainKey];
+    }
+
+    // ────────────────────────────────────────────────────────────────────
+    // Parameter compilation and depth
+    // ────────────────────────────────────────────────────────────────────
+
+    /**
+     * Offset Strategy Builder
+     * Translates pipeline-specific UI parameters into a pipeline-agnostic
+     * strategy object. Called before any handler runs - handlers never
+     * need to check pipeline type.
+     * @param {Object} operation - The operation with .type and .bounds
+     * @param {Object} params - Flat map from parameterStore.getAllParameters()
+     * @returns {Object} Strategy object ready for any handler
+     */
+    compileOperationParams(operation, params) {
+      const core = this.core;
+      const isLaser = core.machineClassOf(operation) === 'laser';
+      const exportFormat = isLaser ? core.settings.laser.exportFormat : null;
+      const isPNG = exportFormat === 'png';
+      const resolveDrillAlias = (a, b) => this.resolveDrillAlias(operation, params, a, b);
+
+      // Tool dimension
+      const toolDiameter = isLaser ? core.settings.laser.spotSize : params.toolDiameter;
+
+      // Step distance
+      let stepDistance = null;
+      let stepOver = null;
+      if (isLaser) {
+        if (isPNG) {
+          stepDistance = toolDiameter;
+        } else {
+          const mode = params.laserSpacingMode;
+          switch (mode) {
+            case 'lpcm':
+              stepDistance = 10 / Math.max(params.laserLinesPerCm, 1);
+              break;
+            case 'lpi':
+              stepDistance = 25.4 / Math.max(params.laserLinesPerInch, 1);
+              break;
+            case 'stepover':
+            default:
+              stepDistance = toolDiameter * (params.laserStepOver / 100);
+              break;
+          }
+        }
+      } else {
+        stepOver = resolveDrillAlias('stepOver', 'drillStepOver');
+      }
+
+      // Clear strategy
+      let clearStrategy = 'offset';
+      if (isLaser) clearStrategy = isPNG ? 'filled' : params.laserClearStrategy;
+
+      // Per-operation-type
+      let passes = null;
+      let targetWidth = null;
+      let cutSide = null;
+      let combineOffsets = false;
+
+      switch (operation.type) {
+        // Shared operation types
+        case 'drill':
+          passes = 1;
+          cutSide = (isLaser && params.laserCutSide) || 'inside';
+          break;
+
+        // EasyTrace5000 operation types
+        case 'isolation':
+          if (isLaser) {
+            targetWidth = params.laserIsolationWidth;
+          } else {
+            passes = params.passes;
+            combineOffsets = params.combineOffsets !== false;
+          }
+          break;
+        case 'clearing':
+          combineOffsets = true;
+          // No targetWidth - handler loop runs until geometry collapses.
+          passes = 500;
+          break;
+        case 'cutout':
+          passes = 1;
+          cutSide = isLaser ? params.laserCutSide || 'outside' : params.cutSide || 'outside';
+          break;
+        case 'stencil':
+          // Distance comes from stencilOffset and the cutter radius, not
+          // from a pass ladder - see TraceStencilHandler.passDistance.
+          passes = 1;
+          combineOffsets = false;
+          break;
+
+        // EasyShape5000 operation types
+        case 'profile':
+          passes = 1;
+          cutSide = params.cutSide || 'outside';
+          break;
+        case 'pocket':
+          combineOffsets = true;
+          passes = 500;
+          break;
+        case 'engrave':
+          passes = 1;
+          cutSide = 'on';
+          break;
+        case 'vcarve':
+        case 'relief':
+        case 'rotary':
+          // Depth comes from the generated 3D geometry, not pass distances. No cutSide, no stepOver, single logical pass.
+          passes = 1;
+          combineOffsets = false;
+          break;
+      }
+
+      return {
+        toolDiameter: toolDiameter,
+        stepDistance: stepDistance,
+        stepOver: stepOver,
+        targetWidth: targetWidth,
+        passes: passes,
+        cutSide: cutSide,
+        clearStrategy: clearStrategy,
+        combineOffsets: combineOffsets,
+        isLaser: isLaser,
+        hatchAngle: params.laserHatchAngle,
+        hatchPasses: params.laserHatchPasses,
+        isolationWidth: isLaser ? params.laserIsolationWidth : null
+      };
+    }
+
+    /**
+     * Z of the material surface in machine coordinates.
+     * Rotary owns its own Z0 (centreline or blank face), so stock
+     * thickness never applies to it.
+     */
+    resolveSurfaceZ(operation) {
+      const stock = this.core.settings.machine.stock || {};
+      const isBedZero = stock.zeroReference && stock.zeroReference !== 'material';
+      return (isBedZero && operation.type !== 'rotary' && stock.thickness) || 0;
+    }
+
+    /**
+     * Calculates the final Z-depth levels for a toolpath.
+     */
+    calculateDepthLevels(cutDepth, depthPerPass, multiDepth, surfaceZ = 0) {
+      const totalCutDist = Math.abs(cutDepth);
+      const finalDepth = surfaceZ - totalCutDist;
+      const step = Math.abs(depthPerPass);
+
+      if (!multiDepth || step <= 0 || totalCutDist <= step) return [finalDepth]; // Single pass
+
+      const levels = [];
+      let currentDepth = surfaceZ;
+
+      // Loop while currentDepth is greater than (less negative than) finalDepth
+      while (currentDepth - step > finalDepth - EPSILON) {
+        currentDepth -= step;
+        levels.push(currentDepth);
+      }
+
+      // Ensure the final depth is always included if not already last
+      if (levels.length === 0 || levels[levels.length - 1] > finalDepth) levels.push(finalDepth);
+
+      return levels;
+    }
+
+    /**
+     * Depth ladders for the drill rows that override depth-per-pass or
+     * multi-depth. Built here because calculateDepthLevels is the only
+     * ladder in the app and a second copy in the translator would drift.
+     * Returns null when no row overrides, so the common case allocates
+     * nothing.
+     */
+    buildDrillDepthLevels(operation, params, depthPerPass, multiDepth, surfaceZ) {
+      if (!params?.drillMultiTool) return null;
+      const rows = operation.drillTable?.rows;
+      if (!rows) return null;
+
+      let levels = null;
+      for (const [key, row] of Object.entries(rows)) {
+        const step = row.mill?.depthPerPass;
+        const multi = row.mill?.multiDepth;
+        if (step != null || multi != null) {
+          if (!levels) levels = {};
+          levels[key] = this.calculateDepthLevels(params.cutDepth, step ?? depthPerPass, multi ?? multiDepth, surfaceZ);
+        }
+      }
+      return levels;
+    }
+
+    // ────────────────────────────────────────────────────────────────────
+    // Transforms
+    // ────────────────────────────────────────────────────────────────────
+
+    /**
+     * Returns the current workspace transform from the scene.
+     */
+    getTransforms() {
+      const t = this.core.scene.transform;
+
+      // Workspace matrix (rotation + mirror, NO origin) - still published
+      // separately because GraphicsExporter composes origin itself.
+      const wsMatrix = TransformMath.clone(this.core.scene.getWorkspaceMatrix());
+
+      // The machine matrix: T(-origin) x workspace. The only transform
+      // the toolpath pipeline applies, once, in GeometryTranslator.
+      const machineMatrix = TransformMath.multiply(
+        TransformMath.translation(-t.origin.x, -t.origin.y),
+        wsMatrix
+      );
+
+      return {
+        origin: { ...t.origin },
+        rotation: t.rotation,
+        rotationCenter: { ...t.rotationCenter },
+        mirrorX: t.mirrorX,
+        mirrorY: t.mirrorY,
+        mirrorCenter: { ...t.mirrorCenter },
+        // Derived, cloned so frozen contexts can't share the cache:
+        matrix: wsMatrix,
+        machineMatrix: machineMatrix,
+        machineIsIdentity: TransformMath.isIdentity(machineMatrix),
+        windingFlipped: this.core.scene.windingFlipped()
+      };
+    }
+
+    // ────────────────────────────────────────────────────────────────────
+    // Context assembly
+    // ────────────────────────────────────────────────────────────────────
+
+    /**
+     * Pipeline Context Builder
+     * Assembles all data for a single operation into a
+     * self-contained context object. Delegates offset direction
+     * to the registered handler so the core never checks
+     * operation type names for geometric decisions.
+     */
+    buildPipelineContext(operationId, parameterStore, resolvedTool = null) {
+      const core = this.core;
+      const operation = core.store.getOperation(operationId);
+      if (!operation) throw new Error(`Operation ${operationId} not found.`);
+
+      // Get all parameters from manager
+      const params = parameterStore.getAllParameters(operationId);
+      const resolveDrillAlias = (a, b) => this.resolveDrillAlias(operation, params, a, b);
+
+      // Drill milling aliases - JSON can't have duplicate keys with different
+      // conditionals, so both apps' profiles uses prefixed names (drillMultiDepth,
+      // drillDepthPerPass, drillEntryType) for operation-specific params that
+      // share names. Map them to the standard names the pipeline expects.
+      // TODO(param-overrides) - per-type definition overrides in the profiles would retire these aliases; per-type defaults only change a starting value.
+      const isDrill = operation.type === 'drill';
+      const mappedMultiDepth = resolveDrillAlias('multiDepth', 'drillMultiDepth');
+      const mappedDepthPerPass = resolveDrillAlias('depthPerPass', 'drillDepthPerPass');
+      const mappedEntryType = resolveDrillAlias('entryType', 'drillEntryType');
+      const mappedStepOver = resolveDrillAlias('stepOver', 'drillStepOver');
+
+      // Get global settings
+      const machine = core.settings.machine;
+      const gcode = core.settings.gcode;
+      const processorInfo = core.gcodeGenerator.getProcessorInfo(gcode.postProcessor);
+
+      // Rotary 4th-axis export route: the resolved setting, always one the
+      // post declares ('off' when it declares none, and any developed plan
+      // is dropped downstream with a pipeline warning). Indexed 3+1 needs a
+      // REAL rotary word - there is no arc to substitute, so
+      // 'wrapped-linear' cannot encode it - and takes 'a-word' when the
+      // post declares it, unless the route is pinned. Pinned (set by the
+      // operator or locked by the setup), an axis-replacement route says
+      // the rotary is wired to the Y driver, and insertIndexMoves refuses
+      // indexed on it.
+      const rotaryCaps = processorInfo.capabilities.rotary;
+      const isIndexedOp = operation.offsets?.[0]?.metadata?.indexed === true;
+      const routePinned = ['user', 'lock'].includes(core.settingSources['gcode.rotaryRoute']);
+      const rotaryRoute = !routePinned && isIndexedOp && rotaryCaps.routes.includes('a-word') ? 'a-word' : gcode.rotaryRoute;
+
+      // Compute derived values
+      const offsetDistances = (operation.offsets || []).map(o => o.distance);
+
+      // Transform Values
+      const transforms = this.getTransforms();
+      const surfaceZ = this.resolveSurfaceZ(operation);
+
+      // Laser context (null for CNC pipeline)
+      let laserContext = null;
+      if (core.machineClassOf(operation) === 'laser') {
+        const laserMachine = core.settings.laser;
+        const strategy = this.compileOperationParams(operation, params);
+        let computedPasses = 0;
+        if (strategy.targetWidth > 0 && strategy.stepDistance > 0) {
+          const span = strategy.targetWidth - strategy.toolDiameter;
+          if (span >= 0) computedPasses = Math.floor(span / strategy.stepDistance) + 1;
+        }
+        // Spread strategy and layer on machine-level fields that compileOperationParams doesn't cover
+        laserContext = {
+          ...strategy,
+          spotSize: laserMachine.spotSize,
+          exportFormat: laserMachine.exportFormat,
+          exportDPI: laserMachine.exportDPI,
+          computedPasses: computedPasses
+        };
+      }
+
+      // Assemble final context
+      const context = {
+        // Metadata
+        operationId: operation.id,
+        operationType: operation.type,
+        fileName: operation.file.name,
+
+        // Global Settings
+        machine: {
+          surfaceZ: surfaceZ,
+          safeZ: machine.heights.safeZ + surfaceZ,
+          travelZ: machine.heights.travelZ + surfaceZ,
+          feedHeight: machine.heights.feedHeight + surfaceZ,
+          rapidFeedRate: machine.speeds.rapidFeed,
+          maxFeedRate: machine.speeds.maxFeed
+        },
+
+        // Processor-specific settings (Roland, Makera, etc.)
+        gcode: { ...gcode, supportsCannedCycles: processorInfo.capabilities.supportsCannedCycles },
+        processorSettings: { ...(core.settings.processorSettings || {}) },
+
+        // drillNumbers maps each drill row key to its T number; null on every
+        // non-drill operation.
+        tool: (() => {
+          const t = resolvedTool || this.resolveToolDescriptor(operation, params);
+          return {
+            number: t.number, // null = unassigned, on purpose
+            id: t.id,
+            name: t.name,
+            type: t.type,
+            diameter: params.toolDiameter,
+            spindleSpeed: params.spindleSpeed,
+            spindleDwell: params.spindleDwell,
+            // row key → T number; unassigned rows stay null
+            drillNumbers: t.drillMap
+              ? Object.fromEntries(Object.entries(t.drillMap).map(([key, entry]) => [key, entry.number]))
+              : null,
+            // False when the operation mills nothing of its own, so
+            // tool batching can sort it by the bits it actually calls
+            // rather than by a number no move in it ever uses.
+            cutsWithOwnTool: t.cutsWithOwnTool !== false
+          };
+        })(),
+
+        cutting: {
+          feedRate: params.feedRate,
+          plungeRate: params.plungeRate,
+          spindleSpeed: params.spindleSpeed,
+          spindleDwell: params.spindleDwell
+        },
+
+        strategy: {
+          cutDepth: params.cutDepth,
+          depthPerPass: mappedDepthPerPass,
+          multiDepth: mappedMultiDepth,
+          passes: params.passes,
+          stepOver: mappedStepOver,
+          entryType: mappedEntryType,
+          drill: {
+            millHoles: params.millHoles,
+            peckDepth: params.peckDepth,
+            dwellTime: params.dwellTime,
+            cannedCycle: params.cannedCycle,
+            retractHeight: params.retractHeight
+          },
+          cutout: {
+            tabs: params.tabs,
+            tabWidth: params.tabWidth,
+            tabHeight: params.tabHeight,
+            cutSide: params.cutSide
+          }
+        },
+
+        // Computed Values
+        computed: {
+          offsetDistances: offsetDistances,
+          // Both ladders are derived after the post's prepareContext, below.
+          depthLevels: null,
+          drillDepthLevels: null,
+          toolpathPolicy: core.handlers.has(operation.type) ? core.getHandler(operation.type).getToolpathPolicy() : null
+        },
+
+        // Authoritative for everything per-diameter that is NOT baked
+        // into geometry - tool number, feeds, peck cycle. The
+        // geometry-affecting fields were resolved at generation and are
+        // stamped on the primitives themselves. Null in single-tool mode
+        // so the translator falls through to the operation's values.
+        drillTable: (isDrill && params.drillMultiTool && operation.drillTable) || null,
+
+        // Transform Values
+        transforms: transforms,
+
+        // Config the machine processor reads off the context
+        config: {
+          entry: D.toolpath.generation.entry,
+          drilling: D.toolpath.generation.drilling
+        },
+
+        // Laser-specific (only populated in laser/hybrid pipeline)
+        laser: laserContext,
+
+        // Rotary 4th-axis export routing.
+        export: {
+          rotaryRoute: rotaryRoute,
+          // The route as pinned in Machine Settings, '' while it is only
+          // the setup's default. insertIndexMoves needs to tell "the
+          // default landed on wrapped-linear" (promotable to a-word) from
+          // "this machine IS axis replacement" (not promotable).
+          requestedRoute: routePinned ? gcode.rotaryRoute : '',
+          // [INDEXED] Full declared list, not just the resolved pick:
+          // indexed 3+1 requires 'a-word' specifically. See
+          // MachineProcessor.insertIndexMoves.
+          routes: rotaryCaps.routes,
+          axisWords: rotaryCaps.axisWords,
+          inverseTime: rotaryCaps.inverseTime,
+          maxInverseTime: rotaryCaps.maxInverseTime,
+          // A property of the rotary HARDWARE (belt vs geared/servo with
+          // a brake): the setup states a value and the operator may
+          // change it, because one controller drives both kinds.
+          indexDwell: gcode.indexDwell,
+          continuous: rotaryCaps.continuous,
+        }
+      };
+
+      // Posts declare their own machine limits; the core does not know which one
+      // is loaded. The ladders follow the hook, so a clamp on the strategy
+      // (Roland's 2.5D drill step) reaches every pass.
+      core.gcodeGenerator.getProcessor(gcode.postProcessor).prepareContext(context, operation);
+      const { depthPerPass, multiDepth } = context.strategy;
+      context.computed.depthLevels = this.calculateDepthLevels(params.cutDepth, depthPerPass, multiDepth, surfaceZ);
+      context.computed.drillDepthLevels = this.buildDrillDepthLevels(operation, params, depthPerPass, multiDepth, surfaceZ);
+      Object.freeze(context);
+      return context;
+    }
+
+    debug(message, data = null) {
+      if (!debugState.enabled) return;
+      if (data) console.log(`[PipelineContext] ${message}`, data);
+      else console.log(`[PipelineContext] ${message}`);
+    }
+  }
+
+  ROOT.PipelineContextBuilder = PipelineContextBuilder;
 })();

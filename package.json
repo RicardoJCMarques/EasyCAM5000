@@ -1,0 +1,11 @@
+{
+  "name": "easycam5000",
+  "private": true,
+  "devDependencies": {
+    "@babel/parser": "^7.29.7",
+    "@babel/traverse": "^7.29.7",
+    "esbuild": "^0.28.1",
+    "html-minifier-terser": "^7.2.0",
+    "terser": "^5.51.2"
+  }
+}

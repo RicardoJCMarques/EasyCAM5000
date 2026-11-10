@@ -17,398 +17,448 @@
  */
 
 (function() {
-    'use strict';
+	'use strict';
 
-    /** Base class - subclass and override execute/undo. */
-    class Command {
-        execute(ctrl) {}
-        undo(ctrl) {}
-        get label() { return 'Action'; }
+	/** Base class - subclass and override execute/undo. */
+	class Command {
+		execute(ctrl) {}
+
+		undo(ctrl) {}
+
+		get label() {
+			return i18n.t('history.action');
+		}
+	}
+
+	/**
+   * Multiple commands as one undoable unit. Used for multi-action gestures. The label is a
+   * message descriptor, worded when read like every other command's.
+   */
+  class CompositeCommand extends Command {
+    constructor(commands, label = null) {
+      super();
+      this.commands = commands;
+      this._label = label ?? { key: 'history.composite' };
+    }
+    execute(ctrl) {
+      for (const c of this.commands) c.execute(ctrl);
     }
 
-    /** Multiple commands as one undoable unit. Used for multi-action gestures. */
-    class CompositeCommand extends Command {
-        constructor(commands, label = 'Composite') {
-            super();
-            this.commands = commands;
-            this._label = label;
-        }
-        execute(ctrl) {
-            for (const c of this.commands) c.execute(ctrl);
-        }
-        undo(ctrl) {
-            for (let i = this.commands.length - 1; i >= 0; i--) {
-                this.commands[i].undo(ctrl);
-            }
-        }
-        get label() { return this._label; }
+    undo(ctrl) {
+      for (let i = this.commands.length - 1; i >= 0; i--) {
+        this.commands[i].undo(ctrl);
+      }
     }
 
-    /**
-     * Move N shapes by a 2D delta. Stores only shape IDs and the delta -
-     * a few dozen bytes regardless of shape complexity.
-     *
-     * The delta is in WORLD space. If a node sits inside a parent group
-     * that has rotation or non-uniform scale, the world delta is projected
-     * through the inverse of the parent's linear transform so the node
-     * moves along the correct screen axis.
-     */
-    class TranslateCommand extends Command {
-        constructor(nodeIds, dx, dy) {
-            super();
-            this.nodeIds = [...nodeIds];
-            this.dx = dx;
-            this.dy = dy;
-        }
-        execute(ctrl) {
-            for (const id of this.nodeIds) {
-                const n = ctrl.scene.findNode(id);
-                if (n && !n.isLocked) {
-                    const local = TranslateCommand.toLocalDelta(n, this.dx, this.dy);
-                    n.translateBy(local.x, local.y);
-                }
-            }
-            ctrl.afterMutation();
-        }
-        undo(ctrl) {
-            for (const id of this.nodeIds) {
-                const n = ctrl.scene.findNode(id);
-                if (n && !n.isLocked) {
-                    const local = TranslateCommand.toLocalDelta(n, -this.dx, -this.dy);
-                    n.translateBy(local.x, local.y);
-                }
-            }
-            ctrl.afterMutation();
-        }
-        get label() { return `Move ${this.nodeIds.length} item(s)`; }
-
-        /**
-         * Projects a world-space direction vector into the node's parent
-         * coordinate space. When parent is root or has identity rotation/scale,
-         * this is a no-op (returns the input unchanged).
-         */
-        static toLocalDelta(node, dx, dy) {
-            if (!node.parent || node.parent.kind === 'root') {
-                return { x: dx, y: dy };
-            }
-            const parentWorld = node.parent.getWorldMatrix();
-            const inv = TransformMath.invert(parentWorld);
-            if (!inv) return { x: dx, y: dy };
-            // Transform direction vector (not point) - use linear part only
-            return {
-                x: inv.a * dx + inv.c * dy,
-                y: inv.b * dx + inv.d * dy
-            };
-        }
+    get label() {
+      return i18n.format(this._label);
     }
+  }
 
-    /**
-     * Delete N shapes. The shape NODE itself is kept by reference so undo
-     * just re-inserts it.
-     *
-     * snapshots: [{ shape: ShapeNode, parentId: string|null, indexInParent: number }]
-     */
-    class DeleteShapesCommand extends Command {
-        constructor(snapshots) {
-            super();
-            this.snapshots = snapshots;
-            // Remember selection so undo restores the user's mental state.
-            this.priorSelection = null;
-        }
-        execute(ctrl) {
-            if (this.priorSelection === null) {
-                this.priorSelection = [...ctrl.selection.toSet()];
-            }
-            for (const snap of this.snapshots) {
-                ctrl.scene.removeNode(snap.shape.id);
-            }
-            ctrl.selection.clear();
-            ctrl.afterMutation();
-        }
-        undo(ctrl) {
-            // Re-insert in original order - earliest index first works because
-            // siblings beyond the index don't matter for our flat slot model.
-            const sorted = [...this.snapshots].sort((a, b) => a.indexInParent - b.indexInParent);
-            for (const snap of sorted) {
-                ctrl.scene.reinsertShape(snap.shape, snap.parentId, snap.indexInParent);
-            }
-            ctrl.selection.replace(this.priorSelection || []);
-            ctrl.scene.recomputeBoardBoundsFromShapes();
-            ctrl.afterMutation();
-        }
-        get label() { return `Delete ${this.snapshots.length} shape(s)`; }
-    }
+	/**
+	 * Move N shapes by a 2D delta. Stores only shape IDs and the delta -
+	 * a few dozen bytes regardless of shape complexity.
+	 *
+	 * The delta is in WORLD space. If a node sits inside a parent group
+	 * that has rotation or non-uniform scale, the world delta is projected
+	 * through the inverse of the parent's linear transform so the node
+	 * moves along the correct screen axis.
+	 */
+	class TranslateCommand extends Command {
+		constructor(nodeIds, dx, dy) {
+			super();
+			this.nodeIds = [...nodeIds];
+			this.dx = dx;
+			this.dy = dy;
+		}
 
-    class CommandManager {
-        constructor(ctrl, options = {}) {
-            this.ctrl = ctrl;
-            this.undoStack = [];
-            this.redoStack = [];
-            this.maxSize = options.maxSize || 200;
-            this.onChange = options.onChange || null;
-        }
+		execute(ctrl) {
+			for (const id of this.nodeIds) {
+				const n = ctrl.scene.findNode(id);
+				if (n && !n.isLocked) {
+					const local = TranslateCommand.toLocalDelta(n, this.dx, this.dy);
+					n.translateBy(local.x, local.y);
+				}
+			}
+			ctrl.afterMutation();
+		}
 
-        /** Run the command's forward action AND record it. */
-        executeAndRecord(cmd) {
-            cmd.execute(this.ctrl);
-            this.record(cmd);
-        }
+		undo(ctrl) {
+			for (const id of this.nodeIds) {
+				const n = ctrl.scene.findNode(id);
+				if (n && !n.isLocked) {
+					const local = TranslateCommand.toLocalDelta(n, -this.dx, -this.dy);
+					n.translateBy(local.x, local.y);
+				}
+			}
+			ctrl.afterMutation();
+		}
 
-        /** For mutations already applied externally (e.g. live drag). */
-        record(cmd) {
-            this.undoStack.push(cmd);
-            if (this.undoStack.length > this.maxSize) this.undoStack.shift();
-            this.redoStack.length = 0;  // any new mutation kills old redo future branch
-            this.fire();
-        }
+		get label() {
+			return i18n.t('history.move', { count: this.nodeIds.length });
+		}
 
-        undo() {
-            const cmd = this.undoStack.pop();
-            if (!cmd) return false;
-            cmd.undo(this.ctrl);
-            this.redoStack.push(cmd);
-            this.fire();
-            return true;
-        }
+		/**
+		 * Projects a world-space direction vector into the node's parent
+		 * coordinate space. When parent is root or has identity rotation/scale,
+		 * this is a no-op (returns the input unchanged).
+		 */
+		static toLocalDelta(node, dx, dy) {
+			if (!node.parent || node.parent.kind === 'root') return { x: dx, y: dy };
+			const parentWorld = node.parent.getWorldMatrix();
+			const inv = TransformMath.invert(parentWorld);
+			if (!inv) return { x: dx, y: dy };
+			// Transform direction vector (not point) - use linear part only
+			return {
+				x: inv.a * dx + inv.c * dy,
+				y: inv.b * dx + inv.d * dy
+			};
+		}
+	}
 
-        redo() {
-            const cmd = this.redoStack.pop();
-            if (!cmd) return false;
-            cmd.execute(this.ctrl);
-            this.undoStack.push(cmd);
-            this.fire();
-            return true;
-        }
+	/**
+	 * Delete N shapes. The shape NODE itself is kept by reference so undo
+	 * just re-inserts it.
+	 * snapshots: [{ shape: ShapeNode, parentId: string|null, indexInParent: number }]
+	 */
+	class DeleteShapesCommand extends Command {
+		constructor(snapshots) {
+			super();
+			this.snapshots = snapshots;
+			this.priorSelection = null; // Remember selection so undo restores the user's mental state.
+		}
 
-        canUndo() { return this.undoStack.length > 0; }
-        canRedo() { return this.redoStack.length > 0; }
+		execute(ctrl) {
+			if (this.priorSelection === null) this.priorSelection = [...ctrl.selection.toSet()];
+			for (const snap of this.snapshots) {
+				ctrl.scene.removeNode(snap.shape.id);
+			}
+			ctrl.selection.clear();
+			ctrl.afterMutation();
+		}
 
-        clear() {
-            this.undoStack.length = 0;
-            this.redoStack.length = 0;
-            this.fire();
-        }
+		undo(ctrl) {
+			// Re-insert in original order - earliest index first works because
+			// siblings beyond the index don't matter for our flat slot model.
+			const sorted = [...this.snapshots].sort((a, b) => a.indexInParent - b.indexInParent);
+			for (const snap of sorted) {
+				ctrl.scene.reinsertShape(snap.shape, snap.parentId, snap.indexInParent);
+			}
+			ctrl.selection.replace(this.priorSelection || []);
+			ctrl.scene.recomputeBoardBoundsFromShapes();
+			ctrl.afterMutation();
+		}
 
-        getTopUndoLabel() { return this.canUndo() ? this.undoStack[this.undoStack.length - 1].label : null; }
-        getTopRedoLabel() { return this.canRedo() ? this.redoStack[this.redoStack.length - 1].label : null; }
+		get label() {
+			return i18n.t('history.deleteShapes', { count: this.snapshots.length });
+		}
+	}
 
-        fire() { this.onChange?.(this); }
-    }
+	class CommandManager {
+		constructor(ctrl, options = {}) {
+			this.ctrl = ctrl;
+			this.undoStack = [];
+			this.redoStack = [];
+			this.maxSize = options.maxSize || 200;
+			this.onChange = options.onChange || null;
+		}
 
-    class GroupCommand extends Command {
-        constructor(nodeSnapshots, insertParentId, insertIndex, groupId) {
-            super();
-            this.nodeSnapshots = nodeSnapshots;
-            this.insertParentId = insertParentId;
-            this.insertIndex = insertIndex;
-            this.groupId = groupId;
-        }
-        execute(ctrl) {
-            const group = new GroupNode('Group');
-            group.id = this.groupId;
-            ctrl.scene.reinsertShape(group, this.insertParentId, this.insertIndex);
-            for (const snap of this.nodeSnapshots) {
-                const node = ctrl.scene.findNode(snap.nodeId);
-                if (node) ctrl.scene.reinsertShape(node, group.id);
-            }
-            ctrl.selection.replace([group.id]);
-            ctrl.scene.recomputeBoardBoundsFromShapes();
-            ctrl.afterMutation();
-        }
-        undo(ctrl) {
-            const sorted = [...this.nodeSnapshots].sort((a, b) => a.indexInParent - b.indexInParent);
-            for (const snap of sorted) {
-                const node = ctrl.scene.findNode(snap.nodeId);
-                if (node) ctrl.scene.reinsertShape(node, snap.parentId, snap.indexInParent);
-            }
-            ctrl.scene.removeNode(this.groupId);
-            ctrl.selection.replace(this.nodeSnapshots.map(s => s.nodeId));
-            ctrl.afterMutation();
-        }
-        get label() { return `Group ${this.nodeSnapshots.length} item(s)`; }
-    }
+		/** Run the command's forward action AND record it. */
+		executeAndRecord(cmd) {
+			cmd.execute(this.ctrl);
+			this.record(cmd);
+		}
 
-    class UngroupCommand extends Command {
-        constructor(groupSnapshot, childrenSnapshots) {
-            super();
-            this.groupSnapshot = groupSnapshot;
-            this.childrenSnapshots = childrenSnapshots;
-        }
-        execute(ctrl) {
-            const group = ctrl.scene.findNode(this.groupSnapshot.nodeId);
-            if (!group) return;
-            // Fold the group's local transform into each child so its WORLD
-            // position survives losing the group from its parent chain:
-            //   childLocal_new = groupLocal x childLocal_old
-            // Compute every matrix BEFORE mutating the tree.
-            const groupLocalM = group.getLocalMatrix();
-            const sorted = [...this.childrenSnapshots].sort((a, b) => a.indexInParent - b.indexInParent);
-            const rebases = [];
-            for (const snap of sorted) {
-                const node = ctrl.scene.findNode(snap.nodeId);
-                if (!node) continue;
-                const newLocalM = TransformMath.multiply(groupLocalM, node.getLocalMatrix());
-                const pivot = node.transform.rotationCenter || node.getLocalBoundsCentre();
-                rebases.push({ node, trs: TransformMath.decomposeToTRS(newLocalM, pivot) });
-            }
-            for (const { node, trs } of rebases) {
-                node.transform.x = trs.x;
-                node.transform.y = trs.y;
-                node.transform.rotation = trs.rotation;
-                node.transform.scaleX = trs.scaleX;
-                node.transform.scaleY = trs.scaleY;
-                node.markDirty();
-            }
-            for (const snap of sorted) {
-                const node = ctrl.scene.findNode(snap.nodeId);
-                if (node) ctrl.scene.reinsertShape(node, snap.newParentId, snap.newIndex);
-            }
-            ctrl.scene.removeNode(this.groupSnapshot.nodeId);
-            ctrl.selection.replace(this.childrenSnapshots.map(s => s.nodeId));
-            ctrl.afterMutation();
-        }
-        undo(ctrl) {
-            const group = new GroupNode(this.groupSnapshot.label || 'Group');
-            group.id = this.groupSnapshot.nodeId;
-            // Restore the group's own transform (lost when the node was destroyed).
-            const gt = this.groupSnapshot.transform;
-            if (gt) {
-                group.transform.x = gt.x; group.transform.y = gt.y; group.transform.rotation = gt.rotation;
-                group.transform.scaleX = gt.scaleX; group.transform.scaleY = gt.scaleY;
-                group.transform.rotationCenter = gt.rotationCenter ? { x: gt.rotationCenter.x, y: gt.rotationCenter.y } : null;
-            }
-            ctrl.scene.reinsertShape(group, this.groupSnapshot.parentId, this.groupSnapshot.indexInParent);
-            for (const snap of this.childrenSnapshots) {
-                const node = ctrl.scene.findNode(snap.nodeId);
-                if (!node) continue;
-                // Undo the rebase: restore each child's pre-ungroup local transform.
-                const ct = snap.transform;
-                if (ct) {
-                    node.transform.x = ct.x; node.transform.y = ct.y; node.transform.rotation = ct.rotation;
-                    node.transform.scaleX = ct.scaleX; node.transform.scaleY = ct.scaleY;
-                    node.transform.rotationCenter = ct.rotationCenter ? { x: ct.rotationCenter.x, y: ct.rotationCenter.y } : null;
-                    node.markDirty();
-                }
-                ctrl.scene.reinsertShape(node, group.id);
-            }
-            ctrl.selection.replace([group.id]);
-            ctrl.scene.recomputeBoardBoundsFromShapes();
-            ctrl.afterMutation();
-        }
-        get label() { return `Ungroup`; }
-    }
+		/** For mutations already applied externally (e.g. live drag). */
+		record(cmd) {
+			this.undoStack.push(cmd);
+			if (this.undoStack.length > this.maxSize) this.undoStack.shift();
+			this.redoStack.length = 0;  // any new mutation kills old redo future branch
+			this.fire();
+		}
 
-    /**
-     * Removes N operation buckets and their core operations, keeping both by
-     * reference so undo re-attaches rather than rebuilds. `pruned` carries the
-     * shapeRefs lists that a partial deletion trimmed - those edits are as
-     * destructive as the removals, so undo restores them too.
-     * removed: [{ bucketId }]  (token filled in on first execute)
-     * pruned:  [{ bucketId, prevRefs }]
-     */
-    class RemoveBucketsCommand extends Command {
-        constructor(bucketIds, pruned = []) {
-            super();
-            this.bucketIds = [...bucketIds];
-            this.pruned = pruned.map(p => ({ bucketId: p.bucketId, prevRefs: [...p.prevRefs] }));
-            this.tokens = [];
-        }
-        execute(ctrl) {
-            const panel = ctrl.ui.opsPanel;
-            if (!panel) return;
-            for (const p of this.pruned) {
-                const bucket = panel.getBucket(p.bucketId);
-                if (bucket) bucket.shapeRefs = bucket.shapeRefs.filter(ref => ctrl.scene.findShape(ref) !== null);
-            }
-            this.tokens = this.bucketIds.map(id => panel.removeBucket(id, ctrl.core)).filter(Boolean);
-        }
-        undo(ctrl) {
-            const panel = ctrl.ui.opsPanel;
-            if (!panel) return;
-            for (let i = this.tokens.length - 1; i >= 0; i--) panel.restoreBucket(this.tokens[i], ctrl.core);
-            for (const p of this.pruned) {
-                const bucket = panel.getBucket(p.bucketId);
-                if (bucket) bucket.shapeRefs = [...p.prevRefs];
-            }
-        }
-        get label() { return `Remove ${this.bucketIds.length} operation(s)`; }
-    }
+		undo() {
+			const cmd = this.undoStack.pop();
+			if (!cmd) return false;
+			cmd.undo(this.ctrl);
+			this.redoStack.push(cmd);
+			this.fire();
+			return true;
+		}
 
-    /**
-     * Toggles `visible` or `locked` on a set of shapes. Both are simple
-     * boolean flips so one command class handles both via a `flag` field.
-     */
-    class SetNodeFlagCommand extends Command {
-        constructor(entries, flag) {
-            super();
-            this.entries = entries.map(e => ({ ...e }));
-            this.flag = flag; // 'visible' | 'locked'
-        }
-        execute(ctrl) {
-            for (const e of this.entries) {
-                const n = ctrl.scene.findNode(e.nodeId);
-                if (n) n[this.flag] = e.newValue;
-            }
-            ctrl.afterFlagMutation();
-        }
-        undo(ctrl) {
-            for (const e of this.entries) {
-                const n = ctrl.scene.findNode(e.nodeId);
-                if (n) n[this.flag] = e.prevValue;
-            }
-            ctrl.afterFlagMutation();
-        }
-        get label() {
-            const verb = this.flag === 'visible'
-                ? (this.entries[0]?.newValue ? 'Show' : 'Hide')
-                : (this.entries[0]?.newValue ? 'Lock' : 'Unlock');
-            return `${verb} ${this.entries.length} item(s)`;
-        }
-    }
+		redo() {
+			const cmd = this.redoStack.pop();
+			if (!cmd) return false;
+			cmd.execute(this.ctrl);
+			this.undoStack.push(cmd);
+			this.fire();
+			return true;
+		}
 
-    /**
-     * Sets one or more transform components (x, y, rotation, scaleX, scaleY)
-     * on a single shape. Multi-shape edits compose multiple instances.
-     *
-     * fields: { x?, y?, rotation?, scaleX?, scaleY? }   (only fields to change)
-     * The prevTransform snapshot is captured at construction so undo restores
-     * exactly what was there even if other code mutated the shape between
-     * commands.
-     */
-    class SetShapeTransformCommand extends Command {
-        constructor(shapeId, prevTransform, newFields) {
-            super();
-            this.shapeId = shapeId;
-            this.prev = { ...prevTransform };
-            this.next = { ...prevTransform, ...newFields };
-        }
-        apply(ctrl, t) {
-            const s = ctrl.scene.findNode(this.shapeId);
-            if (!s) return;
-            s.transform.x = t.x;
-            s.transform.y = t.y;
-            s.transform.rotation = t.rotation;
-            s.transform.scaleX = t.scaleX;
-            s.transform.scaleY = t.scaleY;
-            if ('rotationCenter' in t) {
-                s.transform.rotationCenter = t.rotationCenter
-                    ? { x: t.rotationCenter.x, y: t.rotationCenter.y }
-                    : null;
-            }
-            s.markDirty();
-        }
-        execute(ctrl) { this.apply(ctrl, this.next); ctrl.afterMutation(); }
-        undo(ctrl)    { this.apply(ctrl, this.prev); ctrl.afterMutation(); }
-        get label() { return 'Edit transform'; }
-    }
+		canUndo() {
+			return this.undoStack.length > 0;
+		}
 
-    window.CompositeCommand = CompositeCommand;
-    window.TranslateCommand = TranslateCommand;
-    window.GroupCommand = GroupCommand;
-    window.UngroupCommand = UngroupCommand;
-    window.DeleteShapesCommand = DeleteShapesCommand;
-    window.RemoveBucketsCommand = RemoveBucketsCommand;
-    window.SetNodeFlagCommand = SetNodeFlagCommand;
-    window.SetShapeTransformCommand = SetShapeTransformCommand;
-    window.CommandManager = CommandManager;
+		canRedo() {
+			return this.redoStack.length > 0;
+		}
+
+		clear() {
+			this.undoStack.length = 0;
+			this.redoStack.length = 0;
+			this.fire();
+		}
+
+		getTopUndoLabel() {
+			return this.canUndo() ? this.undoStack[this.undoStack.length - 1].label : null;
+		}
+
+		getTopRedoLabel() {
+			return this.canRedo() ? this.redoStack[this.redoStack.length - 1].label : null;
+		}
+
+		fire() {
+			this.onChange?.(this);
+		}
+	}
+
+	class GroupCommand extends Command {
+		constructor(nodeSnapshots, insertParentId, insertIndex, groupId) {
+			super();
+			this.nodeSnapshots = nodeSnapshots;
+			this.insertParentId = insertParentId;
+			this.insertIndex = insertIndex;
+			this.groupId = groupId;
+		}
+
+		execute(ctrl) {
+			const group = new GroupNode(i18n.t('panels.scene.unnamedGroup'));
+			group.id = this.groupId;
+			ctrl.scene.reinsertShape(group, this.insertParentId, this.insertIndex);
+			for (const snap of this.nodeSnapshots) {
+				const node = ctrl.scene.findNode(snap.nodeId);
+				if (node) ctrl.scene.reinsertShape(node, group.id);
+			}
+			ctrl.selection.replace([group.id]);
+			ctrl.scene.recomputeBoardBoundsFromShapes();
+			ctrl.afterMutation();
+		}
+
+		undo(ctrl) {
+			const sorted = [...this.nodeSnapshots].sort((a, b) => a.indexInParent - b.indexInParent);
+			for (const snap of sorted) {
+				const node = ctrl.scene.findNode(snap.nodeId);
+				if (node) ctrl.scene.reinsertShape(node, snap.parentId, snap.indexInParent);
+			}
+			ctrl.scene.removeNode(this.groupId);
+			ctrl.selection.replace(this.nodeSnapshots.map(s => s.nodeId));
+			ctrl.afterMutation();
+		}
+
+		get label() {
+			return i18n.t('history.group', {count: this.nodeSnapshots.length});
+		}
+	}
+
+	class UngroupCommand extends Command {
+		constructor(groupSnapshot, childrenSnapshots) {
+			super();
+			this.groupSnapshot = groupSnapshot;
+			this.childrenSnapshots = childrenSnapshots;
+		}
+
+		execute(ctrl) {
+			const group = ctrl.scene.findNode(this.groupSnapshot.nodeId);
+			if (!group) return;
+			// Fold the group's local transform into each child so its WORLD
+			// position survives losing the group from its parent chain:
+			//   childLocal_new = groupLocal x childLocal_old
+			// Compute every matrix BEFORE mutating the tree.
+			const groupLocalM = group.getLocalMatrix();
+			const sorted = [...this.childrenSnapshots].sort((a, b) => a.indexInParent - b.indexInParent);
+			const rebases = [];
+			for (const snap of sorted) {
+				const node = ctrl.scene.findNode(snap.nodeId);
+				if (!node) continue;
+				const newLocalM = TransformMath.multiply(groupLocalM, node.getLocalMatrix());
+				const pivot = node.transform.rotationCenter || node.getLocalBoundsCentre();
+				rebases.push({node, trs: TransformMath.decomposeToTRS(newLocalM, pivot)});
+			}
+			for (const { node, trs } of rebases) {
+				node.transform.x = trs.x;
+				node.transform.y = trs.y;
+				node.transform.rotation = trs.rotation;
+				node.transform.scaleX = trs.scaleX;
+				node.transform.scaleY = trs.scaleY;
+				node.markDirty();
+			}
+			for (const snap of sorted) {
+				const node = ctrl.scene.findNode(snap.nodeId);
+				if (node) ctrl.scene.reinsertShape(node, snap.newParentId, snap.newIndex);
+			}
+			ctrl.scene.removeNode(this.groupSnapshot.nodeId);
+			ctrl.selection.replace(this.childrenSnapshots.map(s => s.nodeId));
+			ctrl.afterMutation();
+		}
+
+		undo(ctrl) {
+			const group = new GroupNode(this.groupSnapshot.label || i18n.t('panels.scene.unnamedGroup'));
+			group.id = this.groupSnapshot.nodeId;
+			// Restore the group's own transform (lost when the node was destroyed).
+			const gt = this.groupSnapshot.transform;
+			if (gt) {
+				group.transform.x = gt.x; group.transform.y = gt.y; group.transform.rotation = gt.rotation;
+				group.transform.scaleX = gt.scaleX; group.transform.scaleY = gt.scaleY;
+				group.transform.rotationCenter = gt.rotationCenter ? { x: gt.rotationCenter.x, y: gt.rotationCenter.y } : null;
+			}
+			ctrl.scene.reinsertShape(group, this.groupSnapshot.parentId, this.groupSnapshot.indexInParent);
+			for (const snap of this.childrenSnapshots) {
+				const node = ctrl.scene.findNode(snap.nodeId);
+				if (!node) continue;
+				// Undo the rebase: restore each child's pre-ungroup local transform.
+				const ct = snap.transform;
+				if (ct) {
+					node.transform.x = ct.x; node.transform.y = ct.y; node.transform.rotation = ct.rotation;
+					node.transform.scaleX = ct.scaleX; node.transform.scaleY = ct.scaleY;
+					node.transform.rotationCenter = ct.rotationCenter ? { x: ct.rotationCenter.x, y: ct.rotationCenter.y } : null;
+					node.markDirty();
+				}
+				ctrl.scene.reinsertShape(node, group.id);
+			}
+			ctrl.selection.replace([group.id]);
+			ctrl.scene.recomputeBoardBoundsFromShapes();
+			ctrl.afterMutation();
+		}
+
+		get label() {
+			return i18n.t('history.ungroup');
+		}
+	}
+
+	/**
+	 * Removes N operation buckets and their core operations, keeping both by
+	 * reference so undo re-attaches rather than rebuilds. `pruned` carries the
+	 * shapeRefs lists that a partial deletion trimmed - those edits are as
+	 * destructive as the removals, so undo restores them too.
+	 * removed: [{ bucketId }]  (token filled in on first execute)
+	 * pruned:  [{ bucketId, prevRefs }]
+	 */
+	class RemoveBucketsCommand extends Command {
+		constructor(bucketIds, pruned = []) {
+			super();
+			this.bucketIds = [...bucketIds];
+			this.pruned = pruned.map(p => ({ bucketId: p.bucketId, prevRefs: [...p.prevRefs] }));
+			this.tokens = [];
+		}
+
+		execute(ctrl) {
+			const panel = ctrl.ui.opsPanel;
+			if (!panel) return;
+			for (const p of this.pruned) {
+				const bucket = panel.getBucket(p.bucketId);
+				if (bucket) bucket.shapeRefs = bucket.shapeRefs.filter(ref => ctrl.scene.findShape(ref) !== null);
+			}
+			this.tokens = this.bucketIds.map(id => panel.removeBucket(id, ctrl.core)).filter(Boolean);
+		}
+		
+		undo(ctrl) {
+			const panel = ctrl.ui.opsPanel;
+			if (!panel) return;
+			for (let i = this.tokens.length - 1; i >= 0; i--) panel.restoreBucket(this.tokens[i], ctrl.core);
+			for (const p of this.pruned) {
+				const bucket = panel.getBucket(p.bucketId);
+				if (bucket) bucket.shapeRefs = [...p.prevRefs];
+			}
+		}
+
+		get label() {
+			return i18n.t('history.removeOperations', { count: this.bucketIds.length });
+		}
+	}
+
+	/**
+	 * Toggles `visible` or `locked` on a set of shapes. Both are simple
+	 * boolean flips so one command class handles both via a `flag` field.
+	 */
+	class SetNodeFlagCommand extends Command {
+		constructor(entries, flag) {
+			super();
+			this.entries = entries.map(e => ({ ...e }));
+			this.flag = flag; // 'visible' | 'locked'
+		}
+
+		execute(ctrl) {
+			for (const e of this.entries) {
+				const n = ctrl.scene.findNode(e.nodeId);
+				if (n) n[this.flag] = e.newValue;
+			}
+			ctrl.afterFlagMutation();
+		}
+
+		undo(ctrl) {
+			for (const e of this.entries) {
+				const n = ctrl.scene.findNode(e.nodeId);
+				if (n) n[this.flag] = e.prevValue;
+			}
+			ctrl.afterFlagMutation();
+		}
+
+		get label() {
+			const on = this.entries[0]?.newValue;
+			const verb = this.flag === 'visible' ? (on ? 'show' : 'hide') : (on ? 'lock' : 'unlock');
+			return i18n.t(`history.${verb}`, { count: this.entries.length });
+		}
+	}
+
+	/**
+	 * Sets transform components on a single node: the flat x, y, z, rotation, rotationX,
+	 * rotationY, scaleX, scaleY and rotationCenter, and the radial radialX, radialY, radialZ
+	 * and radialAnchor. Multi-node edits compose multiple instances.
+	 */
+	class SetShapeTransformCommand extends Command {
+		constructor(shapeId, prevTransform, newFields) {
+			super();
+			this.shapeId = shapeId;
+			this.prev = { ...prevTransform };
+			this.next = { ...prevTransform, ...newFields };
+		}
+
+		apply(ctrl, t) {
+			const s = ctrl.scene.findNode(this.shapeId);
+			if (!s) return;
+			const tilted = ('rotationX' in t && t.rotationX !== s.transform.rotationX) || ('rotationY' in t && t.rotationY !== s.transform.rotationY);
+			// Keys absent from the record stay as they are: some callers snapshot only the 2D fields.
+			for (const key of ['x', 'y', 'z', 'rotation', 'rotationX', 'rotationY', 'scaleX', 'scaleY', 'radialX', 'radialY', 'radialZ', 'radialAnchor']) {
+				if (key in t) s.transform[key] = t[key];
+			}
+			if ('rotationCenter' in t) s.transform.rotationCenter = t.rotationCenter ? { x: t.rotationCenter.x, y: t.rotationCenter.y } : null;
+			// A tilt reshapes a mesh's footprint, the local geometry every 2D bound reads.
+			if (tilted && s.mesh) ctrl.refreshMeshFootprint(s);
+			s.markDirty();
+		}
+
+		execute(ctrl) {
+			this.apply(ctrl, this.next);
+			ctrl.afterMutation();
+		}
+
+		undo(ctrl) {
+			this.apply(ctrl, this.prev);
+			ctrl.afterMutation();
+		}
+
+		get label() {
+			return i18n.t('history.editTransform');
+		}
+	}
+
+	window.CompositeCommand = CompositeCommand;
+	window.TranslateCommand = TranslateCommand;
+	window.GroupCommand = GroupCommand;
+	window.UngroupCommand = UngroupCommand;
+	window.DeleteShapesCommand = DeleteShapesCommand;
+	window.RemoveBucketsCommand = RemoveBucketsCommand;
+	window.SetNodeFlagCommand = SetNodeFlagCommand;
+	window.SetShapeTransformCommand = SetShapeTransformCommand;
+	window.CommandManager = CommandManager;
 })();

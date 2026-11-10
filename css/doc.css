@@ -13,97 +13,97 @@
    VARIABLES
    ============================================================================ */
 :root {
-    --doc-sidebar-width: clamp(12rem, 16vw, 15rem);
-    --doc-content-max-width: 60rem;
-    --doc-wide-max-width: 75rem;
-    --doc-layout-max-width:75rem;
+  --doc-sidebar-width: clamp(12rem, 16vw, 15rem);
+  --doc-content-max-width: 60rem;
+  --doc-wide-max-width: 75rem;
+  --doc-layout-max-width: 75rem;
 }
 
 /* ============================================================================
    GLOBAL LAYOUT (APP SHELL)
    ============================================================================ */
 html, body {
-    height: 100%;
-    margin: 0;
-    overflow: hidden;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
 }
 
 h1, h2, h3, h4, h5, h6,
 section[id] {
-    scroll-margin-top: calc(var(--header-layout-height) + 1.5rem);
+  scroll-margin-top: calc(var(--header-layout-height) + 1.5rem);
 }
 
 /* ============================================================================
    HEADER
    ============================================================================ */
 .doc-header {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: var(--header-layout-height);
-    padding-top: var(--safe-area-top);
-    padding-left: max(calc(var(--spacing-xl) + var(--safe-area-left)), calc((100% - var(--doc-layout-max-width)) / 2 + var(--spacing-xl)));
-    padding-right: max(calc(var(--spacing-xl) + var(--safe-area-right)), calc((100% - var(--doc-layout-max-width)) / 2 + var(--spacing-xl)));
-    background: var(--color-bg-secondary);
-    border-bottom: 1px solid var(--color-border-primary);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    z-index: var(--z-sticky);
-    box-sizing: border-box;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--header-layout-height);
+  padding-top: var(--safe-area-top);
+  padding-left: max(calc(var(--spacing-xl) + var(--safe-area-left)), calc((100% - var(--doc-layout-max-width)) / 2 + var(--spacing-xl)));
+  padding-right: max(calc(var(--spacing-xl) + var(--safe-area-right)), calc((100% - var(--doc-layout-max-width)) / 2 + var(--spacing-xl)));
+  background: var(--color-bg-secondary);
+  border-bottom: 1px solid var(--color-border-primary);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  z-index: var(--z-sticky);
+  box-sizing: border-box;
 }
 
 .doc-brand {
-    font-size: var(--font-size-xl);
-    font-weight: 600;
-    line-height: 1;
+  font-size: var(--font-size-xl);
+  font-weight: 600;
+  line-height: 1;
 }
 
 .doc-brand a {
-    color: var(--color-text-primary);
-    text-decoration: none;
+  color: var(--color-text-primary);
+  text-decoration: none;
 }
 
 .doc-brand a:hover {
-    color: var(--color-accent-primary);
+  color: var(--color-accent-primary);
 }
 
 .doc-nav {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-sm);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
 }
 
 .doc-nav a {
-    color: var(--color-text-secondary);
-    text-decoration: none;
-    font-size: var(--font-size-sm);
-    padding: var(--spacing-xs) var(--spacing-md);
-    border-radius: var(--radius);
-    font-weight: 500;
+  color: var(--color-text-secondary);
+  text-decoration: none;
+  font-size: var(--font-size-sm);
+  padding: var(--spacing-xs) var(--spacing-md);
+  border-radius: var(--radius);
+  font-weight: 500;
 }
 
 .doc-nav a:hover {
-    color: var(--color-text-primary);
-    background: var(--color-bg-hover);
+  color: var(--color-text-primary);
+  background: var(--color-bg-hover);
 }
 
 .doc-nav a.active {
-    color: var(--color-accent-primary);
-    background: var(--color-bg-active);
+  color: var(--color-accent-primary);
+  background: var(--color-bg-active);
 }
 
 .doc-nav a.nav-highlight {
-    color: var(--color-accent-primary);
-    font-weight: 600;
+  color: var(--color-accent-primary);
+  font-weight: 600;
 }
 
 .doc-nav .separator {
-    width: 1px;
-    height: 1.25rem;
-    background: var(--color-border-secondary);
-    margin: 0 var(--spacing-xs);
+  width: 1px;
+  height: 1.25rem;
+  background: var(--color-border-secondary);
+  margin: 0 var(--spacing-xs);
 }
 
 /* ---------------------------------------------------------------
@@ -112,56 +112,56 @@ section[id] {
    separator is rendered before the first <li> as well.
    --------------------------------------------------------------- */
 .doc-breadcrumb {
-    flex: 0 1 auto;
-    min-width: 0;
-    margin-left: var(--spacing-sm);
-    margin-right: auto;
-    font-size: var(--font-size-sm);
-    line-height: var(--line-height-tight);
+  flex: 0 1 auto;
+  min-width: 0;
+  margin-left: var(--spacing-sm);
+  margin-right: auto;
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-tight);
 }
 
 .doc-breadcrumb ol {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-xs);
-    white-space: nowrap;
-    overflow-x: auto;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  white-space: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 
 .doc-breadcrumb ol::-webkit-scrollbar { display: none; }
 
 .doc-breadcrumb li {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-xs);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
 }
 
 /* Separator before every rung, including the first (after the brand) */
 .doc-breadcrumb li::before {
-    content: "/";
-    color: var(--color-text-disabled);
+  content: "/";
+  color: var(--color-text-disabled);
 }
 
 .doc-breadcrumb a {
-    color: var(--color-text-secondary);
-    text-decoration: none;
-    font-weight: 400;
+  color: var(--color-text-secondary);
+  text-decoration: none;
+  font-weight: 400;
 }
 
 .doc-breadcrumb a:hover,
 .doc-breadcrumb a:focus-visible {
-    color: var(--color-text-primary);
-    text-decoration: underline;
-    text-underline-offset: 2px;
+  color: var(--color-text-primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .doc-breadcrumb [aria-current="page"] {
-    color: var(--color-text-primary);
+  color: var(--color-text-primary);
 }
 
 /* ============================================================================
@@ -173,633 +173,567 @@ section[id] {
 .doc-sidebar,
 .doc-breadcrumb,
 .doc-footer {
-    user-select: text;
-    -webkit-user-select: text;
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 /* ============================================================================
-   SCROLLABLE WRAPPER
-   Scrollbar always at viewport edge
+   SCROLLABLE WRAPPER (Scrollbar always at viewport edge)
    ============================================================================ */
 .doc-wrapper {
-    position: fixed;
-    top: var(--header-layout-height);
-    left: 0;
-    right: 0;
-    bottom: 0;
-    overflow-y: auto;
-    overflow-x: hidden;
-    scroll-behavior: smooth;
-    background: var(--color-bg-primary);
+  position: fixed;
+  top: var(--header-layout-height);
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scroll-behavior: smooth;
+  background: var(--color-bg-primary);
 }
 
 /* ============================================================================
    SIDEBAR (Fixed position, outside document flow)
    ============================================================================ */
 .doc-sidebar {
-    position: fixed;
-    top: var(--header-layout-height);
-    left: 0;
-    bottom: 0;
-    width: var(--doc-sidebar-width);
-    background: var(--color-bg-secondary);
-    border-right: 1px solid var(--color-border-primary);
-    padding: var(--spacing-xl);
-    padding-left: calc(var(--spacing-xl) + var(--safe-area-left));
-    padding-bottom: calc(var(--spacing-xl) + 91px);
-    overflow-y: auto;
-    scrollbar-width: thin;
-    box-sizing: border-box;
-    z-index: -1;
+  position: fixed;
+  top: var(--header-layout-height);
+  left: 0;
+  bottom: 0;
+  width: var(--doc-sidebar-width);
+  background: var(--color-bg-secondary);
+  border-right: 1px solid var(--color-border-primary);
+  padding: var(--spacing-xl);
+  padding-left: calc(var(--spacing-xl) + var(--safe-area-left));
+  padding-bottom: calc(var(--spacing-xl) + 91px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  box-sizing: border-box;
+  z-index: -1;
 }
 
 .doc-sidebar h2,
 .doc-sidebar-title {
-    font-size: var(--font-size-xs);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--color-text-secondary);
-    margin-bottom: var(--spacing-lg);
-    border: none;
-    padding: 0;
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-sm);
+  font-size: var(--font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-secondary);
+  margin-bottom: var(--spacing-lg);
+  border: none;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
 }
 
 .doc-sidebar ol,
 .doc-sidebar ul {
-    list-style: none;
-    padding: 0;
-    margin: 0;
+  list-style: none;
+  padding: 0;
+  margin: 0;
 }
 
 .doc-sidebar li {
-    margin-bottom: 2px;
+  margin-bottom: 2px;
 }
 
 .doc-sidebar a {
-    display: block;
-    color: var(--color-text-secondary);
-    text-decoration: none;
-    font-size: var(--font-size-sm);
-    padding: 6px 8px;
-    border-radius: var(--radius);
-    line-height: 1.4;
+  display: block;
+  color: var(--color-text-secondary);
+  text-decoration: none;
+  font-size: var(--font-size-sm);
+  padding: 6px 8px;
+  border-radius: var(--radius);
+  line-height: 1.4;
 }
 
 .doc-sidebar a:hover {
-    color: var(--color-text-primary);
-    background: var(--color-bg-hover);
+  color: var(--color-text-primary);
+  background: var(--color-bg-hover);
 }
 
 .doc-sidebar ol ol,
 .doc-sidebar ul ul {
-    margin-left: var(--spacing-md);
-    padding-left: var(--spacing-sm);
-    border-left: 1px solid var(--color-border-primary);
-    margin-top: 4px;
-    margin-bottom: 8px;
+  margin-left: var(--spacing-md);
+  padding-left: var(--spacing-sm);
+  border-left: 1px solid var(--color-border-primary);
+  margin-top: 4px;
+  margin-bottom: 8px;
 }
 
 /* ============================================================================
    MAIN CONTENT
    ============================================================================ */
 .doc-main {
-    max-width: var(--doc-content-max-width);
-    padding: var(--spacing-xxl) var(--spacing-xl);
-    padding-right: calc(var(--spacing-xl) + var(--safe-area-right));
-    padding-left: calc(var(--spacing-xl) + var(--safe-area-left));
-    box-sizing: border-box;
-    margin: 0 auto;
+  max-width: var(--doc-content-max-width);
+  padding: var(--spacing-xxl) var(--spacing-xl);
+  padding-right: calc(var(--spacing-xl) + var(--safe-area-right));
+  padding-left: calc(var(--spacing-xl) + var(--safe-area-left));
+  box-sizing: border-box;
+  margin: 0 auto;
 }
 
 /* Wide mode for index page (no sidebar) */
 .doc-main--wide {
-    max-width: var(--doc-wide-max-width);
+  max-width: var(--doc-wide-max-width);
 }
 
 /* When sidebar exists, offset main content */
 .doc-wrapper.has-sidebar .doc-main {
-    margin-left: var(--doc-sidebar-width);
-    margin-right: 0;
-    padding-left: var(--spacing-xl);
-    /* Keep content left-aligned with fixed gap from sidebar */
-    max-width: var(--doc-content-max-width);
+  margin-left: var(--doc-sidebar-width);
+  margin-right: 0;
+  padding-left: var(--spacing-xl);
+  /* Keep content left-aligned with fixed gap from sidebar */
+  max-width: var(--doc-content-max-width);
 }
 
 /* ============================================================================
-   FOOTER - VIEWPORT WIDTH BREAKOUT
+   FOOTER - (Viewport width breakout)
    ============================================================================ */
 .doc-footer {
-    width: 100vw;
-    position: relative;
-    left: 50%;
-    transform: translateX(-50%);
-    padding: 2rem var(--spacing-xl);
-    padding-bottom: calc(2rem + var(--safe-area-bottom));
-    padding-left: calc(var(--spacing-xl) + var(--safe-area-left));
-    padding-right: calc(var(--spacing-xl) + var(--safe-area-right));
-    background: var(--color-bg-tertiary);
-    border-top: 1px solid var(--color-border-primary);
-    text-align: center;
-    font-size: var(--font-size-sm);
-    color: var(--color-text-hint);
-    box-sizing: border-box;
+  width: 100vw;
+  position: relative;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 2rem var(--spacing-xl);
+  padding-bottom: calc(2rem + var(--safe-area-bottom));
+  padding-left: calc(var(--spacing-xl) + var(--safe-area-left));
+  padding-right: calc(var(--spacing-xl) + var(--safe-area-right));
+  background: var(--color-bg-tertiary);
+  border-top: 1px solid var(--color-border-primary);
+  text-align: center;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-hint);
+  box-sizing: border-box;
 }
 
 .doc-footer p {
-    max-width: var(--doc-content-max-width);
-    margin: 0 auto;
-    padding: 0;
+  max-width: var(--doc-content-max-width);
+  margin: 0 auto;
+  padding: 0;
 }
 
 .doc-footer a {
-    color: var(--color-text-secondary);
-    text-decoration: none;
-    margin: 0 0.5rem;
+  color: var(--color-text-secondary);
+  text-decoration: none;
+  margin: 0 0.5rem;
 }
 
 .doc-footer a:hover {
-    text-decoration: underline;
-    color: var(--color-accent-primary);
+  text-decoration: underline;
+  color: var(--color-accent-primary);
 }
 
 /* ============================================================================
    TYPOGRAPHY & ELEMENTS
    ============================================================================ */
 section {
-    margin-bottom: 4rem;
+  margin-bottom: 4rem;
 }
 
 section:last-child {
-    margin-bottom: 0px;
+  margin-bottom: 0px;
 }
 
 h1 {
-    font-size: 2.5rem;
-    margin-bottom: var(--spacing-lg);
-    line-height: 1.2;
-    color: var(--color-text-primary);
+  font-size: 2.5rem;
+  margin-bottom: var(--spacing-lg);
+  line-height: 1.2;
+  color: var(--color-text-primary);
 }
 
 h2 {
-    font-size: 1.75rem;
-    margin-top: 3rem;
-    margin-bottom: 1.5rem;
-    padding-bottom: var(--spacing-sm);
-    border-bottom: 1px solid var(--color-border-primary);
-    color: var(--color-text-primary);
+  font-size: 1.75rem;
+  margin-top: 3rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: var(--spacing-sm);
+  border-bottom: 1px solid var(--color-border-primary);
+  color: var(--color-text-primary);
 }
 
 h3 {
-    font-size: 1.25rem;
-    margin-top: 2rem;
-    margin-bottom: 1rem;
-    font-weight: 600;
-    color: var(--color-text-primary);
+  font-size: 1.25rem;
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
 }
 
 h4 {
-    font-size: 1rem;
-    margin-top: 1.5rem;
-    margin-bottom: 0.75rem;
-    font-weight: 600;
-    color: var(--color-text-primary);
+  font-size: 1rem;
+  margin-top: 1.5rem;
+  margin-bottom: 0.75rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
 }
 
 p {
-    margin-bottom: 1rem;
-    color: var(--color-text-secondary);
-    font-size: 1rem;
-    line-height: 1.7;
+  margin-bottom: 1rem;
+  color: var(--color-text-secondary);
+  font-size: 1rem;
+  line-height: 1.7;
 }
 
 /* Links */
 .doc-main a:not([class]) {
-    color: var(--color-accent-primary);
-    text-decoration: none;
-    border-bottom: 1px solid transparent;
+  color: var(--color-accent-primary);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
 }
 
 .doc-main a:not([class]):hover {
-    border-bottom-color: currentColor;
+  border-bottom-color: currentColor;
 }
 
 /* Lists */
 .doc-main ul, .doc-main ol {
-    margin-bottom: 1.5rem;
-    padding-left: 1.5rem;
-    color: var(--color-text-secondary);
+  margin-bottom: 1.5rem;
+  padding-left: 1.5rem;
+  color: var(--color-text-secondary);
 }
 
 .doc-main li {
-    margin-bottom: 0.5rem;
-    line-height: 1.6;
+  margin-bottom: 0.5rem;
+  line-height: 1.6;
 }
 
 /* Definitions */
 dl {
-    margin-bottom: 2rem;
+  margin-bottom: 2rem;
 }
 
 dt {
-    font-weight: 600;
-    color: var(--color-text-primary);
-    margin-top: 1rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin-top: 1rem;
 }
 
 dd {
-    margin-left: 1rem;
-    margin-bottom: 0.5rem;
-    color: var(--color-text-secondary);
+  margin-left: 1rem;
+  margin-bottom: 0.5rem;
+  color: var(--color-text-secondary);
 }
 
 /* Images */
 figure {
-    margin: 2.5rem 0;
-    text-align: center;
+  margin: 2.5rem 0;
+  text-align: center;
 }
 
 figure img {
-    max-width: 100%;
-    height: auto;
-    border-radius: var(--radius-md);
-    border: 1px solid var(--color-border-primary);
-    box-shadow: var(--shadow-sm);
-    background: var(--color-bg-primary);
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border-primary);
+  box-shadow: var(--shadow-sm);
+  background: var(--color-bg-primary);
 }
 
 figcaption {
-    margin-top: 0.75rem;
-    font-size: 0.9rem;
-    color: var(--color-text-hint);
-    font-style: italic;
+  margin-top: 0.75rem;
+  font-size: 0.9rem;
+  color: var(--color-text-hint);
+  font-style: italic;
 }
 
 /* Code & Tables */
 code {
-    background: var(--color-bg-tertiary);
-    color: var(--color-text-primary);
-    padding: 0.2em 0.4em;
-    border-radius: var(--radius-sm);
-    font-size: 0.9em;
-    font-family: var(--font-mono);
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-primary);
+  padding: 0.2em 0.4em;
+  border-radius: var(--radius-sm);
+  font-size: 0.9em;
+  font-family: var(--font-mono);
 }
 
 pre {
-    background: var(--color-bg-tertiary);
-    border: 1px solid var(--color-border-primary);
-    padding: var(--spacing-md);
-    border-radius: var(--radius);
-    overflow-x: auto;
-    margin: 1.5rem 0;
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border-primary);
+  padding: var(--spacing-md);
+  border-radius: var(--radius);
+  overflow-x: auto;
+  margin: 1.5rem 0;
 }
 
 pre code {
-    background: none;
-    color: inherit;
-    padding: 0;
-    border: none;
+  background: none;
+  color: inherit;
+  padding: 0;
+  border: none;
 }
 
 kbd {
-    background: var(--color-bg-tertiary);
-    border: 1px solid var(--color-border-secondary);
-    border-bottom-width: 2px;
-    border-radius: 4px;
-    padding: 2px 6px;
-    font-size: 0.85em;
-    font-family: var(--font-mono);
-    color: var(--color-text-primary);
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border-secondary);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 0.85em;
+  font-family: var(--font-mono);
+  color: var(--color-text-primary);
 }
 
 table {
-    width: 100%;
-    border-collapse: collapse;
-    margin: 2rem 0;
-    font-size: 0.95rem;
-    border: 1px solid var(--color-border-primary);
-    border-radius: var(--radius);
-    overflow: hidden;
+  width: 100%;
+  border-collapse: collapse;
+  margin: 2rem 0;
+  font-size: 0.95rem;
+  border: 1px solid var(--color-border-primary);
+  border-radius: var(--radius);
+  overflow: hidden;
 }
 
 th, td {
-    padding: var(--spacing-md);
-    text-align: left;
-    border-bottom: 1px solid var(--color-border-primary);
+  padding: var(--spacing-md);
+  text-align: left;
+  border-bottom: 1px solid var(--color-border-primary);
 }
 
 th {
-    background: var(--color-bg-tertiary);
-    color: var(--color-text-primary);
-    font-weight: 600;
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-primary);
+  font-weight: 600;
 }
 
 td {
-    color: var(--color-text-secondary);
-    background: var(--color-bg-primary);
+  color: var(--color-text-secondary);
+  background: var(--color-bg-primary);
 }
 
 tr:last-child td {
-    border-bottom: none;
+  border-bottom: none;
 }
 
 /* ============================================================================
-   CARDS & GRIDS
-   Pipeline card styles here are for the documentation page layout.
-   The app modals (modals.css) have their own pipeline card presentation.
+   CARDS & GRIDS (Pipeline card styles here are for the documentation page layout.)
    ============================================================================ */
-
 .hero {
-    text-align: center;
-    padding: 2rem 0;
-    border-bottom: 1px solid var(--color-border-primary);
-    margin-bottom: 3rem;
+  text-align: center;
+  padding: 2rem 0;
+  border-bottom: 1px solid var(--color-border-primary);
+  margin-bottom: 3rem;
 }
 
 .hero .tagline {
-    font-size: 1.25rem;
-    color: var(--color-text-secondary);
-    margin-bottom: 2rem;
+  font-size: 1.25rem;
+  color: var(--color-text-secondary);
+  margin-bottom: 2rem;
 }
 
 .hero-actions {
-    display: flex;
-    gap: var(--spacing-md);
-    justify-content: center;
-    flex-wrap: wrap;
-    margin-top: 2rem;
+  display: flex;
+  gap: var(--spacing-md);
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 2rem;
 }
 
 .pipeline-grid, .feature-grid, .workflow-grid, .step-grid, .workflow-split {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 1.5rem;
-    margin: 2rem 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+  margin: 2rem 0;
 }
 
 .pipeline-card, .feature-card, .workflow-card, .step-card, .workflow-column {
-    background: var(--color-bg-secondary);
-    border: 1px solid var(--color-border-primary);
-    border-radius: var(--radius-lg);
-    padding: 1.5rem;
-    text-decoration: none;
-    display: flex;
-    flex-direction: column;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border-primary);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  text-decoration: none;
+  display: flex;
+  flex-direction: column;
 }
 
 
 .pipeline-card:hover {
-    border-color: var(--color-accent-primary);
-    box-shadow: var(--shadow-md);
+  border-color: var(--color-accent-primary);
+  box-shadow: var(--shadow-md);
 }
 
 .pipeline-card.is-locked {
-    opacity: 0.5;
-    pointer-events: none;
-    cursor: not-allowed;
+  opacity: 0.5;
+  pointer-events: none;
+  cursor: not-allowed;
 }
 
 .pipeline-card h3, .feature-card h3 {
-    margin-top: 0;
-    margin-bottom: 1rem;
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    font-size: 1.25rem;
-    color: var(--color-text-primary);
+  margin-top: 0;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 1.25rem;
+  color: var(--color-text-primary);
 }
 
 .pipeline-card p {
-    flex: 1;
-    margin-bottom: 1.5rem;
+  flex: 1;
+  margin-bottom: 1.5rem;
 }
 
 /* Status Borders */
-.pipeline-card--active {
-    border-top: 4px solid var(--color-success);
+.pipeline-card--stable {
+  border-top: 4px solid var(--color-success);
 }
 
 .pipeline-card--dev {
-    border-top: 4px solid var(--color-warning);
+  border-top: 4px solid var(--color-warning);
 }
 
 .pipeline-card .btn {
-    pointer-events: none;
+  pointer-events: none;
 }
 
 .pipeline-card:hover .btn--primary {
-    background-color: var(--color-accent-hover);
-    color: white;
+  background-color: var(--color-accent-hover);
+  color: var(--color-text-on-emphasis);
 }
 
 .pipeline-card:hover .btn--secondary {
-    background-color: var(--color-bg-tertiary);
-    color: var(--color-text-primary);
-    border-color: var(--color-text-secondary);
+  background-color: var(--color-bg-tertiary);
+  color: var(--color-text-primary);
+  border-color: var(--color-text-secondary);
 }
 
 .workflow-column--cnc {
-    border-top: 4px solid var(--color-pipeline-cnc);
+  border-top: 4px solid var(--color-pipeline-cnc);
 }
 
 .workflow-column--laser {
-    border-top: 4px solid var(--color-pipeline-laser);
+  border-top: 4px solid var(--color-pipeline-laser);
 }
 
-/* Bullet list for Step 3 in "How it works" */
+/* Link lists in the landing page's Documentation cards */
 .sub-feature-list {
-    list-style: none;
-    padding-left: 0 !important;
-    margin-bottom: 0 !important;
-
+  list-style: none;
+  padding-left: 0 !important;
+  margin-bottom: 0 !important;
 }
 
 .sub-feature-list li {
-    position: relative;
-    padding-left: 1.25rem;
-    margin-bottom: 0.5rem;
+  position: relative;
+  padding-left: 1.25rem;
+  margin-bottom: 0.5rem;
 }
 
 .sub-feature-list li::before {
-    content: "•";
-    position: absolute;
-    left: 0;
-    color: var(--color-text-secondary);
-    font-weight: bold;
+  content: "•";
+  position: absolute;
+  left: 0;
 }
 
 /* Badges */
 .doc-badge {
-    display: inline-flex;
-    align-items: center;
-    padding: 2px 8px;
-    border-radius: 999px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    vertical-align: text-bottom;
-    margin-left: 0.5rem;
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  vertical-align: text-bottom;
+  margin-left: 0.5rem;
 }
 
 .doc-badge--stable {
-    background: color-mix(in srgb, var(--color-success) 15%, transparent);
-    color: var(--color-success);
+  background: color-mix(in srgb, var(--color-success) 15%, transparent);
+  color: var(--color-success);
 }
 
 .doc-badge--dev {
-    background: color-mix(in srgb, var(--color-warning) 15%, transparent);
-    color: var(--color-warning);
+  background: color-mix(in srgb, var(--color-warning) 15%, transparent);
+  color: var(--color-warning);
 }
 
 .doc-badge--planned {
-    background: var(--color-bg-tertiary);
-    color: var(--color-text-secondary);
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
 }
 
-/* ═══════════════════════════════════════════════════════════════
+/* ============================================================================
    Documentation content helpers
-   ═══════════════════════════════════════════════════════════════ */
+   ============================================================================ */
 
 .doc-sidebar-title {
-    font-weight: 600;
+  font-weight: 600;
 }
 
 /* Keyboard shortcut lists inside feature cards. */
 .key-list {
-    list-style: none;
-    padding: 0;
-    margin: 0;
+  list-style: none;
+  padding: 0;
+  margin: 0;
 }
 
 .key-list li {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.4rem;
-    margin-bottom: 0.4rem;
-    font-size: var(--font-size-sm);
-    color: var(--color-text-secondary);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.4rem;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
 }
 
 /* Figure placeholder. figures.js injects the SVG at runtime; the build
-   inlines it instead. Sizing lives here so the file stays presentational. */
+  inlines it instead. Sizing lives here so the file stays presentational. */
 .doc-figure {
-    width: 100%;
-    max-width: 800px;
-    background: var(--color-bg-primary);
-    border: 1px solid var(--color-border-primary);
-    border-radius: var(--radius);
+  width: 100%;
+  max-width: 800px;
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border-primary);
+  border-radius: var(--radius);
 }
 
 .doc-figure svg {
-    display: block;
-    width: 100%;
-    height: auto;
+  display: block;
+  width: 100%;
+  height: auto;
 }
 
 /* Holds the box open while the fetch is in flight, so nothing reflows. */
 .doc-figure[data-figure-pending] {
-    min-height: 8rem;
+  min-height: 8rem;
 }
 
 .doc-figure[data-figure-failed] {
-    display: none;
+  display: none;
 }
 
 /* Conditional / machine-class notes under a generated parameter label. */
 .param-condition {
-    display: inline-block;
-    margin-top: 2px;
-    font-size: var(--font-size-xs);
-    font-weight: 400;
-    color: var(--color-text-hint);
+  display: inline-block;
+  margin-top: 2px;
+  font-size: var(--font-size-xs);
+  font-weight: 400;
+  color: var(--color-text-hint);
 }
 
 /* ============================================================================
    MOBILE NAVIGATION
    ============================================================================ */
 .doc-menu-toggle {
-    display: none;
-    background: none;
-    border: 1px solid var(--color-border-primary);
-    border-radius: var(--radius);
-    color: var(--color-text-primary);
-    padding: 0.5rem;
-    cursor: pointer;
+  display: none;
+  background: none;
+  border: 1px solid var(--color-border-primary);
+  border-radius: var(--radius);
+  color: var(--color-text-primary);
+  padding: 0.5rem;
+  cursor: pointer;
 }
 
 .doc-menu-toggle .icon-close {
-    display: none;
+  display: none;
 }
 
 .doc-menu-toggle[aria-expanded="true"] .icon-menu {
-    display: none;
+  display: none;
 }
 
 .doc-menu-toggle[aria-expanded="true"] .icon-close {
-    display: block;
-}
-
-@media (max-width: 768px) {
-    .doc-menu-toggle {
-        display: block;
-    }
-
-    .doc-nav {
-        display: none;
-        position: fixed;
-        z-index: 200;
-        top: var(--header-layout-height);
-        bottom: 0;
-        left: 0;
-        right: 0;
-        height: auto;
-        background: var(--color-bg-primary);
-        border-top: 1px solid var(--color-border-primary);
-        padding: 2rem;
-        padding-left: calc(2rem + var(--safe-area-left));
-        padding-right: calc(2rem + var(--safe-area-right));
-        padding-bottom: calc(2rem + var(--safe-area-bottom));
-        flex-direction: column;
-        align-items: stretch;
-        gap: 1rem;
-        overflow-y: auto;
-        overscroll-behavior: contain;
-    }
-
-    .doc-nav.is-open {
-        display: flex;
-    }
-
-    .doc-nav .separator {
-        display: none;
-    }
-
-    .doc-nav a {
-        text-align: center;
-        padding: 1rem;
-        background: var(--color-bg-secondary);
-        border: 1px solid var(--color-border-secondary);
-        font-size: 1.1rem;
-    }
-
-    .doc-nav #theme-toggle {
-        width: 100%;
-        height: 3rem;
-        justify-content: center;
-        margin-top: 1rem;
-        margin-bottom: var(--safe-area-bottom);
-        background: var(--color-bg-secondary);
-        border: 1px solid var(--color-border-secondary);
-        border-radius: var(--radius);
-    }
-
-    .pipeline-grid, .feature-grid, .workflow-grid, .step-grid, .workflow-split {
-        grid-template-columns: 1fr;
-    }
+  display: block;
 }
 
 /* ============================================================================
@@ -808,122 +742,122 @@ tr:last-child td {
 
 /* Large screens: constrain sidebar position and content */
 @media (min-width: 1200px) {
-    .doc-sidebar {
-        left: calc((100vw - var(--doc-layout-max-width)) / 2);
-    }
+  .doc-sidebar {
+    left: calc((100vw - var(--doc-layout-max-width)) / 2);
+  }
 
-    .doc-wrapper.has-sidebar .doc-main {
-        margin-left: calc((100vw - var(--doc-layout-max-width)) / 2 + var(--doc-sidebar-width));
-    }
+  .doc-wrapper.has-sidebar .doc-main {
+    margin-left: calc((100vw - var(--doc-layout-max-width)) / 2 + var(--doc-sidebar-width));
+  }
 }
 
 /* Tablet: sidebar hidden */
 @media (max-width: 900px) {
-    .doc-sidebar {
-        display: none;
-    }
+  .doc-sidebar {
+    display: none;
+  }
 
-    .doc-wrapper.has-sidebar .doc-main {
-        margin-left: 0;
-        padding-left: calc(var(--spacing-xl) + var(--safe-area-left));
-        max-width: none;
-    }
+  .doc-wrapper.has-sidebar .doc-main {
+    margin-left: 0;
+    padding-left: calc(var(--spacing-xl) + var(--safe-area-left));
+    max-width: none;
+  }
 
-    .doc-main {
-        max-width: none;
-    }
+  .doc-main {
+    max-width: none;
+  }
 }
 
 /* Mobile: collapsed nav + typography */
 @media (max-width: 768px) {
-    .doc-menu-toggle {
-        display: block;
-    }
+  .doc-menu-toggle {
+    display: block;
+  }
 
-    .doc-nav {
-        display: none;
-        position: fixed;
-        z-index: 200;
-        top: var(--header-layout-height);
-        bottom: 0;
-        left: 0;
-        right: 0;
-        height: auto;
-        background: var(--color-bg-primary);
-        border-top: 1px solid var(--color-border-primary);
-        padding: 2rem;
-        padding-left: calc(2rem + var(--safe-area-left));
-        padding-right: calc(2rem + var(--safe-area-right));
-        padding-bottom: calc(2rem + var(--safe-area-bottom));
-        flex-direction: column;
-        align-items: stretch;
-        gap: 1rem;
-        overflow-y: auto;
-        overscroll-behavior: contain;
-    }
+  .doc-nav {
+    display: none;
+    position: fixed;
+    z-index: 200;
+    top: var(--header-layout-height);
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: auto;
+    background: var(--color-bg-primary);
+    border-top: 1px solid var(--color-border-primary);
+    padding: 2rem;
+    padding-left: calc(2rem + var(--safe-area-left));
+    padding-right: calc(2rem + var(--safe-area-right));
+    padding-bottom: calc(2rem + var(--safe-area-bottom));
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
 
-    .doc-nav.is-open {
-        display: flex;
-    }
+  .doc-nav.is-open {
+    display: flex;
+  }
 
-    .doc-nav .separator {
-        display: none;
-    }
+  .doc-nav .separator {
+    display: none;
+  }
 
-    .doc-nav a {
-        text-align: center;
-        padding: 1rem;
-        background: var(--color-bg-secondary);
-        border: 1px solid var(--color-border-secondary);
-        font-size: 1.1rem;
-    }
+  .doc-nav a {
+    text-align: center;
+    padding: 1rem;
+    background: var(--color-bg-secondary);
+    border: 1px solid var(--color-border-secondary);
+    font-size: 1.1rem;
+  }
 
-    .doc-nav #theme-toggle {
-        width: 100%;
-        height: 3rem;
-        justify-content: center;
-        margin-top: 1rem;
-        margin-bottom: var(--safe-area-bottom);
-        background: var(--color-bg-secondary);
-        border: 1px solid var(--color-border-secondary);
-        border-radius: var(--radius);
-    }
+  .doc-nav #theme-toggle {
+    width: 100%;
+    height: 3rem;
+    justify-content: center;
+    margin-top: 1rem;
+    margin-bottom: var(--safe-area-bottom);
+    background: var(--color-bg-secondary);
+    border: 1px solid var(--color-border-secondary);
+    border-radius: var(--radius);
+  }
 
-    h1 {
-        font-size: 2rem;
-    }
+  h1 {
+    font-size: 2rem;
+  }
 
-    h2 {
-        font-size: 1.5rem;
-    }
+  h2 {
+    font-size: 1.5rem;
+  }
 
-    .hero {
-        padding: 2rem 0;
-    }
+  .hero {
+    padding: 2rem 0;
+  }
 
-    .pipeline-grid, .feature-grid, .workflow-grid, .step-grid, .workflow-split {
-        grid-template-columns: 1fr;
-    }
+  .pipeline-grid, .feature-grid, .workflow-grid, .step-grid, .workflow-split {
+    grid-template-columns: 1fr;
+  }
 
-    .doc-main {
-        padding: var(--spacing-lg);
-        padding-left: calc(var(--spacing-lg) + var(--safe-area-left));
-        padding-right: calc(var(--spacing-lg) + var(--safe-area-right));
-    }
+  .doc-main {
+    padding: var(--spacing-lg);
+    padding-left: calc(var(--spacing-lg) + var(--safe-area-left));
+    padding-right: calc(var(--spacing-lg) + var(--safe-area-right));
+  }
 
-    .doc-footer {
-        padding: var(--spacing-lg);
-        padding-bottom: calc(var(--spacing-lg) + var(--safe-area-bottom));
-    }
+  .doc-footer {
+    padding: var(--spacing-lg);
+    padding-bottom: calc(var(--spacing-lg) + var(--safe-area-bottom));
+  }
 }
 
 /* Narrow: collapse intermediate breadcrumb rungs, keep them in the DOM */
 @media (max-width: 640px) {
-    .doc-breadcrumb li:not(:last-child) {
-        display: none;
-    }
+  .doc-breadcrumb li:not(:last-child) {
+    display: none;
+  }
 
-    .doc-breadcrumb li:last-child::before {
-        content: "…/";
-    }
+  .doc-breadcrumb li:last-child::before {
+    content: "…/";
+  }
 }

@@ -19,7 +19,7 @@ Every input parameter should have tooltip in the app with extra info.
 ## Bugs and requests
 
 [**Issue tracker**](https://github.com/RicardoJCMarques/EasyCAM5000/issues/new/choose)
-- pick the Bug, Accessibility or Feature template. For bugs, attach the file that triggers the problem and console output from `enableTraceDebug()` or `enableShapeDebug()`. (May need to change some extensions to .txt.)
+- pick the Bug, Accessibility or Feature template. For bugs, attach the file that triggers the problem and console with verbose debug on. (May need to change some extensions to .txt.)
 
 ## Security
 

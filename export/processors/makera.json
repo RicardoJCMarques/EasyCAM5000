@@ -1,0 +1,66 @@
+{
+  "_projectInfo": {
+    "file": "export/processors/makera.json",
+    "description": "Post-processor setup: Makera Carvera",
+    "author": "Eltryus - Ricardo Marques",
+    "see": "https://github.com/RicardoJCMarques/EasyCAM5000",
+    "license": "AGPL-3.0-or-later",
+    "copyright": "Copyright (C) 2025-2026 Eltryus - Ricardo Marques"
+  },
+  "meta": { "kind": "setup" },
+  "id": "makera",
+  "label": "Makera (Carvera)",
+  "logic": "makera",
+  "maturity": "less-experimental",
+  "flags": {
+    "fileExtension": ".cnc",
+    "commentStyle": "parenthesis",
+    "supportsComments": true,
+    "supportsUnits": true,
+    "supportsCoolant": true,
+    "supportsLineNumbers": true,
+    "lineNumberMax": 99999,
+    "modalCommands": true,
+    "coordinateDecimals": 3,
+    "rotaryDecimals": 3,
+    "feedDecimals": 1,
+    "spindleDecimals": 0,
+    "maxSpindleSpeed": 24000,
+    "spindle": { "on": "M3", "off": "M5", "scale": null },
+    "dwellUnit": "s",
+    "dwellWord": "P",
+    "supportsArcCommands": true,
+    "arcFormat": "IJ",
+    "supportsCannedCycles": false,
+    "supportsToolChange": true,
+    "useM6": false,
+    "initialToolUsesM6": true,
+    "emitsInitialTool": true,
+    "pauseAfterToolChange": false,
+    "toolLengthComp": ["probe", "none"],
+    "supportsAbsoluteZ": false,
+    "rotary": {
+      "routes": ["wrapped-linear", "a-word"],
+      "axisWords": ["A"],
+      "inverseTime": false,
+      "maxInverseTime": 9999.99,
+      "continuous": true
+    }
+  },
+  "defaults": {
+    "startCode": "",
+    "endCode": "",
+    "toolLengthCompMode": "probe",
+    "rotaryRoute": "wrapped-linear",
+    "indexDwell": 0.3,
+    "lineNumbers": false,
+    "lineNumberStep": 10
+  },
+  "locks": {},
+  "_notes": {
+    "initialToolUsesM6": "The firmware ignores tool length offsets without an M6 before the first motion.",
+    "toolLengthComp": "Carvera's MTC probes every tool against the fixed setter (M491) and the ATC probes internally on M6. Both own Z; a G43 over a probed offset double-applies it.",
+    "rotary": "The Carvera rotary (A) exists, but its firmware's feed handling for mixed X/A moves is UNVERIFIED and no G93 is documented: inverseTime stays false and 'wrapped-linear' leads. Confirm against the machine before promoting a-word. indexDwell suits a belt rotary; Machine Settings overrides it.",
+    "defaults": "generateFooter() emits the whole M5, retract, G28 park, M30 sequence itself. A default endCode would run AFTER G28 and drive the machine back out of the ATC park position."
+  }
+}

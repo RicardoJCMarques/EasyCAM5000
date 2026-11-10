@@ -3,32 +3,47 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
+
+# The job only reads the repository; the site goes out over FTP.
+permissions:
+  contents: read
 
 concurrency:
   group: deploy-main
-  cancel-in-progress: true
+  # Queue, never cancel: a cancelled FTP sync leaves the site half-uploaded.
+  cancel-in-progress: false
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      # Actions are pinned to commit SHAs: a tag can be moved, a SHA cannot.
+      # The comment names the version the SHA was taken from.
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        with:
+          # Keeps the job's token out of .git/config, where any later
+          # step could read it.
+          persist-credentials: false
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '24'
+          cache: npm
 
       # 1. Build + minify. The target list lives in build.js (--minify) so
       #    a local `node build.js --minify` produces the same artifact.
+      #    npm ci installs exactly what package-lock.json pins, and fails
+      #    when package.json and the lockfile disagree.
       - name: Build Production Assets
         run: |
-          npm install terser html-minifier-terser esbuild --no-save
+          npm ci
           node .github/scripts/build.js --src . --dist ./dist --minify
 
       # 2. Deploy: Upload dist folder via FTP
       - name: FTP Deploy
-        uses: SamKirkland/FTP-Deploy-Action@v4.4.0
+        uses: SamKirkland/FTP-Deploy-Action@110f9186c050f71550953127052e77650219c287 # v4.4.0
         with:
           server: ${{ secrets.FTP_SERVER }}
           username: ${{ secrets.FTP_USERNAME }}
@@ -38,4 +53,3 @@ jobs:
           exclude: |
             **/.git*
             **/.DS_Store
-            **/.build-manifest.json

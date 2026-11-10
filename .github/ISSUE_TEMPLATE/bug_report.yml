@@ -112,8 +112,8 @@ body:
     attributes:
       label: Console Logs
       description: |
-        Press **F12**, open the **Console** tab, and run the line for your app:
-        `enableTraceDebug()` - EasyTrace5000
-        `enableShapeDebug()` - EasyShape5000
+        Bottom left corner has an eye icon that opens a menu, at the bottom of that menu Verbose Debug can be toggled on.
+        The keyboard shortcut - Ctrl + Alt + D - can also turn on Verbose Debug.
         Then reproduce the problem and paste the output below (red errors especially).
+        It can get *very* verbose so it might be necessary to trim out repetitive sections.
       render: shell

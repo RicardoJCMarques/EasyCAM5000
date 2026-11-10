@@ -32,9 +32,10 @@ These shortcuts work globally to navigate the application structure.
 | `Shift` + `Tab` | Move focus to the previous interactive element |
 | `F1` | Open the Help & Shortcuts modal |
 | `F2` | Toggle between the 2D canvas and the 3D toolpath view |
-| `1` - `5` | Cycle selection through a category's files and artifacts (`1`: Isolation → `5`: Stencil), announcing the category |
+| `1` - `5` | Cycle selection through a category's files and artifacts (1: Isolation, 2: Drill, 3: Clearing, 4: Stencil, 5: Cutout), announcing the category |
 | `Delete` / `Backspace` | Delete the current selection (outside the tree) |
 | `I` | Open the Add Files dialog |
+| `B` / `C` | Put the origin on the bottom-left corner or the centre of the selection, or of everything when nothing is selected |
 | `Ctrl` + `Alt` + `D` | Toggle verbose debug logging |
 
 > **Note:** A **Skip Link** is available on the first `Tab` press after page load to jump directly to the Canvas. Each `F6` press announces the zone it landed in through the status region.
@@ -49,10 +50,15 @@ Each zone has specific interactions once it receives focus.
 
 | Key | Action |
 | :--- | :--- |
-| `Tab` / `Shift` + `Tab` | Navigate between buttons and menu items |
-| `←` / `→` | Navigate horizontally between toolbar buttons |
-| `Enter` / `Space` | Activate the focused button or toggle a dropdown |
-| `Escape` | Close an open dropdown menu |
+| `Tab` / `Shift` + `Tab` | Move between toolbar buttons |
+| `Enter` / `Space` / `↓` | Activate the focused button, or open its dropdown on the first item |
+| `↑` / `↓` | Move between items in an open dropdown (wrapping) |
+| `Home` / `End` | Jump to the first or last item in a dropdown |
+| `Escape` | Close the dropdown and return focus to its button |
+| `Tab` *(in a dropdown)* | Close it and move on |
+| `↑` / `↓` *(on a sidebar section header)* | Move between section headers and into the section's fields |
+
+Help text is attached to each field as its description (`aria-describedby`), so a screen reader reads it when the field takes focus. The `?` icon beside a label is decorative and is not a tab stop.
 
 ### Operations Tree (Left Sidebar)
 
@@ -113,12 +119,12 @@ This panel handles parameter inputs for the selected stage node. The fields it s
 
 | Key | Action |
 | :--- | :--- |
-| `Tab` | Move to next field, button, or help icon |
-| `Shift` + `Tab` | Move to previous field |
-| `↓` / `↑` | Navigate focus between property rows (Grid Navigation) |
-| `Enter` | Enter "Edit Mode" on a focused row |
-| `Enter` *(while editing)* | Commit change and move to next field |
-| `Escape` | Cancel edit/tooltip and return focus to the row |
+| `Tab` / `Shift` + `Tab` | Move to the next or previous field |
+| `↓` / `↑` | Move between property rows |
+| `Enter` / `Space` | Edit the focused row's control |
+| `↓` / `↑` *(in a number field or a dropdown)* | Step the value, as the control normally would |
+| `Enter` *(while editing)* | Commit the value and move to the next row |
+| `Escape` *(while editing)* | Return focus to the row; the typed value still applies |
 
 ---
 
@@ -162,8 +168,8 @@ The per-diameter drill table is a modal grid. `Tab` moves between cells and `Esc
 
 - **Status region**: a polite region carries ordinary progress and completion messages; a separate assertive region carries errors, so urgency is not lost.
 - The visible status text is not itself a live region. Its idle state, which restores a few seconds after every message, is therefore silent rather than being re-announced.
-- Status messages announce file loading, generation progress, stage completion, and errors
-- Long-running generation reports progress through the same region, so a background job is audible rather than silent
+- Status messages announce file loading, generation progress, stage completion, and errors.
+- While a long task runs, a progress overlay holds the page: nothing else can be edited, dropped or started, `Escape` or its Cancel button stops the task, its progress is announced through a polite status region, and focus returns where it was when it ends.
 - The status log holds the full history and is reachable from the keyboard: `Tab` to the chevron at the left of the status bar and press `Enter`.
 
 ### Semantic Structure
@@ -214,9 +220,9 @@ EasyTrace5000 targets **WCAG 2.1 Level AA** compliance. While the application is
 
 | Guideline | Description | Status | Notes |
 |-----------|-------------|--------|-------|
-| **1.4.3** | Contrast (Minimum) | Partial | Most default text meets 4.5:1, but some secondary and hint text in both themes does not. Dedicated high-contrast themes are in development. |
+| **1.4.3** | Contrast (Minimum) | Partial | Most default text meets 4.5:1, but some secondary and hint text in the default dark and light themes does not. High-contrast dark and light themes ship, chosen on the welcome screen. |
 | **1.4.10**| Reflow | Partial | The workspace is laid out for a landscape viewport and does not reflow to a single column; below roughly 768 CSS pixels a warning bar appears instead. Because browser zoom narrows the viewport as it magnifies, this is reached at high zoom on a wide display. Collapsible side panels are planned. In the meantime, text-only zoom or operating-system display scaling magnifies without narrowing the viewport. |
-| **1.4.11**| Non-text Contrast | Partial | Some UI borders and disabled states in the default theme may fall below 3:1. High Contrast themes are supported by the engine and are currently in development. |
+| **1.4.11**| Non-text Contrast | Partial | Some UI borders and disabled states in the default themes may fall below 3:1; the high-contrast themes are the alternative. |
 | **1.1.1** | Non-text Content (3D view) | Partial | The 3D toolpath view is a WebGPU canvas with no non-visual equivalent. Toolpath statistics - pass count, estimated time, travel distance - appear as text on the Toolpaths node in the operations tree and in the Export Manager. Nothing in the workflow requires the 3D view. |
 | **1.2.x** | Time-based Media | N/A | The application does not contain audio or video content. |
 

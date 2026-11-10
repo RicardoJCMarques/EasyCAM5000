@@ -1,526 +1,545 @@
 <!DOCTYPE html>
 <html lang="en" data-theme="dark">
 <head>
-    <meta charset="UTF-8">
-    <!--!
-        @file        easyshape5000/doc/guide.html
-        @description EasyShape5000 Workflow Guide
-        @author      Eltryus - Ricardo Marques
-        @copyright   2025-2026 Eltryus - Ricardo Marques
-        @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
+  <meta charset="UTF-8">
+  <!--!
+    @file        easyshape5000/doc/guide.html
+    @description EasyShape5000 Workflow Guide
+    @author      Eltryus - Ricardo Marques
+    @copyright   2025-2026 Eltryus - Ricardo Marques
+    @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
 
-        SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
-        SPDX-License-Identifier: AGPL-3.0-or-later
-    -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>EasyShape5000 Doc - CNC Routing Workflow Guide</title>
+    SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
+    SPDX-License-Identifier: AGPL-3.0-or-later
+  -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>EasyShape5000 Doc - CNC Routing Workflow Guide</title>
 
-    <meta name="description" content="Step-by-step CNC router workflow: import SVG or STL, assign operations, generate 2D and 3D toolpaths, set tool numbers, and export G-code with tool changes.">
-    <meta name="author" content="Eltryus">
-    <meta name="robots" content="index, follow">
-    <meta name="theme-color" content="#0f0f0f">
+  <meta name="description" content="Step-by-step CNC router workflow: import SVG or STL, place it, assign operations, generate 2D and 3D toolpaths, set tool numbers, and export G-code with tool changes.">
+  <meta name="author" content="Eltryus">
+  <meta name="robots" content="index, follow">
+  <meta name="theme-color" content="#1a1a1a">
 
-    <link rel="canonical" href="https://cam.eltryus.design/easyshape5000/doc/guide">
+  <link rel="canonical" href="https://cam.eltryus.design/easyshape5000/doc/guide">
 
-    <meta property="og:type" content="article">
-    <meta property="og:url" content="https://cam.eltryus.design/easyshape5000/doc/guide">
-    <meta property="og:title" content="EasyShape5000 Doc - CNC Routing Workflow Guide">
-    <meta property="og:description" content="Step-by-step CNC router workflow: import SVG or STL, assign operations, generate 2D and 3D toolpaths, set tool numbers, and export G-code with tool changes.">
-    <meta property="og:image" content="https://cam.eltryus.design/images/social-shape.jpg">
-    <meta property="og:image:width" content="1200">
-    <meta property="og:image:height" content="630">
-    <meta property="og:site_name" content="EasyCAM5000">
-    <meta property="og:locale" content="en_US">
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://cam.eltryus.design/easyshape5000/doc/guide">
+  <meta property="og:title" content="EasyShape5000 Doc - CNC Routing Workflow Guide">
+  <meta property="og:description" content="Step-by-step CNC router workflow: import SVG or STL, place it, assign operations, generate 2D and 3D toolpaths, set tool numbers, and export G-code with tool changes.">
+  <meta property="og:image" content="https://cam.eltryus.design/images/social-shape.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:site_name" content="EasyCAM5000">
+  <meta property="og:locale" content="en_US">
 
-    <link rel="icon" type="image/png" href="../../images/favicon/favicon-96x96.png" sizes="96x96">
-    <link rel="icon" type="image/svg+xml" href="../../images/favicon/favicon.svg">
-    <link rel="shortcut icon" href="../../images/favicon/favicon.ico">
-    <link rel="apple-touch-icon" sizes="180x180" href="../../images/favicon/apple-touch-icon.png">
-    <link rel="manifest" href="../../images/favicon/site.webmanifest">
+  <link rel="icon" type="image/png" href="../../images/favicon/favicon-96x96.png" sizes="96x96">
+  <link rel="icon" type="image/svg+xml" href="../../images/favicon/favicon.svg">
+  <link rel="shortcut icon" href="../../images/favicon/favicon.ico">
+  <link rel="apple-touch-icon" sizes="180x180" href="../../images/favicon/apple-touch-icon.png">
+  <link rel="manifest" href="../../images/favicon/site.webmanifest">
 
-    <link rel="stylesheet" href="../../css/base.css">
-    <link rel="stylesheet" href="../../css/components.css">
-    <link rel="stylesheet" href="../../css/theme.css">
-    <link rel="stylesheet" href="../../css/doc.css">
+  <link rel="stylesheet" href="../../css/base.css">
+  <link rel="stylesheet" href="../../css/components.css">
+  <link rel="stylesheet" href="../../css/theme.css">
+  <link rel="stylesheet" href="../../css/doc.css">
 
-    <script type="application/ld+json">
-    {
-        "@context": "https://schema.org",
-        "@graph": [
-            {
-                "@type": "Organization",
-                "@id": "https://www.eltryus.design/#organization",
-                "name": "Eltryus",
-                "url": "https://www.eltryus.design/"
-            },
-            {
-                "@type": "WebSite",
-                "@id": "https://cam.eltryus.design/#website",
-                "name": "EasyCAM5000",
-                "alternateName": "Eltryus EasyCAM5000 Suite",
-                "url": "https://cam.eltryus.design/",
-                "inLanguage": "en",
-                "publisher": { "@id": "https://www.eltryus.design/#organization" }
-            },
-            {
-                "@type": "WebApplication",
-                "@id": "https://cam.eltryus.design/easyshape5000/#app",
-                "name": "EasyShape5000",
-                "url": "https://cam.eltryus.design/easyshape5000/"
-            },
-            {
-                "@type": "CollectionPage",
-                "@id": "https://cam.eltryus.design/easyshape5000/doc/#docs",
-                "name": "EasyShape5000 Documentation",
-                "url": "https://cam.eltryus.design/easyshape5000/doc/"
-            },
-            {
-                "@type": "WebPage",
-                "@id": "https://cam.eltryus.design/easyshape5000/doc/guide#webpage",
-                "url": "https://cam.eltryus.design/easyshape5000/doc/guide",
-                "name": "EasyShape5000 Doc - CNC Routing Workflow Guide",
-                "inLanguage": "en",
-                "isPartOf": { "@id": "https://cam.eltryus.design/#website" },
-                "about": { "@id": "https://cam.eltryus.design/easyshape5000/#app" },
-                "mainEntity": { "@id": "https://cam.eltryus.design/easyshape5000/doc/guide#article" },
-                "breadcrumb": { "@id": "https://cam.eltryus.design/easyshape5000/doc/guide#breadcrumb" },
-                "primaryImageOfPage": "https://cam.eltryus.design/images/social-shape.jpg"
-            },
-            {
-                "@type": "TechArticle",
-                "@id": "https://cam.eltryus.design/easyshape5000/doc/guide#article",
-                "headline": "EasyShape5000 Routing Workflow Guide",
-                "description": "Step-by-step CNC router workflow: import SVG or STL, assign operations, generate 2D and 3D toolpaths, set tool numbers, and export G-code with tool changes.",
-                "image": "https://cam.eltryus.design/images/social-shape.jpg",
-                "url": "https://cam.eltryus.design/easyshape5000/doc/guide",
-                "inLanguage": "en",
-                "mainEntityOfPage": { "@id": "https://cam.eltryus.design/easyshape5000/doc/guide#webpage" },
-                "isPartOf": { "@id": "https://cam.eltryus.design/easyshape5000/doc/#docs" },
-                "about": { "@id": "https://cam.eltryus.design/easyshape5000/#app" },
-                "author": { "@id": "https://www.eltryus.design/#organization" },
-                "publisher": { "@id": "https://www.eltryus.design/#organization" },
-                "datePublished": "2026-06-17",
-                "dateModified": "2026-08-24"
-            },
-            {
-                "@type": "BreadcrumbList",
-                "@id": "https://cam.eltryus.design/easyshape5000/doc/guide#breadcrumb",
-                "itemListElement": [
-                    { "@type": "ListItem", "position": 1, "name": "EasyCAM5000", "item": "https://cam.eltryus.design/" },
-                    { "@type": "ListItem", "position": 2, "name": "EasyShape5000", "item": "https://cam.eltryus.design/easyshape5000/" },
-                    { "@type": "ListItem", "position": 3, "name": "Docs", "item": "https://cam.eltryus.design/easyshape5000/doc/" },
-                    { "@type": "ListItem", "position": 4, "name": "Workflow Guide", "item": "https://cam.eltryus.design/easyshape5000/doc/guide" }
-                ]
-            }
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": "https://www.eltryus.design/#organization",
+        "name": "Eltryus",
+        "url": "https://www.eltryus.design/"
+      },
+      {
+        "@type": "WebSite",
+        "@id": "https://cam.eltryus.design/#website",
+        "name": "EasyCAM5000",
+        "alternateName": "Eltryus EasyCAM5000 Suite",
+        "url": "https://cam.eltryus.design/",
+        "inLanguage": "en",
+        "publisher": { "@id": "https://www.eltryus.design/#organization" }
+      },
+      {
+        "@type": "WebApplication",
+        "@id": "https://cam.eltryus.design/easyshape5000/#app",
+        "name": "EasyShape5000",
+        "url": "https://cam.eltryus.design/easyshape5000/"
+      },
+      {
+        "@type": "CollectionPage",
+        "@id": "https://cam.eltryus.design/easyshape5000/doc/#docs",
+        "name": "EasyShape5000 Documentation",
+        "url": "https://cam.eltryus.design/easyshape5000/doc/"
+      },
+      {
+        "@type": "WebPage",
+        "@id": "https://cam.eltryus.design/easyshape5000/doc/guide#webpage",
+        "url": "https://cam.eltryus.design/easyshape5000/doc/guide",
+        "name": "EasyShape5000 Doc - CNC Routing Workflow Guide",
+        "inLanguage": "en",
+        "isPartOf": { "@id": "https://cam.eltryus.design/#website" },
+        "about": { "@id": "https://cam.eltryus.design/easyshape5000/#app" },
+        "mainEntity": { "@id": "https://cam.eltryus.design/easyshape5000/doc/guide#article" },
+        "breadcrumb": { "@id": "https://cam.eltryus.design/easyshape5000/doc/guide#breadcrumb" },
+        "primaryImageOfPage": "https://cam.eltryus.design/images/social-shape.jpg"
+      },
+      {
+        "@type": "TechArticle",
+        "@id": "https://cam.eltryus.design/easyshape5000/doc/guide#article",
+        "headline": "EasyShape5000 Routing Workflow Guide",
+        "description": "Step-by-step CNC router workflow: import SVG or STL, place it, assign operations, generate 2D and 3D toolpaths, set tool numbers, and export G-code with tool changes.",
+        "image": "https://cam.eltryus.design/images/social-shape.jpg",
+        "url": "https://cam.eltryus.design/easyshape5000/doc/guide",
+        "inLanguage": "en",
+        "mainEntityOfPage": { "@id": "https://cam.eltryus.design/easyshape5000/doc/guide#webpage" },
+        "isPartOf": { "@id": "https://cam.eltryus.design/easyshape5000/doc/#docs" },
+        "about": { "@id": "https://cam.eltryus.design/easyshape5000/#app" },
+        "author": { "@id": "https://www.eltryus.design/#organization" },
+        "publisher": { "@id": "https://www.eltryus.design/#organization" },
+        "datePublished": "2026-06-17",
+        "dateModified": "2026-11-10"
+      },
+      {
+        "@type": "BreadcrumbList",
+        "@id": "https://cam.eltryus.design/easyshape5000/doc/guide#breadcrumb",
+        "itemListElement": [
+          { "@type": "ListItem", "position": 1, "name": "EasyCAM5000", "item": "https://cam.eltryus.design/" },
+          { "@type": "ListItem", "position": 2, "name": "EasyShape5000", "item": "https://cam.eltryus.design/easyshape5000/" },
+          { "@type": "ListItem", "position": 3, "name": "Docs", "item": "https://cam.eltryus.design/easyshape5000/doc/" },
+          { "@type": "ListItem", "position": 4, "name": "Workflow Guide", "item": "https://cam.eltryus.design/easyshape5000/doc/guide" }
         ]
-    }
-    </script>
+      }
+    ]
+  }
+  </script>
 </head>
 <body>
-    <a href="#doc-content" class="skip-link">Skip to Main Content</a>
+  <a href="#doc-content" class="skip-link">Skip to Main Content</a>
 
-    <header class="doc-header">
-        <div class="doc-brand"><a href="/" aria-label="EasyCAM5000 Homepage">EasyCAM5000</a></div>
+  <header class="doc-header">
+    <div class="doc-brand"><a href="/" aria-label="EasyCAM5000 Homepage">EasyCAM5000</a></div>
 
-        <nav class="doc-breadcrumb" aria-label="Breadcrumb">
-            <ol>
-                <li><a href="/easyshape5000/" draggable="false">EasyShape5000</a></li>
-                <li><a href="./" draggable="false">Docs</a></li>
-                <li><span aria-current="page">Workflow Guide</span></li>
-            </ol>
-        </nav>
+    <nav class="doc-breadcrumb" aria-label="Breadcrumb">
+      <ol>
+        <li><a href="/easyshape5000/" draggable="false">EasyShape5000</a></li>
+        <li><a href="./" draggable="false">Docs</a></li>
+        <li><span aria-current="page">Workflow Guide</span></li>
+      </ol>
+    </nav>
 
-        <button class="doc-menu-toggle" aria-label="Toggle Navigation Menu" aria-expanded="false">
-            <svg class="icon-menu cam-icon" width="24" height="24" aria-hidden="true"><use href="#icon-menu"></use></svg>
-            <svg class="icon-close cam-icon" width="24" height="24" aria-hidden="true"><use href="#icon-close"></use></svg>
-        </button>
+    <button class="doc-menu-toggle" aria-label="Toggle Navigation Menu" aria-expanded="false">
+      <svg class="icon-menu cam-icon" width="24" height="24" aria-hidden="true"><use href="#icon-menu"></use></svg>
+      <svg class="icon-close cam-icon" width="24" height="24" aria-hidden="true"><use href="#icon-close"></use></svg>
+    </button>
 
-        <nav class="doc-nav" aria-label="Main Navigation">
-            <a href="guide" class="active" aria-current="page" draggable="false">Workflow Guide</a>
-            <a href="operations" draggable="false">Operations</a>
-            <a href="parameters" draggable="false">Parameters</a>
-            <a href="accessibility" draggable="false">Accessibility</a>
-            <span class="separator" aria-hidden="true"></span>
-            <a href="/easyshape5000/" draggable="false">Launch App</a>
-            <a href="https://github.com/RicardoJCMarques/EasyCAM5000" target="_blank" draggable="false" aria-label="GitHub Repository (opens in a new tab)">GitHub</a>
+    <nav class="doc-nav" aria-label="Main Navigation">
+      <a href="guide" class="active" aria-current="page" draggable="false">Workflow Guide</a>
+      <a href="operations" draggable="false">Operations</a>
+      <a href="parameters" draggable="false">Parameters</a>
+      <a href="accessibility" draggable="false">Accessibility</a>
+      <span class="separator" aria-hidden="true"></span>
+      <a href="/easyshape5000/" draggable="false">Launch App</a>
+      <a href="https://github.com/RicardoJCMarques/EasyCAM5000" target="_blank" draggable="false" aria-label="GitHub Repository (opens in a new tab)">GitHub</a>
 
-            <button id="theme-toggle" class="btn btn--icon" title="Toggle Theme" aria-label="Toggle Theme">
-                <svg class="cam-icon" width="16" height="16"><use href="#icon-sun"></use></svg>
-            </button>
-        </nav>
-    </header>
+      <button id="theme-toggle" class="btn btn--icon" title="Toggle Theme" aria-label="Toggle Theme">
+        <svg class="cam-icon" width="16" height="16"><use href="#icon-sun"></use></svg>
+      </button>
+    </nav>
+  </header>
 
-    <div class="doc-wrapper has-sidebar">
-        <nav class="doc-sidebar" id="toc" aria-label="Table of contents">
-            <p class="doc-sidebar-title">Contents <span class="doc-badge doc-badge--stable">Stable</span></p>
-            <ol>
-                <li><a href="#interface" draggable="false">Interface Overview</a></li>
-                <li><a href="#how-a-job-works" draggable="false">Buckets and Stages</a></li>
-                <li>
-                    <a href="#workflow" draggable="false">The Workflow</a>
-                    <ol>
-                        <li><a href="#workflow-import" draggable="false">1. Importing Files</a></li>
-                        <li><a href="#workflow-scene" draggable="false">2. The Scene Tree</a></li>
-                        <li><a href="#workflow-assign" draggable="false">3. Assigning Operations</a></li>
-                        <li><a href="#workflow-geometry" draggable="false">4. Geometry</a></li>
-                        <li><a href="#workflow-strategy" draggable="false">5. Depth &amp; Tool Reach</a></li>
-                        <li><a href="#workflow-toolpaths" draggable="false">6. Toolpaths</a></li>
-                        <li><a href="#workflow-export" draggable="false">7. Export</a></li>
-                    </ol>
-                </li>
-                <li>
-                    <a href="#op-3d" draggable="false">Working in 3D</a>
-                    <ol>
-                        <li><a href="#coordinates" draggable="false">Stock, Z zero &amp; coordinates</a></li>
-                    </ol>
-                </li>
-                <li><a href="#scene-management" draggable="false">Scene Management</a></li>
-                <li><a href="#transforms" draggable="false">Shape Transforms</a></li>
-                <li><a href="#machine-settings" draggable="false">Machine Settings</a></li>
-                <li><a href="#export-manager" draggable="false">The Export Manager</a></li>
-                <li><a href="#tips" draggable="false">Tips &amp; Troubleshooting</a></li>
-            </ol>
-        </nav>
+  <div class="doc-wrapper has-sidebar">
+    <nav class="doc-sidebar" id="toc" aria-label="Table of contents">
+      <p class="doc-sidebar-title">Contents</p>
+      <ol>
+        <li><a href="#interface" draggable="false">Interface Overview</a></li>
+        <li><a href="#how-a-job-works" draggable="false">Buckets and Stages</a></li>
+        <li>
+          <a href="#workflow" draggable="false">The Workflow</a>
+          <ol>
+            <li><a href="#workflow-import" draggable="false">1. Importing Files</a></li>
+            <li><a href="#workflow-scene" draggable="false">2. The Scene Tree</a></li>
+            <li><a href="#workflow-assign" draggable="false">3. Assigning Operations</a></li>
+            <li><a href="#workflow-geometry" draggable="false">4. Geometry</a></li>
+            <li><a href="#workflow-strategy" draggable="false">5. Depth &amp; Preview</a></li>
+            <li><a href="#workflow-toolpaths" draggable="false">6. Toolpaths</a></li>
+            <li><a href="#workflow-export" draggable="false">7. Export</a></li>
+          </ol>
+        </li>
+        <li>
+          <a href="#op-3d" draggable="false">Working in 3D</a>
+          <ol>
+            <li><a href="#coordinates" draggable="false">Stock, Z zero &amp; coordinates</a></li>
+            <li><a href="#rotary-frame" draggable="false">The rotary frame</a></li>
+          </ol>
+        </li>
+        <li><a href="#scene-management" draggable="false">Scene Management</a></li>
+        <li><a href="#transforms" draggable="false">Shape Transforms</a></li>
+        <li><a href="#machine-settings" draggable="false">Stock &amp; Machine Settings</a></li>
+        <li><a href="#export-manager" draggable="false">The Export Manager</a></li>
+        <li><a href="#tips" draggable="false">Tips &amp; Troubleshooting</a></li>
+      </ol>
+    </nav>
 
-        <main id="doc-content" class="doc-main">
+    <main id="doc-content" class="doc-main">
 
-            <div class="callout callout--warning">
-                <p>Development goes fast, documentation may be outdated. Proceed with some caution.</p>
-            </div>
+      <div class="callout callout--warning">
+        <p>Development goes fast, documentation may be outdated. Proceed with some caution.</p>
+      </div>
 
-            <section class="hero">
-                <h1>EasyShape5000 Routing Workflow Guide</h1>
-                <p class="tagline">From SVG or STL to G-code for your CNC router</p>
-            </section>
+      <section class="hero">
+        <h1>EasyShape5000 Routing Workflow Guide</h1>
+        <p class="tagline">From SVG or STL to G-code for your CNC router</p>
+      </section>
 
-            <section id="interface">
-                <h2>Interface Overview</h2>
-                <p>A central canvas with a sidebar either side. On the left, your operation buckets sit above the scene tree. On the right, stock setup, then machine settings, then the cut settings for whatever you have selected. The footer carries status, the log and the display options.</p>
+      <section id="interface">
+        <h2>Interface Overview</h2>
+        <p>A central canvas with a sidebar either side. On the left, the <strong>Operations</strong> panel sits above <strong>Imported Objects</strong>, the scene tree. On the right, <strong>Stock Setup</strong>, then <strong>Machine Settings</strong>, then <strong>Operation Settings</strong> for whatever you have selected. The footer carries status, the log and the display options.</p>
 
-                <figure>
-                    <div class="doc-figure" data-figure="fig-shape-interface.svg"></div>
-                    <figcaption>(1) Toolbar, (2) Operations, (3) Scene Tree, (4) Canvas, (5) Stock Setup, (6) Machine Settings, (7) Cut Settings, (8) Status Bar</figcaption>
-                </figure>
+        <figure>
+          <div class="doc-figure" data-figure="fig-shape-interface.svg"></div>
+          <figcaption>(1) Toolbar, (2) Operations, (3) Scene Tree, (4) Canvas, (5) Stock Setup, (6) Machine Settings, (7) Operation Settings, (8) Status Bar</figcaption>
+        </figure>
 
-                <p>The cut settings panel changes with your selection. Select a shape and you get its transform fields plus the operation tabs. Select a stage inside an operation bucket and you get that stage's parameters, with its generate button underneath.</p>
+        <p>Operation Settings changes with your selection. Select a shape and you get its transform fields plus the operation tabs. Select a stage inside an operation and you get that stage's parameters, with its button underneath.</p>
 
-                <h3>2D and 3D</h3>
-                <p>The canvas starts in 2D. When you reach the <strong>Toolpaths</strong> stage it switches to the 3D view by itself, because that is where a toolpath is worth looking at. 3D operations switch earlier - they draw their model and stock in 3D as soon as they generate, since there is nothing flat to show.</p>
-                <p>The view button on the right of the toolbar - or <kbd>F2</kbd> - flips between 2D and 3D at any time.</p>
-            </section>
+        <h3>2D and 3D</h3>
+        <p>The canvas starts in 2D. Selecting a <strong>Toolpaths</strong> stage switches to the 3D view, because that is where a toolpath is worth looking at. 3D operations switch earlier: V-Carve, Relief and Rotary draw in 3D from their first stage, since there is nothing flat to show. A mesh selected under the Rotary tab is drawn on the rotary axis, where it will be cut.</p>
+        <p>The view button on the right of the toolbar - or <kbd>F2</kbd> - flips between 2D and 3D. A scene with no 2D geometry stays in 3D.</p>
+      </section>
 
-            <section id="how-a-job-works">
-                <h2>Buckets and Stages</h2>
-                <p>You assign operations <strong>per shape</strong>. Select shapes and drop them into an <strong>operation bucket</strong> - the bucket owns those shapes and their parameters, and you can have as many as you like.</p>
-                <p>Each bucket is then generated in <strong>stages</strong>. A stage is what the big generate button acts on: set that stage's parameters, generate, and you get a layer you can show, hide and redo on its own. Re-running a stage replaces its own layer and clears the ones after it, never the ones before.</p>
+      <section id="how-a-job-works">
+        <h2>Buckets and Stages</h2>
+        <p>You assign operations <strong>per shape</strong>. Select shapes and drop them into an <strong>operation bucket</strong> - the bucket owns those shapes and their parameters, and you can have as many as you like.</p>
+        <p>Each bucket is then generated in <strong>stages</strong>. A stage is what the big button acts on: set that stage's parameters, run it, and you get a layer you can show, hide and redo on its own. Re-running a stage replaces its own layer and clears the ones after it, never the ones before.</p>
 
-                <figure>
-                    <div class="doc-figure" data-figure="fig-shape-steps.svg"></div>
-                    <figcaption>Flat operations run four stages. 3D operations set their depth as they generate, so they run three.</figcaption>
-                </figure>
+        <figure>
+          <div class="doc-figure" data-figure="fig-shape-steps.svg"></div>
+          <figcaption>Flat operations run four stages. 3D operations set their depth as they generate, so they run three.</figcaption>
+        </figure>
 
-                <p>Change something an earlier stage depends on - the tool diameter, the stock thickness, a machine setting - and everything generated after it is invalidated and cleared. The message names the stage to go back to. Changing a feed rate cannot cost you your geometry.</p>
+        <p>Change something an earlier stage depends on - the tool diameter, a shape's position, the rotary axis - and the bucket is invalidated: the stages after it are cleared and the message names the one to go back to. Changing a feed rate cannot cost you your geometry.</p>
 
-                <figure>
-                    <div class="doc-figure" data-figure="fig-shape-bucket.svg"></div>
-                    <figcaption>A bucket after a full run. Each stage produces one layer, with its own eye toggle.</figcaption>
-                </figure>
+        <figure>
+          <div class="doc-figure" data-figure="fig-shape-bucket.svg"></div>
+          <figcaption>A bucket after a full run. Each stage produces one layer, with its own eye toggle.</figcaption>
+        </figure>
 
-                <div class="callout callout--info">
-                    <h4>The Toolpaths stage is a preview of the program</h4>
-                    <p>What it draws is what gets exported: the same motion, the same order, the same depths. Only the preamble, the postamble and the moves between operations are added later, when the Export Manager puts the job together. The Export Manager itself does not calculate anything, and a bucket that has not been through <em>Generate Toolpaths</em> will not appear in it.</p>
-                </div>
-            </section>
+        <div class="callout callout--info">
+          <h4>The Toolpaths stage is a preview of the program</h4>
+          <p>What it draws is what gets exported: the same motion, the same order, the same depths. Only the preamble, the postamble and the moves between operations are added later, when the Export Manager puts the job together. A bucket that has not been through <em>Calculate Toolpaths</em> does not appear there.</p>
+        </div>
 
-            <section id="workflow">
-                <h2>The Workflow</h2>
-                <p>Import a design, select shapes, assign operations, take each bucket through its stages, export.</p>
+        <p>While a stage runs, the rest of the page waits under a progress overlay. <em>Cancel</em>, or <kbd data-i18n="keys.escape">Esc</kbd>, stops a generation.</p>
+      </section>
 
-                <h3 id="workflow-import">1. Importing Files</h3>
-                <p>Drag and drop an SVG onto the canvas, or use Actions &rarr; Import. The file's group structure is preserved: groups become groups in the scene tree, paths and shapes become selectable items.</p>
-                <p>Nothing is modified on import. Move, rotate and scale as much as you like - the original geometry is kept and your transforms are applied on top, so you can always get back to where you started.</p>
-                <p>STL meshes are imported the same way but behave differently: a mesh attaches to a Relief or Rotary operation rather than becoming a scene shape you can transform. Its orientation, resolution and Z datum are parameters on that operation.</p>
+      <section id="workflow">
+        <h2>The Workflow</h2>
+        <p>Import a design, select shapes, assign operations, take each bucket through its stages, export.</p>
 
-                <h3 id="workflow-scene">2. The Scene Tree</h3>
-                <p>The scene tree (left sidebar, top) lists every shape and group in your workspace. Each row has three controls:</p>
-                <dl>
-                    <dt>Visibility (eye icon)</dt>
-                    <dd>Hides the shape from the canvas. Hidden shapes are skipped by marquee selection and left out of the export.</dd>
-                    <dt>Lock (padlock icon)</dt>
-                    <dd>Stops the shape being moved, rotated or deleted. You can still select it, so you can unlock it again.</dd>
-                    <dt>Delete (trash icon)</dt>
-                    <dd>Removes it from the scene. Undo with <kbd>Ctrl</kbd>+<kbd>Z</kbd>.</dd>
-                </dl>
-                <p>Groups can be collapsed, and locking a group locks everything in it. Group and Ungroup are in the toolbar (<kbd>Ctrl</kbd>+<kbd>G</kbd> and <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>G</kbd>). Ungrouping never moves anything - children keep the position they had.</p>
+        <h3 id="workflow-import">1. Importing Files</h3>
+        <p>Drag and drop an SVG or an STL onto the canvas, or use Actions &rarr; Import Files…. An SVG keeps its group structure: groups become groups in the scene tree, paths and shapes become selectable items. An STL arrives as a group holding one mesh per solid in the file.</p>
+        <p>Nothing is modified on import. Move, rotate and scale as much as you like - the original geometry is kept and your transforms are applied on top, so you can always get back to where you started. A mesh is a scene object like any shape, with a Z offset and two more rotations of its own (see <a href="#transforms" draggable="false">Shape Transforms</a>).</p>
 
-                <h3 id="workflow-assign">3. Assigning Operations</h3>
-                <p>Select one or more shapes, then pick an operation from the tabs on the right. The shapes drop into a new operation, and the parameters appear with sensible defaults for the tool that operation suggests.</p>
-                <p>An operation owns its shapes and its own parameters. The same shape can belong to more than one - a pocket and a profile on the same outline is the normal case - and each generates independently.</p>
-                <p>If you select shapes that belong to different operation types, the panel shows one type's parameters and says so. Changes apply only to the shapes of that type.</p>
+        <h3 id="workflow-scene">2. The Scene Tree</h3>
+        <p><strong>Imported Objects</strong> (left sidebar, lower panel) lists every shape and group in your workspace. Each row has three controls:</p>
+        <dl>
+          <dt>Visibility (eye icon)</dt>
+          <dd>Hides the shape from the canvas. Hidden shapes are skipped by marquee selection and left out of the export.</dd>
+          <dt>Lock (padlock icon)</dt>
+          <dd>Stops the shape being moved, rotated or deleted. You can still select it, so you can unlock it again.</dd>
+          <dt>Delete (trash icon)</dt>
+          <dd>Removes it from the scene. Undo with <kbd data-i18n="keys.ctrl">Ctrl</kbd>+<kbd>Z</kbd>.</dd>
+        </dl>
+        <p>Groups can be collapsed, and locking a group locks everything in it. Group and Ungroup are in the tree's toolbar (<kbd data-i18n="keys.ctrl">Ctrl</kbd>+<kbd>G</kbd> and <kbd data-i18n="keys.ctrl">Ctrl</kbd>+<kbd data-i18n="keys.shift">Shift</kbd>+<kbd>G</kbd>). Ungrouping never moves anything - children keep the position they had.</p>
 
-                <h3 id="workflow-geometry">4. Generating Geometry</h3>
-                <p>Click generate on the bucket's first stage. For flat operations this is <strong>XY Geometry</strong>: tool, cut side, step-over, and whatever else that operation needs.</p>
-                <p>The result appears as an <strong>Offsets</strong> layer - thin centrelines on the canvas showing where the tool will travel. Curves stay curves, so an offset circle exports as a real arc rather than a hundred short lines.</p>
-                <p>Change a geometry parameter afterwards and the bucket is invalidated until you regenerate.</p>
+        <h3 id="workflow-assign">3. Assigning Operations</h3>
+        <p>Select one or more shapes, then pick an operation from the tabs on the right. The shapes drop into a new bucket, and the parameters appear with sensible defaults for the tool that operation suggests.</p>
+        <p>A bucket owns its shapes and its own parameters. The same shape can belong to more than one - a pocket and a profile on the same outline is the normal case - and each generates independently. Relief and Rotary take exactly one mesh per bucket; a selection holding more is refused.</p>
 
-                <h3 id="workflow-strategy">5. Depth and the Tool Reach Preview</h3>
-                <p>Flat operations only. With offsets generated, select the Offsets layer and set the depth parameters: cut depth, multi-depth and depth per pass, entry method, holding tabs on a profile, a finishing pass on a pocket.</p>
-                <p>Click <em>Generate Preview</em> for the <strong>Tool Reach</strong> layer - the paths redrawn at the real tool diameter, so you can see the material that will actually be removed rather than the line the spindle centre follows. It is the last chance to catch a cutter that is too wide for the detail in your design.</p>
+        <h3 id="workflow-geometry">4. Generating Geometry</h3>
+        <p>Run the bucket's first stage. For flat operations this is <strong>XY Geometry</strong>: tool, cut side, step-over, and whatever else that operation needs.</p>
+        <p>The result appears as an <strong>Offsets</strong> layer - thin centrelines on the canvas showing where the tool will travel. Curves stay curves, so an offset circle exports as a real arc rather than a hundred short lines.</p>
+        <p>Change a geometry parameter afterwards and the bucket is invalidated until you regenerate.</p>
 
-                <figure>
-                    <div class="doc-figure" data-figure="fig-offset-vs-preview.svg"></div>
-                    <figcaption>Offsets (centreline) versus Tool Reach (full tool width)</figcaption>
-                </figure>
+        <h3 id="workflow-strategy">5. Depth and the Preview</h3>
+        <p>Flat operations only. With offsets generated, select the Offsets layer and set the depth parameters: cut depth, multi-depth and depth per pass, entry, holding tabs on a profile, a finishing pass on a pocket.</p>
+        <p>Click <em>Generate Preview</em> for the <strong>Preview</strong> layer - the paths redrawn at the real tool diameter, so you can see the material that will actually be removed rather than the line the spindle centre follows. It is the last chance to catch a cutter that is too wide for the detail in your design.</p>
 
-                <figure>
-                    <div class="doc-figure" data-figure="fig-depth-passes.svg"></div>
-                    <figcaption>Cut depth is divided into as many passes as it takes; the last one takes whatever is left</figcaption>
-                </figure>
+        <figure>
+          <div class="doc-figure" data-figure="fig-offset-vs-preview.svg"></div>
+          <figcaption>Offsets (centreline) versus Preview (full tool width)</figcaption>
+        </figure>
 
-                <h3 id="workflow-toolpaths">6. Generating Toolpaths</h3>
-                <p>Select the Tool Reach layer (or the 3D Paths layer on a 3D operation) and set the machine parameters: feed rate, plunge rate, spindle speed and dwell, the tool number, and whether to optimize.</p>
-                <p>Click <em>Generate Toolpaths</em>. The canvas switches to the 3D view so you can look over the result - depth passes, entries, retracts and rapids. The toolbar view button, or <kbd>F2</kbd>, takes you back to 2D.</p>
+        <figure>
+          <div class="doc-figure" data-figure="fig-depth-passes.svg"></div>
+          <figcaption>Cut depth is divided into as many passes as it takes; the last one takes whatever is left</figcaption>
+        </figure>
 
-                <h3 id="workflow-export">7. Exporting G-code</h3>
-                <p>Select the Toolpaths layer for a summary, then open the <a href="#export-manager" draggable="false">Export Manager</a>. Only buckets that have been through <em>Generate Toolpaths</em> appear there.</p>
-            </section>
+        <h3 id="workflow-toolpaths">6. Calculating Toolpaths</h3>
+        <p>Select the Preview layer (the 3D Paths layer on a 3D operation) and set the machine parameters: feed rate, plunge rate, spindle speed and dwell, the tool number, and whether to optimize.</p>
+        <p>Click <em>Calculate Toolpaths</em>. The canvas switches to the 3D view so you can look over the result - depth passes, entries, retracts and rapids. The toolbar view button, or <kbd>F2</kbd>, takes you back to 2D.</p>
 
-            <section id="op-3d">
-                <h2>Working in 3D</h2>
-                <p>V-Carve, Relief and Rotary cut at a different depth at every point rather than at a flat depth per pass. They skip the depth step entirely - the height is part of the path, decided while the geometry is generated.</p>
+        <h3 id="workflow-export">7. Exporting G-code</h3>
+        <p>Select the Toolpaths layer for a summary, then open the <a href="#export-manager" draggable="false">Export Manager</a> from its Output stage or with Actions &rarr; Export Files….</p>
+      </section>
 
-                <p>Relief and Rotary take an STL. Orientation, resolution, Z datum, blank size and depth are all operation parameters, so you can change any of them and regenerate without importing the mesh again.</p>
-                <p>The 3D view draws the stock, the model and the toolpaths. It does not animate them yet.</p>
+      <section id="op-3d">
+        <h2>Working in 3D</h2>
+        <p>V-Carve, Relief and Rotary cut at a different depth at every point rather than at a flat depth per pass. They skip the depth stage - the height is part of the path, decided while the geometry is generated.</p>
+        <p>Relief and Rotary take a mesh from the scene. Resolution, blank and depth are operation parameters; where the model sits and how it is turned is its Shape Transform. Change either and generate again - the model is sliced afresh every time, so there is no need to import it again.</p>
+        <p>The 3D view draws the stock, the model and the toolpaths. It does not animate them yet.</p>
 
-                <h3 id="coordinates">Stock, Z zero and coordinates</h3>
-                <p>This is the part worth getting right before you generate anything, because there is no way to nudge a finished operation back into position afterwards. Geometry is placed where your file put it and machined where your stock says it is - nothing realigns it for you.</p>
-                <p>Two settings decide where the cutter thinks the material is:</p>
-                <dl>
-                    <dt>Stock thickness</dt>
-                    <dd>How thick the blank is. Depth is measured against it, and the maximum-depth check uses it to stop an operation cutting into your bed.</dd>
-                    <dt>Z-zero reference</dt>
-                    <dd>Whether Z0 is the <em>bed</em> or the <em>material surface</em>. Whichever you pick has to be the one you actually zero the machine on, because every depth in the program is measured from it.</dd>
-                </dl>
-                <p>Flat operations then work in the usual way: X and Y come from where the shape sits in the scene, Z comes from the depth you set against that datum.</p>
+        <h3 id="coordinates">Stock, Z zero and coordinates</h3>
+        <p>This is the part worth getting right before you generate anything. Geometry is placed where your file and your transforms put it, and machined where your stock says it is - nothing realigns it for you.</p>
+        <p>Two Stock Setup settings decide where the cutter thinks the material is:</p>
+        <dl>
+          <dt>Stock thickness</dt>
+          <dd>How thick the blank is. Depth is measured against it, and the maximum-depth check uses it to stop an operation cutting into your bed.</dd>
+          <dt>Z-zero reference</dt>
+          <dd>Whether Z0 is the <em>material surface</em> or the <em>machine bed</em>. Whichever you pick has to be the one you actually zero the machine on, because every depth in the program is measured from it.</dd>
+        </dl>
+        <p>Flat operations then work in the usual way: X and Y come from where the shape sits in the scene, Z from the depth you set against that datum.</p>
+        <p>A flat relief sits with the model's top on the stock surface. Its <strong>Z offset</strong> moves it from there: negative sinks it into the stock for a deeper carve, positive raises it, and whatever rises above the surface is left flat at the surface. <em>Start Depth</em> lowers the whole carve the same way.</p>
+        <p>Changing the stock thickness or the Z-zero reference leaves generated geometry alone but makes calculated toolpaths stale: calculate them again before exporting. The stock's width and length only change what the view draws.</p>
 
-                <h4>Rotary is a different frame</h4>
-                <p>Rotary and indexed operations do not use the flat picture at all. Their zero is the <strong>rotary centreline</strong>, and X runs along the axis rather than across the table - so negative Z below the centreline is correct output, not a mistake. Workspace rotation, mirroring and origin have no effect on them, and the maximum-depth check does not apply either, because it assumes flat stock and a rotary job legitimately cuts past it.</p>
-                <p>What that means in practice: set the blank diameter and the axial datum to match how the part is actually mounted, then check your A-axis setup and travel limits on the controller before running. The <a href="operations#op-rotary-radial" draggable="false">Operation Guide</a> covers the workholding and end settings that decide how far past the model the tool may travel.</p>
-                <p>Changing stock thickness or the Z-zero reference after generating invalidates 3D operations, so regenerate before exporting.</p>
-            </section>
+        <h3 id="rotary-frame">The rotary frame</h3>
+        <p>Rotary and indexed operations do not use the flat picture at all. X runs along the rotary axis (Y with a B-axis rotary), and by default Z0 is the <strong>rotation centreline</strong> - so negative Z below the centreline is correct output, not a mistake. Two settings move that zero:</p>
+        <dl>
+          <dt>Absolute Z0</dt>
+          <dd>On posts that support it, Z0 is the machine bed: every 4th-axis program is lifted by the <em>Rotary Axis Height</em> you enter, nothing may run below Z0, and a program that mixes flat and 4th-axis work, or uses axis replacement, is refused.</dd>
+          <dt>4th-Axis Route</dt>
+          <dd>The axis-replacement route (Y carries arc length) measures from the top of the blank.</dd>
+        </dl>
+        <p>Workspace rotation, mirroring and origin have no effect on rotary operations, and the maximum-depth check does not apply either, because it assumes flat stock and a rotary job legitimately cuts past it.</p>
+        <p>The mesh is centred on the axis across it. Along the axis, the Shape Transform's <em>Chuck</em> puts the end the chuck holds on the origin, <em>Center</em> its middle, and <em>Reset</em> its file's own position; X, Y and Z then move it from there. <em>Chuck Side</em> in Machine Settings says which end the chuck holds: each operation's chuck-end settings apply there and its tail-end ones at the other end.</p>
+        <p>The 3D view draws the axis, a ground grid at the program's Z0, and the chuck - with the tailstock when the workholding is between centres - standing past each end of the cut. Both can be turned off under 4th Axis in Machine Settings. The <a href="operations#op-rotary-radial" draggable="false">Operation Guide</a> covers the workholding and end settings.</p>
+        <p>Set the blank to match how the part is actually mounted, then check your A-axis setup and travel limits on the controller before running. Changing the rotary axis or the chuck side invalidates rotary operations; changing the post invalidates indexed ones.</p>
+      </section>
 
-            <section id="scene-management">
-                <h2>Scene Management</h2>
-                <p>The scene is a tree of groups and shapes with full undo and redo. Every structural change can be reversed.</p>
-                <dl>
-                    <dt>Grouping</dt>
-                    <dd>Select two or more items and use Group in the toolbar (or <kbd>Ctrl</kbd>+<kbd>G</kbd>). The new group appears where the first selected item was, and nothing moves.</dd>
-                    <dt>Ungrouping</dt>
-                    <dd>Select a group and use Ungroup in the toolbar (or <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>G</kbd>). Children move up to the group's parent and keep their exact positions.</dd>
-                    <dt>Drag-move</dt>
-                    <dd>Click and drag on the canvas to move the selection. Shapes follow the direction you dragged on screen, even inside a rotated or scaled group. The move is committed when you release.</dd>
-                    <dt>Multi-selection</dt>
-                    <dd>Shift-click to toggle, Ctrl-click to add, or drag a marquee. Alt-click picks the individual shape inside a group instead of the group.</dd>
-                </dl>
-            </section>
+      <section id="scene-management">
+        <h2>Scene Management</h2>
+        <p>The scene is a tree of groups and shapes with full undo and redo. Every structural change can be reversed.</p>
+        <dl>
+          <dt>Grouping</dt>
+          <dd>Select two or more items and use Group (or <kbd data-i18n="keys.ctrl">Ctrl</kbd>+<kbd>G</kbd>). The new group appears where the first selected item was, and nothing moves.</dd>
+          <dt>Ungrouping</dt>
+          <dd>Select a group and use Ungroup (or <kbd data-i18n="keys.ctrl">Ctrl</kbd>+<kbd data-i18n="keys.shift">Shift</kbd>+<kbd>G</kbd>). Children move up to the group's parent and keep their exact positions.</dd>
+          <dt>Drag-move</dt>
+          <dd>Click and drag on the canvas to move the selection. Shapes follow the direction you dragged on screen, even inside a rotated or scaled group. The move is committed when you release.</dd>
+          <dt>Multi-selection</dt>
+          <dd>Shift-click to toggle, Ctrl-click to add, or drag a marquee. Alt-click picks the individual shape inside a group instead of the group.</dd>
+        </dl>
+      </section>
 
-            <section id="transforms">
-                <h2>Shape Transforms</h2>
-                <p>Each shape and group carries its own position, rotation and scale. The inspector on the right edits the selection.</p>
-                <dl>
-                    <dt>Position (X / Y)</dt>
-                    <dd>Nudge fields, not coordinates. Enter a value and Apply to move by that amount; the fields reset to 0 afterwards. Reset returns the shape to where it was.</dd>
-                    <dt>Rotation</dt>
-                    <dd>Absolute, in degrees, independent of scale. Rotates about the shape's centre. Reset returns it to 0°.</dd>
-                    <dt>Scale</dt>
-                    <dd>Absolute factor - 1.0 is original size. The mirror checkboxes flip X or Y independently without changing the size.</dd>
-                </dl>
-                <p>Nothing here alters your original file. What you see on the canvas, what appears in the 3D view and what gets cut are all the same numbers, so what you see is what you get.</p>
-            </section>
+      <section id="transforms">
+        <h2>Shape Transforms</h2>
+        <p><strong>Shape Transform</strong>, at the top of Operation Settings, edits the selection. Its grid is absolute: it shows where the selection is, and <em>Apply</em> - or <kbd>Enter</kbd> in a field - writes what you typed. <em>Reset</em> returns to the file's own placement. Nothing here alters your original file.</p>
+        <dl>
+          <dt>Offset X / Y</dt>
+          <dd>How far the selection sits from where its file put it, in millimetres.</dd>
+          <dt>Offset Z</dt>
+          <dd>Meshes only: how far a flat relief model is raised from its seat on the stock surface (negative sinks it). In the rotary frame X, Y and Z move the mesh from its place on the axis.</dd>
+          <dt>Rotation X / Y</dt>
+          <dd>Meshes only: tilts the model about its own X axis, then its Y axis, in degrees.</dd>
+          <dt>Rotation Z</dt>
+          <dd>Absolute, in degrees, about the shape's centre, independent of scale.</dd>
+          <dt>Bot-Left / Chuck / Center</dt>
+          <dd>In the flat scene, <em>Bot-Left</em> and <em>Center</em> move the selection so its bottom-left corner, or its centre, lands on the origin. In the rotary frame, <em>Chuck</em> and <em>Center</em> place the mesh along the axis (above).</dd>
+          <dt>Scale and Mirror</dt>
+          <dd>Scale is an absolute factor - 1.0 is the original size - with its own Apply and Reset. The mirror checkboxes flip X or Y independently and apply at once.</dd>
+        </dl>
+        <p>A field that does not apply to the selection - Z and the X/Y rotations on 2D geometry, Bot-Left in the rotary frame, Chuck in the flat one - stays in place, disabled. With the 3D view open, focusing an offset or rotation field draws an arrow on the model showing what a positive value does.</p>
+        <p>What you see on the canvas, what appears in the 3D view and what gets cut are all the same numbers.</p>
+      </section>
 
-            <section id="machine-settings">
-                <h2>Machine Settings</h2>
-                <p>These live in the right sidebar's Machine Settings panel and apply to every operation in the job. Per-operation values live in the parameter forms instead.</p>
+      <section id="machine-settings">
+        <h2>Stock Setup and Machine Settings</h2>
+        <p><strong>Stock Setup</strong> holds the blank: thickness, width and length, material, the Z-zero reference, and the origin. Set the origin by offset, or with <em>Center</em> and <em>Bottom-Left</em>, which put it on the selection - or on everything, with nothing selected. <em>Fit to Object</em> sizes the stock around the selection; a mesh sets the thickness as well. From the canvas, <kbd>B</kbd> and <kbd>C</kbd> do the same as the two origin buttons.</p>
+        <p><strong>Machine Settings</strong> apply to every operation: the post-processor, units and line numbers, tool length offset, Absolute Z0, the safe and travel heights, rapid feed, coolant and vacuum, and the 4th axis - which machine axis the rotary turns about, which end the chuck holds, the route, the index dwell and what the 3D view draws. Every field, its values and its default are listed on the <a href="parameters#machine-settings" draggable="false">Parameter Guide</a>.</p>
+        <dl>
+          <dt>Post-Processor</dt>
+          <dd>The G-code dialect your controller expects. Set it first: its setup decides which other settings appear and what they start at, and it can lock some of them while it is selected.</dd>
+          <dt>Tool Length Offset</dt>
+          <dd>Shown when the post offers more than one mode. <em>Controller tool table</em> tells the control which offset to use after each swap; <em>H from T</em> lets the control take the offset from the tool number itself; <em>Measured at change time</em> leaves it to the post's macro, because the machine measures the tool during the change. Pick whichever your controller is set up for.</dd>
+          <dt>Line Numbers</dt>
+          <dd>Any program can carry <code>N</code> line numbers, with a step you choose. Each post has its own default - some controllers and file senders want them, most do not care.</dd>
+        </dl>
 
-                <dl>
-                    <dt>Post-Processor</dt>
-                    <dd>The G-code dialect your controller expects. Set it first: it decides which other settings appear, including tool changes, tool length compensation, line numbers, rotary routes and any extra fields that post needs.</dd>
-                    <dt>Safe Z Height (typical 5-15 mm)</dt>
-                    <dd>The height the tool retracts to for long moves and at program start and end. Must clear all clamps and workholding.</dd>
-                    <dt>Travel Z Height (typical 2-5 mm)</dt>
-                    <dd>A lower retract for short hops between nearby cuts. Faster than going to Safe Z every time, but it must still clear the workpiece.</dd>
-                    <dt>Stock Thickness &amp; Z-Zero Reference</dt>
-                    <dd>The blank's thickness, and whether Z0 sits at the <em>bed</em> or the <em>material surface</em>. Every depth in the program is measured from this, so it has to match what you actually zero on the machine. Changing either after generating invalidates 3D operations - see <a href="#coordinates" draggable="false">Stock, Z zero and coordinates</a>.</dd>
-                    <dt>Line Numbers</dt>
-                    <dd>Any program can carry <code>N</code> line numbers, with a step you choose. Each post has its own default, but the choice is yours - some controllers and file senders want them, most do not care.</dd>
-                    <dt>Tool Length Compensation</dt>
-                    <dd>Only shown for posts that support it. <em>Table</em> tells the control which offset to use after each swap. <em>Table (implicit)</em> lets the control take the offset from the tool number itself. <em>Probe</em> leaves it alone, because the machine measures the tool during the change. Pick whichever your controller is set up for.</dd>
-                    <dt>Rotary Route</dt>
-                    <dd>Only shown for posts with a rotary axis. Decides how a 4th-axis job leaves the app - as A-axis moves, as inverse-time moves, or as a wrapped linear axis. Match it to what your controller accepts.</dd>
-                    <dt>Extra post fields</dt>
-                    <dd>Some posts need settings no other post does. They appear here when that post is selected.</dd>
-                </dl>
+        <div class="callout callout--warning">
+          <h4>Some settings invalidate operations</h4>
+          <p>Indexed 3+1 needs a post that can drive the A or B axis, so changing the post invalidates generated indexed operations. Changing the rotary axis or the chuck side invalidates every rotary operation. Any other machine setting makes calculated toolpaths stale until you calculate them again.</p>
+        </div>
 
-                <div class="callout callout--warning">
-                    <h4>Changing the post invalidates indexed operations</h4>
-                    <p>Indexed 3+1 needs a post that can drive the A axis, so a generated indexed operation cannot survive a post change. It is invalidated and has to be regenerated before it can be exported.</p>
-                </div>
+        <h3>The parameters worth understanding first</h3>
+        <p>Full ranges and defaults for every field are on the <a href="parameters" draggable="false">Parameter Guide</a>. These four come up in every job:</p>
+        <dl>
+          <dt>Tool</dt>
+          <dd>Picks the cutter from the tool library; its diameter drives every offset. For a V-bit, the tool diameter is the <strong>flat at the tip</strong>, not the width it cuts at the surface.</dd>
+          <dt>Tool Number</dt>
+          <dd>The number your controller receives. Nothing is guessed - which slot a cutter sits in is something only you know, and a wrong number is a crash. An operation without one does not generate. If your machine has no changer, 1 on every operation is correct.</dd>
+          <dt>Cut Depth and Depth per Pass</dt>
+          <dd>Total depth into the stock, and the most to remove in one pass. As many passes as needed are generated for you.</dd>
+          <dt>Feed, Plunge and Spindle</dt>
+          <dd>Cutting speed, descent speed and spindle RPM. Plunge is usually 30-50% of feed. Spindle dwell holds the program until the spindle is up to speed.</dd>
+        </dl>
+      </section>
 
-                <h3>The parameters worth understanding first</h3>
-                <p>Full ranges and defaults for every field are on the <a href="parameters" draggable="false">Parameter Guide</a>. These four come up in every job:</p>
-                <dl>
-                    <dt>Tool</dt>
-                    <dd>Picks the cutter from the tool library; its diameter drives every offset. For a V-bit, the tool diameter is the <strong>flat at the tip</strong>, not the width it cuts at the surface.</dd>
-                    <dt>Tool Number</dt>
-                    <dd>The number your controller receives. Nothing is guessed - which slot a cutter sits in is something only you know, and a wrong number is a crash. If your machine has no changer, 1 on every operation is correct.</dd>
-                    <dt>Cut Depth and Depth per Pass</dt>
-                    <dd>Total depth into the stock, and the most to remove in one pass. As many passes as needed are generated for you.</dd>
-                    <dt>Feed, Plunge and Spindle</dt>
-                    <dd>Cutting speed, descent speed and spindle RPM. Plunge is usually 30-50% of feed. Spindle dwell holds the program until the spindle is up to speed.</dd>
-                </dl>
-            </section>
+      <section id="export-manager">
+        <h2>The Export Manager</h2>
+        <p>The Export Manager is where the whole job comes together: the order operations run in, tool changes between them, split files, and the moves from one operation to the next. Open it from any operation's Output stage, or with Actions &rarr; Export Files….</p>
 
-            <section id="export-manager">
-                <h2>The Export Manager</h2>
-                <p>The Export Manager is where the whole job comes together: the order operations run in, tool changes between them, split files, and the moves from one operation to the next. Open it from any operation's Output step.</p>
+        <ol>
+          <li><strong>Review buckets.</strong> Everything that has been through <em>Calculate Toolpaths</em> is listed with its type, tool and pass count. Check the ones you want.</li>
+          <li><strong>Order them.</strong> Drag them into the order you want to run them - the order you set is treated as deliberate. (The list also reorders from the keyboard: <kbd>Space</kbd> to grab, arrows to move, <kbd>Space</kbd> to drop.)</li>
+          <li><strong>Set the output options</strong> (below).</li>
+          <li><strong>Calculate Toolpaths</strong> to build the program and review the G-code, with line count, operation count, estimated time and distance.</li>
+          <li><strong>Export Files</strong> to download.</li>
+        </ol>
 
-                <ol>
-                    <li><strong>Review buckets.</strong> Everything that has been through <em>Generate Toolpaths</em> is listed with its type, tool and pass count. Check the ones you want.</li>
-                    <li><strong>Order them.</strong> Drag them into the order you want to run them - the order you set is treated as deliberate. (The list also reorders from the keyboard: <kbd>Space</kbd> to grab, arrows to move, <kbd>Space</kbd> to drop.)</li>
-                    <li><strong>Set the output options</strong> (below).</li>
-                    <li><strong>Review the G-code</strong> in the preview, with line count, operation count, estimated time and total travel.</li>
-                    <li><strong>Export Files</strong> to download.</li>
-                </ol>
+        <h3>Output Options</h3>
+        <p>An option that does not apply to the current job is greyed out, with the reason beside it.</p>
+        <dl>
+          <dt>Base Name</dt>
+          <dd>Every file starts with it, followed by the operation it holds. Left empty, it is the first operation's name. The extension comes from the post-processor.</dd>
+          <dt>Export as single file</dt>
+          <dd>Combines the operations into one program, cut in list order.</dd>
+          <dt>Split drill files by bit</dt>
+          <dd>Multi-file mode, for drill jobs that use more than one bit: one program per bit, so each file loads exactly one cutter.</dd>
+          <dt>Bundle files into one .zip</dt>
+          <dd>On by default: more than one file downloads as one archive named after the base name.</dd>
+          <dt>Include operation comments</dt>
+          <dd>A comment block naming each operation at the top of the program. G-code comments are always in English, folded to plain ASCII, so any control reads them.</dd>
+          <dt>Verbose comments</dt>
+          <dd>Adds each operation's tool, feeds, depths, step-over and deepest Z to that block, so an old file reads without the project.</dd>
+          <dt>Insert tool change commands</dt>
+          <dd>Emits T and M6, plus the tool length offset, wherever a file switches tools - a combined file, or a multi-tool drill. Needs a post with tool changes.</dd>
+          <dt>Group operations by tool</dt>
+          <dd>Reorders the combined file so operations that share a tool run back to back. This overrides the order you dragged, so it is never applied unless you ask for it.</dd>
+          <dt>Optimize path order (whole job)</dt>
+          <dd>Reorders paths to shorten travel between cuts. On by default; turn it off to keep the generated order when tracking down an unexpected move.</dd>
+        </dl>
 
-                <h3>Output Options</h3>
-                <dl>
-                    <dt>Export as single file</dt>
-                    <dd>Combines every selected operation into one program. Required if you want tool changes handled across operations.</dd>
-                    <dt>Insert tool changes</dt>
-                    <dd>Emits a tool change whenever the tool number changes, with a retract and spindle stop around it. Greyed out on posts that do not support tool changes.</dd>
-                    <dt>Group by tool</dt>
-                    <dd>Reorders operations so each tool is used once. This overrides the order you dragged, so it is never applied unless you ask for it.</dd>
-                    <dt>Split drill files by hole diameter</dt>
-                    <dd>Multi-file mode only. Writes one program per hole size, so each file loads exactly one cutter.</dd>
-                    <dt>Optimize toolpaths</dt>
-                    <dd>Reorders and simplifies the paths to cut travel time. On by default.</dd>
-                    <dt>Output filename</dt>
-                    <dd>Base name only - the extension comes from the post-processor.</dd>
-                </dl>
+        <h3>Multi-tool jobs</h3>
+        <p>With <em>Insert tool change commands</em> on and a post that supports them, a multi-tool job exports as one program with the swaps inline. Without that, turn off <em>Export as single file</em> and you get one program per operation to load in sequence.</p>
 
-                <h3>Multi-tool jobs</h3>
-                <p>With <em>Insert tool changes</em> on and a post that supports them, a multi-tool job exports as one program with the swaps inline. Without that, turn off <em>Export as single file</em> and you get one program per tool to load in sequence.</p>
+        <div class="callout callout--warning">
+          <h4>Tool numbers are yours to manage</h4>
+          <p>Nothing here can know which slot a cutter is physically in, and it will not pretend to. Assign the numbers, keep them matched to the machine, and check them before you run. When one number carries two different sizes, the Export Manager says so.</p>
+        </div>
+      </section>
 
-                <div class="callout callout--warning">
-                    <h4>Tool numbers are yours to manage</h4>
-                    <p>Nothing here can know which slot a cutter is physically in, and it will not pretend to. Assign the numbers, keep them matched to the machine, and check them before you run. A bucket with no tool number blocks the export rather than picking one for you.</p>
-                </div>
-            </section>
+      <section id="tips">
+        <h2>Tips &amp; Troubleshooting</h2>
 
-            <section id="tips">
-                <h2>Tips &amp; Troubleshooting</h2>
+        <h3>SVG Preparation</h3>
+        <ul>
+          <li>Convert text to paths before export.</li>
+          <li>Close any path you plan to profile, pocket or V-carve. Engraving and drilling do not care.</li>
+          <li>Use circles and obrounds - not ellipses - for drill holes and slots.</li>
+          <li>Set document units to millimetres.</li>
+          <li>Avoid clipping masks and SVG clones; neither is imported.</li>
+          <li>Flatten transforms in Inkscape if shapes import at unexpected positions.</li>
+        </ul>
 
-                <h3>SVG Preparation</h3>
-                <ul>
-                    <li>Convert text to paths before export.</li>
-                    <li>Close any path you plan to profile, pocket or V-carve. Engraving and drilling do not care.</li>
-                    <li>Use circles and obrounds - not ellipses - for drill holes and slots.</li>
-                    <li>Set document units to millimetres.</li>
-                    <li>Avoid clipping masks and SVG clones; neither is imported.</li>
-                    <li>Flatten transforms in Inkscape if shapes import at unexpected positions.</li>
-                </ul>
+        <h3>Best Practices</h3>
+        <h4>Start with a built-in example</h4>
+        <p>Load an example from the welcome screen and take it all the way through before processing your own files. The flatpack coffee table covers the 2.5D route; the V-carve sign, the flat relief tile and the rotary pawn cover the 3D ones.</p>
 
-                <h3>Best Practices</h3>
-                <h4>Start with a built-in example</h4>
-                <p>Load an example from the welcome screen and take it all the way through before processing your own files. The flat-pack table covers the 2.5D route; the V-carve and relief examples cover the 3D one.</p>
+        <h4>Check tool diameter against shape size</h4>
+        <p>If a pocket or profile produces nothing, the tool is too large for the shape. Pick a smaller cutter or scale the design up. On a pocket this is expected rather than an error - a pocket is meant to run out of material to remove.</p>
 
-                <h4>Check tool diameter against shape size</h4>
-                <p>If a pocket or profile produces nothing, the tool is too large for the shape. Pick a smaller cutter or scale the design up. On a pocket this is expected rather than an error - a pocket is meant to run out of material to remove.</p>
+        <h4>Order operations for the job, not the list</h4>
+        <p>Pockets and internal features first while the stock is rigid, then drilling, then profile cuts last so parts do not shift once they are cut free. Set that order in the Export Manager; the order the buckets sit in does not affect the output.</p>
 
-                <h4>Order operations for the job, not the list</h4>
-                <p>Pockets and internal features first while the stock is rigid, then drilling, then profile cuts last so parts do not shift once they are cut free. Set that order in the Export Manager; the order the buckets sit in does not affect the output.</p>
+        <h3>Common Issues</h3>
+        <h4>Canvas is blank or black</h4>
+        <p><strong>Cause:</strong> browser graphics compositing, common on laptops with two GPUs. <strong>Fix:</strong> restart the browser; it renders correctly on reload.</p>
 
-                <h3>Common Issues</h3>
-                <h4>Canvas is blank or black</h4>
-                <p><strong>Cause:</strong> browser graphics compositing, common on laptops with two GPUs. <strong>Fix:</strong> restart the browser; it renders correctly on reload.</p>
+        <h4>"Open paths detected" warning</h4>
+        <p><strong>Cause:</strong> profile, pocket and V-carve need closed shapes, and your SVG has paths that do not close. <strong>Fix:</strong> close them in your vector editor and re-import, or use Engrave, which accepts open paths by design.</p>
 
-                <h4>"Open paths detected" warning</h4>
-                <p><strong>Cause:</strong> profile, pocket and V-carve need closed shapes, and your SVG has paths that do not close. <strong>Fix:</strong> close them in your vector editor and re-import, or use Engrave, which accepts open paths by design.</p>
+        <h4>Shapes import at the wrong position</h4>
+        <p><strong>Cause:</strong> transforms on parent elements in the SVG. <strong>Fix:</strong> flatten transforms in your editor before export, or just move the shapes in the scene - nothing is destructive.</p>
 
-                <h4>Shapes import at the wrong position</h4>
-                <p><strong>Cause:</strong> transforms on parent elements in the SVG. <strong>Fix:</strong> flatten transforms in your editor before export, or just move the shapes in the scene - nothing is destructive.</p>
+        <h4>Generation is slow</h4>
+        <p><strong>Cause:</strong> complex geometry, or a very fine resolution on a large mesh. <strong>Fix (flat):</strong> fewer passes, a larger step-over, or a simpler SVG. <strong>Fix (3D):</strong> use a coarser resolution first, confirm the result looks right, then tighten it for the final run. On a rotary job, an explicit carve depth avoids the slow auto depth near the axis.</p>
 
-                <h4>Generation is slow</h4>
-                <p><strong>Cause:</strong> complex geometry, or a very fine resolution on a large mesh. <strong>Fix (flat):</strong> fewer passes, a larger step-over, or a simpler SVG. <strong>Fix (3D):</strong> use a coarser resolution first, confirm the result looks right, then tighten it for the final run.</p>
+        <h4>A bucket is invalidated</h4>
+        <p><strong>Cause:</strong> a parameter an earlier stage depends on was changed, a shape in it moved, or a setting it reads changed (the post on an indexed job, the rotary axis or chuck side on any rotary job). <strong>Fix:</strong> regenerate from the stage named in the message. Only the layers after your change are cleared.</p>
+      </section>
 
-                <h4>A bucket is invalidated</h4>
-                <p><strong>Cause:</strong> a parameter an earlier stage depends on was changed, or the post-processor was changed on an indexed job. <strong>Fix:</strong> regenerate from the stage named in the message. Only the layers after your change are cleared.</p>
-            </section>
+    </main>
+    <!-- Footer -->
+    <footer class="doc-footer" aria-label="Footer">
+      <p>
+        <a href="#doc-content" draggable="false">Back to Top</a> |
+        <a href="https://github.com/RicardoJCMarques/EasyCAM5000" target="_blank" draggable="false">GitHub</a> |
+        <a href="/#support" draggable="false">Support Development</a> |
+        <a href="../../LICENSE" target="_blank" draggable="false">AGPLv3 Licensed</a> |
+        <a href="https://www.eltryus.design/" draggable="false">by ELTRYUS</a>
+      </p>
+    </footer>
+  </div>
 
-        </main>
-        <!-- Footer -->
-        <footer class="doc-footer" aria-label="Footer">
-            <p>
-                <a href="#doc-content" draggable="false">Back to Top</a> |
-                <a href="https://github.com/RicardoJCMarques/EasyCAM5000" target="_blank" draggable="false">GitHub</a> |
-                <a href="/#support" draggable="false">Support Development</a> |
-                <a href="../../LICENSE" target="_blank" draggable="false">AGPLv3 Licensed</a> |
-                <a href="https://www.eltryus.design/" draggable="false">by ELTRYUS</a>
-            </p>
-        </footer>
-    </div>
-</body>
-
-<!-- Scripts -->
-<script defer src="../../themes/theme-loader.js"></script>
-<script defer src="../../images/figures.js"></script>
-<script>
+  <!-- Scripts -->
+  <script defer src="../../themes/theme-loader.js"></script>
+  <script defer src="../../images/figures.js"></script>
+  <script>
     document.addEventListener('DOMContentLoaded', () => {
-        // Load the SVG Sprite
-        fetch('../../images/icons/sprite.svg')
-            .then(response => {
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                return response.text();
-            })
-            .then(svgText => {
-                const div = document.createElement('div');
-                div.innerHTML = svgText;
-                const svg = div.querySelector('svg');
-                if (svg) {
-                    svg.setAttribute('aria-hidden', 'true');
-                    svg.style.cssText = 'position: absolute; width: 0; height: 0; visibility: hidden;';
-                    document.body.insertBefore(svg, document.body.firstChild);
-                }
-            })
-            .catch(err => console.warn('Failed to load icon sprite:', err));
-
-        // Theme toggle
-        const themeBtn = document.getElementById('theme-toggle');
-        if (themeBtn && window.ThemeLoader) {
-            const useEl = themeBtn.querySelector('use');
-            const initialTheme = document.documentElement.getAttribute('data-theme') || 'dark';
-
-            if (useEl) useEl.setAttribute('href', initialTheme === 'dark' ? '#icon-sun' : '#icon-moon');
-
-            themeBtn.addEventListener('click', async () => {
-                const theme = await window.ThemeLoader.toggleTheme();
-                if (useEl) useEl.setAttribute('href', theme === 'dark' ? '#icon-sun' : '#icon-moon');
-            });
-        }
-
-        // Mobile menu toggle
-        const menuBtn = document.querySelector('.doc-menu-toggle');
-        const nav = document.querySelector('.doc-nav');
-        if (menuBtn && nav) {
-            const useEl = menuBtn.querySelector('use');
-            menuBtn.addEventListener('click', () => {
-                const isExpanded = menuBtn.getAttribute('aria-expanded') === 'true';
-                menuBtn.setAttribute('aria-expanded', !isExpanded);
-                nav.classList.toggle('is-open');
-
-                if (useEl) useEl.setAttribute('href', !isExpanded ? '#icon-close' : '#icon-menu');
-            });
-        }
+      // Load the SVG Sprite
+      fetch('../../images/icons/sprite.svg')
+        .then(response => {
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          return response.text();
+        })
+        .then(svgText => {
+          const div = document.createElement('div');
+          div.innerHTML = svgText;
+          const svg = div.querySelector('svg');
+          if (svg) {
+            svg.setAttribute('aria-hidden', 'true');
+            svg.style.cssText = 'position: absolute; width: 0; height: 0; visibility: hidden;';
+            document.body.insertBefore(svg, document.body.firstChild);
+          }
+        })
+        .catch(err => console.warn('Failed to load icon sprite:', err));
+      // Theme toggle. Every theme but the default is a file, slow to
+      // arrive off localhost: the button waits for it, and the icon
+      // follows each change, including a saved theme that lands after
+      // this runs.
+      const themeBtn = document.getElementById('theme-toggle');
+      if (themeBtn && window.ThemeLoader) {
+        const useEl = themeBtn.querySelector('use');
+        const syncIcon = () => useEl?.setAttribute('href', document.documentElement.getAttribute('data-theme-base') === 'light' ? '#icon-moon' : '#icon-sun');
+        window.addEventListener('themechange', syncIcon);
+        syncIcon();
+        themeBtn.addEventListener('click', async () => {
+          themeBtn.disabled = true;
+          try {
+            await window.ThemeLoader.toggleTheme();
+          } catch (error) {
+            console.error('Theme toggle failed:', error);
+          } finally {
+            themeBtn.disabled = false;
+          }
+        });
+      }
+      // Mobile menu toggle
+      const menuBtn = document.querySelector('.doc-menu-toggle');
+      const nav = document.querySelector('.doc-nav');
+      if (menuBtn && nav) {
+        const useEl = menuBtn.querySelector('use');
+        menuBtn.addEventListener('click', () => {
+          const isExpanded = menuBtn.getAttribute('aria-expanded') === 'true';
+          menuBtn.setAttribute('aria-expanded', !isExpanded);
+          nav.classList.toggle('is-open');
+          if (useEl) useEl.setAttribute('href', !isExpanded ? '#icon-close' : '#icon-menu');
+        });
+      }
     });
-</script>
+  </script>
+</body>
 </html>

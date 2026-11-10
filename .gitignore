@@ -26,19 +26,14 @@ node_modules/
 
 # Extras
 /extras/
-/geometry/geometry-utils-math.js
 /geometry/geometry-offsetter-analytic.js
-/parsers/parser-gcode.js
-/parsers/gcode-integration.md
-/parsers/gcode-parser.md
 /tests/
 file-bundle.js
 FILE_BUNDLE_easycam5000.txt
 context-gen.js
 PROJECT_CONTEXT_easycam5000.txt
 project.config.js
-package-lock.json
-package.json
+/language/RTL.md
 
 # Notes
 WebGPU_device_loss.md

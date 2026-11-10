@@ -9,137 +9,134 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
- /**
- * This file provides fallback theme values.
- * Actual theme colors are loaded from JSON files via theme-loader.js
- */
-
 /* ============================================================================
    ROOT THEME VARIABLES
-   These are set dynamically by theme-loader.js
-   Fallbacks provided here match the dark theme
    ============================================================================ */
 
 :root {
-    /* Background Colors */
-    --color-bg-primary: #0f0f0f;
-    --color-bg-secondary: #1a1a1a;
-    --color-bg-tertiary: #242424;
-    --color-bg-hover: #2a2a2a;
-    --color-bg-active: #333333;
+  /* Background Colors */
+  --color-bg-primary: #0f0f0f;
+  --color-bg-secondary: #1a1a1a;
+  --color-bg-tertiary: #242424;
+  --color-bg-hover: #2a2a2a;
+  --color-bg-active: #333333;
 
-    /* Text Colors */
-    --color-text-primary: #e5e5e5;
-    --color-text-secondary: #a0a0a0;
-    --color-text-disabled: #606060;
-    --color-text-hint: #666666;
+  /* Text Colors */
+  --color-text-primary: #e5e5e5;
+  --color-text-secondary: #a0a0a0;
+  --color-text-disabled: #606060;
+  --color-text-hint: #666666;
+  --color-text-on-emphasis: #ffffff;
 
-    /* Border Colors */
-    --color-border-primary: #2a2a2a;
-    --color-border-secondary: #3a3a3a;
-    --color-border-focus: #4080ff;
+  /* Border Colors */
+  --color-border-primary: #2a2a2a;
+  --color-border-secondary: #3a3a3a;
+  --color-border-focus: #4080ff;
 
-    /* Accent Colors */
-    --color-accent-primary: #2563eb;
-    --color-accent-hover: #3b82f6;
-    --color-accent-active: #60a5fa;
+  /* Accent Colors */
+  --color-accent-primary: #2563eb;
+  --color-accent-hover: #3b82f6;
+  --color-accent-active: #60a5fa;
 
-    /* Semantic Colors */
-    --color-success: #22c55e;
-    --color-warning: #f59e0b;
-    --color-error: #ef4444;
-    --color-info: #06b6d4;
-    --color-scrim: rgba(0, 0, 0, 0.6);
-    --color-scrim-strong: rgba(0, 0, 0, 0.8);
+  /* Semantic Colors */
+  --color-success: #22c55e;
+  --color-warning: #f59e0b;
+  --color-error: #ef4444;
+  --color-info: #06b6d4;
+  --color-scrim: rgba(0, 0, 0, 0.6);
+  --color-scrim-strong: rgba(0, 0, 0, 0.8);
 
-    /* Operations Colors */
-    --color-operation-isolation: #ff8844;
-    --color-operation-drill: #4488ff;
-    --color-operation-clearing: #44ff88;
-    --color-operation-cutout: #ff00ff;
-    --color-operation-stencil: #90177d;
-    --color-operation-toolpath: #00ffff;
-    --color-operation-profile: #6dd3a0;
-    --color-operation-pocket: #5a8acf;
-    --color-operation-engrave: #c794d6;
-    --color-operation-vcarve: #e07a7a;
-    --color-operation-relief: #e0a97a;
-    --color-operation-rotary: #7ab8e0;
-    --color-operation-pattern: #a8b56d;
+  /* Operations Colors */
+  --color-operation-isolation: #ff8844;
+  --color-operation-drill: #4488ff;
+  --color-operation-clearing: #44ff88;
+  --color-operation-cutout: #ff00ff;
+  --color-operation-stencil: #90177d;
+  --color-operation-toolpath: #00ffff;
+  --color-operation-profile: #6dd3a0;
+  --color-operation-pocket: #5a8acf;
+  --color-operation-engrave: #c794d6;
+  --color-operation-vcarve: #e07a7a;
+  --color-operation-relief: #e0a97a;
+  --color-operation-rotary: #7ab8e0;
+  --color-operation-pattern: #a8b56d;
 
-    /* Render2d Colors */
-    --color-render2d-background: #0f0f0f;
-    --color-render2d-grid: #aaaaaa;
-    --color-render2d-origin: #aaaaaa;
-    --color-render2d-origin-outline: #000000;
-    --color-render2d-bounds: #aaaaaa;
-    --color-render2d-ruler: #aaaaaa;
-    --color-render2d-ruler-text: #aaaaaa;
+  /* Render2d Colors */
+  --color-render2d-background: #0f0f0f;
+  --color-render2d-grid: #aaaaaa;
+  --color-render2d-origin: #aaaaaa;
+  --color-render2d-origin-outline: #000000;
+  --color-render2d-bounds: #aaaaaa;
+  --color-render2d-ruler: #aaaaaa;
+  --color-render2d-ruler-text: #aaaaaa;
 
-    /* Render3d Colors */
-    --color-render3d-background: #16181c;
-    --color-render3d-sky: #ffffff;
-    --color-render3d-ground: #c9ced6;
-    --color-render3d-grid: #2a2e34;
-    --color-render3d-grid-center: #3a3f46;
-    --color-render3d-rapid: #565b63;
-    --color-render3d-cut-shallow: #4fc3f7;
-    --color-render3d-cut-deep: #e07a7a;
-    --color-render3d-stock: #8a7a5c;
-    --color-render3d-surface: #b0a58e;
-    --color-render3d-tool: #d8dde3;
+  /* Render3d Colors */
+  --color-render3d-background: #16181c;
+  --color-render3d-sky: #ffffff;
+  --color-render3d-ground: #c9ced6;
+  --color-render3d-grid: #2a2e34;
+  --color-render3d-grid-center: #3a3f46;
+  --color-render3d-rapid: #565b63;
+  --color-render3d-cut-shallow: #4fc3f7;
+  --color-render3d-cut-deep: #e07a7a;
+  --color-render3d-stock: #8a7a5c;
+  --color-render3d-surface: #b0a58e;
+  --color-render3d-tool: #d8dde3;
+  --color-render3d-axis-x: #ff4d4d;
+  --color-render3d-axis-y: #4dcc4d;
+  --color-render3d-axis-z: #4d79ff;
+  --color-render3d-workholding: #565b63;
 
-    /* Debug Colors */
-    --color-debug-points: #ff00ff;
-    --color-debug-arcs: #00ffff;
-    --color-debug-wireframe: #00aa00;
-    --color-debug-bounds: #ff0000;
-    --color-debug-preprocessed-stroke: #00ffff;
-    --color-debug-preprocessed-fill: #0a3333;
+  /* Debug Colors */
+  --color-debug-points: #ff00ff;
+  --color-debug-arcs: #00ffff;
+  --color-debug-wireframe: #00aa00;
+  --color-debug-bounds: #ff0000;
+  --color-debug-preprocessed-stroke: #00ffff;
+  --color-debug-preprocessed-fill: #0a3333;
 
-    /* Geometry Colors */
-    --color-geometry-source-isolation: #ff8844;
-    --color-geometry-source-drill: #4488ff;
-    --color-geometry-source-clearing: #44ff88;
-    --color-geometry-source-cutout: #333333;
-    --color-geometry-source-unassigned: #228b9d;
-    --color-geometry-source-stencil: #90177d;
-    --color-geometry-offset-external: #a60000;
-    --color-geometry-offset-internal: #00a600;
-    --color-geometry-offset-on: #bcbc02;
-    --color-geometry-preview: #0060dd;
-    --color-geometry-toolpath: #00ffff;
-    --color-geometry-selection: #00ffff;
-    --color-geometry-laser-filled: #0060dd;
+  /* Geometry Colors */
+  --color-geometry-source-isolation: #ff8844;
+  --color-geometry-source-drill: #4488ff;
+  --color-geometry-source-clearing: #44ff88;
+  --color-geometry-source-cutout: #333333;
+  --color-geometry-source-unassigned: #228b9d;
+  --color-geometry-source-stencil: #90177d;
+  --color-geometry-offset-external: #a60000;
+  --color-geometry-offset-internal: #00a600;
+  --color-geometry-offset-on: #bcbc02;
+  --color-geometry-preview: #0060dd;
+  --color-geometry-toolpath: #00ffff;
+  --color-geometry-selection: #00ffff;
+  --color-geometry-laser-filled: #0060dd;
 
-    /* Primitives Colors */
-    --color-primitive-offset-internal: #00aa00;
-    --color-primitive-offset-external: #ff0000;
-    --color-primitive-peck-mark-good: #16d329;
-    --color-primitive-peck-mark-warn: #d2cb00;
-    --color-primitive-peck-mark-error: #ff0000;
-    --color-primitive-peck-mark-slow: #ff5e00;
-    --color-primitive-reconstructed: #00ffff;
-    --color-primitive-reconstructed-path: #ffff00;
+  /* Primitives Colors */
+  --color-primitive-offset-internal: #00aa00;
+  --color-primitive-offset-external: #ff0000;
+  --color-primitive-peck-mark-good: #16d329;
+  --color-primitive-peck-mark-warn: #d2cb00;
+  --color-primitive-peck-mark-error: #ff0000;
+  --color-primitive-peck-mark-slow: #ff5e00;
+  --color-primitive-reconstructed: #00ffff;
+  --color-primitive-reconstructed-path: #ffff00;
 
-    /* Bw Colors */
-    --color-bw-black: #000000;
-    --color-bw-white: #ffffff;
+  /* Bw Colors */
+  --color-bw-black: #000000;
+  --color-bw-white: #ffffff;
 
-    /* Pipelines Colors */
-    --color-pipeline-cnc: #ff8844;
-    --color-pipeline-laser: #a855f7;
-    --color-pipeline-3d: #22d3ee;
+  /* Pipelines Colors */
+  --color-pipeline-cnc: #ff8844;
+  --color-pipeline-laser: #a855f7;
+  --color-pipeline-3d: #22d3ee;
 
-    /* Interaction Colors */
-    --color-interaction-sponsorship: #6366f1;
-    --color-interaction-sponsorship-text: #e9d5ff;
-    --color-interaction-kofi: #42d6aa;
-    --color-interaction-selection-stroke: #22d3ee;
-    --color-interaction-selection-fill: #0a3f47;
-    --color-interaction-marquee-stroke: #3b82f6;
-    --color-interaction-marquee-fill: #112240;
-    --color-interaction-group-bounds: #22d3ee;
+  /* Interaction Colors */
+  --color-interaction-sponsorship: #6366f1;
+  --color-interaction-kofi: #42d6aa;
+  --color-interaction-selection-stroke: #22d3ee;
+  --color-interaction-selection-fill: #0a3f47;
+  --color-interaction-marquee-stroke: #3b82f6;
+  --color-interaction-marquee-fill: #112240;
+  --color-interaction-group-bounds: #22d3ee;
 }
 
 /* ============================================================================
@@ -150,13 +147,13 @@
 .category-icon,
 .file-icon,
 .geometry-icon {
-    color: var(--color-text-secondary);
+  color: var(--color-text-secondary);
 }
 
 .category-icon svg,
 .file-icon svg,
 .geometry-icon svg {
-    color: inherit;
+  color: inherit;
 }
 
 /* Operation-specific icon colors REVIEW - This should be extracted from the theme? This needs to be made consistent and added to the theme.jsons */
@@ -166,12 +163,12 @@
 [data-op-type="cutout"] .category-icon {color: var(--color-operation-cutout);}
 [data-op-type="stencil"] .category-icon {color: var(--color-operation-stencil);}
 [data-op="profile"] .bucket-icon, [data-op="profile"] .stage-icon { color: var(--color-operation-profile); }
-[data-op="pocket"]  .bucket-icon, [data-op="pocket"]  .stage-icon { color: var(--color-operation-pocket); }
+[data-op="pocket"] .bucket-icon, [data-op="pocket"] .stage-icon { color: var(--color-operation-pocket); }
 [data-op="engrave"] .bucket-icon, [data-op="engrave"] .stage-icon { color: var(--color-operation-engrave); }
-[data-op="drill"]   .bucket-icon, [data-op="drill"]   .stage-icon { color: var(--color-operation-drill); }
-[data-op="vcarve"]  .bucket-icon, [data-op="vcarve"]  .stage-icon { color: var(--color-operation-vcarve); }
-[data-op="relief"]  .bucket-icon, [data-op="relief"]  .stage-icon { color: var(--color-operation-relief); }
-[data-op="rotary"]  .bucket-icon, [data-op="rotary"]  .stage-icon { color: var(--color-operation-rotary); }
+[data-op="drill"] .bucket-icon, [data-op="drill"] .stage-icon { color: var(--color-operation-drill); }
+[data-op="vcarve"] .bucket-icon, [data-op="vcarve"] .stage-icon { color: var(--color-operation-vcarve); }
+[data-op="relief"] .bucket-icon, [data-op="relief"] .stage-icon { color: var(--color-operation-relief); }
+[data-op="rotary"] .bucket-icon, [data-op="rotary"] .stage-icon { color: var(--color-operation-rotary); }
 [data-op="pattern"] .bucket-icon, [data-op="pattern"] .stage-icon { color: var(--color-operation-pattern); }
 
 /* ============================================================================
@@ -181,10 +178,10 @@
 
 /* Hide the body only if the html tag doesn't have a theme */
 html:not([data-theme]) body {
-    visibility: hidden;
+  visibility: hidden;
 }
 
 /* Show the body once the html tag has a theme */
 html[data-theme] body {
-    visibility: visible;
+  visibility: visible;
 }

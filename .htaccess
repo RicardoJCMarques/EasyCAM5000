@@ -1,83 +1,72 @@
 # 404 page
 ErrorDocument 404 /404.html
 
-# Enable rewrite engine
-RewriteEngine On
-
-# Force HTTPS
-RewriteCond %{HTTPS} off
-RewriteRule ^(.*)$ https://cam.eltryus.design/$1 [R=301,L]
-
-# Old app at root (explicit /app request) → new location
-RewriteRule ^app(\.html)?/?$ /easytrace5000/ [R=301,L]
-
-# Old /doc/* → /easytrace5000/doc/*
-RewriteRule ^doc/?$         /easytrace5000/doc/      [R=301,L]
-RewriteRule ^doc/(.+)$      /easytrace5000/doc/$1    [R=301,L]
-
-# Old root-level shortcuts
-RewriteRule ^cnc(\.html)?$           /easytrace5000/doc/cnc           [R=301,L]
-RewriteRule ^laser(\.html)?$         /easytrace5000/doc/laser         [R=301,L]
-
-# MIME types
-<IfModule mod_mime.c>
-    AddDefaultCharset UTF-8
-
-    AddType text/javascript .js
-    AddType application/wasm .wasm
-    AddType application/json .json
-    AddType application/manifest+json .webmanifest
-    AddType image/svg+xml .svg
-    AddType image/x-icon .ico
-</IfModule>
-
-# Compression
-<IfModule mod_deflate.c>
-    AddOutputFilterByType DEFLATE text/html text/css text/javascript application/javascript application/json application/wasm image/svg+xml
-</IfModule>
-
-# Security headers & Caching
-<IfModule mod_headers.c>
-    # Security
-    Header set X-Content-Type-Options "nosniff"
-    Header set X-Frame-Options "SAMEORIGIN"
-    Header set X-XSS-Protection "1; mode=block"
-    Header set Referrer-Policy "strict-origin-when-cross-origin"
-    Header always set Strict-Transport-Security "max-age=31536000"
-    
-    # --- CACHING STRATEGY ---
-
-    # GROUP 1: Code & Logic (The "Safe" Group)
-    # Includes: HTML, CSS, JS, JSON
-    # Action: Browser must check with server every time (0 latency if unchanged).
-    # Prevents "stale code" issues.
-    <FilesMatch "\.(html|css|js|mjs|json)$">
-        Header set Cache-Control "no-cache, must-revalidate"
-    </FilesMatch>
-
-    # GROUP 2: Heavy Binaries & Assets (The "Fast" Group)
-    # Includes: WASM, Images
-    # Action: Cache for 1 month. 
-    # Assumption: These change rarely.
-    <FilesMatch "\.(wasm|png|jpg|jpeg|gif|webp|svg|ico)$">
-        Header set Cache-Control "public, max-age=2592000, immutable"
-    </FilesMatch>
-
-</IfModule>
-
-# Directory and file handling
+# Directory handling & prevent MultiViews conflicts
 DirectoryIndex index.html
 Options -MultiViews -Indexes
 
-# Clean URLs
-# /path/index.html -> /path/
+RewriteEngine On
+
+# Host guard: Redirect requests arriving via www.eltryus.design/cam/... to canonical subdomain
+RewriteCond %{HTTP_HOST} !^cam\.eltryus\.design$ [NC]
+RewriteRule ^(.*)$ https://cam.eltryus.design/$1 [R=301,L]
+
+# FORCE HTTPS
+RewriteCond %{HTTPS} off
+RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
+
+# ENSURE DIRECTORY SLASHES
+DirectorySlash On
+
+# DIRECT SINGLE-HOP 301s FOR LEGACY PATHS
+RewriteRule ^app(\.html)?/?$           /easytrace5000/ [R=301,L]
+RewriteRule ^cnc(\.html)?/?$           /easytrace5000/doc/cnc [R=301,L]
+RewriteRule ^laser(\.html)?/?$         /easytrace5000/doc/laser [R=301,L]
+RewriteRule ^doc/?$                    /easytrace5000/doc/ [R=301,L]
+RewriteRule ^doc/([^/.]+?)(\.html)?/?$ /easytrace5000/doc/$1 [R=301,L]
+
+# CLEAN INDEX.HTML -> TRAILING SLASH /
 RewriteCond %{THE_REQUEST} \s/+([^\s?]*/)?index\.html[\s?] [NC]
 RewriteRule ^ /%1 [R=301,L]
 
-# /path/page.html -> /path/page  (works at any depth)
-RewriteCond %{THE_REQUEST} \s/+[^\s?]*\.html[\s?] [NC]
-RewriteRule ^(.+)\.html$ /$1 [R=301,L]
+# .HTML EXTENSION (Single-hop redirect for direct hits, query-safe)
+RewriteCond %{THE_REQUEST} \s/+([^\s?]+)\.html[\s?] [NC]
+RewriteRule ^ /%1 [R=301,L]
 
+# INTERNAL REWRITE (Extensionless URL -> .html file)
 RewriteCond %{REQUEST_FILENAME} !-d
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteRule ^([^\.]+)$ $1.html [NC,L]
+RewriteCond %{DOCUMENT_ROOT}/$1.html -f
+RewriteRule ^(.+?)/?$ $1.html [L]
+
+# MIME TYPES
+AddDefaultCharset UTF-8
+AddType text/javascript .js
+AddType application/wasm .wasm
+AddType application/json .json
+AddType application/manifest+json .webmanifest
+AddType image/svg+xml .svg
+AddType image/x-icon .ico
+AddType font/woff .woff
+AddType font/woff2 .woff2
+
+# COMPRESSION
+AddOutputFilterByType DEFLATE text/html text/css text/javascript application/javascript application/json application/wasm image/svg+xml
+
+# SECURITY HEADERS & SUBDOMAIN ISOLATION
+<IfModule mod_headers.c>
+  Header set X-Content-Type-Options "nosniff"
+  Header set X-Frame-Options "SAMEORIGIN"
+  Header set X-XSS-Protection "1; mode=block"
+  Header set Referrer-Policy "strict-origin-when-cross-origin"
+  Header always set Strict-Transport-Security "max-age=31536000"
+
+  # HTML, code, and language definitions: revalidate immediately
+  <FilesMatch "\.(html|css|js|mjs|json|webmanifest|wasm)$">
+    Header set Cache-Control "no-cache, must-revalidate"
+  </FilesMatch>
+
+  # Static assets and immutable binaries
+  <FilesMatch "\.(png|jpe?g|gif|webp|svg|ico|woff2?)$">
+    Header set Cache-Control "public, max-age=2592000, immutable"
+  </FilesMatch>
+</IfModule>

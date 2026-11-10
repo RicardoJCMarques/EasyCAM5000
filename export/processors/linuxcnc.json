@@ -1,0 +1,63 @@
+{
+  "_projectInfo": {
+    "file": "export/processors/linuxcnc.json",
+    "description": "Post-processor setup: LinuxCNC",
+    "author": "Eltryus - Ricardo Marques",
+    "see": "https://github.com/RicardoJCMarques/EasyCAM5000",
+    "license": "AGPL-3.0-or-later",
+    "copyright": "Copyright (C) 2025-2026 Eltryus - Ricardo Marques"
+  },
+  "meta": { "kind": "setup" },
+  "id": "linuxcnc",
+  "label": "LinuxCNC",
+  "logic": "rs274",
+  "maturity": "less-experimental",
+  "flags": {
+    "fileExtension": ".ngc",
+    "commentStyle": "parenthesis",
+    "supportsComments": true,
+    "supportsUnits": true,
+    "supportsCoolant": true,
+    "supportsLineNumbers": true,
+    "lineNumberMax": 99999,
+    "modalCommands": true,
+    "coordinateDecimals": 4,
+    "rotaryDecimals": 4,
+    "feedDecimals": 1,
+    "spindleDecimals": 0,
+    "maxSpindleSpeed": 24000,
+    "spindle": { "on": "M3", "off": "M5", "scale": null },
+    "dwellUnit": "s",
+    "dwellWord": "P",
+    "supportsArcCommands": true,
+    "arcFormat": "IJ",
+    "supportsCannedCycles": true,
+    "supportsToolChange": true,
+    "useM6": true,
+    "initialToolUsesM6": false,
+    "emitsInitialTool": true,
+    "pauseAfterToolChange": false,
+    "toolLengthComp": ["table", "none"],
+    "supportsAbsoluteZ": false,
+    "rotary": {
+      "routes": ["a-word", "wrapped-linear"],
+      "axisWords": ["A", "B"],
+      "inverseTime": true,
+      "maxInverseTime": 9999.99,
+      "continuous": true
+    }
+  },
+  "defaults": {
+    "startCode": "G64 P0.01\nG4 P1",
+    "endCode": "M5\nG0 X0Y0\nM2",
+    "toolLengthCompMode": "table",
+    "rotaryRoute": "a-word",
+    "indexDwell": 0,
+    "lineNumbers": false,
+    "lineNumberStep": 10
+  },
+  "locks": {},
+  "_notes": {
+    "rotary": "LinuxCNC handles both CAM-side substitution (A in degrees) and a linearly calibrated axis replacement. G93 inverse time is native, and trajectory planning has no rotary travel limit: accumulated A never needs a rewind. indexDwell is 0: LinuxCNC installs are typically servo or geared with exact-stop. Raise it in Machine Settings for a belt rotary."
+  }
+}

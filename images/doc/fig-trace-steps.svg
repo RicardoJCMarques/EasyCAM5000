@@ -38,7 +38,7 @@
   <rect class="bg" width="800" height="340"/>
   <text class="tb" x="24" y="30">Router - Copper Isolation, Clearing, Cutout, Drill, Stencil</text>
   <rect class="panel" x="24" y="44" width="172" height="50" rx="6" stroke="var(--line)" stroke-width="1.5"/>
-  <text class="t" x="110" y="66" text-anchor="middle">Source Geometry</text><text class="tm" x="110" y="86" text-anchor="middle">&#8594; Offsets</text>
+  <text class="t" x="110" y="66" text-anchor="middle">Source Geometry (X/Y Strat)</text><text class="tm" x="110" y="86" text-anchor="middle">&#8594; Offsets</text>
   <rect class="panel" x="212" y="44" width="172" height="50" rx="6" stroke="var(--line)" stroke-width="1.5"/>
   <text class="t" x="298" y="66" text-anchor="middle">Z Strategy</text><text class="tm" x="298" y="86" text-anchor="middle">&#8594; Preview</text>
   <rect class="panel" x="400" y="44" width="172" height="50" rx="6" stroke="var(--line)" stroke-width="1.5"/>
@@ -48,7 +48,7 @@
   <path d="M196 69h16M384 69h16M572 69h16" stroke="var(--muted)" stroke-width="2"/>
   <text class="tb" x="24" y="150">Laser - Copper Isolation, Clearing, Cutout, Drill, Stencil</text>
   <rect class="panel" x="24" y="164" width="172" height="50" rx="6" stroke="var(--line)" stroke-width="1.5"/>
-  <text class="t" x="110" y="186" text-anchor="middle">Source Geometry</text><text class="tm" x="110" y="206" text-anchor="middle">&#8594; Offsets</text>
+  <text class="t" x="110" y="186" text-anchor="middle">Source Geometry (X/Y Strat)</text><text class="tm" x="110" y="206" text-anchor="middle">&#8594; Offsets</text>
   <rect class="panel2" x="212" y="164" width="172" height="50" rx="6" stroke="var(--accent)" stroke-width="2"/>
   <text class="t" x="298" y="186" text-anchor="middle">Output</text><text class="tm" x="298" y="206" text-anchor="middle">SVG / PNG</text>
   <path d="M196 189h16" stroke="var(--muted)" stroke-width="2"/>
@@ -56,7 +56,7 @@
   <text class="tm" x="410" y="208">the geometry is the deliverable.</text>
   <text class="tb" x="24" y="270">Drag knife - Stencil</text>
   <rect class="panel" x="24" y="284" width="172" height="50" rx="6" stroke="var(--line)" stroke-width="1.5"/>
-  <text class="t" x="110" y="306" text-anchor="middle">Source Geometry</text><text class="tm" x="110" y="326" text-anchor="middle">&#8594; Offsets</text>
+  <text class="t" x="110" y="306" text-anchor="middle">Source Geometry (X/Y Strat)</text><text class="tm" x="110" y="326" text-anchor="middle">&#8594; Offsets</text>
   <rect class="panel2" x="212" y="284" width="172" height="50" rx="6" stroke="var(--accent)" stroke-width="2"/>
   <text class="t" x="298" y="306" text-anchor="middle">Output</text><text class="tm" x="298" y="326" text-anchor="middle">Vector SVG</text>
   <path d="M196 309h16" stroke="var(--muted)" stroke-width="2"/>

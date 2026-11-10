@@ -1,9 +1,9 @@
 {
   "_readme": [
-    "Companion to dark.json. Both shipped themes are kept COMPLETE (full key",
-    "parity with the reference) so sync-theme.js's parity gate can lint them",
-    "against each other. Drop-in themes are the partial case: once the loader",
-    "merges over dark.json, a user theme may define as few keys as it likes.",
+    "Companion to dark.json. Like every theme it declares every key dark.json",
+    "declares - themes are never partial - and sync-theme.js refuses it if not.",
+    "A custom theme is held to the same rule: CustomFiles refuses one with a",
+    "key missing or extra.",
     "",
     "base: 'light' -> the loader emits data-theme-base=\"light\". CSS that must",
     "branch on light vs dark (icon assets, image filters) keys off THAT, never",
@@ -16,9 +16,8 @@
     "sits on, so saturated high-luminance hues from the dark palette (#00ffff,",
     "#ffff00, #44ff88) are darkened here rather than copied."
   ],
-
+  "meta": {"kind": "theme"},
   "id": "light",
-  "label": "Light",
   "base": "light",
   "description": "Default light theme.",
   "author": "Eltryus - Ricardo Marques",
@@ -39,7 +38,8 @@
       "primary": "#1a1a1a",
       "secondary": "#666666",
       "disabled": "#999999",
-      "hint": "#b0b0b0"
+      "hint": "#b0b0b0",
+      "onEmphasis": "#ffffff"
     },
     "border": {
       "primary": "#e0e0e0",
@@ -97,7 +97,11 @@
       "cutDeep": "#b45309",
       "stock": "#cfbd93",
       "surface": "#d6ccb4",
-      "tool": "#6b7280"
+      "tool": "#6b7280",
+      "axisX": "#dc2626",
+      "axisY": "#16a34a",
+      "axisZ": "#2563eb",
+      "workholding": "#6b7280"
     },
 
     "geometry": {
@@ -155,7 +159,6 @@
 
     "interaction": {
       "sponsorship": "#4f46e5",
-      "sponsorshipText": "#5b21b6",
       "kofi": "#0d9488",
       "selectionStroke": "#0891b2",
       "selectionFill": "#cffafe",

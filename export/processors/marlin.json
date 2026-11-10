@@ -1,0 +1,68 @@
+{
+  "_projectInfo": {
+    "file": "export/processors/marlin.json",
+    "description": "Post-processor setup: Marlin",
+    "author": "Eltryus - Ricardo Marques",
+    "see": "https://github.com/RicardoJCMarques/EasyCAM5000",
+    "license": "AGPL-3.0-or-later",
+    "copyright": "Copyright (C) 2025-2026 Eltryus - Ricardo Marques"
+  },
+  "meta": { "kind": "setup" },
+  "id": "marlin",
+  "label": "Marlin",
+  "logic": "rs274",
+  "maturity": "experimental",
+  "flags": {
+    "fileExtension": ".gcode",
+    "commentStyle": "semicolon",
+    "supportsComments": true,
+    "supportsUnits": true,
+    "supportsCoolant": true,
+    "supportsLineNumbers": true,
+    "lineNumberMax": 99999,
+    "modalCommands": false,
+    "coordinateDecimals": 3,
+    "rotaryDecimals": 3,
+    "feedDecimals": 0,
+    "spindleDecimals": 0,
+    "maxSpindleSpeed": 255,
+    "spindle": { "on": "M106", "off": "M107", "scale": 255 },
+    "dwellUnit": "ms",
+    "dwellWord": "P",
+    "supportsArcCommands": true,
+    "arcFormat": "IJ",
+    "supportsCannedCycles": false,
+    "supportsToolChange": false,
+    "useM6": false,
+    "initialToolUsesM6": false,
+    "emitsInitialTool": false,
+    "pauseAfterToolChange": false,
+    "toolLengthComp": ["none"],
+    "supportsAbsoluteZ": false,
+    "rotary": {
+      "routes": ["wrapped-linear"],
+      "axisWords": [],
+      "inverseTime": false,
+      "maxInverseTime": 9999.99,
+      "continuous": true
+    }
+  },
+  "defaults": {
+    "startCode": "",
+    "endCode": "M107\nG0 X0Y0\nM84",
+    "toolLengthCompMode": "none",
+    "rotaryRoute": "wrapped-linear",
+    "indexDwell": 0,
+    "lineNumbers": false,
+    "lineNumberStep": 10
+  },
+  "locks": {},
+  "_notes": {
+    "emitsInitialTool": "Marlin's T word selects an EXTRUDER, not a cutter. Emitting T1 is not a no-op: it is a different command that most CNC-flavoured builds reject.",
+    "maxSpindleSpeed": "The RPM the spindle reaches at full duty: S = RPM / maxSpindleSpeed x spindle.scale. At 255 any RPM from 255 up is full power - set the spindle's real top RPM.",
+    "spindle": "A spindle or router on a fan output: M106 sets the PWM duty, M107 stops it.",
+    "dwellUnit": "G4 P is milliseconds on Marlin; S would be seconds.",
+    "rotary": "Marlin has no G93 and its extra-axis support is build-dependent. Axis replacement (rotary on the Y driver, steps/mm calibrated) is the only route worth declaring.",
+    "endCode": "M107, not M5: M5 does not stop a spindle on M106, and nothing else stops it at the end of the program."
+  }
+}

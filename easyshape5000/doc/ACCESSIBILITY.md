@@ -50,6 +50,7 @@ These apply wherever focus is, except inside a text field.
 | `Ctrl` + `Shift` + `G` | Ungroup the selection |
 | `Delete` / `Backspace` | Delete the selected shapes |
 | `I` | Open the Add Files dialog |
+| `B` / `C` | Put the origin on the bottom-left corner or the centre of the selection, or of everything when nothing is selected |
 
 Single-key shortcuts are scoped. Inside the scene tree or the operations panel, `Delete` removes the focused node rather than the canvas selection. Inside a property row in the right sidebar, no single-key shortcut fires at all, so a stray keystroke while arrowing a form cannot destroy work.
 
@@ -63,12 +64,16 @@ Each zone has specific interactions once it receives focus.
 
 | Key | Action |
 | :--- | :--- |
-| `Tab` / `Shift` + `Tab` | Navigate between buttons and menu items |
-| `Enter` / `Space` | Activate the focused button or open a dropdown |
-| `↑` / `↓` | Move between items in an open dropdown |
-| `Escape` | Close an open dropdown and return focus to its button |
+| `Tab` / `Shift` + `Tab` | Move between toolbar buttons |
+| `Enter` / `Space` / `↓` | Activate the focused button, or open its dropdown on the first item |
+| `↑` / `↓` | Move between items in an open dropdown (wrapping) |
+| `Home` / `End` | Jump to the first or last item in a dropdown |
+| `Escape` | Close the dropdown and return focus to its button |
+| `Tab` *(in a dropdown)* | Close it and move on |
 
-### Scene Tree (Left Sidebar, upper panel)
+Help text is attached to each field as its description rather than to a separate button, so a screen reader reads it when the field takes focus. The `?` icon beside a label is decorative and is not a tab stop.
+
+### Scene Tree (Left Sidebar, lower panel)
 
 The scene tree is an ARIA tree with a **roving tabindex**. Press `Tab` to enter it, then use arrow keys. Groups nest to any depth; the tree reports each item's level and position in its branch.
 
@@ -86,7 +91,7 @@ The scene tree is an ARIA tree with a **roving tabindex**. Press `Tab` to enter 
 
 Row buttons are reachable by their shortcut key rather than by `Tab`, so a hundred-shape file does not add three hundred tab stops to the sidebar.
 
-### Operations Panel (Left Sidebar, lower panel)
+### Operations Panel (Left Sidebar, upper panel)
 
 Each operation is a bucket. Its header is a tree item, and every artifact it has produced - Offsets, Preview, Toolpaths - is a child tree item with its own visibility toggle.
 
@@ -121,14 +126,13 @@ This panel handles parameter inputs for the selected stage node. The fields it s
 
 | Key | Action |
 | :--- | :--- |
-| `Tab` | Move to next field or button |
-| `Shift` + `Tab` | Move to previous field |
-| `↓` / `↑` | Navigate focus between property rows (Grid Navigation) |
-| `Enter` | Enter "Edit Mode" on a focused row |
-| `↓` / `↑` *(in a number field)* | Step the value, as a number input normally would |
-| `Escape` | Cancel the edit and return focus to the row |
-
-Help text is attached to each field as its description rather than to a separate button, so a screen reader reads it when the field takes focus. The `?` icon beside a label is decorative and is not a tab stop.
+| `Tab` / `Shift` + `Tab` | Move to the next or previous field |
+| `↓` / `↑` | Move between property rows |
+| `Enter` / `Space` | Edit the focused row's control |
+| `↓` / `↑` *(in a number field or a dropdown)* | Step the value, as the control normally would |
+| `Enter` *(while editing)* | Commit the value and move to the next row |
+| `Escape` *(while editing)* | Return focus to the row; the typed value still applies |
+| *(Shape Transform)* | A field that does not apply to the selection - Z and the X/Y rotations for anything but a single mesh - stays in place, disabled |
 
 ---
 
@@ -191,7 +195,8 @@ The per-diameter drill table is a modal grid. `Tab` moves between cells and `Esc
 
 - **Status region**: a polite region carries ordinary progress and completion messages; a separate assertive region carries errors, so urgency is not lost.
 - The visible status text is not itself a live region. Its idle state, which restores a few seconds after every message, is therefore silent rather than being re-announced.
-- Long-running generation reports progress through the same region, so a background job is audible rather than silent.
+- Status messages announce file loading, generation progress, stage completion, and errors.
+- While a long task runs, a progress overlay holds the page: nothing else can be edited, dropped or started, `Escape` or its Cancel button stops the task, its progress is announced through a polite status region, and focus returns where it was when it ends.
 - The status log holds the full history and is reachable from the keyboard: `Tab` to the chevron at the left of the status bar and press `Enter`.
 
 ### Semantic Structure
@@ -248,9 +253,9 @@ EasyShape5000 targets **WCAG 2.1 Level AA** compliance. While the application is
 | Guideline | Description | Status | Notes |
 |-----------|-------------|--------|-------|
 | **1.1.1** | Non-text Content (3D view) | Partial | The 3D view is a WebGPU canvas with no non-visual equivalent. A text readout of toolpath metrics on each stage node - depth range, bounding box, pass count, travel distance, estimated time - is planned and matters more here than in EasyTrace5000, because three operation types render only in 3D. |
-| **1.4.3** | Contrast (Minimum) | Partial | Most default text meets 4.5:1, but some secondary and hint text in both themes does not. Dedicated high-contrast themes are in development. |
+| **1.4.3** | Contrast (Minimum) | Partial | Most default text meets 4.5:1, but some secondary and hint text in the default dark and light themes does not. High-contrast dark and light themes ship, chosen on the welcome screen. |
 | **1.4.10**| Reflow | Partial | The workspace is laid out for a landscape viewport and does not reflow to a single column; below roughly 768 CSS pixels a warning bar appears instead. Because browser zoom narrows the viewport as it magnifies, this is reached at high zoom on a wide display. Collapsible side panels are planned. In the meantime, text-only zoom or operating-system display scaling magnifies without narrowing the viewport. |
-| **1.4.11**| Non-text Contrast | Partial | Some UI borders and disabled states in the default themes may fall below 3:1. |
+| **1.4.11**| Non-text Contrast | Partial | Some UI borders and disabled states in the default themes may fall below 3:1; the high-contrast themes are the alternative. |
 | **1.2.x** | Time-based Media | N/A | The application does not contain audio or video content. |
 
 ---
@@ -267,7 +272,7 @@ EasyShape5000 targets **WCAG 2.1 Level AA** compliance. While the application is
 
 5. **Drag-and-drop file upload**: Requires a pointer. Alternative: activate the drop zones with `Enter`, or use the import button and the `I` shortcut.
 
-6. **Moving shapes on the canvas**: Dragging is pointer-driven. The X, Y and rotation fields in the property panel are the keyboard equivalent.
+6. **Moving shapes on the canvas**: Dragging is pointer-driven. The Shape Transform fields in the right sidebar are the keyboard equivalent.
 
 7. **Touch devices**: Touch zoom, pan and orbit work, but keyboard navigation is the primary accessibility path.
 

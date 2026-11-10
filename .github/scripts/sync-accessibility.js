@@ -15,482 +15,490 @@ const { execSync } = require('child_process');
 
 const TEMP_FILE = 'temp_acc_body.md';
 
+// Indentation standards (2-space model)
+const INDENT_SIZE = 2;
+const CONTENT_INDENT = 6; // Level 3 children: .doc-sidebar and .doc-main
+
+
 // One entry per app.
 const APPS = [
-    {
-        app: 'easytrace5000',
-        name: 'EasyTrace5000',
-        input: 'easytrace5000/doc/ACCESSIBILITY.md',
-        output: 'easytrace5000/doc/accessibility.html',
-        social: 'social-trace.jpg',
-        datePublished: '2026-09-04',
-        nav: [
-            ['cnc', 'CNC Guide'],
-            ['laser', 'Laser Guide'],
-            ['operations', 'Operations'],
-            ['parameters', 'Parameters'],
-            ['accessibility', 'Accessibility']
-        ]
-    },
-    {
-        app: 'easyshape5000',
-        name: 'EasyShape5000',
-        input: 'easyshape5000/doc/ACCESSIBILITY.md',
-        output: 'easyshape5000/doc/accessibility.html',
-        social: 'social-shape.jpg',
-        datePublished: '2026-09-04',
-        nav: [
-            ['guide', 'Workflow Guide'],
-            ['operations', 'Operations'],
-            ['parameters', 'Parameters'],
-            ['accessibility', 'Accessibility']
-        ]
-    }
+  {
+    app: 'easytrace5000',
+    name: 'EasyTrace5000',
+    input: 'easytrace5000/doc/ACCESSIBILITY.md',
+    output: 'easytrace5000/doc/accessibility.html',
+    social: 'social-trace.jpg',
+    datePublished: '2026-09-04',
+    nav: [
+      ['cnc', 'CNC Guide'],
+      ['laser', 'Laser Guide'],
+      ['operations', 'Operations'],
+      ['parameters', 'Parameters'],
+      ['accessibility', 'Accessibility']
+    ]
+  },
+  {
+    app: 'easyshape5000',
+    name: 'EasyShape5000',
+    input: 'easyshape5000/doc/ACCESSIBILITY.md',
+    output: 'easyshape5000/doc/accessibility.html',
+    social: 'social-shape.jpg',
+    datePublished: '2026-09-04',
+    nav: [
+      ['guide', 'Workflow Guide'],
+      ['operations', 'Operations'],
+      ['parameters', 'Parameters'],
+      ['accessibility', 'Accessibility']
+    ]
+  }
 ];
 
 const SHARED = {
-    cssPath: '../../css',
-    themeScriptPath: '../../themes/theme-loader.js',
-    figuresScriptPath: '../../images/figures.js',
-    githubUrl: 'https://github.com/RicardoJCMarques/EasyCAM5000',
-    siteUrl: 'https://cam.eltryus.design'
+  cssPath: '../../css',
+  themeScriptPath: '../../themes/theme-loader.js',
+  figuresScriptPath: '../../images/figures.js',
+  githubUrl: 'https://github.com/RicardoJCMarques/EasyCAM5000',
+  siteUrl: 'https://cam.eltryus.design'
 };
 
 /**
  * Helper: Turn "Keyboard Navigation" into "keyboard-navigation"
  */
 function slugify(text) {
-    return text
-        .toLowerCase()
-        .replace(/[^\w\s-]/g, '') // Remove non-word chars
-        .trim()
-        .replace(/\s+/g, '-');    // Replace spaces with dashes
+  return text
+    .toLowerCase()
+    .replace(/[^\w\s-]/g, '') // Remove non-word chars
+    .trim()
+    .replace(/\s+/g, '-');    // Replace spaces with dashes
 }
 
 /**
  * Formats HTML with robust hierarchical indentation.
  */
 function formatAndIndent(html, baseSpaces) {
-    const indentSize = 4;
-    const basePadding = ' '.repeat(baseSpaces);
+  const basePadding = ' '.repeat(baseSpaces);
 
-    // Tags that must sit on their own line to structure the document
-    const blockTags = [
-        'html', 'head', 'body', 
-        'div', 'main', 'nav', 'header', 'footer', 'section', 'article', 'aside', 
-        'ul', 'ol', 'li', 'dl', 'dt', 'dd', 
-        'table', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td', 
-        'blockquote', 'form', 'fieldset', 'figure', 'figcaption',
-        'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 
-        'button'
-    ];
+  // Tags that must sit on their own line to structure the document
+  const blockTags = [
+    'html', 'head', 'body', 
+    'div', 'main', 'nav', 'header', 'footer', 'section', 'article', 'aside', 
+    'ul', 'ol', 'li', 'dl', 'dt', 'dd', 
+    'table', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td', 
+    'blockquote', 'form', 'fieldset', 'figure', 'figcaption',
+    'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 
+    'button'
+  ];
 
-    // Tags that must not be formatted internally
-    const preserveTags = ['pre', 'script', 'style', 'textarea'];
-    const placeholders = [];
+  // Tags that must not be formatted internally
+  const preserveTags = ['pre', 'script', 'style', 'textarea'];
+  const placeholders = [];
 
-    // Extract protected blocks (pre/script/etc) to avoid messing up their whitespace
-    let protectedHtml = html.replace(new RegExp(`(<(${preserveTags.join('|')})\\b[^>]*>[\\s\\S]*?<\\/\\2>)`, 'gi'), (match) => {
-        placeholders.push(match);
-        return `___PLACEHOLDER_${placeholders.length - 1}___`;
-    });
+  // Extract protected blocks (pre/script/etc) to avoid messing up their whitespace
+  let protectedHtml = html.replace(new RegExp(`(<(${preserveTags.join('|')})\\b[^>]*>[\\s\\S]*?<\\/\\2>)`, 'gi'), (match) => {
+    placeholders.push(match);
+    return `___PLACEHOLDER_${placeholders.length - 1}___`;
+  });
 
-    // Flatten remaining HTML
-    let cleanHtml = protectedHtml.replace(/\r\n|\r|\n/g, '');
+  // Flatten remaining HTML
+  let cleanHtml = protectedHtml.replace(/\r\n|\r|\n/g, '');
 
-    // Aggressively insert newlines around BLOCK tags
-    // This ensures </li> always ends up on its own line, even if preceded by <code>...</code>
-    const tagPattern = blockTags.join('|');
-    const blockRegex = new RegExp(`(<\\/?(?:${tagPattern})(?:\\s+[^>]*)?>)`, 'gi');
-    cleanHtml = cleanHtml.replace(blockRegex, '\n$1\n');
+  // Aggressively insert newlines around BLOCK tags
+  // This ensures </li> always ends up on its own line, even if preceded by <code>...</code>
+  const tagPattern = blockTags.join('|');
+  const blockRegex = new RegExp(`(<\\/?(?:${tagPattern})(?:\\s+[^>]*)?>)`, 'gi');
+  cleanHtml = cleanHtml.replace(blockRegex, '\n$1\n');
 
-    // Split into lines and trim
-    const tokens = cleanHtml.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+  // Split into lines and trim
+  const tokens = cleanHtml.split('\n').map(line => line.trim()).filter(line => line.length > 0);
 
-    // Indent
-    let depth = 0;
-    const voidTags = ['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'param', 'source', 'track', 'wbr'];
+  // Indent
+  let depth = 0;
+  const voidTags = ['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'param', 'source', 'track', 'wbr'];
 
-    let formatted = tokens.map(line => {
-        const isClosing = line.match(/^<\//);
-        const isOpening = line.match(/^<[a-zA-Z]/);
-        const isSelfClosing = line.match(/\/>$/);
+  let formatted = tokens.map(line => {
+    const isClosing = line.match(/^<\//);
+    const isOpening = line.match(/^<[a-zA-Z]/);
+    const isSelfClosing = line.match(/\/>$/);
 
-        let tagName = '';
-        if (isOpening || isClosing) {
-            const match = line.match(/^<\/?([a-zA-Z0-9-]+)/);
-            if (match) tagName = match[1].toLowerCase();
-        }
+    let tagName = '';
+    if (isOpening || isClosing) {
+      const match = line.match(/^<\/?([a-zA-Z0-9-]+)/);
+      if (match) tagName = match[1].toLowerCase();
+    }
 
-        const isBlock = blockTags.includes(tagName);
-        const isVoid = voidTags.includes(tagName);
+    const isBlock = blockTags.includes(tagName);
+    const isVoid = voidTags.includes(tagName);
 
-        // Decrease depth Before printing a closing block tag
-        if (isClosing && isBlock) {
-            depth = Math.max(0, depth - 1);
-        }
+    // Decrease depth Before printing a closing block tag
+    if (isClosing && isBlock) {
+      depth = Math.max(0, depth - 1);
+    }
 
-        const output = basePadding + ' '.repeat(depth * indentSize) + line;
+    const output = basePadding + ' '.repeat(depth * INDENT_SIZE) + line;
 
-        // Increase depth After printing an opening block tag (that isn't self-closing or void)
-        if (isOpening && isBlock && !isClosing && !isSelfClosing && !isVoid) {
-            depth++;
-        }
+    // Increase depth After printing an opening block tag (that isn't self-closing or void)
+    if (isOpening && isBlock && !isClosing && !isSelfClosing && !isVoid) {
+      depth++;
+    }
 
-        return output;
-    }).join('\n');
+    return output;
+  }).join('\n');
 
-    // Restore protected blocks
-    placeholders.forEach((content, index) => {
-        // Indent the placeholder line itself to match flow, but NOT the internal content
-        formatted = formatted.replace(`___PLACEHOLDER_${index}___`, content);
-    });
+  // Restore protected blocks
+  placeholders.forEach((content, index) => {
+    // Indent the placeholder line itself to match flow, but NOT the internal content
+    formatted = formatted.replace(`___PLACEHOLDER_${index}___`, content);
+  });
 
-    return formatted;
+  return formatted;
 }
 
 // Sidebar Parser (Extracts TOC)
 function parseSidebar(mdContent) {
-    const tocRegex = /## Table of Contents\s+([\s\S]*?)\s+---/;
-    const match = mdContent.match(tocRegex);
+  const tocRegex = /## Table of Contents\s+([\s\S]*?)\s+---/;
+  const match = mdContent.match(tocRegex);
 
-    if (!match) {
-        console.warn('Warning: No "Table of Contents" found.');
-        return '';
+  if (!match) {
+    console.warn('Warning: No "Table of Contents" found.');
+    return '';
+  }
+
+  const lines = match[1].split(/\r?\n/).filter(line => line.trim().length > 0);
+
+  let html = '<ol>';
+  lines.forEach(line => {
+    const linkMatch = line.match(/-\s+\[(.*?)\]\((.*?)\)/);
+    if (linkMatch) {
+      const title = linkMatch[1];
+      const slug = slugify(title);
+      html += `<li><a href="#${slug}" draggable="false">${title}</a></li>`;
     }
-
-    const lines = match[1].split(/\r?\n/).filter(line => line.trim().length > 0);
-
-    let html = '<ol>';
-    lines.forEach(line => {
-        const linkMatch = line.match(/-\s+\[(.*?)\]\((.*?)\)/);
-        if (linkMatch) {
-            const title = linkMatch[1];
-            const slug = slugify(title);
-            html += `<li><a href="#${slug}" draggable="false">${title}</a></li>`;
-        }
-    });
-    html += '</ol>';
-    return html;
+  });
+  html += '</ol>';
+  return html;
 }
 
 // HTML Post-Processor (Injects IDs into Headings)
 function injectHeadingIds(htmlContent) {
-    return htmlContent.replace(/<h([2-6])>(.*?)<\/h\1>/g, (match, level, content) => {
-        // marked escapes entities before this runs, so "Modals & Dialogs"
-        // arrived as "Modals &amp; Dialogs" and slugged to modals-amp-dialogs
-        // while parseSidebar - which reads the raw Markdown - emitted
-        // modals-dialogs. Every TOC link with an ampersand pointed at nothing.
-        const textOnly = content.replace(/<[^>]*>/g, '').replace(/&[a-z]+;|&#\d+;/gi, ' ');
-        const slug = slugify(textOnly);
-        return `<h${level} id="${slug}">${content}</h${level}>`;
-    });
+  return htmlContent.replace(/<h([2-6])>(.*?)<\/h\1>/g, (match, level, content) => {
+    // marked escapes entities before this runs, so "Modals & Dialogs"
+    // arrived as "Modals &amp; Dialogs" and slugged to modals-amp-dialogs
+    // while parseSidebar - which reads the raw Markdown - emitted
+    // modals-dialogs. Every TOC link with an ampersand pointed at nothing.
+    const textOnly = content.replace(/<[^>]*>/g, '').replace(/&[a-z]+;|&#\d+;/gi, ' ');
+    const slug = slugify(textOnly);
+    return `<h${level} id="${slug}">${content}</h${level}>`;
+  });
 }
 
 // HTML Template
 const getTemplate = (cfg, sidebarHtml, mainBodyHtml, heroTitle, tagline) => `<!DOCTYPE html>
 <html lang="en" data-theme="dark">
 <head>
-    <meta charset="UTF-8">
-    <!--!
-        @file        index.html
-        @description ${cfg.name} Accessibility Guide
-        @author      Eltryus - Ricardo Marques
-        @copyright   2025-2026 Eltryus - Ricardo Marques
-        @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
-        
-        SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
-        SPDX-License-Identifier: AGPL-3.0-or-later
-    -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>${cfg.name} Doc - Accessibility Guide</title>
+  <meta charset="UTF-8">
+  <!--!
+    @file        ${cfg.app}/doc/accessibility.html
+    @description ${cfg.name} Accessibility Guide
+    @author      Eltryus - Ricardo Marques
+    @copyright   2025-2026 Eltryus - Ricardo Marques
+    @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
+    
+    SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
+    SPDX-License-Identifier: AGPL-3.0-or-later
+  -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>${cfg.name} Doc - Accessibility Guide</title>
 
-    <meta name="description" content="Accessibility information for ${cfg.name}. Details on keyboard navigation, focus management, screen reader support, and WCAG 2.1 compliance.">
-    <meta name="author" content="Eltryus">
-    <meta name="robots" content="index, follow">
-    <meta name="theme-color" content="#1a1a1a">
+  <meta name="description" content="Accessibility information for ${cfg.name}. Details on keyboard navigation, focus management, screen reader support, and WCAG 2.1 compliance.">
+  <meta name="author" content="Eltryus">
+  <meta name="robots" content="index, follow">
+  <meta name="theme-color" content="#1a1a1a">
 
-    <link rel="canonical" href="${SHARED.siteUrl}/${cfg.app}/doc/accessibility">
+  <link rel="canonical" href="${SHARED.siteUrl}/${cfg.app}/doc/accessibility">
 
-    <meta property="og:type" content="article">
-    <meta property="og:url" content="${SHARED.siteUrl}/${cfg.app}/doc/accessibility">
-    <meta property="og:title" content="${cfg.name} Doc - Accessibility Guide">
-    <meta property="og:description" content="Keyboard controls and accessibility compliance for ${cfg.name}.">
-    <meta property="og:image" content="${SHARED.siteUrl}/images/${cfg.social}">
-    <meta property="og:image:width" content="1200">
-    <meta property="og:image:height" content="630">
-    <meta property="og:site_name" content="EasyCAM5000">
-    <meta property="og:locale" content="en_US">
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="${SHARED.siteUrl}/${cfg.app}/doc/accessibility">
+  <meta property="og:title" content="${cfg.name} Doc - Accessibility Guide">
+  <meta property="og:description" content="Keyboard controls and accessibility compliance for ${cfg.name}.">
+  <meta property="og:image" content="${SHARED.siteUrl}/images/${cfg.social}">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:site_name" content="EasyCAM5000">
+  <meta property="og:locale" content="en_US">
 
-    <link rel="icon" type="image/png" href="../../images/favicon/favicon-96x96.png" sizes="96x96">
-    <link rel="icon" type="image/svg+xml" href="../../images/favicon/favicon.svg">
-    <link rel="shortcut icon" href="../../images/favicon/favicon.ico">
-    <link rel="apple-touch-icon" sizes="180x180" href="../../images/favicon/apple-touch-icon.png">
-    <link rel="manifest" href="../../images/favicon/site.webmanifest">
+  <link rel="icon" type="image/png" href="../../images/favicon/favicon-96x96.png" sizes="96x96">
+  <link rel="icon" type="image/svg+xml" href="../../images/favicon/favicon.svg">
+  <link rel="shortcut icon" href="../../images/favicon/favicon.ico">
+  <link rel="apple-touch-icon" sizes="180x180" href="../../images/favicon/apple-touch-icon.png">
+  <link rel="manifest" href="../../images/favicon/site.webmanifest">
 
-    <link rel="stylesheet" href="${SHARED.cssPath}/base.css">
-    <link rel="stylesheet" href="${SHARED.cssPath}/components.css">
-    <link rel="stylesheet" href="${SHARED.cssPath}/theme.css">
-    <link rel="stylesheet" href="${SHARED.cssPath}/doc.css">
+  <link rel="stylesheet" href="${SHARED.cssPath}/base.css">
+  <link rel="stylesheet" href="${SHARED.cssPath}/components.css">
+  <link rel="stylesheet" href="${SHARED.cssPath}/theme.css">
+  <link rel="stylesheet" href="${SHARED.cssPath}/doc.css">
 
-    <script type="application/ld+json">
-    {
-        "@context": "https://schema.org",
-        "@graph": [
-            {
-                "@type": "Organization",
-                "@id": "https://www.eltryus.design/#organization",
-                "name": "Eltryus",
-                "url": "https://www.eltryus.design/"
-            },
-            {
-                "@type": "WebSite",
-                "@id": "${SHARED.siteUrl}/#website",
-                "name": "EasyCAM5000",
-                "alternateName": "Eltryus EasyCAM5000 Suite",
-                "url": "${SHARED.siteUrl}/",
-                "inLanguage": "en",
-                "publisher": { "@id": "https://www.eltryus.design/#organization" }
-            },
-            {
-                "@type": "WebApplication",
-                "@id": "${SHARED.siteUrl}/${cfg.app}/#app",
-                "name": "${cfg.name}",
-                "url": "${SHARED.siteUrl}/${cfg.app}/"
-            },
-            {
-                "@type": "CollectionPage",
-                "@id": "${SHARED.siteUrl}/${cfg.app}/doc/#docs",
-                "name": "${cfg.name} Documentation",
-                "url": "${SHARED.siteUrl}/${cfg.app}/doc/"
-            },
-            {
-                "@type": "WebPage",
-                "@id": "${SHARED.siteUrl}/${cfg.app}/doc/accessibility#webpage",
-                "url": "${SHARED.siteUrl}/${cfg.app}/doc/accessibility",
-                "name": "${cfg.name} Doc - Accessibility Guide",
-                "inLanguage": "en",
-                "isPartOf": { "@id": "${SHARED.siteUrl}/#website" },
-                "about": { "@id": "${SHARED.siteUrl}/${cfg.app}/#app" },
-                "mainEntity": { "@id": "${SHARED.siteUrl}/${cfg.app}/doc/accessibility#article" },
-                "breadcrumb": { "@id": "${SHARED.siteUrl}/${cfg.app}/doc/accessibility#breadcrumb" },
-                "primaryImageOfPage": "${SHARED.siteUrl}/images/social-trace.jpg"
-            },
-            {
-                "@type": "TechArticle",
-                "@id": "${SHARED.siteUrl}/${cfg.app}/doc/accessibility#article",
-                "headline": "${heroTitle}",
-                "description": "Accessibility information for ${cfg.name}. Details on keyboard navigation, focus management, screen reader support, and WCAG 2.1 compliance.",
-                "image": "${SHARED.siteUrl}/images/social-trace.jpg",
-                "url": "${SHARED.siteUrl}/${cfg.app}/doc/accessibility",
-                "inLanguage": "en",
-                "mainEntityOfPage": { "@id": "${SHARED.siteUrl}/${cfg.app}/doc/accessibility#webpage" },
-                "isPartOf": { "@id": "${SHARED.siteUrl}/${cfg.app}/doc/#docs" },
-                "about": { "@id": "${SHARED.siteUrl}/${cfg.app}/#app" },
-                "author": { "@id": "https://www.eltryus.design/#organization" },
-                "publisher": { "@id": "https://www.eltryus.design/#organization" },
-                "datePublished": "${cfg.datePublished}",
-                "dateModified": "${new Date().toISOString().split('T')[0]}"
-            },
-            {
-                "@type": "BreadcrumbList",
-                "@id": "${SHARED.siteUrl}/${cfg.app}/doc/accessibility#breadcrumb",
-                "itemListElement": [
-                    { "@type": "ListItem", "position": 1, "name": "EasyCAM5000", "item": "${SHARED.siteUrl}/" },
-                    { "@type": "ListItem", "position": 2, "name": "${cfg.name}", "item": "${SHARED.siteUrl}/${cfg.app}/" },
-                    { "@type": "ListItem", "position": 3, "name": "Docs", "item": "${SHARED.siteUrl}/${cfg.app}/doc/" },
-                    { "@type": "ListItem", "position": 4, "name": "Accessibility", "item": "${SHARED.siteUrl}/${cfg.app}/doc/accessibility" }
-                ]
-            }
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": "https://www.eltryus.design/#organization",
+        "name": "Eltryus",
+        "url": "https://www.eltryus.design/"
+      },
+      {
+        "@type": "WebSite",
+        "@id": "${SHARED.siteUrl}/#website",
+        "name": "EasyCAM5000",
+        "alternateName": "Eltryus EasyCAM5000 Suite",
+        "url": "${SHARED.siteUrl}/",
+        "inLanguage": "en",
+        "publisher": { "@id": "https://www.eltryus.design/#organization" }
+      },
+      {
+        "@type": "WebApplication",
+        "@id": "${SHARED.siteUrl}/${cfg.app}/#app",
+        "name": "${cfg.name}",
+        "url": "${SHARED.siteUrl}/${cfg.app}/"
+      },
+      {
+        "@type": "CollectionPage",
+        "@id": "${SHARED.siteUrl}/${cfg.app}/doc/#docs",
+        "name": "${cfg.name} Documentation",
+        "url": "${SHARED.siteUrl}/${cfg.app}/doc/"
+      },
+      {
+        "@type": "WebPage",
+        "@id": "${SHARED.siteUrl}/${cfg.app}/doc/accessibility#webpage",
+        "url": "${SHARED.siteUrl}/${cfg.app}/doc/accessibility",
+        "name": "${cfg.name} Doc - Accessibility Guide",
+        "inLanguage": "en",
+        "isPartOf": { "@id": "${SHARED.siteUrl}/#website" },
+        "about": { "@id": "${SHARED.siteUrl}/${cfg.app}/#app" },
+        "mainEntity": { "@id": "${SHARED.siteUrl}/${cfg.app}/doc/accessibility#article" },
+        "breadcrumb": { "@id": "${SHARED.siteUrl}/${cfg.app}/doc/accessibility#breadcrumb" },
+        "primaryImageOfPage": "${SHARED.siteUrl}/images/${cfg.social}"
+      },
+      {
+        "@type": "TechArticle",
+        "@id": "${SHARED.siteUrl}/${cfg.app}/doc/accessibility#article",
+        "headline": "${heroTitle}",
+        "description": "Accessibility information for ${cfg.name}. Details on keyboard navigation, focus management, screen reader support, and WCAG 2.1 compliance.",
+        "image": "${SHARED.siteUrl}/images/${cfg.social}",
+        "url": "${SHARED.siteUrl}/${cfg.app}/doc/accessibility",
+        "inLanguage": "en",
+        "mainEntityOfPage": { "@id": "${SHARED.siteUrl}/${cfg.app}/doc/accessibility#webpage" },
+        "isPartOf": { "@id": "${SHARED.siteUrl}/${cfg.app}/doc/#docs" },
+        "about": { "@id": "${SHARED.siteUrl}/${cfg.app}/#app" },
+        "author": { "@id": "https://www.eltryus.design/#organization" },
+        "publisher": { "@id": "https://www.eltryus.design/#organization" },
+        "datePublished": "${cfg.datePublished}",
+        "dateModified": "${new Date().toISOString().split('T')[0]}"
+      },
+      {
+        "@type": "BreadcrumbList",
+        "@id": "${SHARED.siteUrl}/${cfg.app}/doc/accessibility#breadcrumb",
+        "itemListElement": [
+          { "@type": "ListItem", "position": 1, "name": "EasyCAM5000", "item": "${SHARED.siteUrl}/" },
+          { "@type": "ListItem", "position": 2, "name": "${cfg.name}", "item": "${SHARED.siteUrl}/${cfg.app}/" },
+          { "@type": "ListItem", "position": 3, "name": "Docs", "item": "${SHARED.siteUrl}/${cfg.app}/doc/" },
+          { "@type": "ListItem", "position": 4, "name": "Accessibility", "item": "${SHARED.siteUrl}/${cfg.app}/doc/accessibility" }
         ]
-    }
-    </script>
+      }
+    ]
+  }
+  </script>
 </head>
 <body>
-    <!-- Skip link for keyboard accessibility -->
-    <a href="#doc-content" class="skip-link" aria-label="Skip to main content">Skip to Main Content</a>
+  <!-- Skip link for keyboard accessibility -->
+  <a href="#doc-content" class="skip-link">Skip to Main Content</a>
 
-    <!-- Header -->
-    <header class="doc-header">
-        <div class="doc-brand"><a href="/" aria-label="EasyCAM5000 Homepage">EasyCAM5000</a></div>
+  <!-- Header -->
+  <header class="doc-header">
+    <div class="doc-brand"><a href="/" aria-label="EasyCAM5000 Homepage">EasyCAM5000</a></div>
 
-        <nav class="doc-breadcrumb" aria-label="Breadcrumb">
-            <ol>
-                <li><a href="/${cfg.app}/" draggable="false">${cfg.name}</a></li>
-                <li><a href="./" draggable="false">Docs</a></li>
-                <li><span aria-current="page">Accessibility</span></li>
-            </ol>
-        </nav>
+    <nav class="doc-breadcrumb" aria-label="Breadcrumb">
+      <ol>
+        <li><a href="/${cfg.app}/" draggable="false">${cfg.name}</a></li>
+        <li><a href="./" draggable="false">Docs</a></li>
+        <li><span aria-current="page">Accessibility</span></li>
+      </ol>
+    </nav>
 
-        <button class="doc-menu-toggle" aria-label="Toggle Navigation Menu" aria-expanded="false">
-            <svg class="icon-menu cam-icon" width="24" height="24" aria-hidden="true"><use href="#icon-menu"></use></svg>
-            <svg class="icon-close cam-icon" width="24" height="24" aria-hidden="true"><use href="#icon-close"></use></svg>
-        </button>
+    <button class="doc-menu-toggle" aria-label="Toggle Navigation Menu" aria-expanded="false">
+      <svg class="icon-menu cam-icon" width="24" height="24" aria-hidden="true"><use href="#icon-menu"></use></svg>
+      <svg class="icon-close cam-icon" width="24" height="24" aria-hidden="true"><use href="#icon-close"></use></svg>
+    </button>
 
-        <nav class="doc-nav" aria-label="Main Navigation">
-            ${cfg.nav.map(([href, label]) => href === 'accessibility'
-                ? `<a href="accessibility" class="active" aria-current="page" draggable="false">${label}</a>`
-                : `<a href="${href}" draggable="false">${label}</a>`).join('\n            ')}
-            <span class="separator" aria-hidden="true"></span>
-            <a href="/${cfg.app}/" draggable="false">Launch App</a>
-            <a href="https://github.com/RicardoJCMarques/EasyCAM5000" target="_blank" draggable="false" aria-label="GitHub Repository (opens in a new tab)">GitHub</a>
+    <nav class="doc-nav" aria-label="Main Navigation">
+      ${cfg.nav.map(([href, label]) => href === 'accessibility'
+        ? `<a href="accessibility" class="active" aria-current="page" draggable="false">${label}</a>`
+        : `<a href="${href}" draggable="false">${label}</a>`).join('\n      ')}
+      <span class="separator" aria-hidden="true"></span>
+      <a href="/${cfg.app}/" draggable="false">Launch App</a>
+      <a href="https://github.com/RicardoJCMarques/EasyCAM5000" target="_blank" draggable="false" aria-label="GitHub Repository (opens in a new tab)">GitHub</a>
 
-            <button id="theme-toggle" class="btn btn--icon" title="Toggle Theme" aria-label="Toggle Theme">
-                <svg class="cam-icon" width="16" height="16"><use href="#icon-sun"></use></svg>
-            </button>
-        </nav>
-    </header>
+      <button id="theme-toggle" class="btn btn--icon" title="Toggle Theme" aria-label="Toggle Theme">
+        <svg class="cam-icon" width="16" height="16"><use href="#icon-sun"></use></svg>
+      </button>
+    </nav>
+  </header>
 
-    <div class="doc-wrapper has-sidebar">
-        <!-- Sidebar TOC -->
-        <nav class="doc-sidebar" id="toc" aria-label="Table of contents">
-            <p class="doc-sidebar-title">Contents</p>
-            ${sidebarHtml}
-        </nav>
+  <div class="doc-wrapper has-sidebar">
+    <!-- Sidebar TOC -->
+    <nav class="doc-sidebar" id="toc" aria-label="Table of contents">
+      <p class="doc-sidebar-title">Contents</p>
+${sidebarHtml}
+    </nav>
 
-        <!-- Main Content -->
-        <main id="doc-content" class="doc-main" aria-label="Main Content">
-            <section class="hero">
-                <h1>${heroTitle}</h1>
-                <p class="tagline">${tagline}</p>
-            </section>
+    <!-- Main Content -->
+    <main id="doc-content" class="doc-main">
+      <section class="hero">
+        <h1>${heroTitle}</h1>
+        <p class="tagline">${tagline}</p>
+      </section>
 
 ${mainBodyHtml}
 
-        </main>
-        <!-- Footer -->
-        <footer class="doc-footer" aria-label="Footer">
-            <p>
-                <a href="#doc-content" draggable="false" aria-label="Scroll back to top">Back to Top</a> |
-                <a href="${SHARED.githubUrl}" target="_blank" draggable="false" aria-label="GitHub Repository (opens in a new tab)">GitHub</a> |
-                <a href="/#support" draggable="false" aria-label="Support Development via Sponsorship">Support Development</a> |
-                <a href="../../LICENSE" target="_blank" draggable="false" aria-label="AGPLv3 License (opens in a new tab)">AGPLv3 Licensed</a> |
-                <a href="https://www.eltryus.design/" draggable="false" aria-label="Eltryus, developer of EasyCAM5000">by ELTRYUS</a>
-            </p>
-        </footer>
+    </main>
+    <!-- Footer -->
+    <footer class="doc-footer" aria-label="Footer">
+      <p>
+        <a href="#doc-content" draggable="false" aria-label="Scroll back to top">Back to Top</a> |
+        <a href="${SHARED.githubUrl}" target="_blank" draggable="false" aria-label="GitHub Repository (opens in a new tab)">GitHub</a> |
+        <a href="/#support" draggable="false" aria-label="Support Development via Sponsorship">Support Development</a> |
+        <a href="../../LICENSE" target="_blank" draggable="false" aria-label="AGPLv3 License (opens in a new tab)">AGPLv3 Licensed</a> |
+        <a href="https://www.eltryus.design/" draggable="false" aria-label="Eltryus, developer of EasyCAM5000">by ELTRYUS</a>
+      </p>
+    </footer>
 
-    </div>
+  </div>
 
-    <!-- Scripts -->
-    <script defer src="${SHARED.themeScriptPath}"></script>
-    <script defer src="${SHARED.figuresScriptPath}"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            // Load the SVG Sprite
-            fetch('../../images/icons/sprite.svg')
-                .then(response => {
-                    if (!response.ok) throw new Error(\`HTTP \${response.status}\`);
-                    return response.text();
-                })
-                .then(svgText => {
-                    const div = document.createElement('div');
-                    div.innerHTML = svgText;
-                    const svg = div.querySelector('svg');
-                    if (svg) {
-                        svg.setAttribute('aria-hidden', 'true');
-                        svg.style.cssText = 'position: absolute; width: 0; height: 0; visibility: hidden;';
-                        document.body.insertBefore(svg, document.body.firstChild);
-                    }
-                })
-                .catch(err => console.warn('Failed to load icon sprite:', err));
-
-            // Theme toggle logic
-            const themeBtn = document.getElementById('theme-toggle');
-            if (themeBtn && window.ThemeLoader) {
-                const useEl = themeBtn.querySelector('use');
-                const initialTheme = document.documentElement.getAttribute('data-theme') || 'dark';
-
-                if (useEl) useEl.setAttribute('href', initialTheme === 'dark' ? '#icon-sun' : '#icon-moon');
-
-                themeBtn.addEventListener('click', async () => {
-                    const theme = await window.ThemeLoader.toggleTheme();
-                    if (useEl) useEl.setAttribute('href', theme === 'dark' ? '#icon-sun' : '#icon-moon');
-                });
-            }
-
-            // Mobile Menu Logic
-            const menuBtn = document.querySelector('.doc-menu-toggle');
-            const nav = document.querySelector('.doc-nav');
-
-            if (menuBtn && nav) {
-                const useEl = menuBtn.querySelector('use');
-                menuBtn.addEventListener('click', () => {
-                    const isExpanded = menuBtn.getAttribute('aria-expanded') === 'true';
-                    menuBtn.setAttribute('aria-expanded', !isExpanded);
-                    nav.classList.toggle('is-open');
-
-                    if (useEl) useEl.setAttribute('href', !isExpanded ? '#icon-close' : '#icon-menu');
-                });
-            }
+  <!-- Scripts -->
+  <script defer src="${SHARED.themeScriptPath}"></script>
+  <script defer src="${SHARED.figuresScriptPath}"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      // Load the SVG Sprite
+      fetch('../../images/icons/sprite.svg')
+        .then(response => {
+          if (!response.ok) throw new Error(\`HTTP \${response.status}\`);
+          return response.text();
+        })
+        .then(svgText => {
+          const div = document.createElement('div');
+          div.innerHTML = svgText;
+          const svg = div.querySelector('svg');
+          if (svg) {
+            svg.setAttribute('aria-hidden', 'true');
+            svg.style.cssText = 'position: absolute; width: 0; height: 0; visibility: hidden;';
+            document.body.insertBefore(svg, document.body.firstChild);
+          }
+        })
+        .catch(err => console.warn('Failed to load icon sprite:', err));
+      // Theme toggle. Every theme but the default is a file, slow to
+      // arrive off localhost: the button waits for it, and the icon
+      // follows each change, including a saved theme that lands after
+      // this runs.
+      const themeBtn = document.getElementById('theme-toggle');
+      if (themeBtn && window.ThemeLoader) {
+        const useEl = themeBtn.querySelector('use');
+        const syncIcon = () => useEl?.setAttribute('href', document.documentElement.getAttribute('data-theme-base') === 'light' ? '#icon-moon' : '#icon-sun');
+        window.addEventListener('themechange', syncIcon);
+        syncIcon();
+        themeBtn.addEventListener('click', async () => {
+          themeBtn.disabled = true;
+          try {
+            await window.ThemeLoader.toggleTheme();
+          } catch (error) {
+            console.error('Theme toggle failed:', error);
+          } finally {
+            themeBtn.disabled = false;
+          }
         });
-    </script>
+      }
+      // Mobile Menu Logic
+      const menuBtn = document.querySelector('.doc-menu-toggle');
+      const nav = document.querySelector('.doc-nav');
+      if (menuBtn && nav) {
+        const useEl = menuBtn.querySelector('use');
+        menuBtn.addEventListener('click', () => {
+          const isExpanded = menuBtn.getAttribute('aria-expanded') === 'true';
+          menuBtn.setAttribute('aria-expanded', !isExpanded);
+          nav.classList.toggle('is-open');
+          if (useEl) useEl.setAttribute('href', !isExpanded ? '#icon-close' : '#icon-menu');
+        });
+      }
+    });
+  </script>
 </body>
 </html>`;
 function build(cfg) {
-    try {
-        const mdContent = fs.readFileSync(path.resolve(cfg.input), 'utf8');
+  try {
+    const mdContent = fs.readFileSync(path.resolve(cfg.input), 'utf8');
 
-        // Split by double-newlines to get separate blocks
-        const blocks = mdContent.split(/\r?\n\s*\r?\n/).filter(b => b.trim().length > 0);
+    // Split by double-newlines to get separate blocks
+    const blocks = mdContent.split(/\r?\n\s*\r?\n/).filter(b => b.trim().length > 0);
 
-        // Extract Hero Title (Block 0)
-        const heroTitle = blocks[0].replace(/^#+\s*/, '').trim();
+    // Extract Hero Title (Block 0)
+    const heroTitle = blocks[0].replace(/^#+\s*/, '').trim();
 
-        // Extract Tagline (Block 1)
-        const tagline = blocks[1].trim();
+    // Extract Tagline (Block 1)
+    const tagline = blocks[1].trim();
 
-        // Prepare Body Content
-        // Filter out any block that contains "Table of Contents" OR consists of just the horizontal rule "---" OR contains only markdown links formatted like [Title](#slug)
-        const bodyBlocks = blocks.slice(2).filter(block => {
-            const isTOCHeader = block.includes('## Table of Contents');
-            const isHorizontalRule = block.trim() === '---';
-            const isTOCList = block.trim().match(/^[-*]\s+\[.*\]\(#.*\)/m);
+    // Prepare Body Content
+    // Filter out any block that contains "Table of Contents" OR consists of just the horizontal rule "---" OR contains only markdown links formatted like [Title](#slug)
+    const bodyBlocks = blocks.slice(2).filter(block => {
+      const isTOCHeader = block.includes('## Table of Contents');
+      const isHorizontalRule = block.trim() === '---';
+      const isTOCList = block.trim().match(/^[-*]\s+\[.*\]\(#.*\)/m);
 
-            return !isTOCHeader && !isHorizontalRule && !isTOCList;
-        });
+      return !isTOCHeader && !isHorizontalRule && !isTOCList;
+    });
 
-        const bodyMd = bodyBlocks.join('\n\n');
+    const bodyMd = bodyBlocks.join('\n\n');
 
-        // Convert remaining Markdown to HTML
-        fs.writeFileSync(TEMP_FILE, bodyMd);
-        const rawHtmlBody = execSync(`npx marked -i ${TEMP_FILE} --gfm --breaks`, { encoding: 'utf8' });
+    // Convert remaining Markdown to HTML
+    fs.writeFileSync(TEMP_FILE, bodyMd);
+    const rawHtmlBody = execSync(`npx marked -i ${TEMP_FILE} --gfm --breaks`, { encoding: 'utf8' });
 
-        // Generate Sidebar and Post-Process Body
-        const sidebarHtml = parseSidebar(mdContent);
-        const finalHtmlBody = injectHeadingIds(rawHtmlBody);
+    // Generate Sidebar and Post-Process Body
+    const sidebarHtml = parseSidebar(mdContent);
+    const finalHtmlBody = injectHeadingIds(rawHtmlBody);
 
-        // Formatting & Indentation
-        const indentedSidebar = formatAndIndent(sidebarHtml, 12);
-        const indentedBody = formatAndIndent(finalHtmlBody, 12);
+    // Formatting & Indentation
+    const indentedSidebar = formatAndIndent(sidebarHtml, CONTENT_INDENT);
+    const indentedBody = formatAndIndent(finalHtmlBody, CONTENT_INDENT);
 
-        // Write final file using the updated template
-        const fullHtml = getTemplate(cfg, indentedSidebar, indentedBody, heroTitle, tagline);
+    // Write final file using the updated template
+    const fullHtml = getTemplate(cfg, indentedSidebar, indentedBody, heroTitle, tagline);
 
-        const outputDir = path.dirname(cfg.output);
-        if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
+    const outputDir = path.dirname(cfg.output);
+    if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
 
-        fs.writeFileSync(path.resolve(cfg.output), fullHtml);
-        console.log(`Success! Generated ${cfg.output}.`);
+    fs.writeFileSync(path.resolve(cfg.output), fullHtml);
+    console.log(`Success! Generated ${cfg.output}.`);
 
-    } catch (error) {
-        console.error('Build failed:', error.message);
-        process.exitCode = 1;
-    } finally {
-        // The temp file survives a marked failure otherwise, and the next
-        // run reads a stale one.
-        if (fs.existsSync(TEMP_FILE)) fs.unlinkSync(TEMP_FILE);
-    }
+  } catch (error) {
+    console.error('Build failed:', error.message);
+    process.exitCode = 1;
+  } finally {
+    // The temp file survives a marked failure otherwise, and the next
+    // run reads a stale one.
+    if (fs.existsSync(TEMP_FILE)) fs.unlinkSync(TEMP_FILE);
+  }
 }
 
 function main() {
-    try {
-        for (const cfg of APPS) build(cfg);
-    } catch (error) {
-        console.error('❌ Build failed:', error.message);
-        process.exitCode = 1;
-    } finally {
-        if (fs.existsSync(TEMP_FILE)) fs.unlinkSync(TEMP_FILE);
-    }
+  try {
+    for (const cfg of APPS) build(cfg);
+  } catch (error) {
+    console.error('Build failed:', error.message);
+    process.exitCode = 1;
+  } finally {
+    if (fs.existsSync(TEMP_FILE)) fs.unlinkSync(TEMP_FILE);
+  }
 }
 
 main();

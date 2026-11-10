@@ -15,62 +15,72 @@
  */
 
 (function() {
-    'use strict';
-    const ROOT = globalThis;
+  'use strict';
 
-    class ShapeProfileHandler extends OffsetOperationHandler {
+  const ROOT = globalThis;
 
-        // Orchestration
-        async orchestrateGeneration(operation, params, core, options = {}) {
-            const token = this.beginRun(operation, options, core);
+  class ShapeProfileHandler extends OffsetOperationHandler {
+    // Orchestration
+    async orchestrateGeneration(operation, params, core, options = {}) {
+      const token = this.beginRun(operation, options, core);
 
-            // Detect nested holes/islands
-            const resolved = this.resolveSourceTopology(operation, params);
-            if (resolved) operation.primitives = resolved;
+      // Detect nested holes/islands
+      const resolved = this.resolveSourceTopology(operation, params);
+      if (resolved) operation.primitives = resolved;
 
-            // Validate: profile requires closed geometry
-            const openCount = this.countOpenPaths(operation);
-            if (openCount > 0) {
-                return {
-                    success: false,
-                    message: `${openCount} open path(s) detected. Profile cutting requires closed shapes.`,
-                    status: 'warning'
-                };
-            }
+      // Validate: profile requires closed geometry
+      const openCount = this.countOpenPaths(operation);
+      if (openCount > 0) {
+        return {
+          success: false,
+          message: {
+            key: 'messages.operations.profileOpenPaths',
+            values: {count: openCount}
+          },
+          status: 'warning'
+        };
+      }
 
-            const opParams = core.pipelineContext.compileOperationParams(operation, params);
+      const opParams = core.pipelineContext.compileOperationParams(operation, params);
 
-            // Profile always produces a single offset pass per shape
-            await this.generateGeometry(operation, {
-                ...params,
-                ...opParams,
-                passes: 1,
-                combineOffsets: false
-            });
+      // Profile always produces a single offset pass per shape
+      await this.generateGeometry(operation, {
+        ...params,
+        ...opParams,
+        passes: 1,
+        combineOffsets: false
+      });
 
-            if (this.isStale(operation, token)) {
-                return { success: false, message: 'Generation superseded by a newer request', status: 'warning' };
-            }
+      if (this.isStale(operation, token)) {
+        return {
+          success: false,
+          message: {key: 'messages.operations.superseded'},
+          status: 'warning'
+        };
+      }
 
-            const total = operation.offsets?.reduce(
-                (s, o) => s + (o.primitives?.length || 0), 0
-            ) || 0;
+      const total = operation.offsets?.reduce(
+        (s, o) => s + (o.primitives?.length || 0), 0
+      ) || 0;
 
-            if (total === 0) {
-                return {
-                    success: false,
-                    message: 'No profile path generated - tool may be too large for the shape',
-                    status: 'warning'
-                };
-            }
+      if (total === 0) {
+        return {
+          success: false,
+          message: {key: 'messages.operations.noProfile'},
+          status: 'warning'
+        };
+      }
 
-            return {
-                success: true,
-                message: `Profile path generated (${opParams.cutSide || 'outside'} cut)`,
-                status: 'success'
-            };
-        }
+      return {
+        success: true,
+        message: {
+          key: 'messages.operations.profileGenerated',
+          values: {side: {key: ['params', 'cutSide', 'options', opParams.cutSide]}}
+        },
+        status: 'success'
+      };
     }
+  }
 
-    ROOT.ShapeProfileHandler = ShapeProfileHandler;
+  ROOT.ShapeProfileHandler = ShapeProfileHandler;
 })();

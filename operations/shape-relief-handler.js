@@ -21,98 +21,103 @@
  */
 
 (function() {
-    'use strict';
-    const ROOT = globalThis;
+  'use strict';
 
-    class ShapeReliefHandler extends FieldOperationHandler {
+  const ROOT = globalThis;
 
-        passTypePrefix() { return 'relief'; }
-        pipelineLabel() { return 'RELIEF'; }
-        emptyMessage() {
-            return 'No relief paths generated - model may be flat or below resolution';
-        }
-
-        validateSource(operation) {
-            if (!this.getMeshSource(operation)) {
-                return {
-                    success: false,
-                    message: 'No relief source - import an STL model for this operation',
-                    status: 'warning'
-                };
-            }
-            return null;
-        }
-
-        buildJobs(operation, p, warnings) {
-            const mesh = this.getMeshSource(operation);
-            if (!mesh) return [];
-            return [{
-                kind: 'relief',
-                mesh,
-                sliceOptions: this.buildSliceOptions(p),
-                genOptions: this.buildGeneratorOptions(p)
-            }];
-        }
-
-        /**
-         * Slice frame. Padding reserves grid for the boundary band so the
-         * band cannot clamp at the grid edge; a 'stop' boundary needs none.
-         * The cell size derives from the model extent, not the padded one.
-         */
-        buildSliceOptions(p) {
-            const boundaryMode = p.reliefBoundaryMode || 'stop';
-            return {
-                cellSize: p.reliefCellSize > 0 ? p.reliefCellSize : null,
-                gridMaxDim: p.reliefGridMaxDim,
-                padding: boundaryMode === 'stop' ? 0
-                    : (p.toolDiameter || 3) / 2 + Math.max(0, p.reliefBoundaryMm || 0)
-            };
-        }
-
-        buildGeneratorOptions(p) {
-            const toolDiameter = p.toolDiameter;
-            const mode = p.reliefMode;
-
-            return {
-                toolDiameter,
-                toolShape: p.reliefToolShape,
-                cornerRadius: p.reliefCornerRadius,
-                totalDepth: p.reliefDepth > 0 ? p.reliefDepth : 0, // 0 = auto (generator)
-                startDepth: p.reliefStartDepth,
-                invert: p.reliefInvert === true,
-                depthMapping: p.reliefDepthMapping,
-                roughing: mode !== 'finishing',
-                finishing: mode !== 'roughing',
-                roughStepdown: p.reliefRoughStepdown ?? 1.5,
-                roughStepover: toolDiameter * ((p.reliefRoughStepoverPct ?? 45) / 100),
-                roughStock: p.reliefRoughStock ?? 0.3,
-                finishStepover: toolDiameter * ((p.reliefFinishStepoverPct ?? 10) / 100),
-                crossFinish: p.reliefCrossFinish === true,
-                rasterAxis: p.reliefRasterAxis,
-                simplifyTolerance: p.reliefSimplifyTolerance ?? 0.01,
-                minSegmentLength: p.reliefMinSegmentLength ?? 0.2,
-                skipFloor: p.reliefSkipFloor === true,
-                maskUncovered: p.reliefMaskUncovered === true,
-                boundary: { mode: p.reliefBoundaryMode || 'stop', mm: p.reliefBoundaryMm || 0 }
-            };
-        }
-
-        buildSharedMetadata(ctx) {
-            const hm = ctx.containers[0];
-            const o = ctx.jobs[0].genOptions;
-            return {
-                generatedAt: Date.now(),
-                toolDiameter: o.toolDiameter,
-                toolShape: o.toolShape,
-                reliefDepth: o.totalDepth > 0 ? o.totalDepth : hm.maxH,
-                startDepth: o.startDepth,
-                gridCols: hm.cols,
-                gridRows: hm.rows,
-                cellSize: hm.cellSize,
-                is3DToolpath: true
-            };
-        }
+  class ShapeReliefHandler extends FieldOperationHandler {
+    passTypePrefix() {
+      return 'relief';
     }
 
-    ROOT.ShapeReliefHandler = ShapeReliefHandler;
+    pipelineLabel() {
+      return 'RELIEF';
+    }
+
+    emptyMessage() {
+      return { key: 'messages.operations.noRelief' };
+    }
+
+    validateSource(operation) {
+      if (!this.getMeshSource(operation)) {
+        return {
+          success: false,
+          message: { key: 'messages.operations.noReliefSource' },
+          status: 'warning'
+        };
+      }
+      return null;
+    }
+
+    buildJobs(operation, p, warnings) {
+      const mesh = this.getMeshSource(operation);
+      if (!mesh) return [];
+      return [{
+        kind: 'relief',
+        mesh,
+        sliceOptions: this.buildSliceOptions(p),
+        genOptions: { ...this.buildGeneratorOptions(p), offsetZ: mesh.offsetZ },
+      }];
+  }
+
+    /**
+     * Slice frame. Padding reserves grid for the boundary band so the
+     * band cannot clamp at the grid edge; a 'stop' boundary needs none.
+     * The cell size derives from the model extent, not the padded one.
+     */
+    buildSliceOptions(p) {
+      const boundaryMode = p.reliefBoundaryMode || 'stop';
+      return {
+        cellSize: p.reliefCellSize > 0 ? p.reliefCellSize : null,
+        gridMaxDim: p.reliefGridMaxDim,
+        padding: boundaryMode === 'stop' ? 0 : (p.toolDiameter) / 2 + Math.max(0, p.reliefBoundaryMm || 0)
+      };
+    }
+
+    buildGeneratorOptions(p) {
+      const toolDiameter = p.toolDiameter;
+      const mode = p.reliefMode;
+
+      return {
+        toolDiameter,
+        toolShape: p.reliefToolShape,
+        cornerRadius: p.reliefCornerRadius,
+        totalDepth: p.reliefDepth > 0 ? p.reliefDepth : 0, // 0 = auto (generator)
+        startDepth: p.reliefStartDepth,
+        invert: p.reliefInvert === true,
+        depthMapping: p.reliefDepthMapping,
+        roughing: mode !== 'finishing',
+        finishing: mode !== 'roughing',
+        roughStepdown: p.reliefRoughStepdown ?? 1.5,
+        roughStepover: toolDiameter * ((p.reliefRoughStepoverPct ?? 45) / 100),
+        roughStock: p.reliefRoughStock ?? 0.3,
+        finishStepover: toolDiameter * ((p.reliefFinishStepoverPct ?? 10) / 100),
+        crossFinish: p.reliefCrossFinish === true,
+        rasterAxis: p.reliefRasterAxis,
+        simplifyTolerance: p.reliefSimplifyTolerance ?? 0.01,
+        minSegmentLength: p.reliefMinSegmentLength ?? 0.2,
+        skipFloor: p.reliefSkipFloor === true,
+        maskUncovered: p.reliefMaskUncovered === true,
+        boundary: { mode: p.reliefBoundaryMode || 'stop', mm: p.reliefBoundaryMm || 0 }
+      };
+    }
+
+    buildSharedMetadata(ctx) {
+      const hm = ctx.containers[0];
+      const o = ctx.jobs[0].genOptions;
+      return {
+        generatedAt: Date.now(),
+        toolDiameter: o.toolDiameter,
+        toolShape: o.toolShape,
+        reliefDepth: o.totalDepth > 0 ? o.totalDepth : hm.maxH,
+        startDepth: o.startDepth,
+        gridCols: hm.cols,
+        gridRows: hm.rows,
+        cellSize: hm.cellSize,
+        is3DToolpath: true
+      };
+    }
+  }
+
+  ROOT.ShapeReliefHandler = ShapeReliefHandler;
 })();

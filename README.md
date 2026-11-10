@@ -55,17 +55,19 @@ Profile · pocket · drilling · engraving · v-carve · 3D relief · rotary (co
 ## The shared engine
 
 * **Parsing** - Gerber (RS-274X), Excellon, SVG (full path spec including arcs and Béziers), STL (binary and ASCII).
-* **Geometry** - [Clipper2](https://github.com/AngusJohnson/Clipper2) via [WebAssembly](https://github.com/ErikSom/Clipper2-WASM) for booleans, with arc reconstruction so exported arcs use G2/G3 arcs insted of tessellated polylines.
+* **Geometry** - [Clipper2](https://github.com/AngusJohnson/Clipper2) via [WebAssembly](https://github.com/ErikSom/Clipper2-WASM) for booleans, with arc reconstruction so exported arcs use G2/G3 arcs instead of tessellated polylines.
 * **Toolpaths** - translate geometry to motion, optimize (staydown clustering, nearest-neighbour ordering, collinear simplification), then inject machine specifics: rapids, plunges or helical entries, holding tabs, rotary routes.
 * **Rendering** - a custom 2D canvas renderer with batching, level-of-detail and viewport culling, plus a three.js 3D preview for toolpaths and stock. With simulation to come soon™.
 * **Frontend** - vanilla JavaScript (ES6+), HTML5, CSS3. No framework, and no build step required for development or local deployment.
+* **Languages** - English, German, Spanish, French and Portuguese; a key a pack lacks shows in English. G-code comments are always English, folded to plain ASCII; SVG comments follow the interface language. Packs and how to add/review one: [language/README.md](./language/README.md).
+* **Custom files** - themes, language packs, post-processor setups, laser profiles and tool libraries, added by dropping a JSON "kind" file onto either app. Each file is verified and takes effect on success; only one of each kind is stored, so a new one replaces the last. A custom setup, laser profile or tool library in use can be removed from the welcome screen: [core/CUSTOM.md](./core/CUSTOM.md).
 
 ### File support
 
 | Format | Extensions | Used by |
 |---|---|---|
-| Gerber | `.gbr` `.ger` `.gtl` `.gbl` `.gts` `.gbs` `.gko` `.gm1` | EasyTrace5000 |
-| Excellon | `.drl` `.xln` `.txt` `.drill` `.exc` | EasyTrace5000 |
+| Gerber | `.gbr` `.ger` `.gtl` `.gbl` `.gbx` `.gts` `.gbs` `.gtp` `.gbp` `.gko` `.gml` `.gm1` | EasyTrace5000 |
+| Excellon | `.drl` `.xln` `.txt` `.tap` `.drill` `.exc` | EasyTrace5000 |
 | SVG | `.svg` | both |
 | STL | `.stl` (binary and ASCII) | EasyShape5000 |
 
@@ -92,6 +94,8 @@ Having access to a limited number of machines/controllers/setups means the proje
 | Fanuc | yes | a-word / repl. | radioactive |
 | WinPC-NC | yes | a-word / repl. | radioactive |
 
+Post-processors are split into a machine setup JSON which is then governed by one of a few logic families, so individual machine configs need no code: [export/processors/README.md](./export/processors/README.md). Laser programs have the same in laser profiles: [export/profiles/README.md](./export/profiles/README.md).
+
 ---
 
 ## Documentation
@@ -103,7 +107,7 @@ Full walkthroughs, every operation and every parameter live on the site:
 
 ### Accessibility
 
-EasyTrace5000 supports keyboard-only navigation and screen readers. See the [accessibility guide](https://cam.eltryus.design/easytrace5000/doc/accessibility) (source: [`easytrace5000/doc/ACCESSIBILITY.md`](./easytrace5000/doc/ACCESSIBILITY.md)) for the full shortcut list and current WCAG 2.1 status.
+Both apps support keyboard-only navigation and screen readers. Each accessibility guide lists every shortcut and the current WCAG 2.1 status: [EasyTrace5000](https://cam.eltryus.design/easytrace5000/doc/accessibility) (source: [`easytrace5000/doc/ACCESSIBILITY.md`](./easytrace5000/doc/ACCESSIBILITY.md)) · [EasyShape5000](https://cam.eltryus.design/easyshape5000/doc/accessibility) (source: [`easyshape5000/doc/ACCESSIBILITY.md`](./easyshape5000/doc/ACCESSIBILITY.md)).
 
 ---
 
@@ -113,24 +117,30 @@ One shared engine at the repository root; each app directory adds a UI, an opera
 
 ```bash
 git clone https://github.com/RicardoJCMarques/EasyCAM5000.git
-cd EasyCAM5000 && npx serve      # a local server is required; file:// will not work
+cd EasyCAM5000 && npx serve # a local server is required; file:// will not work
 ```
 
 ---
 
 ## Status and known limitations
 
-**Suite version 1.6.2** - see the [changelog](./CHANGELOG.md). Versions track the
+**Suite version 1.7.0** - see the [changelog](./CHANGELOG.md). Versions track the
 suite as a whole; entries name the app they affect.
 
 Anything else lives in the [issue tracker](https://github.com/RicardoJCMarques/EasyCAM5000/issues).
 
 ## Roadmap
 
-* Multi-lingual UI - the string layer exists, only English is populated
-* Tool library, post-processor and theme import/export
+* Documentation in the interface languages
+* Exporting the tool library
 * Toolpath playback and material removal simulation in the 3D preview
 * Service Worker for offline use
+
+---
+
+## Security
+
+
 
 ---
 
@@ -140,6 +150,7 @@ I am not actively seeking code contributions, but **testing reports are the most
 
 * [Report a bug or request a feature](https://github.com/RicardoJCMarques/EasyCAM5000/issues/new/choose)
 * [Ask a question](https://github.com/RicardoJCMarques/EasyCAM5000/discussions) - machine settings, posts, workflow
+* [Review/add a translation](./language/README.md#reviewing-or-adding-a-language) with the [pack comparator tool](https://cam.eltryus.design/language/comparator/)
 * [CONTRIBUTING.md](./CONTRIBUTING.md) · [SUPPORT.md](./SUPPORT.md) · [SECURITY.md](./SECURITY.md) · [Code of Conduct](./CODE_OF_CONDUCT.md)
 
 

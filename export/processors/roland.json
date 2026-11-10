@@ -1,0 +1,149 @@
+{
+  "_projectInfo": {
+    "file": "export/processors/roland.json",
+    "description": "Post-processor setup: Roland RML-1 desktop mills and engravers",
+    "author": "Eltryus - Ricardo Marques",
+    "see": "https://github.com/RicardoJCMarques/EasyCAM5000",
+    "license": "AGPL-3.0-or-later",
+    "copyright": "Copyright (C) 2025-2026 Eltryus - Ricardo Marques"
+  },
+  "meta": {
+    "kind": "setup"
+  },
+  "id": "roland",
+  "label": "Roland (RML)",
+  "logic": "rml",
+  "maturity": "very-experimental",
+  "flags": {
+    "fileExtension": ".rml",
+    "supportsToolChange": false,
+    "emitsInitialTool": false,
+    "toolLengthComp": ["none"],
+    "supportsComments": false,
+    "supportsArcCommands": false,
+    "supportsCannedCycles": false,
+    "supportsLineNumbers": false,
+    "supportsUnits": false,
+    "supportsCoolant": false,
+    "supportsAbsoluteZ": false,
+    "rotary": {
+      "routes": [],
+      "axisWords": [],
+      "inverseTime": false,
+      "maxInverseTime": 0,
+      "continuous": false
+    },
+    "models": {
+      "mdx15": {
+        "label": "MDX-15",
+        "protocol": "legacy",
+        "stepsPerMM": 40,
+        "maxFeedXY": 15,
+        "maxFeedZ": 15,
+        "spindleControl": false,
+        "dwell": false,
+        "init": ";;^IN\nPA;",
+        "end": "!MC0;\nPU0,0;\n;;^IN"
+      },
+      "mdx20": {
+        "label": "MDX-20",
+        "protocol": "legacy",
+        "stepsPerMM": 40,
+        "maxFeedXY": 15,
+        "maxFeedZ": 15,
+        "spindleControl": false,
+        "dwell": false,
+        "init": ";;^IN\nPA;",
+        "end": "!MC0;\nPU0,0;\n;;^IN"
+      },
+      "imodela": {
+        "label": "iModela (iM-01)",
+        "protocol": "legacy",
+        "stepsPerMM": 100,
+        "maxFeedXY": 6,
+        "maxFeedZ": 6,
+        "spindleControl": false,
+        "dwell": true,
+        "init": ";;^DF\nPA;",
+        "end": "!MC0;\nPU0,0;\n;;^DF"
+      },
+      "srm20": {
+        "label": "SRM-20 (monoFab)",
+        "protocol": "modern",
+        "stepsPerMM": 100,
+        "maxFeedXY": 30,
+        "maxFeedZ": 30,
+        "spindleControl": true,
+        "dwell": true,
+        "init": ";;^DF\nPA;",
+        "end": "!MC0;\nPU0,0;\n;;^DF"
+      },
+      "mdx40": {
+        "label": "MDX-40A",
+        "protocol": "modern",
+        "stepsPerMM": 100,
+        "maxFeedXY": 50,
+        "maxFeedZ": 50,
+        "spindleControl": true,
+        "dwell": true,
+        "init": ";;^DF\nPA;",
+        "end": "!MC0;\nPU0,0;\n;;^DF"
+      },
+      "mdx50": {
+        "label": "MDX-50",
+        "protocol": "modern",
+        "stepsPerMM": 100,
+        "maxFeedXY": 60,
+        "maxFeedZ": 60,
+        "spindleControl": true,
+        "dwell": true,
+        "init": ";;^DF\nPA;",
+        "end": "!MC0;\nPU0,0;\n;;^DF"
+      },
+      "mdx540": {
+        "label": "MDX-540 / MDX-540S",
+        "protocol": "modern",
+        "stepsPerMM": 100,
+        "maxFeedXY": 125,
+        "maxFeedZ": 125,
+        "spindleControl": true,
+        "dwell": true,
+        "init": ";;^DF\nPA;",
+        "end": "!MC0;\nPU0,0;\n;;^DF"
+      },
+      "egx350": {
+        "label": "EGX-350",
+        "protocol": "modern",
+        "stepsPerMM": 100,
+        "maxFeedXY": 60,
+        "maxFeedZ": 60,
+        "spindleControl": true,
+        "dwell": true,
+        "init": ";;^DF\nPA;",
+        "end": "!MC0;\nPU0,0;\n;;^DF"
+      },
+      "custom": {
+        "label": null,
+        "protocol": "modern",
+        "stepsPerMM": 100,
+        "maxFeedXY": 60,
+        "maxFeedZ": 60,
+        "spindleControl": true,
+        "dwell": true,
+        "init": "PA;PA;",
+        "end": "!MC0;PU0,0;"
+      }
+    }
+  },
+  "defaults": {
+    "startCode": "",
+    "endCode": "",
+    "rolandModel": "mdx50",
+    "rolandZMode": "3d"
+  },
+  "locks": {},
+  "_notes": {
+    "flags": "RML-1 is not G-code. The rml logic writes no T word, M6, comment, N word, unit word, coolant word or rotary word, and core/file-validation.json pins each of those flags to false. Multi-tool Roland work is one file per tool, which the multi-file and split-drill exports already produce.",
+    "models": "Machine facts per model, read by the rml logic: protocol 'legacy' sets speed with V, 'modern' with !VZ; maxFeedXY and maxFeedZ are mm/s; spindleControl false means no !RC (the machine runs at its own speed); dwell false means no !DW. init starts every program and end closes it. Most models are unverified: check against the machine's manual."
+  }
+}

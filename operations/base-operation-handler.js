@@ -10,324 +10,339 @@
  */
 
 (function() {
-    'use strict';
-    const ROOT = globalThis;
+  'use strict';
 
-    const D = ROOT.CAMConfig.defaults;
-    const debugState = D.debug;
+  const ROOT = globalThis;
+  const D = ROOT.CAMConfig.defaults;
+  const debugState = D.debug;
 
-    class BaseOperationHandler {
-        constructor(core) {
-            this.core = core;
-        }
-
-        /**
-         * Runs one generation and reports it. Every handler implements this.
-         * @param {Object} operation - The operation object
-         * @param {Object} params - Merged parameters from parameterStore
-         * @param {Object} core - App core reference
-         * @param {Object} [options={}] - Pipeline options ({ onProgress })
-         * @returns {Promise<{success: boolean, message: string, status: string}>}
-         */
-        async orchestrateGeneration(operation, params, core, options = {}) {
-            throw new Error(`[${this.constructor.name}] orchestrateGeneration() not implemented`);
-        }
-
-        /**
-         * Pre-validation classification of raw plotter output.
-         * Override to filter/transform primitives before validation and compositing.
-         * Called after ParserPlotter.
-         * @param {Object} operation - The operation object (may set flags like needsClosurePrompt)
-         * @param {Array} rawPrimitives - Raw plotter output
-         * @returns {{ primitives: Array, warnings: Array }}
-         */
-        classifyPrimitives(operation, rawPrimitives) {
-            return { primitives: rawPrimitives, warnings: [] };
-        }
-
-        /**
-         * Post-parse hook called after operation.primitives and bounds are set.
-         * Override for classification that needs the final validated primitive set.
-         * @param {Object} operation - The operation with .primitives populated
-         */
-        postParsePrimitives(operation) {
-            // No-op by default
-        }
-
-        /**
-         * Resolves contour topology before the offset pipeline.
-         *
-         * Tier 1 (always): Re-derives hole assignment within each compound
-         *   primitive by geometric containment. Fixes the winding-sign
-         *   fragility in plotRegion for even-parity transforms.
-         *
-         * Tier 2 (opt-in via mergeNesting:true): Detects containment among
-         *   separate primitives and merges outers with their holes into
-         *   compound PathPrimitives.
-         *
-         * @param {Array} primitives
-         * @param {Object} [options]
-         * @param {boolean} [options.mergeNesting=false] - Run inter-primitive merge
-         * @returns {Array} Primitives with corrected topology
-         */
-        resolveContourTopology(primitives, { mergeNesting = false } = {}) {
-            if (!primitives || primitives.length === 0) return primitives;
-
-            // Tier 1: intra-primitive compound resolution
-            let resolved = [];
-            let compoundsFixed = 0;
-
-            for (const prim of primitives) {
-                const result = GeometryTopology.resolveCompoundContours(prim);
-                if (result.length !== 1 || result[0] !== prim) compoundsFixed++;
-                resolved.push(...result);
-            }
-
-            if (compoundsFixed > 0) {
-                this.debug(`Tier 1: resolved ${compoundsFixed} compound primitive(s) by containment`);
-            }
-
-            // Tier 2: inter-primitive nesting merge
-            if (!mergeNesting || resolved.length < 2) return resolved;
-
-            // Build the loop set for topology analysis. Closed analytic
-            // shapes (circle/rectangle/obround) are converted to paths HERE
-            // so they participate in nesting detection - an SVG circle
-            // dropped inside a rectangle is the common EasyShape case.
-            // Anything without a usable closed contour (open strokes, drill
-            // points) is set aside and re-appended untouched.
-            const loops    = [];
-            const passthru = [];
-            const sourceOf = new Map(); // converted loop -> original primitive
-
-            for (const prim of resolved) {
-                let loop = prim;
-                if (prim.type !== 'path') {
-                    const path = GeometryUtils.primitiveToPath(prim);
-                    if (path) {
-                        path.properties = { ...prim.properties, ...path.properties };
-                        loop = path;
-                    }
-                }
-
-                if (loop && loop.type === 'path' && loop.contours?.length > 0) {
-                    // Explode every contour into its own single-contour loop.
-                    // classifyCutoutTopology only inspects contours[0], so a
-                    // compound path (outer + holes - re-fed from a previous
-                    // generation, or a native SVG compound path) would otherwise
-                    // hide its holes from the classifier and the merge would drop
-                    // them. Mirrors GeometryTopology.resolveCompoundContours.
-                    for (const contour of loop.contours) {
-                        const singleLoop = new PathPrimitive([contour], { ...loop.properties });
-                        loops.push(singleLoop);
-                        // Only genuinely single-contour inputs revert to their
-                        // original primitive (preserves analytic arcs). Exploded
-                        // compound pieces get NO sourceOf entry, so the merge's
-                        // `|| outer.loop` fallback keeps the exploded contour
-                        // instead of dragging the whole compound (hole included)
-                        // back in.
-                        if (loop.contours.length === 1) sourceOf.set(singleLoop, prim);
-                    }
-                } else {
-                    passthru.push(prim);
-                }
-            }
-
-            if (loops.length < 2) return resolved;
-
-            const topology = GeometryTopology.classifyCutoutTopology(loops);
-            if (!topology.some(t => t.isHole)) return resolved;
-
-            // Group holes under their parent outers. Standalone outers (no holes)
-            // are emitted as their ORIGINAL primitive so analytic arcs survive;
-            // only true compounds (outer + hole contours) must be polygonized
-            // into a PathPrimitive.
-            // TODO(contour-order) - see GeometryTopology.assembleCutoutCompounds.
-            const outers = topology.filter(t => !t.isHole);
-            const holes  = topology.filter(t => t.isHole);
-            const merged = [];
-
-            for (const outer of outers) {
-                const children = holes.filter(h => h.parentIdx === outer.originalIdx);
-                if (children.length === 0) {
-                    merged.push(sourceOf.get(outer.loop) || outer.loop);
-                } else {
-                    const newContours = [outer.loop.contours[0]];
-                    for (const child of children) {
-                        newContours.push(child.loop.contours[0]);
-                    }
-                    merged.push(new PathPrimitive(newContours, {
-                        ...outer.loop.properties
-                    }));
-                }
-            }
-
-            // Orphan holes (no parent) - keep as their original primitive
-            for (const hole of holes) {
-                if (hole.parentIdx === null) merged.push(sourceOf.get(hole.loop) || hole.loop);
-            }
-
-            this.debug(`Tier 2: merged ${loops.length} loop(s) → ${merged.length} primitive(s)`);
-            return [...merged, ...passthru];
-        }
-
-        /**
-         * Topology resolution that must run on the SOURCE primitives before
-         * the offset pipeline. Called by OffsetOperationHandler after the
-         * stale token is stamped, so a superseded run cannot rewrite
-         * operation.primitives out from under a newer one.
-         * @returns {Array|null} replacement primitives, or null to leave as-is
-         */
-        resolveSourceTopology(operation, params) {
-            return null;
-        }
-
-        /**
-         * Default preparation for offset pipeline: strips SVG visual
-         * properties and forces machining-intent flags. Primitives that
-         * already have fill:true + no stroke pass through unchanged.
-         * Subclasses override only when they need different behavior
-         * (e.g. copper handlers that preserve stroke for expandStroke).
-         */
-        preparePrimitivesForOffset(primitives) {
-            return primitives.map(prim => {
-                const props = prim.properties || {};
-                if (props.fill && !props.stroke && !props.isTrace) return prim;
-
-                // Shallow spread first (keeps a V8 hidden class - fast property
-                // access downstream in the offset loop and Clipper marshalling),
-                // then re-attach the prototype for class methods (getBounds etc).
-                // Object.create + Object.assign built the object incrementally
-                // on a bare prototype, forcing dictionary-mode lookups.
-                const clone = {
-                    ...prim,
-                    properties: {
-                        ...props,
-                        fill: true,
-                        stroke: false,
-                        strokeWidth: 0,
-                        isTrace: false
-                    }
-                };
-                Object.setPrototypeOf(clone, Object.getPrototypeOf(prim));
-                return clone;
-            });
-        }
-
-        /**
-         * Routes a single primitive to the appropriate geometry operation
-         * during the per-pass offset loop.
-         *
-         * Default: calls offsetBoundary (treat everything as a filled boundary).
-         * EasyTrace5000 copper handlers override to detect strokes, nesting and
-         * call expandStroke with combined width instead.
-         *
-         * @param {Object} primitive - A single primitive to offset
-         * @param {number} distance - Signed offset distance
-         * @returns {Object|Array|null} Offset result(s)
-         */
-        async offsetSinglePrimitive(primitive, distance) {
-            return this.core.geometryOffsetter.offsetBoundary(primitive, distance);
-        }
-
-        /**
-         * Offset-record id. Pass records are keyed the same way across every
-         * handler so downstream lookups don't need per-handler knowledge.
-         * @param {string} operationId
-         * @param {number|string} pass  pass index, or a label like 'combined'
-         */
-        offsetRecordId(operationId, pass = 0) {
-            return `offset_${operationId}_${pass}`;
-        }
-
-        /**
-         * Stock one preview primitive removes, as polygons to union. Feeds the
-         * 3D copper view; a handler whose previews cut nothing returns none.
-         */
-        previewCutArea(prim) {
-            return [];
-        }
-
-        /**
-         * Resolves on the next macrotask, so a progress tick can paint between
-         * synchronous chunks of work (the overlay renders on rAF).
-         */
-        yieldToEventLoop() {
-            return new Promise((resolve) => {
-                const channel = new MessageChannel();
-                channel.port1.onmessage = () => resolve();
-                channel.port2.postMessage(null);
-            });
-        }
-
-        /**
-         * CNC variant: Generate operation-specific geometry (offsets, drill
-         * strategy, stencil apertures). Writes to operation.offsets[].
-         */
-        async generateGeometry(operation, settings) {}
-
-        /**
-         * Laser variant: Generate laser-specific geometry.
-         * Default delegates to generateGeometry (offset strategy).
-         */
-        async generateLaserFills(operation, settings) {
-            return this.generateGeometry(operation, settings);
-        }
-
-        /** Closed-region gate shared by V-Carve and the offset handlers. */
-        countOpenPaths(operation) {
-            const precision = ROOT.CAMConfig.constants.precision.coordinate;
-            return (operation.primitives || []).filter(p => {
-                if (p.type === 'circle' || p.type === 'rectangle' || p.type === 'obround') return false;
-                return !GeometryTopology.isPrimitiveClosed(p, precision);
-            }).length;
-        }
-
-        /**
-         * Opens a generation run: binds the panel's progress callback, stamps
-         * the stale-run token, then wipes previous state. Order matters: the
-         * token is stamped BEFORE the reset, and progress is bound before
-         * anything can tick. Progress is structured ({frac, label}) end to
-         * end; the status manager owns the one formatter.
-         * @param {Object} operation
-         * @param {Object} options - the orchestrateGeneration slot
-         * @param {Object} [core] - omit to skip the state reset
-         * @returns {number} the stale-run token; compare with isStale() after any await
-         */
-        beginRun(operation, options, core) {
-            operation._onProgress = options?.onProgress || null;
-            const token = operation._genToken = (operation._genToken || 0) + 1;
-            if (core) core.store.resetOperationState(operation.id);
-            return token;
-        }
-
-        isStale(operation, token) {
-            return operation._genToken !== token;
-        }
-
-        /**
-         * Toolpath optimization policy - controls how the optimizer
-         * orders and clusters this operation's plans.
-         *
-         * staydownPartition:
-         *   'shape'     - hard wall per shapeKey; staydown never crosses shapes (profile, pocket, cutout)
-         *   'proximity' - proximity clusters are the staydown unit; ignores shapeKey (isolation, clearing)
-         *
-         * Override in subclasses. Base default suits single-pass and
-         * multi-depth profile/cutout operations.
-         */
-        getToolpathPolicy() {
-            return { staydownPartition: 'shape' };
-        }
-
-        debug(message, data = null) {
-            if (debugState.enabled) {
-                const tag = `[${this.constructor.name}]`;
-                if (data) console.log(`${tag} ${message}`, data);
-                else console.log(`${tag} ${message}`);
-            }
-        }
+  class BaseOperationHandler {
+    constructor(core) {
+      this.core = core;
+      // When this handler last yielded.
+      this._yieldedAt = 0;
     }
 
-    ROOT.BaseOperationHandler = BaseOperationHandler;
+    /**
+     * Runs one generation and reports it. Every handler implements this.
+     * @param {Object} operation - The operation object
+     * @param {Object} params - Merged parameters from parameterStore
+     * @param {Object} core - App core reference
+     * @param {Object} [options={}] - Pipeline options ({ onProgress })
+     * @returns {Promise<{success: boolean, message: string, status: string}>}
+     */
+    async orchestrateGeneration(operation, params, core, options = {}) {
+      throw new Error(`[${this.constructor.name}] orchestrateGeneration() not implemented`);
+    }
+
+    /**
+     * Pre-validation classification of raw plotter output.
+     * Override to filter/transform primitives before validation and compositing.
+     * Called after ParserPlotter.
+     * @param {Object} operation - The operation object (may set flags like needsClosurePrompt)
+     * @param {Array} rawPrimitives - Raw plotter output
+     * @returns {{ primitives: Array, warnings: Array }}
+     */
+    classifyPrimitives(operation, rawPrimitives) {
+      return { primitives: rawPrimitives, warnings: [] };
+    }
+
+    /**
+     * Post-parse hook called after operation.primitives and bounds are set.
+     * Override for classification that needs the final validated primitive set.
+     * @param {Object} operation - The operation with .primitives populated
+     */
+    postParsePrimitives(operation) {
+      // No-op by default
+    }
+
+    /**
+     * Resolves contour topology before the offset pipeline.
+     * Tier 1 (always): Re-derives hole assignment within each compound
+     *  primitive by geometric containment. Fixes the winding-sign
+     *  fragility in plotRegion for even-parity transforms.
+     * Tier 2 (opt-in via mergeNesting:true): Detects containment among
+     *  separate primitives and merges outers with their holes into
+     *  compound PathPrimitives.
+     * @param {Array} primitives
+     * @param {Object} [options]
+     * @param {boolean} [options.mergeNesting=false] - Run inter-primitive merge
+     * @returns {Array} Primitives with corrected topology
+     */
+    resolveContourTopology(primitives, { mergeNesting = false } = {}) {
+      if (!primitives || primitives.length === 0) return primitives;
+
+      // Tier 1: intra-primitive compound resolution
+      let resolved = [];
+      let compoundsFixed = 0;
+
+      for (const prim of primitives) {
+        const result = GeometryTopology.resolveCompoundContours(prim);
+        if (result.length !== 1 || result[0] !== prim) compoundsFixed++;
+        resolved.push(...result);
+      }
+
+      if (compoundsFixed > 0) this.debug(`Tier 1: resolved ${compoundsFixed} compound primitive(s) by containment`);
+
+      // Tier 2: inter-primitive nesting merge
+      if (!mergeNesting || resolved.length < 2) return resolved;
+
+      // Build the loop set for topology analysis. Closed analytic
+      // shapes (circle/rectangle/obround) are converted to paths HERE
+      // so they participate in nesting detection - an SVG circle
+      // dropped inside a rectangle is the common EasyShape case.
+      // Anything without a usable closed contour (open strokes, drill
+      // points) is set aside and re-appended untouched.
+      const loops    = [];
+      const passthru = [];
+      const sourceOf = new Map(); // converted loop -> original primitive
+
+      for (const prim of resolved) {
+        let loop = prim;
+        if (prim.type !== 'path') {
+          const path = GeometryUtils.primitiveToPath(prim);
+          if (path) {
+            path.properties = { ...prim.properties, ...path.properties };
+            loop = path;
+          }
+        }
+
+        if (loop && loop.type === 'path' && loop.contours?.length > 0) {
+          // Explode every contour into its own single-contour loop.
+          // classifyCutoutTopology only inspects contours[0], so a
+          // compound path (outer + holes - re-fed from a previous
+          // generation, or a native SVG compound path) would otherwise
+          // hide its holes from the classifier and the merge would drop
+          // them. Mirrors GeometryTopology.resolveCompoundContours.
+          for (const contour of loop.contours) {
+            const singleLoop = new PathPrimitive([contour], { ...loop.properties });
+            loops.push(singleLoop);
+            // Only genuinely single-contour inputs revert to their
+            // original primitive (preserves analytic arcs). Exploded
+            // compound pieces get NO sourceOf entry, so the merge's
+            // `|| outer.loop` fallback keeps the exploded contour
+            // instead of dragging the whole compound (hole included)
+            // back in.
+            if (loop.contours.length === 1) sourceOf.set(singleLoop, prim);
+          }
+        } else {
+          passthru.push(prim);
+        }
+      }
+
+      if (loops.length < 2) return resolved;
+
+      const topology = GeometryTopology.classifyCutoutTopology(loops);
+      if (!topology.some(t => t.isHole)) return resolved;
+
+      // Group holes under their parent outers. Standalone outers (no holes)
+      // are emitted as their ORIGINAL primitive so analytic arcs survive;
+      // only true compounds (outer + hole contours) must be polygonized
+      // into a PathPrimitive.
+      // TODO(contour-order) - see GeometryTopology.assembleCutoutCompounds.
+      const outers = topology.filter(t => !t.isHole);
+      const holes  = topology.filter(t => t.isHole);
+      const merged = [];
+
+      for (const outer of outers) {
+        const children = holes.filter(h => h.parentIdx === outer.originalIdx);
+        if (children.length === 0) {
+          merged.push(sourceOf.get(outer.loop) || outer.loop);
+        } else {
+          const newContours = [outer.loop.contours[0]];
+          for (const child of children) {
+            newContours.push(child.loop.contours[0]);
+          }
+          merged.push(new PathPrimitive(newContours, { ...outer.loop.properties }));
+        }
+      }
+
+      // Orphan holes (no parent) - keep as their original primitive
+      for (const hole of holes) {
+        if (hole.parentIdx === null) merged.push(sourceOf.get(hole.loop) || hole.loop);
+      }
+
+      this.debug(`Tier 2: merged ${loops.length} loop(s) → ${merged.length} primitive(s)`);
+      return [...merged, ...passthru];
+    }
+
+    /**
+     * Topology resolution that must run on the SOURCE primitives before
+     * the offset pipeline. Called by OffsetOperationHandler after the
+     * stale token is stamped, so a superseded run cannot rewrite
+     * operation.primitives out from under a newer one.
+     * @returns {Array|null} replacement primitives, or null to leave as-is
+     */
+    resolveSourceTopology(operation, params) {
+      return null;
+    }
+
+    /**
+     * Default preparation for offset pipeline: strips SVG visual
+     * properties and forces machining-intent flags. Primitives that
+     * already have fill:true + no stroke pass through unchanged.
+     * Subclasses override only when they need different behavior
+     * (e.g. copper handlers that preserve stroke for expandStroke).
+     */
+    preparePrimitivesForOffset(primitives) {
+      return primitives.map(prim => {
+        const props = prim.properties || {};
+        if (props.fill && !props.stroke && !props.isTrace) return prim;
+        // Shallow spread first (keeps a V8 hidden class - fast property
+        // access downstream in the offset loop and Clipper marshalling),
+        // then re-attach the prototype for class methods (getBounds etc).
+        // Object.create + Object.assign built the object incrementally
+        // on a bare prototype, forcing dictionary-mode lookups.
+        const clone = {
+          ...prim,
+          properties: {
+            ...props,
+            fill: true,
+            stroke: false,
+            strokeWidth: 0,
+            isTrace: false
+          }
+        };
+        Object.setPrototypeOf(clone, Object.getPrototypeOf(prim));
+        return clone;
+      });
+    }
+
+    /**
+     * Routes a single primitive to the appropriate geometry operation
+     * during the per-pass offset loop.
+     * Default: calls offsetBoundary (treat everything as a filled boundary).
+     * EasyTrace5000 copper handlers override to detect strokes, nesting and
+     * call expandStroke with combined width instead.
+     * @param {Object} primitive - A single primitive to offset
+     * @param {number} distance - Signed offset distance
+     * @returns {Object|Array|null} Offset result(s)
+     */
+    async offsetSinglePrimitive(primitive, distance) {
+      return this.core.geometryOffsetter.offsetBoundary(primitive, distance);
+    }
+
+    /**
+     * Offset-record id. Pass records are keyed the same way across every
+     * handler so downstream lookups don't need per-handler knowledge.
+     * @param {string} operationId
+     * @param {number|string} pass  pass index, or a label like 'combined'
+     */
+    offsetRecordId(operationId, pass = 0) {
+      return `offset_${operationId}_${pass}`;
+    }
+
+    /**
+     * Stock one preview primitive removes, as polygons to union. Feeds the
+     * 3D copper view; a handler whose previews cut nothing returns none.
+     */
+    previewCutArea(prim) {
+      return [];
+    }
+
+    /**
+     * Resolves on the next macrotask, so a progress tick can paint between
+     * synchronous chunks of work (the overlay renders on rAF).
+     */
+    yieldToEventLoop() {
+      return new Promise(resolve => {
+        const channel = new MessageChannel();
+        channel.port1.onmessage = () => {
+          this._yieldedAt = performance.now();
+          resolve();
+        };
+        channel.port2.postMessage(null);
+      });
+    }
+
+    /**
+     * Whether a loop of synchronous work should yield now: a task slice
+     * has run since the last yield. On time, not on an item count, which
+     * paints a run of small items too often and a run of large ones too
+     * rarely.
+     * @returns {boolean}
+     */
+    get yieldDue() {
+      return performance.now() - this._yieldedAt >= D.ui.timing.taskSlice;
+    }
+
+    /**
+     * CNC variant: Generate operation-specific geometry (offsets, drill
+     * strategy, stencil apertures). Writes to operation.offsets[].
+     */
+    async generateGeometry(operation, settings) {}
+
+    /**
+     * Laser variant: Generate laser-specific geometry.
+     * Default delegates to generateGeometry (offset strategy).
+     */
+    async generateLaserFills(operation, settings) {
+      return this.generateGeometry(operation, settings);
+    }
+
+    /** Closed-region gate shared by V-Carve and the offset handlers. */
+    countOpenPaths(operation) {
+      const precision = ROOT.CAMConfig.constants.precision.coordinate;
+      return (operation.primitives || []).filter(p => {
+        if (p.type === 'circle' || p.type === 'rectangle' || p.type === 'obround') return false;
+        return !GeometryTopology.isPrimitiveClosed(p, precision);
+      }).length;
+    }
+
+    /**
+     * Toolpath optimization policy - controls how the optimizer
+     * orders and clusters this operation's plans.
+     * staydownPartition:
+     *  shape     - hard wall per shapeKey; staydown never crosses shapes (profile, pocket, cutout)
+     *  proximity - proximity clusters are the staydown unit; ignores shapeKey (isolation, clearing)
+     * Override in subclasses. Base default suits single-pass and
+     * multi-depth profile/cutout operations.
+     */
+    getToolpathPolicy() {
+      return { staydownPartition: 'shape' };
+    }
+
+    /**
+     * Opens a generation run: binds the panel's progress callback, stamps
+     * the stale-run token, then wipes previous state. Order matters: the
+     * token is stamped BEFORE the reset, and progress is bound before
+     * anything can tick. Progress is structured ({frac, label}) end to
+     * end; the status manager owns the one formatter.
+     * @param {Object} operation
+     * @param {Object} options - the orchestrateGeneration slot
+     * @param {Object} [core] - omit to skip the state reset
+     * @returns {number} the stale-run token; compare with isStale() after any await
+     */
+    beginRun(operation, options, core) {
+      operation._onProgress = options?.onProgress || null;
+      const token = operation._genToken = (operation._genToken || 0) + 1;
+      if (core) core.store.resetOperationState(operation.id);
+      return token;
+    }
+
+    isStale(operation, token) {
+      return operation._genToken !== token;
+    }
+
+    /**
+     * Abandons the run in flight: a newer token makes it stale at its next
+     * check, and rejecting the worker jobs frees a run that awaits a job
+     * that may never answer. The operation stays as beginRun left it,
+     * ungenerated.
+     */
+    cancelRun(operation) {
+      operation._genToken = (operation._genToken || 0) + 1;
+      ROOT.FieldWorkerClient?.cancelAll();
+    }
+
+    debug(message, data = null) {
+      if (debugState.enabled) {
+        const tag = `[${this.constructor.name}]`;
+        if (data) console.log(`${tag} ${message}`, data);
+        else console.log(`${tag} ${message}`);
+      }
+    }
+  }
+
+  ROOT.BaseOperationHandler = BaseOperationHandler;
 })();

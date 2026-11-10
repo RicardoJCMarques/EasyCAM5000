@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+    <!--!
+      @file        language/comparator/index.html
+      @description EasyCAM5000 Landing Page for i18n comparing and editing tool
+      @author      Eltryus - Ricardo Marques
+      @copyright   2025-2026 Eltryus - Ricardo Marques
+      @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
+      
+      SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
+      SPDX-License-Identifier: AGPL-3.0-or-later
+    -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EasyCAM5000 i18n Comparator</title>
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="description" content="EasyCAM500 development aid: compares, checks and edits EasyCAM5000 language packs against English.">
+  <link rel="stylesheet" href="comparator.css">
+</head>
+<body>
+
+  <header id="controls">
+    <div class="control-group" id="zone-left">
+      <label for="sel-left">Source (Left):</label>
+      <select id="sel-left">
+        <option value="en.json">en.json</option>
+        <option value="pt.json">pt.json</option>
+        <option value="es.json">es.json</option>
+        <option value="fr.json">fr.json</option>
+        <option value="de.json">de.json</option>
+        <option value="ar.json">ar.json</option>
+      </select>
+      <label class="file-btn" title="Open local JSON file">[Open]<input type="file" id="file-left" accept=".json"></label>
+    </div>
+
+    <div class="control-group" id="zone-right">
+      <label for="sel-right">Target (Right):</label>
+      <select id="sel-right">
+        <option value="en.json">en.json</option>
+        <option value="pt.json">pt.json</option>
+        <option value="es.json">es.json</option>
+        <option value="fr.json">fr.json</option>
+        <option value="de.json">de.json</option>
+        <option value="ar.json" selected>ar.json</option>
+      </select>
+      <label class="file-btn" title="Open local JSON file">[Open]<input type="file" id="file-right" accept=".json"></label>
+    </div>
+
+    <div class="control-group">
+      <label for="filter-mode">Filter:</label>
+      <select id="filter-mode">
+        <option value="all">All Keys</option>
+        <option value="missing-right">Missing on Target</option>
+        <option value="warnings">Token / Tag Warnings</option>
+        <option value="modified">Modified Drafts</option>
+        <option value="diff">Different Text</option>
+        <option value="missing-left">Extra on Target</option>
+      </select>
+    </div>
+
+    <div class="control-group">
+      <label for="search-input">Search:</label>
+      <input type="text" id="search-input" placeholder="Filter key or string content...">
+    </div>
+
+    <div class="control-group">
+      <label>Font:</label>
+      <button type="button" class="btn" id="btn-font-dec" title="Decrease font size">A−</button>
+      <button type="button" class="btn" id="btn-font-inc" title="Increase font size">A+</button>
+      <button type="button" class="btn" id="btn-font-rst" title="Reset font size">100%</button>
+    </div>
+
+    <div class="control-group">
+      <button type="button" class="btn btn-action" id="btn-export-diff" title="Export only modified and new keys">Export Diff</button>
+      <button type="button" class="btn btn-action" id="btn-export-full" title="Export full translation pack">Export Full</button>
+      <button type="button" class="btn" id="btn-help" title="Instructions and shortcuts">Help</button>
+    </div>
+
+    <div id="stats">Loading...</div>
+  </header>
+
+  <div id="error-bar" role="alert"></div>
+
+  <main>
+    <table>
+      <colgroup>
+        <col class="col-key">
+        <col class="col-left">
+        <col class="col-right">
+      </colgroup>
+      <thead>
+        <tr>
+          <th>Key Path</th>
+          <th id="th-left">Source</th>
+          <th id="th-right">Target (Editable)</th>
+        </tr>
+      </thead>
+      <tbody id="grid-body"></tbody>
+    </table>
+  </main>
+
+  <div id="modal-welcome" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-title" style="display: none;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="modal-title">i18n Translation Comparator</h2>
+        <button type="button" id="modal-welcome-close" class="modal-close" aria-label="Close modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p>This tool compares, validates, edits, and exports language packs for the EasyCAM5000 Suite.</p>
+        
+        <h3>Workflow</h3>
+        <ul>
+          <li><strong>Select or Drop:</strong> Choose presets from the headers or drag JSON files directly onto the columns.</li>
+          <li><strong>Direct Editing:</strong> Click any field in the right column to translate or adjust text. Plural objects expand into dedicated category fields.</li>
+          <li><strong>Validation:</strong> Badges show what the apps would refuse or ignore: changed <code>{tokens}</code> or tags, empty values, a plural without <code>{count}</code> in the source, and plural forms the language uses but the pack lacks.</li>
+          <li><strong>Not listed:</strong> <code>meta</code>, the pack's identity, and <code>output.gcode</code>: G-code comments are always English.</li>
+          <li><strong>Auto-Saving:</strong> Changes save locally as working drafts per target language until exported or reverted.</li>
+        </ul>
+
+        <h3>Shortcuts & Controls</h3>
+        <ul>
+          <li><strong>Up / Down Arrows:</strong> Navigate through table rows.</li>
+          <li><strong>↶ Button:</strong> Revert a modified key back to the loaded file version.</li>
+          <li><strong>Export Diff:</strong> Download a sparse JSON containing only modified keys.</li>
+          <li><strong>Export Full:</strong> Download the whole pack in English key order, without empty values.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <script src="../language-pack-rules.js"></script>
+  <script src="comparator.js"></script>
+</body>
+</html>

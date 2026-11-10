@@ -14,6 +14,7 @@
 
 ## Checklist
 
+- [ ] Most recent version of the EasyCAM5000 at the time of creating the pull request
 - [ ] File headers kept, including `SPDX-License-Identifier: AGPL-3.0-or-later`
 - [ ] No new framework, bundler or transpiler dependency
 - [ ] Comments explain *why*, not *what*

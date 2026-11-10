@@ -1,0 +1,447 @@
+{
+  "_projectInfo": {
+    "file": "core/file-validation.json",
+    "description": "Rules a custom file must pass before it can be used and stored",
+    "author": "Eltryus - Ricardo Marques",
+    "see": "https://github.com/RicardoJCMarques/EasyCAM5000",
+    "license": "AGPL-3.0-or-later",
+    "copyright": "Copyright (C) 2025-2026 Eltryus - Ricardo Marques"
+  },
+  "_readme": [
+    "Read by core/custom-files.js; build.js embeds it in dist with every key that starts with _ removed.",
+    "A custom file is JSON with meta.kind naming one of the kinds below. Top-level keys that start with _ are notes and are skipped.",
+    "The vocabulary is a subset of JSON Schema plus a few x- keywords, listed in _keywords. Problems are worded from en.json customFiles.problems.*; a rule's message is customFiles.rules.<id>."
+  ],
+  "_keywords": {
+    "type": "string, number, integer, boolean, object, array or null, or a list of them.",
+    "const / enum": "The value must equal the one given / one of those listed.",
+    "minimum / maximum / exclusiveMinimum": "Numeric bounds.",
+    "minLength / maxLength / pattern": "String bounds; pattern is a JavaScript regular expression.",
+    "format": "A check written in code: color (a CSS colour), cssValue (loads nothing: no url(), image-set(), image(), element(), @import, expression()), declaredProperty (a custom property css/base.css declares), customLocale (a canonical language tag no shipped pack uses), listedLocale (a language pack the app lists).",
+    "properties / required / additionalProperties / propertyNames / minProperties": "Object shape. additionalProperties false refuses every key not listed.",
+    "items / minItems / maxItems / uniqueItems": "Array shape.",
+    "$ref": "Uses the spec at #/definitions/<name>.",
+    "x-message": "Names the customFiles.problems.pattern.<name> message used when pattern fails.",
+    "x-placeholders": "The {name} placeholders a G-code text may use; any other is refused, since it would reach the file as written.",
+    "x-byName": "An array of objects keyed by their name: every name listed must appear exactly once, and no other.",
+    "x-reference": "Keys and values are checked against a shipped file instead of a spec: theme compares colors with a shipped theme (dark.json, or any shipped theme already loaded), language compares the whole pack with en.json.",
+    "x-logic": "The key naming a setup's logic: the file is checked against that logic's definition (setupSchema on its class).",
+    "x-rules": "Checks across keys. A rule holds when its if part is false or its then part is true.",
+    "x-id": "Where a single-entry kind keeps its id."
+  },
+  "maxBytes": 1048576,
+  "kinds": {
+    "theme": {
+      "_doc": "One theme per file, shaped like themes/*.json. It declares every colour the shipped themes declare. Its label is a name and shows as written.",
+      "x-id": "id",
+      "type": "object",
+      "required": ["meta", "id", "label", "base", "colors"],
+      "additionalProperties": false,
+      "properties": {
+        "meta": { "$ref": "#/definitions/meta" },
+        "id": { "$ref": "#/definitions/id" },
+        "label": { "$ref": "#/definitions/label" },
+        "base": { "enum": ["dark", "light"] },
+        "description": { "type": "string" },
+        "author": { "type": "string" },
+        "license": { "type": "string" },
+        "homepage": { "type": "string" },
+        "tokens": {
+          "type": "object",
+          "propertyNames": { "format": "declaredProperty" },
+          "additionalProperties": { "type": "string", "minLength": 1, "format": "cssValue" }
+        },
+        "colors": { "x-reference": "theme" }
+      }
+    },
+    "language": {
+      "_doc": "One pack per file, shaped like language/*.json: each string keeps the {tokens} and tags of its English text. A key the pack leaves out shows in English and a key en.json lacks is ignored; the report lists both. meta.name is the language's name written in that language. To try a change to a shipped language, use a private tag such as fr-x-test.",
+      "x-id": "meta.locale",
+      "x-reference": "language",
+      "type": "object",
+      "required": ["meta"],
+      "additionalProperties": true,
+      "properties": {
+        "meta": {
+          "type": "object",
+          "required": ["kind", "locale", "name", "dir", "fallback"],
+          "additionalProperties": false,
+          "properties": {
+            "kind": { "const": "language" },
+            "locale": { "type": "string", "format": "customLocale" },
+            "name": { "type": "string", "minLength": 1, "maxLength": 40 },
+            "dir": { "enum": ["ltr", "rtl"] },
+            "fallback": { "type": ["string", "null"], "format": "listedLocale" }
+          }
+        }
+      }
+    },
+    "setup": {
+      "_doc": "One post-processor setup per file, shaped like export/processors/*.json: copy a shipped one, give it an id and a label of its own, and change what differs. logic names the code that writes the program, and with it the definition the file is checked against (setup-rs274 for rs274, makera, fanuc and winpcnc; setup-rml for rml). Every flag is required. defaults and locks name Machine Settings fields and the logic's own parameters, and each value is checked against its field. A custom setup always shows as Custom, whatever its maturity says.",
+      "x-id": "id",
+      "x-logic": "logic"
+  },
+    "laserProfile":{
+      "_doc": "One laser profile per file, shaped like export/profiles/*.json. Every profile declares the five parameters the exporter reads.",
+      "x-id": "id",
+      "type": "object",
+      "required": ["meta", "id", "palette", "paletteLumping", "parameters"],
+      "additionalProperties": false,
+      "properties": {
+        "meta": {"$ref": "#/definitions/meta"},
+        "id": {"$ref":"#/definitions/id"},
+        "label": {"$ref":"#/definitions/label"},
+        "maturity": {"$ref":"#/definitions/maturity"},
+        "palette": {"type":["array","null"],
+        "minItems": 1,
+        "maxItems": 256,
+        "uniqueItems": true,
+        "items": {"$ref":"#/definitions/hex"}},
+        "paletteLumping": {"type":"boolean"},
+        "parameters": {
+          "type":"array",
+          "x-byName": {
+            "svgGrouping": {"$ref":"#/definitions/svgGrouping"},
+            "reverseCutOrder": {"$ref":"#/definitions/reverseCutOrder"},
+            "heatManagement": {"$ref":"#/definitions/heatManagement"},
+            "colorPerPass": {"$ref":"#/definitions/colorPerPass"},
+            "layerColors": {"$ref":"#/definitions/layerColors"}
+          }
+        }
+      },
+      "x-rules": [ { "id": "lumpingNeedsPalette", "if": { "path": "paletteLumping", "is": true }, "then": { "path": "palette", "isNot": null } } ]
+    },
+    "toolLibrary": {
+      "_doc": "A tool library shaped like tools.json. It replaces the built-in library. Each tool follows the tools.json _schema rules, checked by ToolLibrary: a tool that breaks them is left out and reported, and fields the schema does not name are kept and ignored.",
+      "type": "object",
+      "required": ["meta", "tools"],
+      "additionalProperties": true,
+      "properties": { "meta": { "$ref": "#/definitions/meta" }, "tools": { "type": "array", "minItems": 1 } }
+    }
+  },
+  "definitions": {
+    "meta": {
+      "type": "object",
+      "required": ["kind"],
+      "additionalProperties": false,
+      "properties": { "kind": { "type": "string" }, "app": { "type": "string" } }
+    },
+    "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,31}$", "x-message": "id" },
+    "label": { "type": "string", "minLength": 1, "maxLength": 60 },
+    "hex": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$", "x-message": "hex" },
+    "gcode": { "type": "string", "pattern": "^[ -~\\n]*$", "x-message": "gcode" },
+    "decimals": { "type": "integer", "minimum": 0, "maximum": 6 },
+    "maturity": { "enum": [ null, "less-experimental", "experimental", "very-experimental", "radioactive" ] },
+    "setupValues": {
+      "type": "object",
+      "properties": {
+        "startCode": { "$ref": "#/definitions/gcode", "x-placeholders": [ "toolNumber" ] },
+        "endCode": { "$ref": "#/definitions/gcode", "x-placeholders": [ "safeZ", "travelZ" ] }
+      }
+    },
+    "setup-rs274": {
+        "type": "object",
+        "required": [ "meta", "id", "label", "logic", "maturity", "flags", "defaults", "locks" ],
+        "additionalProperties": false,
+        "properties": {
+          "meta": { "$ref": "#/definitions/meta" },
+          "id": { "$ref": "#/definitions/id" },
+          "label": { "$ref": "#/definitions/label" },
+          "logic": { "type": "string" },
+          "maturity": { "$ref": "#/definitions/maturity" },
+          "flags": {
+            "type": "object",
+            "required": [
+              "fileExtension",
+              "commentStyle",
+              "supportsComments",
+              "supportsUnits",
+              "supportsCoolant",
+              "supportsLineNumbers",
+              "lineNumberMax",
+              "modalCommands",
+              "coordinateDecimals",
+              "rotaryDecimals",
+              "feedDecimals",
+              "spindleDecimals",
+              "maxSpindleSpeed",
+              "spindle",
+              "dwellUnit",
+              "dwellWord",
+              "supportsArcCommands",
+              "arcFormat",
+              "supportsCannedCycles",
+              "supportsToolChange",
+              "useM6",
+              "initialToolUsesM6",
+              "emitsInitialTool",
+              "pauseAfterToolChange",
+              "toolLengthComp",
+              "supportsAbsoluteZ",
+              "rotary"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "fileExtension": { "type": "string", "pattern": "^\\.[A-Za-z0-9]{1,5}$", "x-message": "fileExtension" },
+              "commentStyle": { "enum": [ "parenthesis", "semicolon" ] },
+              "supportsComments": { "type": "boolean" },
+              "supportsUnits": { "type": "boolean" },
+              "supportsCoolant": { "type": "boolean" },
+              "supportsLineNumbers": { "type": "boolean" },
+              "lineNumberMax": { "type": "integer", "minimum": 1 },
+              "modalCommands": { "type": "boolean" },
+              "coordinateDecimals": { "$ref": "#/definitions/decimals" },
+              "rotaryDecimals": { "$ref": "#/definitions/decimals" },
+              "feedDecimals": { "$ref": "#/definitions/decimals" },
+              "spindleDecimals": { "$ref": "#/definitions/decimals" },
+              "maxSpindleSpeed": { "type": "number", "exclusiveMinimum": 0 },
+              "spindle": {
+                "type": "object",
+                "required": [ "on", "off", "scale" ],
+                "additionalProperties": false,
+                "properties": {
+                  "on": { "type": "string", "pattern": "^M\\d{1,3}$", "x-message": "mWord" },
+                  "off": { "type": "string", "pattern": "^M\\d{1,3}$", "x-message": "mWord" },
+                  "scale": { "type": [ "number", "null" ], "exclusiveMinimum": 0 }
+                }
+              },
+              "dwellUnit": { "enum": [ "s", "ms" ] },
+              "dwellWord": { "enum": [ "P", "F" ] },
+              "supportsArcCommands": { "type": "boolean" },
+              "arcFormat": { "enum": [ "IJ" ] },
+              "supportsCannedCycles": { "type": "boolean" },
+              "supportsToolChange": { "type": "boolean" },
+              "useM6": { "type": "boolean" },
+              "initialToolUsesM6": { "type": "boolean" },
+              "emitsInitialTool": { "type": "boolean" },
+              "pauseAfterToolChange": { "type": "boolean" },
+              "toolLengthComp": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": { "enum": [ "none", "table", "table-implicit","probe" ] }
+              },
+              "supportsAbsoluteZ": { "type": "boolean" },
+              "rotary": {
+                "type": "object",
+                "required": [ "routes", "axisWords", "inverseTime", "maxInverseTime", "continuous" ],
+                "additionalProperties": false,
+                "properties": {
+                  "routes": { "type": "array", "uniqueItems": true, "items": { "enum": [ "a-word", "wrapped-linear", "a-linear" ] } },
+                  "axisWords": { "type": "array", "uniqueItems": true, "items": { "enum": [ "A", "B" ] } },
+                  "inverseTime": { "type": "boolean" },
+                  "maxInverseTime": { "type": "number", "exclusiveMinimum": 0 },
+                  "continuous": { "type": "boolean" }
+                }
+              }
+            }
+          },
+          "defaults": {
+            "$ref": "#/definitions/setupValues",
+            "required": [ "startCode", "endCode", "toolLengthCompMode", "indexDwell", "lineNumbers", "lineNumberStep" ]
+          },
+          "locks": { "$ref": "#/definitions/setupValues" }
+      },
+      "x-rules": [
+        {
+          "id": "toolChangeSwap",
+          "_note": "Makera writes its own ATC/MTC swap (MakeraPostProcessor.toolChangeSwap) and loads the first tool through initialToolUsesM6.",
+          "if": { "path": "flags.supportsToolChange", "is": true },
+          "then": { "any": [ { "path": "flags.useM6", "is": true }, { "path": "flags.pauseAfterToolChange", "is": true }, { "path": "logic", "is": "makera" } ] }
+        },
+        {
+          "id": "useM6NeedsToolChange",
+          "if": { "path": "flags.useM6", "is": true },
+          "then": { "path": "flags.supportsToolChange", "is": true }
+        },
+        {
+          "id": "pauseNeedsToolChange",
+          "if": { "path": "flags.pauseAfterToolChange", "is": true },
+          "then": { "path": "flags.supportsToolChange", "is": true }
+        },
+        {
+          "id": "lengthCompNeedsSwap",
+          "if": { "path": "flags.toolLengthComp", "hasAny": ["table", "table-implicit", "probe"] },
+          "then": { "all": [ { "path": "flags.supportsToolChange", "is": true }, { "any": [ { "path": "flags.useM6", "is": true }, { "path": "logic", "is": "makera" } ] } ] }
+        },
+        {
+          "id": "rotaryWords",
+          "if": { "path": "flags.rotary.routes", "hasAny": [ "a-word", "a-linear" ] },
+          "then": { "path": "flags.rotary.axisWords", "notEmpty": true }
+        },
+        {
+          "id": "rotaryRouteDefault",
+            "if": { "path": "flags.rotary.routes", "notEmpty": true },
+            "then": { "path": "defaults.rotaryRoute", "notEmpty": true }
+        },
+        {
+          "id": "lineNumberRange",
+          "then": { "path": "defaults.lineNumberStep", "belowPath": "flags.lineNumberMax" }
+        }
+      ]
+    },
+    "setup-rml": {
+      "type": "object",
+      "required": [ "meta", "id", "label", "logic", "maturity", "flags", "defaults", "locks" ],
+      "additionalProperties": false,
+      "properties": {
+        "meta": { "$ref": "#/definitions/meta" },
+        "id": { "$ref": "#/definitions/id" },
+        "label": { "$ref": "#/definitions/label" },
+        "logic": { "type": "string" },
+        "maturity": { "$ref": "#/definitions/maturity" },
+        "flags": {
+          "type": "object",
+          "required": [
+            "fileExtension",
+            "supportsToolChange",
+            "emitsInitialTool",
+            "toolLengthComp",
+            "supportsComments",
+            "supportsArcCommands",
+            "supportsCannedCycles",
+            "supportsLineNumbers",
+            "supportsUnits",
+            "supportsCoolant",
+            "supportsAbsoluteZ",
+            "rotary",
+            "models"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "fileExtension": {
+              "type": "string",
+              "pattern": "^\\.[A-Za-z0-9]{1,5}$",
+              "x-message": "fileExtension"
+            },
+            "supportsToolChange": { "const": false },
+            "emitsInitialTool": { "const": false },
+            "toolLengthComp": { "const": [ "none" ] },
+            "supportsComments": { "const": false },
+            "supportsArcCommands": { "const": false },
+            "supportsCannedCycles": { "const": false },
+            "supportsLineNumbers": { "const": false },
+            "supportsUnits": { "const": false },
+            "supportsCoolant": { "const": false },
+            "supportsAbsoluteZ": { "const": false },
+            "rotary": { "const": { "routes": [], "axisWords": [], "inverseTime": false, "maxInverseTime": 0, "continuous": false } },
+            "models": {
+              "type": "object",
+              "minProperties": 1,
+              "propertyNames": { "$ref": "#/definitions/id" },
+              "additionalProperties": { "$ref": "#/definitions/rmlModel" }
+            }
+          }
+        },
+        "defaults": { "$ref": "#/definitions/setupValues", "required": [ "startCode", "endCode", "rolandModel", "rolandZMode" ] },
+        "locks": { "$ref": "#/definitions/setupValues" }
+      }
+    },
+    "rmlModel": {
+      "type": "object",
+      "required": [ "label", "protocol", "stepsPerMM", "maxFeedXY", "maxFeedZ", "spindleControl", "dwell", "init", "end" ],
+      "additionalProperties": false,
+      "properties": {
+        "label": { "type": [ "string", "null" ], "minLength": 1, "maxLength": 60 },
+        "protocol": { "enum": [ "legacy", "modern" ] },
+        "stepsPerMM": { "type": "number", "exclusiveMinimum": 0 },
+        "maxFeedXY": { "type": "number", "exclusiveMinimum": 0 },
+        "maxFeedZ": { "type": "number", "exclusiveMinimum": 0 },
+        "spindleControl": { "type": "boolean" },
+        "dwell": { "type": "boolean" },
+        "init": { "$ref": "#/definitions/gcode" },
+        "end": { "$ref": "#/definitions/gcode" }
+      }
+    },
+    "svgGrouping": {
+      "type": "object",
+      "required": ["name", "type", "category", "default", "options"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "const": "svgGrouping" },
+        "type": { "const": "select" },
+        "category": { "const": "laser" },
+        "default": { "enum": ["none", "layer", "group", "color"] },
+        "options": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "object",
+            "required": ["value"],
+            "additionalProperties": false,
+            "properties": { "value": { "enum": ["none", "layer", "group", "color"] } }
+          }
+        }
+      },
+      "x-rules": [ { "id": "defaultInOptions", "then": { "path": "default", "inPath": "options.*.value" } } ]
+    },
+    "heatManagement": {
+      "type": "object",
+      "required": ["name", "type", "category", "default", "options"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "const": "heatManagement" },
+        "type": { "const": "select" },
+        "category": { "const": "laser" },
+        "default": { "enum": ["off", "standard"] },
+        "options": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "object",
+            "required": ["value"],
+            "additionalProperties": false,
+            "properties": { "value": { "enum": ["off", "standard"] } }
+          }
+        }
+      },
+      "x-rules": [ { "id": "defaultInOptions", "then": { "path": "default", "inPath": "options.*.value" } } ]
+    },
+    "reverseCutOrder": {
+      "type": "object",
+      "required": ["name", "type", "category", "default"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "const": "reverseCutOrder" },
+        "type": { "const": "checkbox" },
+        "category": { "const": "laser" },
+        "default": { "type": "boolean" }
+      }
+    },
+    "colorPerPass": {
+      "type": "object",
+      "required": ["name", "type", "category", "default"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "const": "colorPerPass" },
+        "type": { "const": "checkbox" },
+        "category": { "const": "laser" },
+        "default": { "type": "boolean" }
+      }
+    },
+    "layerColors": {
+      "type": "object",
+      "required": ["name", "type", "category", "default"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "const": "layerColors" },
+        "type": { "const": "colorgrid" },
+        "category": { "const": "laser" },
+        "default": {
+          "type": "object",
+          "required": ["isolation", "drill", "clearing", "cutout", "stencil"],
+          "additionalProperties": false,
+          "properties": {
+            "isolation": { "$ref": "#/definitions/hex" },
+            "drill": { "$ref": "#/definitions/hex" },
+            "clearing": { "$ref": "#/definitions/hex" },
+            "cutout": { "$ref": "#/definitions/hex" },
+            "stencil": { "$ref": "#/definitions/hex" }
+          }
+        }
+      }
+    }
+  }
+}

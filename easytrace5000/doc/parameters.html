@@ -1,750 +1,915 @@
 <!DOCTYPE html>
 <html lang="en" data-theme="dark">
 <head>
-    <meta charset="UTF-8">
-    <!--!
-        @file        easytrace5000/doc/parameters.html
-        @description EasyTrace5000 Parameter Guide
-        @author      Eltryus - Ricardo Marques
-        @copyright   2025-2026 Eltryus - Ricardo Marques
-        @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
+  <meta charset="UTF-8">
+  <!--!
+    @file        easytrace5000/doc/parameters.html
+    @description EasyTrace5000 Parameter Guide
+    @author      Eltryus - Ricardo Marques
+    @copyright   2025-2026 Eltryus - Ricardo Marques
+    @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
 
-        SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
-        SPDX-License-Identifier: AGPL-3.0-or-later
-    -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>EasyTrace5000 Doc - Parameter Guide</title>
+    SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
+    SPDX-License-Identifier: AGPL-3.0-or-later
+  -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>EasyTrace5000 Doc - Parameter Guide</title>
 
-    <meta name="description" content="Every EasyTrace5000 parameter with ranges and defaults - tool number, multi-tool drilling, depths, feeds and laser settings, grouped by stage.">
-    <meta name="author" content="Eltryus">
-    <meta name="robots" content="index, follow">
-    <meta name="theme-color" content="#1a1a1a">
+  <meta name="description" content="Every EasyTrace5000 parameter with ranges and defaults - tool number, multi-tool drilling, depths, feeds and laser settings, grouped by stage.">
+  <meta name="author" content="Eltryus">
+  <meta name="robots" content="index, follow">
+  <meta name="theme-color" content="#1a1a1a">
 
-    <link rel="canonical" href="https://cam.eltryus.design/easytrace5000/doc/parameters">
+  <link rel="canonical" href="https://cam.eltryus.design/easytrace5000/doc/parameters">
 
-    <meta property="og:type" content="article">
-    <meta property="og:url" content="https://cam.eltryus.design/easytrace5000/doc/parameters">
-    <meta property="og:title" content="EasyTrace5000 Doc - Parameter Guide">
-    <meta property="og:description" content="Every EasyTrace5000 parameter with ranges and defaults - tool number, multi-tool drilling, depths, feeds and laser settings, grouped by stage.">
-    <meta property="og:image" content="https://cam.eltryus.design/images/social-trace.jpg">
-    <meta property="og:image:width" content="1200">
-    <meta property="og:image:height" content="630">
-    <meta property="og:site_name" content="EasyCAM5000">
-    <meta property="og:locale" content="en_US">
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://cam.eltryus.design/easytrace5000/doc/parameters">
+  <meta property="og:title" content="EasyTrace5000 Doc - Parameter Guide">
+  <meta property="og:description" content="Every EasyTrace5000 parameter with ranges and defaults - tool number, multi-tool drilling, depths, feeds and laser settings, grouped by stage.">
+  <meta property="og:image" content="https://cam.eltryus.design/images/social-trace.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:site_name" content="EasyCAM5000">
+  <meta property="og:locale" content="en_US">
 
-    <link rel="icon" type="image/png" href="../../images/favicon/favicon-96x96.png" sizes="96x96">
-    <link rel="icon" type="image/svg+xml" href="../../images/favicon/favicon.svg">
-    <link rel="shortcut icon" href="../../images/favicon/favicon.ico">
-    <link rel="apple-touch-icon" sizes="180x180" href="../../images/favicon/apple-touch-icon.png">
-    <link rel="manifest" href="../../images/favicon/site.webmanifest">
+  <link rel="icon" type="image/png" href="../../images/favicon/favicon-96x96.png" sizes="96x96">
+  <link rel="icon" type="image/svg+xml" href="../../images/favicon/favicon.svg">
+  <link rel="shortcut icon" href="../../images/favicon/favicon.ico">
+  <link rel="apple-touch-icon" sizes="180x180" href="../../images/favicon/apple-touch-icon.png">
+  <link rel="manifest" href="../../images/favicon/site.webmanifest">
 
-    <link rel="stylesheet" href="../../css/base.css">
-    <link rel="stylesheet" href="../../css/components.css">
-    <link rel="stylesheet" href="../../css/theme.css">
-    <link rel="stylesheet" href="../../css/doc.css">
+  <link rel="stylesheet" href="../../css/base.css">
+  <link rel="stylesheet" href="../../css/components.css">
+  <link rel="stylesheet" href="../../css/theme.css">
+  <link rel="stylesheet" href="../../css/doc.css">
 
-    <script type="application/ld+json">
-    {
-        "@context": "https://schema.org",
-        "@graph": [
-            {
-                "@type": "Organization",
-                "@id": "https://www.eltryus.design/#organization",
-                "name": "Eltryus",
-                "url": "https://www.eltryus.design/"
-            },
-            {
-                "@type": "WebSite",
-                "@id": "https://cam.eltryus.design/#website",
-                "name": "EasyCAM5000",
-                "alternateName": "Eltryus EasyCAM5000 Suite",
-                "url": "https://cam.eltryus.design/",
-                "inLanguage": "en",
-                "publisher": { "@id": "https://www.eltryus.design/#organization" }
-            },
-            {
-                "@type": "WebApplication",
-                "@id": "https://cam.eltryus.design/easytrace5000/#app",
-                "name": "EasyTrace5000",
-                "url": "https://cam.eltryus.design/easytrace5000/"
-            },
-            {
-                "@type": "CollectionPage",
-                "@id": "https://cam.eltryus.design/easytrace5000/doc/#docs",
-                "name": "EasyTrace5000 Documentation",
-                "url": "https://cam.eltryus.design/easytrace5000/doc/"
-            },
-            {
-                "@type": "WebPage",
-                "@id": "https://cam.eltryus.design/easytrace5000/doc/parameters#webpage",
-                "url": "https://cam.eltryus.design/easytrace5000/doc/parameters",
-                "name": "EasyTrace5000 Doc - Parameter Guide",
-                "inLanguage": "en",
-                "isPartOf": { "@id": "https://cam.eltryus.design/#website" },
-                "about": { "@id": "https://cam.eltryus.design/easytrace5000/#app" },
-                "mainEntity": { "@id": "https://cam.eltryus.design/easytrace5000/doc/parameters#article" },
-                "breadcrumb": { "@id": "https://cam.eltryus.design/easytrace5000/doc/parameters#breadcrumb" },
-                "primaryImageOfPage": "https://cam.eltryus.design/images/social-trace.jpg"
-            },
-            {
-                "@type": "TechArticle",
-                "@id": "https://cam.eltryus.design/easytrace5000/doc/parameters#article",
-                "headline": "EasyTrace5000 Parameter Guide",
-                "description": "Every EasyTrace5000 parameter: ranges, defaults, and what it does, grouped by Geometry, Strategy, Machine, and Laser.",
-                "image": "https://cam.eltryus.design/images/social-trace.jpg",
-                "url": "https://cam.eltryus.design/easytrace5000/doc/parameters",
-                "inLanguage": "en",
-                "mainEntityOfPage": { "@id": "https://cam.eltryus.design/easytrace5000/doc/parameters#webpage" },
-                "isPartOf": { "@id": "https://cam.eltryus.design/easytrace5000/doc/#docs" },
-                "about": { "@id": "https://cam.eltryus.design/easytrace5000/#app" },
-                "author": { "@id": "https://www.eltryus.design/#organization" },
-                "publisher": { "@id": "https://www.eltryus.design/#organization" },
-                "datePublished": "2025-01-16",
-                "dateModified": "2026-08-24"
-            },
-            {
-                "@type": "BreadcrumbList",
-                "@id": "https://cam.eltryus.design/easytrace5000/doc/parameters#breadcrumb",
-                "itemListElement": [
-                    { "@type": "ListItem", "position": 1, "name": "EasyCAM5000", "item": "https://cam.eltryus.design/" },
-                    { "@type": "ListItem", "position": 2, "name": "EasyTrace5000", "item": "https://cam.eltryus.design/easytrace5000/" },
-                    { "@type": "ListItem", "position": 3, "name": "Docs", "item": "https://cam.eltryus.design/easytrace5000/doc/" },
-                    { "@type": "ListItem", "position": 4, "name": "Parameters", "item": "https://cam.eltryus.design/easytrace5000/doc/parameters" }
-                ]
-            }
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": "https://www.eltryus.design/#organization",
+        "name": "Eltryus",
+        "url": "https://www.eltryus.design/"
+      },
+      {
+        "@type": "WebSite",
+        "@id": "https://cam.eltryus.design/#website",
+        "name": "EasyCAM5000",
+        "alternateName": "Eltryus EasyCAM5000 Suite",
+        "url": "https://cam.eltryus.design/",
+        "inLanguage": "en",
+        "publisher": { "@id": "https://www.eltryus.design/#organization" }
+      },
+      {
+        "@type": "WebApplication",
+        "@id": "https://cam.eltryus.design/easytrace5000/#app",
+        "name": "EasyTrace5000",
+        "url": "https://cam.eltryus.design/easytrace5000/"
+      },
+      {
+        "@type": "CollectionPage",
+        "@id": "https://cam.eltryus.design/easytrace5000/doc/#docs",
+        "name": "EasyTrace5000 Documentation",
+        "url": "https://cam.eltryus.design/easytrace5000/doc/"
+      },
+      {
+        "@type": "WebPage",
+        "@id": "https://cam.eltryus.design/easytrace5000/doc/parameters#webpage",
+        "url": "https://cam.eltryus.design/easytrace5000/doc/parameters",
+        "name": "EasyTrace5000 Doc - Parameter Guide",
+        "inLanguage": "en",
+        "isPartOf": { "@id": "https://cam.eltryus.design/#website" },
+        "about": { "@id": "https://cam.eltryus.design/easytrace5000/#app" },
+        "mainEntity": { "@id": "https://cam.eltryus.design/easytrace5000/doc/parameters#article" },
+        "breadcrumb": { "@id": "https://cam.eltryus.design/easytrace5000/doc/parameters#breadcrumb" },
+        "primaryImageOfPage": "https://cam.eltryus.design/images/social-trace.jpg"
+      },
+      {
+        "@type": "TechArticle",
+        "@id": "https://cam.eltryus.design/easytrace5000/doc/parameters#article",
+        "headline": "EasyTrace5000 Parameter Guide",
+        "description": "Every EasyTrace5000 parameter: ranges, defaults, and what it does, grouped by Geometry, Strategy, Machine, and Laser.",
+        "image": "https://cam.eltryus.design/images/social-trace.jpg",
+        "url": "https://cam.eltryus.design/easytrace5000/doc/parameters",
+        "inLanguage": "en",
+        "mainEntityOfPage": { "@id": "https://cam.eltryus.design/easytrace5000/doc/parameters#webpage" },
+        "isPartOf": { "@id": "https://cam.eltryus.design/easytrace5000/doc/#docs" },
+        "about": { "@id": "https://cam.eltryus.design/easytrace5000/#app" },
+        "author": { "@id": "https://www.eltryus.design/#organization" },
+        "publisher": { "@id": "https://www.eltryus.design/#organization" },
+        "datePublished": "2025-01-16",
+        "dateModified": "2026-11-10"
+      },
+      {
+        "@type": "BreadcrumbList",
+        "@id": "https://cam.eltryus.design/easytrace5000/doc/parameters#breadcrumb",
+        "itemListElement": [
+          { "@type": "ListItem", "position": 1, "name": "EasyCAM5000", "item": "https://cam.eltryus.design/" },
+          { "@type": "ListItem", "position": 2, "name": "EasyTrace5000", "item": "https://cam.eltryus.design/easytrace5000/" },
+          { "@type": "ListItem", "position": 3, "name": "Docs", "item": "https://cam.eltryus.design/easytrace5000/doc/" },
+          { "@type": "ListItem", "position": 4, "name": "Parameters", "item": "https://cam.eltryus.design/easytrace5000/doc/parameters" }
         ]
-    }
-    </script>
+      }
+    ]
+  }
+  </script>
 </head>
 <body>
-    <a href="#doc-content" class="skip-link">Skip to Main Content</a>
+  <a href="#doc-content" class="skip-link">Skip to Main Content</a>
 
-    <header class="doc-header">
-        <div class="doc-brand"><a href="/" aria-label="EasyCAM5000 Homepage">EasyCAM5000</a></div>
+  <header class="doc-header">
+    <div class="doc-brand"><a href="/" aria-label="EasyCAM5000 Homepage">EasyCAM5000</a></div>
 
-        <nav class="doc-breadcrumb" aria-label="Breadcrumb">
-            <ol>
-                <li><a href="/easytrace5000/" draggable="false">EasyTrace5000</a></li>
-                <li><a href="./" draggable="false">Docs</a></li>
-                <li><span aria-current="page">Parameters</span></li>
-            </ol>
-        </nav>
+    <nav class="doc-breadcrumb" aria-label="Breadcrumb">
+      <ol>
+        <li><a href="/easytrace5000/" draggable="false">EasyTrace5000</a></li>
+        <li><a href="./" draggable="false">Docs</a></li>
+        <li><span aria-current="page">Parameters</span></li>
+      </ol>
+    </nav>
 
-        <button class="doc-menu-toggle" aria-label="Toggle Navigation Menu" aria-expanded="false">
-            <svg class="icon-menu cam-icon" width="24" height="24" aria-hidden="true"><use href="#icon-menu"></use></svg>
-            <svg class="icon-close cam-icon" width="24" height="24" aria-hidden="true"><use href="#icon-close"></use></svg>
-        </button>
+    <button class="doc-menu-toggle" aria-label="Toggle Navigation Menu" aria-expanded="false">
+      <svg class="icon-menu cam-icon" width="24" height="24" aria-hidden="true"><use href="#icon-menu"></use></svg>
+      <svg class="icon-close cam-icon" width="24" height="24" aria-hidden="true"><use href="#icon-close"></use></svg>
+    </button>
 
-        <nav class="doc-nav" aria-label="Main Navigation">
-            <a href="cnc" draggable="false">CNC Guide</a>
-            <a href="laser" draggable="false">Laser Guide</a>
-            <a href="operations" draggable="false">Operations</a>
-            <a href="parameters" class="active" aria-current="page" draggable="false">Parameters</a>
-            <a href="accessibility" draggable="false">Accessibility</a>
-            <span class="separator" aria-hidden="true"></span>
-            <a href="/easytrace5000/" draggable="false">Launch App</a>
-            <a href="https://github.com/RicardoJCMarques/EasyCAM5000" target="_blank" draggable="false" aria-label="GitHub Repository (opens in a new tab)">GitHub</a>
+    <nav class="doc-nav" aria-label="Main Navigation">
+      <a href="cnc" draggable="false">CNC Guide</a>
+      <a href="laser" draggable="false">Laser Guide</a>
+      <a href="operations" draggable="false">Operations</a>
+      <a href="parameters" class="active" aria-current="page" draggable="false">Parameters</a>
+      <a href="accessibility" draggable="false">Accessibility</a>
+      <span class="separator" aria-hidden="true"></span>
+      <a href="/easytrace5000/" draggable="false">Launch App</a>
+      <a href="https://github.com/RicardoJCMarques/EasyCAM5000" target="_blank" draggable="false" aria-label="GitHub Repository (opens in a new tab)">GitHub</a>
 
-            <button id="theme-toggle" class="btn btn--icon" title="Toggle Theme" aria-label="Toggle Theme">
-                <svg class="cam-icon" width="16" height="16"><use href="#icon-sun"></use></svg>
-            </button>
-        </nav>
-    </header>
+      <button id="theme-toggle" class="btn btn--icon" title="Toggle Theme" aria-label="Toggle Theme">
+        <svg class="cam-icon" width="16" height="16"><use href="#icon-sun"></use></svg>
+      </button>
+    </nav>
+  </header>
 
-    <div class="doc-wrapper has-sidebar">
-        <nav class="doc-sidebar" id="toc" aria-label="Table of contents">
-            <p class="doc-sidebar-title">Contents <span class="doc-badge doc-badge--stable">Stable</span></p>
-            <ol>
-                <li><a href="#reading-this-page" draggable="false">Reading This Page</a></li>
+  <div class="doc-wrapper has-sidebar">
+    <nav class="doc-sidebar" id="toc" aria-label="Table of contents">
+      <p class="doc-sidebar-title">Contents</p>
+      <ol>
+        <li><a href="#reading-this-page" draggable="false">Reading This Page</a></li>
 <!-- PARAMS-TOC:BEGIN - generated by build-doc-params.js, do not edit -->
-                <li><a href="#stage-geometry" draggable="false">XY Geometry</a></li>
-                <li><a href="#stage-strategy" draggable="false">Z Strategy</a></li>
-                <li><a href="#stage-machine" draggable="false">Feeds &amp; Toolpaths</a></li>
+        <li><a href="#machine-settings" draggable="false">Machine Settings</a></li>
+        <li><a href="#stage-geometry" draggable="false">XY Geometry</a></li>
+        <li><a href="#stage-strategy" draggable="false">Z Strategy</a></li>
+        <li><a href="#stage-machine" draggable="false">Feeds &amp; Toolpaths</a></li>
 <!-- PARAMS-TOC:END -->
-            </ol>
-        </nav>
+      </ol>
+    </nav>
 
-        <main id="doc-content" class="doc-main">
+    <main id="doc-content" class="doc-main">
+      <div class="callout callout--warning">
+        <p>Development goes fast, documentation may be outdated. Proceed with some caution.</p>
+      </div>
 
-            <div class="callout callout--warning">
-                <p>Development goes fast, documentation may be outdated. Proceed with some caution.</p>
-            </div>
+      <section class="hero">
+        <h1>EasyTrace5000 Parameter Guide</h1>
+        <p class="tagline">Every field, its range, its default, and what it changes</p>
+      </section>
 
-            <section class="hero">
-                <h1>EasyTrace5000 Parameter Guide</h1>
-                <p class="tagline">Every field, its range, its default, and what it changes</p>
-            </section>
+      <section id="reading-this-page">
+        <h2>Reading This Page</h2>
+        <p>Parameters are grouped by the <strong>step</strong> they appear in, then by the section heading they sit under in the panel. That is the order you meet them in the app: Source Geometry before you generate offsets, Z Strategy before the preview, Feeds &amp; Toolpaths before the toolpaths.</p>
 
-            <section id="reading-this-page">
-                <h2>Reading This Page</h2>
-                <p>Parameters are grouped by the <strong>step</strong> they appear in, then by the section heading they sit under in the panel. That is the order you meet them in the app: Source Geometry before you generate offsets, Z Strategy before the preview, Feeds &amp; Toolpaths before the toolpaths.</p>
+        <p>Four columns are worth explaining:</p>
+        <dl>
+          <dt>Values</dt>
+          <dd>The range the field accepts, or the options in the dropdown. Out-of-range entries are rejected by the form rather than clamped silently.</dd>
+          <dt>Default</dt>
+          <dd>What a fresh operation starts with. Tool-derived fields have no default - they are seeded from the tool you pick.</dd>
+          <dt>Applies to</dt>
+          <dd>Which operations show the field. A field you cannot find is usually one that belongs to a different operation type.</dd>
+          <dt>Shown when</dt>
+          <dd>Several fields are conditional and only appear once another setting is on, or set to a particular value. If a parameter is documented here but missing from your panel, this is why.</dd>
+        </dl>
 
-                <p>Four columns are worth explaining:</p>
-                <dl>
-                    <dt>Values</dt>
-                    <dd>The range the field accepts, or the options in the dropdown. Out-of-range entries are rejected by the form rather than clamped silently.</dd>
-                    <dt>Default</dt>
-                    <dd>What a fresh operation starts with. Tool-derived fields have no default - they are seeded from the tool you pick.</dd>
-                    <dt>Applies to</dt>
-                    <dd>Which operations show the field. A field you cannot find is usually one that belongs to a different operation type.</dd>
-                    <dt>Shown when</dt>
-                    <dd>Several fields are conditional and only appear once another setting is on, or set to a particular value. If a parameter is documented here but missing from your panel, this is why.</dd>
-                </dl>
+        <div class="callout callout--info">
+          <h4>The machine filters the form too</h4>
+          <p>Some parameters only exist on one kind of machine. A field marked with a machine does not appear on the others - the laser fill settings never show up on a router operation, and depth and feed never show up on a laser one. Where nothing is marked, the field is a router one.</p>
+        </div>
 
-                <div class="callout callout--info">
-                    <h4>The machine filters the form too</h4>
-                    <p>Some parameters only exist on one kind of machine. A field marked with a machine does not appear on the others - the laser fill settings never show up on a router operation, and depth and feed never show up on a laser one. Where nothing is marked, the field is a router one.</p>
-                </div>
+        <div class="callout callout--info">
+          <h4>The same text is in the app</h4>
+          <p>Every description below is the tooltip text for that field - hover the <strong>?</strong> beside any label to get it in place. This page and the app read from the same string pack, so they cannot drift apart.</p>
+        </div>
 
-                <div class="callout callout--info">
-                    <h4>The same text is in the app</h4>
-                    <p>Every description below is the tooltip text for that field - hover the <strong>?</strong> beside any label to get it in place. This page and the app read from the same string pack, so they cannot drift apart.</p>
-                </div>
+        <p>For what each operation <em>does</em>, see the <a href="operations" draggable="false">Operation Guide</a>. For how the stages fit together, see <a href="cnc#how-a-job-works" draggable="false">How a Job Works</a>.</p>
 
-                <p>For what each operation <em>does</em>, see the <a href="operations" draggable="false">Operation Guide</a>. For how the stages fit together, see <a href="cnc#how-a-job-works" draggable="false">How a Job Works</a>.</p>
-
-                <div class="callout callout--warning">
-                    <h4>Machine settings are not on this page</h4>
-                    <p>Post-processor, safe and travel Z, rapid feed, units, PCB thickness, line numbers, tool length compensation and laser spot size are job-wide rather than per-operation. They are covered in the <a href="cnc#machine-reference" draggable="false">Machine Settings Reference</a>.</p>
-                </div>
-            </section>
+        <div class="callout callout--warning">
+          <h4>Machine settings are not on this page</h4>
+          <p>Post-processor, safe and travel Z, rapid feed, units, PCB thickness, line numbers, tool length compensation and laser spot size are job-wide rather than per-operation. They are covered in the <a href="cnc#machine-reference" draggable="false">Machine Settings Reference</a>.</p>
+        </div>
+      </section>
 
 <!-- PARAMS:BEGIN - generated by build-doc-params.js, do not edit -->
-            <section id="stage-geometry">
-                <h2>XY Geometry</h2>
-                <h3>Tool Selection</h3>
-                <table>
-                    <thead>
-                        <tr><th scope="col">Parameter</th><th scope="col">Values</th><th scope="col">Default</th><th scope="col">Applies to</th><th scope="col">What it does</th></tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><strong>Multi-Tool Drilling</strong></td>
-                            <td>on / off</td>
-                            <td>off</td>
-                            <td>Drill</td>
-                            <td> When enabled, allows assigning different tools, tool numbers, and strategies to each hole diameter in the drill table.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Tool</strong><br><span class="param-condition">Shown when Multi-Tool Drilling is off</span></td>
-                            <td>tool library</td>
-                            <td>&mdash;</td>
-                            <td>Copper Isolation, Copper Clearing, Board Cutout, Drill, Stencil</td>
-                            <td>Select a tool from your library. The tool's diameter will be used for calculations.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Tool Number</strong><br><span class="param-condition">Shown when Multi-Tool Drilling is off</span></td>
-                            <td>1 - 99</td>
-                            <td>1</td>
-                            <td>Copper Isolation, Copper Clearing, Board Cutout, Drill, Stencil</td>
-                            <td>The magazine slot, carousel pocket or collet this operation's tool sits in - the T word your controller will receive. If your machine has no tool changer, leaving 1 on every operation is safe.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Tool Diameter</strong><br><span class="param-condition">Shown when Multi-Tool Drilling is off</span></td>
-                            <td>0.01 - 10 mm</td>
-                            <td>&mdash;</td>
-                            <td>Copper Isolation, Copper Clearing, Board Cutout, Drill, Stencil</td>
-                            <td>The tool's cutting diameter - the widest circle it cuts. On copper isolation and engraving this is seeded with the V-bit's effective width at required depth, because that is what the offset has to use.</td>
-                        </tr>
-                    </tbody>
-                </table>
-                <h3>Offset Generation</h3>
-                <table>
-                    <thead>
-                        <tr><th scope="col">Parameter</th><th scope="col">Values</th><th scope="col">Default</th><th scope="col">Applies to</th><th scope="col">What it does</th></tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><strong>Number of Passes</strong></td>
-                            <td>1 - 30</td>
-                            <td>3</td>
-                            <td>Copper Isolation</td>
-                            <td>Number of offset passes to create. More passes clear more copper but take longer.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Step Over</strong></td>
-                            <td>10 - 99 %</td>
-                            <td>50</td>
-                            <td>Copper Isolation, Copper Clearing</td>
-                            <td>Percentage of the tool diameter to overlap on each pass. 50% is a good default.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Combine Offset Paths</strong></td>
-                            <td>on / off</td>
-                            <td>on</td>
-                            <td>Copper Isolation</td>
-                            <td>Merge all offset passes into a single geometry. Reduces G-code complexity but loses individual pass control.</td>
-                        </tr>
-                    </tbody>
-                </table>
-                <h3>Cutout Settings</h3>
-                <table>
-                    <thead>
-                        <tr><th scope="col">Parameter</th><th scope="col">Values</th><th scope="col">Default</th><th scope="col">Applies to</th><th scope="col">What it does</th></tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><strong>Cut Side</strong></td>
-                            <td>Outside / Inside / On Line</td>
-                            <td>Outside</td>
-                            <td>Board Cutout</td>
-                            <td>Where the tool sits relative to the polygon outline. Outside clears material around the shape. Inside clears within. On Path centers the tool on the line.</td>
-                        </tr>
-                    </tbody>
-                </table>
-                <h3>Peck Drill Parameters</h3>
-                <table>
-                    <thead>
-                        <tr><th scope="col">Parameter</th><th scope="col">Values</th><th scope="col">Default</th><th scope="col">Applies to</th><th scope="col">What it does</th></tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><strong>Mill Holes</strong><br><span class="param-condition">Shown when Multi-Tool Drilling is off</span></td>
-                            <td>on / off</td>
-                            <td>on</td>
-                            <td>Drill</td>
-                            <td>If checked, generates circular milling paths inside any drill holes larger than the tool. If unchecked, generates a simple peck/drill at the center.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Step Over</strong><br><span class="param-condition">Shown when Multi-Tool Drilling is off and Mill Holes is on</span></td>
-                            <td>10 - 90 %</td>
-                            <td>50</td>
-                            <td>Drill</td>
-                            <td>Percentage of the tool diameter to overlap on each concentric milling ring inside oversize holes.</td>
-                        </tr>
-                    </tbody>
-                </table>
-                <h3>Isolation</h3>
-                <table>
-                    <thead>
-                        <tr><th scope="col">Parameter</th><th scope="col">Values</th><th scope="col">Default</th><th scope="col">Applies to</th><th scope="col">What it does</th></tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><strong>Isolation Width</strong><br><span class="param-condition">Machine class: laser</span></td>
-                            <td>0.05 - 2.5 mm</td>
-                            <td>0.3</td>
-                            <td>Copper Isolation</td>
-                            <td>Total width of copper to ablate around traces, measured from the trace edge outward. The number of laser passes is automatically calculated from this value, the spot size, and the step-over percentage.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Clearing Padding</strong><br><span class="param-condition">Machine class: laser</span></td>
-                            <td>0 - 10 mm</td>
-                            <td>1</td>
-                            <td>Copper Clearing</td>
-                            <td>Extra margin ablated around a copper region, beyond its own outline. Gives the beam room at the edges of a pour.</td>
-                        </tr>
-                    </tbody>
-                </table>
-                <h3>Clearing Strategy</h3>
-                <table>
-                    <thead>
-                        <tr><th scope="col">Parameter</th><th scope="col">Values</th><th scope="col">Default</th><th scope="col">Applies to</th><th scope="col">What it does</th></tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><strong>Clearing Strategy</strong><br><span class="param-condition">Machine class: laser</span></td>
-                            <td>Filled Polygon - Laser software controls fill / Offset Paths - Concentric, streak-proof / Hatch Fill - Directional line coverage</td>
-                            <td>Filled Polygon - Laser software controls fill</td>
-                            <td>Copper Isolation, Copper Clearing</td>
-                            <td>How the laser fills areas that need copper removal.
+      <section id="machine-settings">
+        <h2>Machine Settings</h2>
+        <p>These apply to every operation. The defaults are the app's: a post-processor's setup can start a field at its own value, or lock it while it is selected. A post-processor's own fields, such as its start and end blocks, appear under it.</p>
+        <h3>Post-Processor</h3>
+        <table>
+          <thead>
+            <tr><th scope="col">Setting</th><th scope="col">Values</th><th scope="col">Default</th><th scope="col">What it does</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Post-Processor</strong><br><span class="param-condition">Machine class: router</span></td>
+              <td>Grbl, Makera (Carvera), grblHAL, UCCNC, Marlin, Mach3, LinuxCNC, Roland (RML), Fanuc, WinPC-NC</td>
+              <td>Grbl</td>
+              <td>Selects the setup for your CNC controller: the G-code it writes and the values these settings start from. A setup can also lock some of them.</td>
+            </tr>
+            <tr>
+              <td><strong>G-code Units</strong><br><span class="param-condition">Shown when the post-processor supports it</span><br><span class="param-condition">Machine class: router</span></td>
+              <td>Millimeters (G21) / Inches (G20)</td>
+              <td>Millimeters (G21)</td>
+              <td>Sets the units for the exported G-code file (G21 for mm, G20 for inches).</td>
+            </tr>
+            <tr>
+              <td><strong>Line Numbers (N)</strong><br><span class="param-condition">Shown when the post-processor supports it</span><br><span class="param-condition">Machine class: router</span></td>
+              <td>on / off</td>
+              <td>off</td>
+              <td>Prefix G-code blocks with line numbers (N10, N20…). Shown only when the post-processor's control accepts them.</td>
+            </tr>
+            <tr>
+              <td><strong>Line Number Step</strong><br><span class="param-condition">Shown when Line Numbers (N) is on</span><br><span class="param-condition">Shown when the post-processor supports it</span><br><span class="param-condition">Machine class: router</span></td>
+              <td>1 - 1000</td>
+              <td>10</td>
+              <td>Increment gap between consecutive line numbers (N words). A step of 10 outputs N10, N20, N30… leaving space to insert manual blocks at the machine controller.</td>
+            </tr>
+            <tr>
+              <td><strong>Tool Length Offset</strong><br><span class="param-condition">Machine class: router</span></td>
+              <td>None / Controller tool table (G43 Hn) / Controller tool table, H from T (Tn M06 G43) / Measured at change time (controller macro) (as the post-processor offers)</td>
+              <td>set by the post-processor</td>
+              <td>Where the controller gets the new tool's Z length after a change. 'Controller tool table' assumes you have measured each tool into the control's offset table. 'H from T': the control takes the offset register from the T word. 'Measured at change time' means a controller macro probes the tool and owns Z, so no G43 is emitted. 'None' emits nothing and you re-zero Z on the new bit yourself.</td>
+            </tr>
+          </tbody>
+        </table>
+        <h3>Stock</h3>
+        <table>
+          <thead>
+            <tr><th scope="col">Setting</th><th scope="col">Values</th><th scope="col">Default</th><th scope="col">What it does</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Stock Thickness</strong></td>
+              <td>&ge; 0.1 mm</td>
+              <td>1.8</td>
+              <td>The total thickness of your stock material. Used for cutout depth calculations.</td>
+            </tr>
+          </tbody>
+        </table>
+        <h3>Heights &amp; Feeds</h3>
+        <table>
+          <thead>
+            <tr><th scope="col">Setting</th><th scope="col">Values</th><th scope="col">Default</th><th scope="col">What it does</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Safe Z</strong><br><span class="param-condition">Machine class: router</span></td>
+              <td>&mdash;</td>
+              <td>5</td>
+              <td>Maximum safe height for rapid moves and tool changes (G0). Must clear all clamps and fixtures.</td>
+            </tr>
+            <tr>
+              <td><strong>Travel Z</strong><br><span class="param-condition">Machine class: router</span></td>
+              <td>&mdash;</td>
+              <td>2</td>
+              <td>Height above the board (Z=0) where the tool travels between cutting paths.</td>
+            </tr>
+            <tr>
+              <td><strong>Rapid Feed</strong><br><span class="param-condition">Machine class: router</span></td>
+              <td>&mdash;</td>
+              <td>1000</td>
+              <td>The feed rate (mm/min) for G0 rapid movements (travel and safe Z moves).</td>
+            </tr>
+            <tr>
+              <td><strong>Coolant</strong><br><span class="param-condition">Shown when the post-processor supports it</span><br><span class="param-condition">Machine class: router</span></td>
+              <td>None / Mist / Flood</td>
+              <td>None</td>
+              <td>Coolant the program switches on at its start and off at its end: mist or flood, in the post's own codes (M7/M8 and M9 on most posts). None leaves coolant to the operator.</td>
+            </tr>
+            <tr>
+              <td><strong>Vacuum</strong><br><span class="param-condition">Shown when the post-processor supports it</span><br><span class="param-condition">Machine class: router</span></td>
+              <td>on / off</td>
+              <td>off</td>
+              <td>Switches the vacuum or dust extraction on at the start of the program and off at its end, in the post's own codes (M10/M11 on most posts, M331/M332 on Makera, an auxiliary output on WinPC-NC).</td>
+            </tr>
+          </tbody>
+        </table>
+        <h3>4th Axis</h3>
+        <table>
+          <thead>
+            <tr><th scope="col">Setting</th><th scope="col">Values</th><th scope="col">Default</th><th scope="col">What it does</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Machine Rotary Axis</strong><br><span class="param-condition">Machine class: router</span></td>
+              <td>A - along workspace X / B - along workspace Y</td>
+              <td>A - along workspace X</td>
+              <td>Which machine axis the rotary turns about: X gives an A word, Y a B word. It is how the rotary is mounted, so every 4th-axis operation uses it, and changing it marks them for regeneration. Only words the post-processor declares can be exported.</td>
+            </tr>
+            <tr>
+              <td><strong>Chuck Side</strong><br><span class="param-condition">Machine class: router</span></td>
+              <td>Low end (toward -X / -Y) / High end (toward +X / +Y)</td>
+              <td>Low end (toward -X / -Y)</td>
+              <td>Which end of the rotary axis the chuck holds. Each operation's chuck-end boundary settings apply at that end, and its tail-end ones at the other.</td>
+            </tr>
+            <tr>
+              <td><strong>4th-Axis Route</strong><br><span class="param-condition">Machine class: router</span></td>
+              <td>Rotary word (A/B in degrees) / Rotary word (A/B in arc mm) / Axis replacement (Y carries arc length) (as the post-processor offers)</td>
+              <td>set by the post-processor</td>
+              <td>How the 4th axis reaches the machine. 'Rotary word' sends A or B and drops Y - the CAM does the wrapping - in degrees, or in millimeters of arc for a rotary calibrated in linear units. 'Axis replacement' keeps Y carrying millimeters of arc at the reference radius, for a rotary wired to the Y driver with steps/mm calibrated. Only routes your post-processor declares are offered.</td>
+            </tr>
+            <tr>
+              <td><strong>Index Settle Dwell</strong><br><span class="param-condition">Machine class: router</span></td>
+              <td>0 - 5 s</td>
+              <td>0</td>
+              <td>Pause after each index rotation, before the tool re-enters the material, so a belt-driven rotary can settle. Starts at the post-processor's value; servo or geared rotaries generally need none.</td>
+            </tr>
+          </tbody>
+        </table>
+        <h3>Laser Output</h3>
+        <table>
+          <thead>
+            <tr><th scope="col">Setting</th><th scope="col">Values</th><th scope="col">Default</th><th scope="col">What it does</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Laser Software</strong><br><span class="param-condition">Machine class: laser</span></td>
+              <td>Generic, LaserGRBL, xTool Studio, LightBurn, RDWorks / Ruida</td>
+              <td>xTool Studio</td>
+              <td>The program you will open the exported file in. It decides how layers are grouped, whether colors encode passes, and which palette is used.</td>
+            </tr>
+            <tr>
+              <td><strong>Laser Spot Size</strong><br><span class="param-condition">Machine class: laser</span></td>
+              <td>0.01 - 1 mm</td>
+              <td>0.02</td>
+              <td>The effective cut width of your laser beam. Manufacturer should list it in the specification sheet. Typical values: UV laser 0.02-0.08mm, Fiber laser 0.03-0.15mm.</td>
+            </tr>
+            <tr>
+              <td><strong>Export Format</strong><br><span class="param-condition">Machine class: laser</span></td>
+              <td>SVG - Vector / PNG - Raster Image</td>
+              <td>SVG - Vector</td>
+              <td>SVG exports vector paths that laser software (LightBurn, RDWorks) interprets with its own power/speed settings per color layer. PNG exports a raster image at the specified DPI - useful for direct image engraving modes.</td>
+            </tr>
+            <tr>
+              <td><strong>Export DPI</strong><br><span class="param-condition">Shown when Export Format is PNG - Raster Image</span><br><span class="param-condition">Machine class: laser</span></td>
+              <td>100 - 4000 DPI</td>
+              <td>1000</td>
+              <td>Resolution of the exported PNG image. Higher DPI gives finer detail but larger file size. 1000 DPI is suitable for most PCB work. Match this to your laser software's engraving resolution setting.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="stage-geometry">
+        <h2>XY Geometry</h2>
+        <h3>Stencil Settings</h3>
+        <table>
+          <thead>
+            <tr><th scope="col">Parameter</th><th scope="col">Values</th><th scope="col">Default</th><th scope="col">Applies to</th><th scope="col">What it does</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Stencil Output</strong><br><span class="param-condition">Machine class: router, knife</span></td>
+              <td>CNC Milling (G-code) / Vinyl / CO2 Laser (SVG)</td>
+              <td>CNC Milling (G-code)</td>
+              <td>Solder Stencil</td>
+              <td>What the stencil is cut on. Router mills the apertures and exports G-code; Knife cuts on the line with a cutter offset and exports a vector file. Changing this changes which parameters and stages the operation has.</td>
+            </tr>
+            <tr>
+              <td><strong>Aperture Offset</strong><br><span class="param-condition">Machine class: router, laser, knife</span></td>
+              <td>-1 - 1 mm</td>
+              <td>-0.05</td>
+              <td>Solder Stencil</td>
+              <td>Shrinks (negative) or expands (positive) the stencil apertures. -0.05mm is a common default to prevent solder bridging.</td>
+            </tr>
+            <tr>
+              <td><strong>Ignore Regions</strong><br><span class="param-condition">Machine class: router, laser, knife</span></td>
+              <td>on / off</td>
+              <td>on</td>
+              <td>Solder Stencil</td>
+              <td>If checked, ignores large copper pours and traces, only generating apertures for actual component pads (flashes).</td>
+            </tr>
+            <tr>
+              <td><strong>Exclude Drill Pads</strong><br><span class="param-condition">Machine class: router, laser, knife</span></td>
+              <td>on / off</td>
+              <td>on</td>
+              <td>Solder Stencil</td>
+              <td>Automatically removes stencil apertures that sit directly over through-holes to prevent solder paste from falling into the holes.</td>
+            </tr>
+            <tr>
+              <td><strong>Registration Holes</strong><br><span class="param-condition">Machine class: router, laser, knife</span></td>
+              <td>on / off</td>
+              <td>off</td>
+              <td>Solder Stencil</td>
+              <td>Generates 4 circular alignment holes outside the board boundaries to help pin the stencil in place during manual application.</td>
+            </tr>
+            <tr>
+              <td><strong>Registration Hole Diameter</strong><br><span class="param-condition">Shown when Registration Holes is on</span><br><span class="param-condition">Machine class: router, laser, knife</span></td>
+              <td>0.5 - 10 mm</td>
+              <td>3</td>
+              <td>Solder Stencil</td>
+              <td>The physical diameter of the registration pins/dowels you plan to use.</td>
+            </tr>
+            <tr>
+              <td><strong>Registration Margin</strong><br><span class="param-condition">Shown when Registration Holes is on</span><br><span class="param-condition">Machine class: router, laser, knife</span></td>
+              <td>1 - 25 mm</td>
+              <td>5</td>
+              <td>Solder Stencil</td>
+              <td>How far outside the calculated board boundary to place the registration holes.</td>
+            </tr>
+            <tr>
+              <td><strong>Aperture Corner Radius</strong><br><span class="param-condition">Machine class: knife</span></td>
+              <td>0 - 2 mm</td>
+              <td>0</td>
+              <td>Solder Stencil</td>
+              <td>Rounds each aperture corner so a drag knife or vinyl cutter can follow it. A radius smaller than the cutter compensation comes out square, because a round cutter cannot cut a corner tighter than itself.</td>
+            </tr>
+          </tbody>
+        </table>
+        <h3>Tool Selection</h3>
+        <table>
+          <thead>
+            <tr><th scope="col">Parameter</th><th scope="col">Values</th><th scope="col">Default</th><th scope="col">Applies to</th><th scope="col">What it does</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Multi-Tool Drilling</strong></td>
+              <td>on / off</td>
+              <td>off</td>
+              <td>Drilling</td>
+              <td>Assigns a strategy, a cutter and a tool number per row of the drill table. Each hole size and each slot size gets its own row.</td>
+            </tr>
+            <tr>
+              <td><strong>Tool</strong><br><span class="param-condition">Shown when Multi-Tool Drilling is off</span></td>
+              <td>tool library</td>
+              <td>&mdash;</td>
+              <td>Isolation Routing, Copper Clearing, Board Cutout, Drilling, Solder Stencil</td>
+              <td>Select a tool from your library. The tool's diameter will be used for calculations.</td>
+            </tr>
+            <tr>
+              <td><strong>Tool Number</strong><br><span class="param-condition">Shown when Multi-Tool Drilling is off</span></td>
+              <td>1 - 99</td>
+              <td>1</td>
+              <td>Isolation Routing, Copper Clearing, Board Cutout, Drilling, Solder Stencil</td>
+              <td>The magazine slot, carousel pocket or collet this operation's tool sits in - the T word your controller will receive. If your machine has no tool changer, leaving 1 on every operation is safe.</td>
+            </tr>
+            <tr>
+              <td><strong>Tool Diameter</strong><br><span class="param-condition">Shown when Multi-Tool Drilling is off</span></td>
+              <td>0.01 - 10 mm</td>
+              <td>&mdash;</td>
+              <td>Isolation Routing, Copper Clearing, Board Cutout, Drilling, Solder Stencil</td>
+              <td>The tool's cutting diameter - the widest circle it cuts. On copper isolation and engraving this is seeded with the V-bit's effective width at required depth, because that is what the offset has to use.</td>
+            </tr>
+          </tbody>
+        </table>
+        <h3>Cut Settings</h3>
+        <table>
+          <thead>
+            <tr><th scope="col">Parameter</th><th scope="col">Values</th><th scope="col">Default</th><th scope="col">Applies to</th><th scope="col">What it does</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Number of Passes</strong></td>
+              <td>1 - 30</td>
+              <td>3</td>
+              <td>Isolation Routing</td>
+              <td>Number of offset passes to create. More passes clear more copper but take longer.</td>
+            </tr>
+            <tr>
+              <td><strong>Step Over</strong></td>
+              <td>10 - 99 %</td>
+              <td>50</td>
+              <td>Isolation Routing, Copper Clearing</td>
+              <td>Percentage of the tool diameter to overlap on each pass. 50% is a good default.</td>
+            </tr>
+            <tr>
+              <td><strong>Combine Offset Paths</strong></td>
+              <td>on / off</td>
+              <td>on</td>
+              <td>Isolation Routing</td>
+              <td>Merge all offset passes into a single geometry. Reduces G-code complexity but loses individual pass control.</td>
+            </tr>
+          </tbody>
+        </table>
+        <h3>Isolation</h3>
+        <table>
+          <thead>
+            <tr><th scope="col">Parameter</th><th scope="col">Values</th><th scope="col">Default</th><th scope="col">Applies to</th><th scope="col">What it does</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Isolation Width</strong><br><span class="param-condition">Machine class: laser</span></td>
+              <td>0.05 - 2.5 mm</td>
+              <td>0.3</td>
+              <td>Isolation Routing</td>
+              <td>Total width of copper to ablate around traces, measured from the trace edge outward. The number of laser passes is automatically calculated from this value, the spot size, and the step-over percentage.</td>
+            </tr>
+            <tr>
+              <td><strong>Clearing Padding</strong><br><span class="param-condition">Machine class: laser</span></td>
+              <td>0 - 10 mm</td>
+              <td>1</td>
+              <td>Copper Clearing</td>
+              <td>Extra margin ablated around a copper region, beyond its own outline. Gives the beam room at the edges of a pour.</td>
+            </tr>
+          </tbody>
+        </table>
+        <h3>Clearing Strategy</h3>
+        <table>
+          <thead>
+            <tr><th scope="col">Parameter</th><th scope="col">Values</th><th scope="col">Default</th><th scope="col">Applies to</th><th scope="col">What it does</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Clearing Strategy</strong><br><span class="param-condition">Machine class: laser</span></td>
+              <td>Filled Polygon - Laser software controls fill / Offset Paths - Concentric, streak-proof / Hatch Fill - Directional line coverage</td>
+              <td>Filled Polygon - Laser software controls fill</td>
+              <td>Isolation Routing, Copper Clearing</td>
+              <td>How the laser fills areas that need copper removal.
 
 • Filled Polygon: Exports solid shapes - your laser software handles the fill pattern. SVG only.
 • Offset Paths: Concentric paths shrinking inward. Most reliable for streak prevention.
 • Parallel Hatch: Straight lines at a fixed angle. Fast but single-direction.
 • Hatch: Perpendicular sets of lines. More passes shift the angle between each other.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Laser Spot Size</strong><br><span class="param-condition">Shown when Clearing Strategy is Offset Paths - Concentric, streak-proof or Hatch Fill - Directional line coverage</span><br><span class="param-condition">Machine class: laser</span></td>
-                            <td>0.01 - 1 mm</td>
-                            <td>&mdash;</td>
-                            <td>Copper Isolation, Copper Clearing</td>
-                            <td>Read-only reminder of the spot size set in Machine Settings, where it is changed. Offset and hatch strategies space their passes from it.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Pass Spacing Mode</strong><br><span class="param-condition">Shown when Clearing Strategy is Offset Paths - Concentric, streak-proof or Hatch Fill - Directional line coverage</span><br><span class="param-condition">Machine class: laser</span></td>
-                            <td>Step Over % / Lines per cm / Lines per inch</td>
-                            <td>Step Over %</td>
-                            <td>Copper Isolation, Copper Clearing</td>
-                            <td>Choose how to define the distance between consecutive laser passes. Step Over uses a percentage of spot size. Lines/cm and LPI set the density directly.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Step Over</strong><br><span class="param-condition">Shown when Clearing Strategy is Offset Paths - Concentric, streak-proof or Hatch Fill - Directional line coverage and Pass Spacing Mode is Step Over %</span><br><span class="param-condition">Machine class: laser</span></td>
-                            <td>10 - 99 %</td>
-                            <td>50</td>
-                            <td>Copper Isolation, Copper Clearing</td>
-                            <td>Percentage of the spot diameter that adjacent paths overlap. Lower values (more overlap) give better copper removal but increase processing time. 50% is a good starting point; reduce to 30% if streaks appear.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Lines per cm</strong><br><span class="param-condition">Shown when Clearing Strategy is Offset Paths - Concentric, streak-proof or Hatch Fill - Directional line coverage and Pass Spacing Mode is Lines per cm</span><br><span class="param-condition">Machine class: laser</span></td>
-                            <td>1 - 1000 lines/cm</td>
-                            <td>200</td>
-                            <td>Copper Isolation, Copper Clearing</td>
-                            <td>Number of laser passes per centimetre. Higher values produce denser coverage.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Lines per Inch</strong><br><span class="param-condition">Shown when Clearing Strategy is Offset Paths - Concentric, streak-proof or Hatch Fill - Directional line coverage and Pass Spacing Mode is Lines per inch</span><br><span class="param-condition">Machine class: laser</span></td>
-                            <td>5 - 2540 lines/inch</td>
-                            <td>508</td>
-                            <td>Copper Isolation, Copper Clearing</td>
-                            <td>Number of laser passes per inch. Higher values produce denser coverage.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Hatch Passes</strong><br><span class="param-condition">Shown when Clearing Strategy is Hatch Fill - Directional line coverage</span><br><span class="param-condition">Machine class: laser</span></td>
-                            <td>1 - 8</td>
-                            <td>2</td>
-                            <td>Copper Isolation, Copper Clearing</td>
-                            <td>How many hatch passes to run. Each additional pass is rotated from the base angle, so coverage evens out instead of streaking along one direction.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Hatch Angle</strong><br><span class="param-condition">Shown when Clearing Strategy is Hatch Fill - Directional line coverage</span><br><span class="param-condition">Machine class: laser</span></td>
-                            <td>0 - 180 °</td>
-                            <td>45</td>
-                            <td>Copper Isolation, Copper Clearing</td>
-                            <td>Angle of the hatch lines in degrees. For parallel hatch, lines run at this angle. For cross-hatch, the second set runs perpendicular (angle + 90°). 45° is a good default - it crosses both horizontal and vertical traces.</td>
-                        </tr>
-                    </tbody>
-                </table>
-                <h3>Cut Settings</h3>
-                <table>
-                    <thead>
-                        <tr><th scope="col">Parameter</th><th scope="col">Values</th><th scope="col">Default</th><th scope="col">Applies to</th><th scope="col">What it does</th></tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><strong>Cut Side</strong><br><span class="param-condition">Machine class: laser</span></td>
-                            <td>Outside (Kerf outward) / Inside (Kerf inward) / On Line (No compensation)</td>
-                            <td>Outside (Kerf outward)</td>
-                            <td>Board Cutout, Drill</td>
-                            <td>Where the laser kerf falls relative to the board outline.
+            </tr>
+            <tr>
+              <td><strong>Laser Spot Size</strong><br><span class="param-condition">Shown when Clearing Strategy is Offset Paths - Concentric, streak-proof or Hatch Fill - Directional line coverage</span><br><span class="param-condition">Machine class: laser</span></td>
+              <td>0.01 - 1 mm</td>
+              <td>&mdash;</td>
+              <td>Isolation Routing, Copper Clearing</td>
+              <td>Read-only reminder of the spot size set in Machine Settings, where it is changed. Offset and hatch strategies space their passes from it.</td>
+            </tr>
+            <tr>
+              <td><strong>Pass Spacing Mode</strong><br><span class="param-condition">Shown when Clearing Strategy is Offset Paths - Concentric, streak-proof or Hatch Fill - Directional line coverage</span><br><span class="param-condition">Machine class: laser</span></td>
+              <td>Step Over % / Lines per cm / Lines per inch</td>
+              <td>Step Over %</td>
+              <td>Isolation Routing, Copper Clearing</td>
+              <td>Choose how to define the distance between consecutive laser passes. Step Over uses a percentage of spot size. Lines/cm and LPI set the density directly.</td>
+            </tr>
+            <tr>
+              <td><strong>Step Over</strong><br><span class="param-condition">Shown when Clearing Strategy is Offset Paths - Concentric, streak-proof or Hatch Fill - Directional line coverage and Pass Spacing Mode is Step Over %</span><br><span class="param-condition">Machine class: laser</span></td>
+              <td>10 - 99 %</td>
+              <td>50</td>
+              <td>Isolation Routing, Copper Clearing</td>
+              <td>Percentage of the spot diameter that adjacent paths overlap. Lower values (more overlap) give better copper removal but increase processing time. 50% is a good starting point; reduce to 30% if streaks appear.</td>
+            </tr>
+            <tr>
+              <td><strong>Lines per cm</strong><br><span class="param-condition">Shown when Clearing Strategy is Offset Paths - Concentric, streak-proof or Hatch Fill - Directional line coverage and Pass Spacing Mode is Lines per cm</span><br><span class="param-condition">Machine class: laser</span></td>
+              <td>1 - 1000 lines/cm</td>
+              <td>200</td>
+              <td>Isolation Routing, Copper Clearing</td>
+              <td>Number of laser passes per centimetre. Higher values produce denser coverage.</td>
+            </tr>
+            <tr>
+              <td><strong>Lines per Inch</strong><br><span class="param-condition">Shown when Clearing Strategy is Offset Paths - Concentric, streak-proof or Hatch Fill - Directional line coverage and Pass Spacing Mode is Lines per inch</span><br><span class="param-condition">Machine class: laser</span></td>
+              <td>5 - 2540 lines/inch</td>
+              <td>508</td>
+              <td>Isolation Routing, Copper Clearing</td>
+              <td>Number of laser passes per inch. Higher values produce denser coverage.</td>
+            </tr>
+            <tr>
+              <td><strong>Hatch Passes</strong><br><span class="param-condition">Shown when Clearing Strategy is Hatch Fill - Directional line coverage</span><br><span class="param-condition">Machine class: laser</span></td>
+              <td>1 - 8</td>
+              <td>2</td>
+              <td>Isolation Routing, Copper Clearing</td>
+              <td>How many hatch passes to run. Each additional pass is rotated from the base angle, so coverage evens out instead of streaking along one direction.</td>
+            </tr>
+            <tr>
+              <td><strong>Hatch Angle</strong><br><span class="param-condition">Shown when Clearing Strategy is Hatch Fill - Directional line coverage</span><br><span class="param-condition">Machine class: laser</span></td>
+              <td>0 - 180 °</td>
+              <td>45</td>
+              <td>Isolation Routing, Copper Clearing</td>
+              <td>Angle of the hatch lines in degrees. For parallel hatch, lines run at this angle. For cross-hatch, the second set runs perpendicular (angle + 90°). 45° is a good default - it crosses both horizontal and vertical traces.</td>
+            </tr>
+          </tbody>
+        </table>
+        <h3>Cut Settings</h3>
+        <table>
+          <thead>
+            <tr><th scope="col">Parameter</th><th scope="col">Values</th><th scope="col">Default</th><th scope="col">Applies to</th><th scope="col">What it does</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Cut Side</strong><br><span class="param-condition">Machine class: laser</span></td>
+              <td>Outside (Kerf outward) / Inside (Kerf inward) / On Line (No compensation)</td>
+              <td>Outside (Kerf outward)</td>
+              <td>Board Cutout, Drilling</td>
+              <td>Where the laser kerf falls relative to the board outline.
 
 • Outside: Laser cuts outside the line (board stays full size).
 • Inside: Laser cuts inside the line (board shrinks by kerf).
 • On Line: Laser follows the exact line (board shrinks by half the kerf on each side).</td>
-                        </tr>
-                    </tbody>
-                </table>
-                <h3>Stencil Settings</h3>
-                <table>
-                    <thead>
-                        <tr><th scope="col">Parameter</th><th scope="col">Values</th><th scope="col">Default</th><th scope="col">Applies to</th><th scope="col">What it does</th></tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><strong>Stencil Output</strong><br><span class="param-condition">Machine class: router, knife</span></td>
-                            <td>CNC Milling (G-code) / Vinyl / CO2 Laser (SVG)</td>
-                            <td>CNC Milling (G-code)</td>
-                            <td>Stencil</td>
-                            <td>What the stencil is cut on. Router mills the apertures and exports G-code; Knife cuts on the line with a cutter offset and exports a vector file. Changing this changes which parameters and stages the operation has.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Aperture Offset</strong><br><span class="param-condition">Machine class: router, laser, knife</span></td>
-                            <td>-1 - 1 mm</td>
-                            <td>-0.05</td>
-                            <td>Stencil</td>
-                            <td>Shrinks (negative) or expands (positive) the stencil apertures. -0.05mm is a common default to prevent solder bridging.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Ignore Regions</strong><br><span class="param-condition">Machine class: router, laser, knife</span></td>
-                            <td>on / off</td>
-                            <td>on</td>
-                            <td>Stencil</td>
-                            <td>If checked, ignores large copper pours and traces, only generating apertures for actual component pads (flashes).</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Exclude Drill Pads</strong><br><span class="param-condition">Machine class: router, laser, knife</span></td>
-                            <td>on / off</td>
-                            <td>on</td>
-                            <td>Stencil</td>
-                            <td>Automatically removes stencil apertures that sit directly over through-holes to prevent solder paste from falling into the holes.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Registration Holes</strong><br><span class="param-condition">Machine class: router, laser, knife</span></td>
-                            <td>on / off</td>
-                            <td>off</td>
-                            <td>Stencil</td>
-                            <td>Generates 4 circular alignment holes outside the board boundaries to help pin the stencil in place during manual application.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Registration Hole Diameter</strong><br><span class="param-condition">Shown when Registration Holes is on</span><br><span class="param-condition">Machine class: router, laser, knife</span></td>
-                            <td>0.5 - 10 mm</td>
-                            <td>3</td>
-                            <td>Stencil</td>
-                            <td>The physical diameter of the registration pins/dowels you plan to use.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Registration Margin</strong><br><span class="param-condition">Shown when Registration Holes is on</span><br><span class="param-condition">Machine class: router, laser, knife</span></td>
-                            <td>1 - 25 mm</td>
-                            <td>5</td>
-                            <td>Stencil</td>
-                            <td>How far outside the calculated board boundary to place the registration holes.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Aperture Corner Radius</strong><br><span class="param-condition">Machine class: knife</span></td>
-                            <td>0 - 2 mm</td>
-                            <td>0</td>
-                            <td>Stencil</td>
-                            <td>Rounds each aperture corner so a drag knife or vinyl cutter can follow it. A radius smaller than the cutter compensation comes out square, because a round cutter cannot cut a corner tighter than itself.</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </section>
+            </tr>
+          </tbody>
+        </table>
+        <h3>Cutout Settings</h3>
+        <table>
+          <thead>
+            <tr><th scope="col">Parameter</th><th scope="col">Values</th><th scope="col">Default</th><th scope="col">Applies to</th><th scope="col">What it does</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Cut Side</strong></td>
+              <td>Outside / Inside / On Path (Centerline)</td>
+              <td>Outside</td>
+              <td>Board Cutout</td>
+              <td>Where the tool sits relative to the polygon outline. Outside clears material around the shape. Inside clears within. On Path centers the tool on the line.</td>
+            </tr>
+          </tbody>
+        </table>
+        <h3>Drill Strategy</h3>
+        <table>
+          <thead>
+            <tr><th scope="col">Parameter</th><th scope="col">Values</th><th scope="col">Default</th><th scope="col">Applies to</th><th scope="col">What it does</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Mill Holes</strong><br><span class="param-condition">Shown when Multi-Tool Drilling is off</span></td>
+              <td>on / off</td>
+              <td>on</td>
+              <td>Drilling</td>
+              <td>If checked, generates circular milling paths inside any drill holes larger than the tool. If unchecked, generates a simple peck/drill at the center.</td>
+            </tr>
+            <tr>
+              <td><strong>Step Over</strong><br><span class="param-condition">Shown when Multi-Tool Drilling is off and Mill Holes is on</span></td>
+              <td>10 - 90 %</td>
+              <td>50</td>
+              <td>Drilling</td>
+              <td>Percentage of the tool diameter to overlap on each concentric milling ring inside oversize holes.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
 
-            <section id="stage-strategy">
-                <h2>Z Strategy</h2>
-                <h3>Depth Settings</h3>
-                <table>
-                    <thead>
-                        <tr><th scope="col">Parameter</th><th scope="col">Values</th><th scope="col">Default</th><th scope="col">Applies to</th><th scope="col">What it does</th></tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><strong>Cut Depth</strong></td>
-                            <td>-10 - 0 mm</td>
-                            <td>-0.1</td>
-                            <td>Copper Isolation, Copper Clearing, Board Cutout, Drill, Stencil</td>
-                            <td>Final target depth for all cuts, relative to the material surface (Z=0). Should be a negative value (e.g., -0.05mm).</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Multi-depth Cutting</strong></td>
-                            <td>on / off</td>
-                            <td>on</td>
-                            <td>Copper Isolation, Copper Clearing, Board Cutout, Stencil</td>
-                            <td>Enable multiple passes at different depths for deep cuts. Reduces tool stress.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Depth per Pass</strong><br><span class="param-condition">Shown when Multi-depth Cutting is on</span></td>
-                            <td>0.001 - 5 mm</td>
-                            <td>0.1</td>
-                            <td>Copper Isolation, Copper Clearing, Board Cutout, Stencil</td>
-                            <td>Incremental depth of each pass when using multi-depth cutting. Smaller = gentler on tool.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Multi-depth Milling</strong><br><span class="param-condition">Shown when Mill Holes is on</span></td>
-                            <td>on / off</td>
-                            <td>on</td>
-                            <td>Drill</td>
-                            <td>Mill oversize holes in several Z levels instead of one full-depth pass. Easier on small cutters.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Depth per Pass</strong><br><span class="param-condition">Shown when Mill Holes is on and Multi-depth Milling is on</span></td>
-                            <td>0.01 - 10 mm</td>
-                            <td>0.5</td>
-                            <td>Drill</td>
-                            <td>Material removed per Z level while milling an oversize hole.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Entry Method</strong><br><span class="param-condition">Shown when Mill Holes is on</span></td>
-                            <td>Helix (Spiral entry) / Plunge (Vertical)</td>
-                            <td>Helix (Spiral entry)</td>
-                            <td>Drill</td>
-                            <td>How the cutter enters an oversize hole. Helix spirals down and loads the tool gently; Plunge drops straight in and needs a centre-cutting bit.</td>
-                        </tr>
-                    </tbody>
-                </table>
-                <h3>Cutting Strategy</h3>
-                <table>
-                    <thead>
-                        <tr><th scope="col">Parameter</th><th scope="col">Values</th><th scope="col">Default</th><th scope="col">Applies to</th><th scope="col">What it does</th></tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><strong>Entry Type</strong></td>
-                            <td>Plunge (Vertical)</td>
-                            <td>Plunge (Vertical)</td>
-                            <td>Copper Isolation, Copper Clearing, Board Cutout, Stencil</td>
-                            <td>How the tool enters the material. Plunge: straight down. Ramp: diagonal. Helix: spiral down.</td>
-                        </tr>
-                    </tbody>
-                </table>
-                <h3>Peck Drill Parameters</h3>
-                <table>
-                    <thead>
-                        <tr><th scope="col">Parameter</th><th scope="col">Values</th><th scope="col">Default</th><th scope="col">Applies to</th><th scope="col">What it does</th></tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><strong>Peck Depth</strong></td>
-                            <td>0 - 5 mm</td>
-                            <td>0</td>
-                            <td>Drill</td>
-                            <td>Depth to drill before retracting when using peck drilling. Smaller = more retracts = cleaner holes.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Dwell Time</strong></td>
-                            <td>0 - 10 s</td>
-                            <td>0</td>
-                            <td>Drill</td>
-                            <td>Pause duration at bottom of hole (seconds). Allows chips to clear and reduces burrs.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Retract Height</strong></td>
-                            <td>0 - 10 mm</td>
-                            <td>0.5</td>
-                            <td>Drill</td>
-                            <td>Height to retract to between holes. Should clear board but minimize travel time.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Canned Cycle</strong></td>
-                            <td>None (G0 + G1) / G81 - Simple Drill / G82 - Dwell / G83 - Peck / G73 - Peck (Stepped)</td>
-                            <td>None (G0 + G1)</td>
-                            <td>Drill</td>
-                            <td>Pre-programmed drill cycle. G83 (peck drilling) retracts periodically to clear chips.</td>
-                        </tr>
-                    </tbody>
-                </table>
-                <h3>Cutout Settings</h3>
-                <table>
-                    <thead>
-                        <tr><th scope="col">Parameter</th><th scope="col">Values</th><th scope="col">Default</th><th scope="col">Applies to</th><th scope="col">What it does</th></tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><strong>Number of Tabs</strong></td>
-                            <td>0 - 12</td>
-                            <td>0</td>
-                            <td>Board Cutout</td>
-                            <td>Number of small tabs to leave uncut, holding the board in place.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Tab Width</strong></td>
-                            <td>0.1 - 10 mm</td>
-                            <td>0.5</td>
-                            <td>Board Cutout</td>
-                            <td>The length of each holding tab in mm.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Tab Height</strong></td>
-                            <td>0.1 - 5 mm</td>
-                            <td>0.5</td>
-                            <td>Board Cutout</td>
-                            <td>The thickness of the tab. A value of -0.5mm on a -1.8mm cut will leave a 0.5mm thick tab.</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </section>
+      <section id="stage-strategy">
+        <h2>Z Strategy</h2>
+        <h3>Cutting Strategy</h3>
+        <table>
+          <thead>
+            <tr><th scope="col">Parameter</th><th scope="col">Values</th><th scope="col">Default</th><th scope="col">Applies to</th><th scope="col">What it does</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Entry Type</strong></td>
+              <td>Plunge (Vertical)</td>
+              <td>Plunge (Vertical)</td>
+              <td>Isolation Routing, Copper Clearing, Board Cutout, Solder Stencil</td>
+              <td>How the tool enters the material. Plunge: straight down. Ramp: diagonal. Helix: spiral down.</td>
+            </tr>
+          </tbody>
+        </table>
+        <h3>Depth &amp; Passes</h3>
+        <table>
+          <thead>
+            <tr><th scope="col">Parameter</th><th scope="col">Values</th><th scope="col">Default</th><th scope="col">Applies to</th><th scope="col">What it does</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Cut Depth</strong></td>
+              <td>-10 - 0 mm</td>
+              <td>-0.1</td>
+              <td>Isolation Routing, Copper Clearing, Board Cutout, Drilling, Solder Stencil</td>
+              <td>Final target depth for all cuts, relative to the material surface (Z=0). Should be a negative value (e.g., -0.05mm).</td>
+            </tr>
+            <tr>
+              <td><strong>Multi-depth Cutting</strong></td>
+              <td>on / off</td>
+              <td>on</td>
+              <td>Isolation Routing, Copper Clearing, Board Cutout, Solder Stencil</td>
+              <td>Enable multiple passes at different depths for deep cuts. Reduces tool stress.</td>
+            </tr>
+            <tr>
+              <td><strong>Depth per Pass</strong><br><span class="param-condition">Shown when Multi-depth Cutting is on</span></td>
+              <td>0.001 - 5 mm</td>
+              <td>0.1</td>
+              <td>Isolation Routing, Copper Clearing, Board Cutout, Solder Stencil</td>
+              <td>Incremental depth of each pass when using multi-depth cutting. Smaller = gentler on tool.</td>
+            </tr>
+            <tr>
+              <td><strong>Multi-depth Milling</strong><br><span class="param-condition">Shown when Mill Holes is on</span></td>
+              <td>on / off</td>
+              <td>on</td>
+              <td>Drilling</td>
+              <td>Mill oversize holes in several Z levels instead of one full-depth pass. Easier on small cutters.</td>
+            </tr>
+            <tr>
+              <td><strong>Depth per Pass</strong><br><span class="param-condition">Shown when Mill Holes is on and Multi-depth Milling is on</span></td>
+              <td>0.01 - 10 mm</td>
+              <td>0.5</td>
+              <td>Drilling</td>
+              <td>Material removed per Z level while milling an oversize hole.</td>
+            </tr>
+            <tr>
+              <td><strong>Entry Method</strong><br><span class="param-condition">Shown when Mill Holes is on</span></td>
+              <td>Helix (Spiral entry) / Plunge (Vertical)</td>
+              <td>Helix (Spiral entry)</td>
+              <td>Drilling</td>
+              <td>How the cutter enters an oversize hole. Helix spirals down and loads the tool gently; Plunge drops straight in and needs a center-cutting bit.</td>
+            </tr>
+          </tbody>
+        </table>
+        <h3>Cutout Settings</h3>
+        <table>
+          <thead>
+            <tr><th scope="col">Parameter</th><th scope="col">Values</th><th scope="col">Default</th><th scope="col">Applies to</th><th scope="col">What it does</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Number of Tabs</strong></td>
+              <td>0 - 12</td>
+              <td>0</td>
+              <td>Board Cutout</td>
+              <td>Number of small tabs to leave uncut, holding the board in place.</td>
+            </tr>
+            <tr>
+              <td><strong>Tab Width</strong></td>
+              <td>0.1 - 10 mm</td>
+              <td>0.5</td>
+              <td>Board Cutout</td>
+              <td>The length of each holding tab in mm.</td>
+            </tr>
+            <tr>
+              <td><strong>Tab Height</strong></td>
+              <td>0.1 - 5 mm</td>
+              <td>0.5</td>
+              <td>Board Cutout</td>
+              <td>The thickness of the tab. A value of -0.5mm on a -1.8mm cut will leave a 0.5mm thick tab.</td>
+            </tr>
+          </tbody>
+        </table>
+        <h3>Drill Strategy</h3>
+        <table>
+          <thead>
+            <tr><th scope="col">Parameter</th><th scope="col">Values</th><th scope="col">Default</th><th scope="col">Applies to</th><th scope="col">What it does</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Peck Depth</strong></td>
+              <td>0 - 5 mm</td>
+              <td>0</td>
+              <td>Drilling</td>
+              <td>Depth of each peck before the bit retracts to clear chips. With canned cycles it is the Q word of G83 and G73; on a post without them EasyCAM writes the peck loop itself. 0, or Canned Cycle None, drills in one plunge. A Drill Tooling row can set its own.</td>
+            </tr>
+            <tr>
+              <td><strong>Dwell Time</strong></td>
+              <td>0 - 10 s</td>
+              <td>0</td>
+              <td>Drilling</td>
+              <td>Pause duration at bottom of hole (seconds). Allows chips to clear and reduces burrs.</td>
+            </tr>
+            <tr>
+              <td><strong>Retract Height</strong></td>
+              <td>0 - 10 mm</td>
+              <td>0.5</td>
+              <td>Drilling</td>
+              <td>Height to retract to between holes. Should clear board but minimize travel time.</td>
+            </tr>
+            <tr>
+              <td><strong>Canned Cycle</strong></td>
+              <td>None (G0 + G1) / G81 - Simple Drill / G82 - Dwell / G83 - Peck (Full Retract) / G73 - Peck (Chip Break)</td>
+              <td>None (G0 + G1)</td>
+              <td>Drilling</td>
+              <td>Pre-programmed drill cycle. G83 (peck drilling) retracts periodically to clear chips.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
 
-            <section id="stage-machine">
-                <h2>Feeds &amp; Toolpaths</h2>
-                <h3>Feeds &amp; Speeds</h3>
-                <table>
-                    <thead>
-                        <tr><th scope="col">Parameter</th><th scope="col">Values</th><th scope="col">Default</th><th scope="col">Applies to</th><th scope="col">What it does</th></tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><strong>Feed Rate</strong></td>
-                            <td>1 - 5000 mm/min</td>
-                            <td>&mdash;</td>
-                            <td>all operations</td>
-                            <td>Speed at which the tool moves while cutting (mm/min or in/min).</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Plunge Rate</strong></td>
-                            <td>1 - 2000 mm/min</td>
-                            <td>&mdash;</td>
-                            <td>all operations</td>
-                            <td>Speed at which the tool descends into material (mm/min or in/min). Usually slower than feed rate.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Spindle Speed</strong></td>
-                            <td>100 - 30000 RPM</td>
-                            <td>10000</td>
-                            <td>all operations</td>
-                            <td>Rotation speed of the spindle (RPM). Higher speeds for smaller tools.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Spindle Dwell</strong></td>
-                            <td>0 - 60 s</td>
-                            <td>1</td>
-                            <td>all operations</td>
-                            <td>Time in seconds to wait. Essential for high inertia spindles that need extra time to come up to speed.</td>
-                        </tr>
-                    </tbody>
-                </table>
-                <h3>Toolpath Options</h3>
-                <table>
-                    <thead>
-                        <tr><th scope="col">Parameter</th><th scope="col">Values</th><th scope="col">Default</th><th scope="col">Applies to</th><th scope="col">What it does</th></tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><strong>Optimize Toolpaths</strong><br><span class="param-condition">Machine class: router</span></td>
-                            <td>on / off</td>
-                            <td>on</td>
-                            <td>all operations</td>
-                            <td>Reorder and simplify the finished toolpath to cut travel time. Turn it off to keep the paths in exactly the order they were generated.</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </section>
+      <section id="stage-machine">
+        <h2>Feeds &amp; Toolpaths</h2>
+        <h3>Feeds &amp; Speeds</h3>
+        <table>
+          <thead>
+            <tr><th scope="col">Parameter</th><th scope="col">Values</th><th scope="col">Default</th><th scope="col">Applies to</th><th scope="col">What it does</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Feed Rate</strong></td>
+              <td>1 - 5000 mm/min</td>
+              <td>&mdash;</td>
+              <td>all operations</td>
+              <td>Speed at which the tool moves while cutting (mm/min or in/min).</td>
+            </tr>
+            <tr>
+              <td><strong>Plunge Rate</strong></td>
+              <td>1 - 2000 mm/min</td>
+              <td>&mdash;</td>
+              <td>all operations</td>
+              <td>Speed at which the tool descends into material (mm/min or in/min). Usually slower than feed rate.</td>
+            </tr>
+            <tr>
+              <td><strong>Spindle Speed</strong></td>
+              <td>100 - 30000 RPM</td>
+              <td>10000</td>
+              <td>all operations</td>
+              <td>Rotation speed of the spindle (RPM). Higher speeds for smaller tools.</td>
+            </tr>
+            <tr>
+              <td><strong>Spindle Dwell</strong></td>
+              <td>0 - 60 s</td>
+              <td>1</td>
+              <td>all operations</td>
+              <td>Time in seconds to wait. Essential for high inertia spindles that need extra time to come up to speed.</td>
+            </tr>
+          </tbody>
+        </table>
+        <h3>Toolpath Options</h3>
+        <table>
+          <thead>
+            <tr><th scope="col">Parameter</th><th scope="col">Values</th><th scope="col">Default</th><th scope="col">Applies to</th><th scope="col">What it does</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Optimize Toolpaths</strong><br><span class="param-condition">Machine class: router</span></td>
+              <td>on / off</td>
+              <td>on</td>
+              <td>all operations</td>
+              <td>Reorder and simplify the finished toolpath to cut travel time. Turn it off to keep the paths in exactly the order they were generated.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
 
 <!-- PARAMS:END -->
 
-        </main>
-        <!-- Footer -->
-        <footer class="doc-footer" aria-label="Footer">
-            <p>
-                <a href="#doc-content" draggable="false">Back to Top</a> |
-                <a href="https://github.com/RicardoJCMarques/EasyCAM5000" target="_blank" draggable="false">GitHub</a> |
-                <a href="/#support" draggable="false">Support Development</a> |
-                <a href="../../LICENSE" target="_blank" draggable="false">AGPLv3 Licensed</a> |
-                <a href="https://www.eltryus.design/" draggable="false">by ELTRYUS</a>
-            </p>
-        </footer>
-    </div>
-</body>
+    </main>
 
-<!-- Scripts -->
-<script defer src="../../themes/theme-loader.js"></script>
-<script defer src="../../images/figures.js"></script>
-<script>
+    <!-- Footer -->
+    <footer class="doc-footer" aria-label="Footer">
+      <p>
+        <a href="#doc-content" draggable="false">Back to Top</a> |
+        <a href="https://github.com/RicardoJCMarques/EasyCAM5000" target="_blank" draggable="false">GitHub</a> |
+        <a href="/#support" draggable="false">Support Development</a> |
+        <a href="../../LICENSE" target="_blank" draggable="false">AGPLv3 Licensed</a> |
+        <a href="https://www.eltryus.design/" draggable="false">by ELTRYUS</a>
+      </p>
+    </footer>
+  </div>
+
+  <!-- Scripts -->
+  <script defer src="../../themes/theme-loader.js"></script>
+  <script defer src="../../images/figures.js"></script>
+  <script>
     document.addEventListener('DOMContentLoaded', () => {
-        // Load the SVG Sprite
-        fetch('../../images/icons/sprite.svg')
-            .then(response => {
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                return response.text();
-            })
-            .then(svgText => {
-                const div = document.createElement('div');
-                div.innerHTML = svgText;
-                const svg = div.querySelector('svg');
-                if (svg) {
-                    svg.setAttribute('aria-hidden', 'true');
-                    svg.style.cssText = 'position: absolute; width: 0; height: 0; visibility: hidden;';
-                    document.body.insertBefore(svg, document.body.firstChild);
-                }
-            })
-            .catch(err => console.warn('Failed to load icon sprite:', err));
-
-        // Theme toggle
-        const themeBtn = document.getElementById('theme-toggle');
-        if (themeBtn && window.ThemeLoader) {
-            const useEl = themeBtn.querySelector('use');
-            const initialTheme = document.documentElement.getAttribute('data-theme') || 'dark';
-
-            if (useEl) useEl.setAttribute('href', initialTheme === 'dark' ? '#icon-sun' : '#icon-moon');
-
-            themeBtn.addEventListener('click', async () => {
-                const theme = await window.ThemeLoader.toggleTheme();
-                if (useEl) useEl.setAttribute('href', theme === 'dark' ? '#icon-sun' : '#icon-moon');
-            });
-        }
-
-        // Mobile menu toggle
-        const menuBtn = document.querySelector('.doc-menu-toggle');
-        const nav = document.querySelector('.doc-nav');
-        if (menuBtn && nav) {
-            const useEl = menuBtn.querySelector('use');
-            menuBtn.addEventListener('click', () => {
-                const isExpanded = menuBtn.getAttribute('aria-expanded') === 'true';
-                menuBtn.setAttribute('aria-expanded', !isExpanded);
-                nav.classList.toggle('is-open');
-
-                if (useEl) useEl.setAttribute('href', !isExpanded ? '#icon-close' : '#icon-menu');
-            });
-        }
+      // Load the SVG Sprite
+      fetch('../../images/icons/sprite.svg')
+        .then(response => {
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          return response.text();
+        })
+        .then(svgText => {
+            const div = document.createElement('div');
+            div.innerHTML = svgText;
+            const svg = div.querySelector('svg');
+            if (svg) {
+              svg.setAttribute('aria-hidden', 'true');
+              svg.style.cssText = 'position: absolute; width: 0; height: 0; visibility: hidden;';
+              document.body.insertBefore(svg, document.body.firstChild);
+            }
+        })
+        .catch(err => console.warn('Failed to load icon sprite:', err));
+      // Theme toggle. Every theme but the default is a file, slow to
+      // arrive off localhost: the button waits for it, and the icon
+      // follows each change, including a saved theme that lands after
+      // this runs.
+      const themeBtn = document.getElementById('theme-toggle');
+      if (themeBtn && window.ThemeLoader) {
+        const useEl = themeBtn.querySelector('use');
+        const syncIcon = () => useEl?.setAttribute('href', document.documentElement.getAttribute('data-theme-base') === 'light' ? '#icon-moon' : '#icon-sun');
+        window.addEventListener('themechange', syncIcon);
+        syncIcon();
+        themeBtn.addEventListener('click', async () => {
+          themeBtn.disabled = true;
+          try {
+            await window.ThemeLoader.toggleTheme();
+          } catch (error) {
+            console.error('Theme toggle failed:', error);
+          } finally {
+            themeBtn.disabled = false;
+          }
+        });
+      }
+      // Mobile menu toggle
+      const menuBtn = document.querySelector('.doc-menu-toggle');
+      const nav = document.querySelector('.doc-nav');
+      if (menuBtn && nav) {
+        const useEl = menuBtn.querySelector('use');
+        menuBtn.addEventListener('click', () => {
+          const isExpanded = menuBtn.getAttribute('aria-expanded') === 'true';
+          menuBtn.setAttribute('aria-expanded', !isExpanded);
+          nav.classList.toggle('is-open');
+          if (useEl) useEl.setAttribute('href', !isExpanded ? '#icon-close' : '#icon-menu');
+        });
+      }
     });
-</script>
+  </script>
+</body>
 </html>

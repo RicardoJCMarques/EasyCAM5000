@@ -1,0 +1,3351 @@
+{
+  "_projectInfo": {
+    "file": "language/ar.json",
+    "description": "Arabic strings for the EasyCAM5000 Suite.",
+    "author": "Eltryus - Ricardo Marques",
+    "see": "https://github.com/RicardoJCMarques/EasyCAM5000",
+    "license": "AGPL-3.0-or-later",
+    "copyright": "Copyright (C) 2025-2026 Eltryus - Ricardo Marques"
+  },
+  "meta": {
+    "kind": "language",
+    "locale": "ar",
+    "name": "العربية",
+    "dir": "rtl",
+    "fallback": null
+  },
+  "common": {
+    "ok": "موافق",
+    "cancel": "إلغاء",
+    "close": "إغلاق",
+    "delete": "حذف",
+    "apply": "تطبيق",
+    "reset": "إعادة ضبط",
+    "back": "رجوع",
+    "done": "تم",
+    "load": "تحميل",
+    "loading": "جارٍ التحميل…",
+    "toggleVisibility": "تبديل الرؤية",
+    "mirrorX": "أفقي",
+    "mirrorY": "عمودي",
+    "hide": "إخفاء",
+    "show": "إظهار",
+    "lock": "قفل",
+    "unlock": "إلغاء القفل",
+    "holesOfSize": "⌀{diameter:mm} x {count}",
+    "slotsOfSize": "{width} x {length:mm} x {count}",
+    "millimeters": "{value:mm}",
+    "micrometers": "{value:μm}",
+    "meters": "{value}m"
+  },
+  "app": {
+    "skipToCanvas": "الانتقال إلى مساحة الرسم",
+    "viewportBar": {
+      "dismiss": "تجاهل التحذير",
+      "message": "الشاشة ضيقة جدًا - قم بتدوير الجهاز أو استخدم شاشة أكبر."
+    },
+    "loading": {
+      "progress": "تقدم تحميل التطبيق"
+    },
+    "toolbar": {
+      "label": "شريط الأدوات الرئيسي",
+      "actions": "الإجراءات",
+      "openFiles": "استيراد الملفات…",
+      "exportManager": "تصدير الملفات…",
+      "exportCanvas": "تصدير مساحة الرسم كـ SVG",
+      "undo": "تراجع",
+      "undoTip": "تراجع (Ctrl+Z)",
+      "redo": "إعادة",
+      "redoTip": "إعادة (Ctrl+Shift+Z)",
+      "toggle3d": "تبديل العرض ثنائي/ثلاثي الأبعاد",
+      "toggle3dTip": "تبديل العرض ثنائي/ثلاثي الأبعاد (F2)",
+      "fit": "ملاءمة العرض",
+      "fitTip": "ملاءمة العرض (F)",
+      "zoomIn": "تكبير",
+      "zoomInTip": "تكبير (+)",
+      "zoomOut": "تصغير",
+      "zoomOutTip": "تصغير (-)",
+      "help": "مساعدة",
+      "helpTip": "مساعدة (F1)",
+      "theme": "تبديل السمة",
+      "toggle3dLocked": "ثلاثي الأبعاد فقط - لا يحتوي هذا المشهد على هندسة ثنائية الأبعاد",
+      "undoAction": "تراجع: {action}",
+      "redoAction": "إعادة: {action}"
+    },
+    "canvas": {
+      "label": "مساحة الرسم",
+      "view2d": "مساحة العرض ثنائية الأبعاد",
+      "view3d": "نافذة العرض ثلاثية الأبعاد. مفاتيح الأسهم للدوران، Shift والأسهم للتحريك، زائد وناقص للتكبير/التصغير، ومفتاح Home للملاءمة."
+    },
+    "sidebars": {
+      "right": "الإعدادات"
+    },
+    "footer": {
+      "zoom": "التكبير: <value/>",
+      "versionTip": "الإصدار",
+      "versionAria": "سجل التغييرات (يفتح في علامة تبويب جديدة)",
+      "home": "الرئيسية",
+      "homeTip": "العودة إلى الصفحة الرئيسية",
+      "licenseTip": "عرض الترخيص",
+      "licenseAria": "عرض ترخيص AGPLv3 (يفتح في علامة تبويب جديدة)",
+      "doc": "التوثيق",
+      "docTip": "التوثيق",
+      "docAria": "التوثيق (يفتح في علامة تبويب جديدة)",
+      "help": "مساعدة",
+      "helpAria": "فتح نافذة المساعدة",
+      "issues": "الإبلاغ عن مشكلة",
+      "issuesTip": "GitHub Issues",
+      "issuesAria": "الإبلاغ عن مشكلة في GitHub Issues (يفتح في علامة تبويب جديدة)",
+      "repoTip": "المستودع",
+      "repoAria": "مستودع GitHub (يفتح في علامة تبويب جديدة)",
+      "support": "دعم التطوير",
+      "supportTip": "دعم المشروع",
+      "supportAria": "فتح نافذة دعم المشروع",
+      "developer": "بواسطة ELTRYUS",
+      "developerAria": "Eltryus، مطور EasyCAM5000"
+    }
+  },
+  "status": {
+    "ready": "جاهز - أضف ملفات للبدء",
+    "readyStats": "جاهز: {operations}، {primitives}",
+    "operationCount": {
+      "zero": "{count} عملية",
+      "one": "{count} عملية",
+      "two": "{count} عمليتان",
+      "few": "{count} عمليات",
+      "many": "{count} عملية",
+      "other": "{count} عملية"
+    },
+    "primitiveCount": {
+      "zero": "{count} عنصر أولي",
+      "one": "{count} عنصر أولي",
+      "two": "{count} عنصران أوليان",
+      "few": "{count} عناصر أولية",
+      "many": "{count} عنصرًا أوليًا",
+      "other": "{count} عنصر أولي"
+    },
+    "withNotes": {
+      "zero": "{message} - {count} تحذير، راجع السجل",
+      "one": "{message} - {count} تحذير، راجع السجل",
+      "two": "{message} - {count} تحذيران، راجع السجل",
+      "few": "{message} - {count} تحذيرات، راجع السجل",
+      "many": "{message} - {count} تحذيرًا، راجع السجل",
+      "other": "{message} - {count} تحذير، راجع السجل"
+    },
+    "working": "جارٍ المعالجة",
+    "initFailed": "فشلت التهيئة: {error}",
+    "wasmFailed": "تحذير: فشل WASM",
+    "expandLog": "انقر لتوسيع السجل",
+    "toggleLog": "تبديل سجل الحالة",
+    "progress": "تقدم العملية",
+    "logHintViz": "تبديل رسائل تصحيح الأخطاء المفصلة في لوحة العرض (Viz)."
+  },
+  "progress": {
+    "overlay": "{label}…",
+    "overlayPercent": "{label}… {percent:%}",
+    "generating": "جارٍ التوليد",
+    "preview": "جارٍ توليد المعاينة",
+    "toolpaths": "جارٍ حساب مسارات الأداة",
+    "cancelling": "جارٍ الإلغاء",
+    "loadingFile": "جارٍ تحميل {file}",
+    "exporting": "جارٍ تصدير الملفات",
+    "exportingPaced": "جارٍ تصدير الملفات - تنظيم سرعة التنزيل لـ WebKit",
+    "slicingModel": "جارٍ تشريح النموذج",
+    "medialSkeleton": "جارٍ بناء الهيكل المتوسط",
+    "drillHoles": {
+      "zero": "ثقب {done}/{count} ثقب",
+      "one": "ثقب {done}/{count} ثقب",
+      "two": "ثقب {done}/{count} ثقبين",
+      "few": "ثقب {done}/{count} ثقوب",
+      "many": "ثقب {done}/{count} ثقبًا",
+      "other": "ثقب {done}/{count} ثقب"
+    },
+    "jobs": "اكتملت {done}/{total} مهام - {stage}",
+    "offsetPass": "{op} الشوط {pass}",
+    "offsetPassOf": "{op} الشوط {pass}/{total}",
+    "vcarveShapes": {
+      "zero": "حفر V لـ {done}/{count} شكل",
+      "one": "حفر V لـ {done}/{count} شكل",
+      "two": "حفر V لـ {done}/{count} شكلين",
+      "few": "حفر V لـ {done}/{count} أشكال",
+      "many": "حفر V لـ {done}/{count} شكلاً",
+      "other": "حفر V لـ {done}/{count} شكل"
+    },
+    "vcarveFloors": "جارٍ تحضير القيعان {done}/{total}",
+    "slicingMesh": "جارٍ تشريح الشبكة المجسمة",
+    "compensating": "جارٍ التعويض",
+    "upsampling": "جارٍ رفع معدل العينات",
+    "emitRoughing": "جارٍ إصدار التخشين",
+    "emitFinishing": "جارٍ إصدار التنعيم",
+    "emitSpiral": "جارٍ إصدار المسار الحلزوني",
+    "vcarveContours": "حفر V: المحيطات",
+    "vcarveMedial": "حفر V: المحور المتوسط",
+    "vcarveChains": "حفر V: إصدار السلاسل"
+  },
+  "panels": {
+    "operations": {
+      "title": "العمليات",
+      "add": {
+        "isolation": "انقر لإضافة ملف العزل",
+        "drill": "انقر لإضافة ملف الثقب",
+        "clearing": "انقر لإضافة ملف إزالة النحاس",
+        "cutout": "انقر لإضافة ملف القص الخارجي",
+        "stencil": "انقر لإضافة ملف الإستنسل"
+      },
+      "unsaved": "تغييرات غير محفوظة",
+      "deleteGeometry": "حذف الهندسة",
+      "empty": "حدد هندسة وقم بتوليد مسارات الإزاحة لإنشاء كائن عملية.",
+      "deleteAria": "حذف {name}",
+      "visibilityAria": "تبديل رؤية {name}",
+      "nodes": {
+        "laserPaths": "مسارات الليزر",
+        "offsets": {
+          "zero": "مسارات الإزاحة ({count} شوط)",
+          "one": "مسارات الإزاحة ({count} شوط)",
+          "two": "مسارات الإزاحة ({count} شوطان)",
+          "few": "مسارات الإزاحة ({count} أشواط)",
+          "many": "مسارات الإزاحة ({count} شوطًا)",
+          "other": "مسارات الإزاحة ({count} شوط)"
+        },
+        "pass": "الشوط {number}",
+        "invalid": "غير صالح"
+      },
+      "treeAria": "العمليات",
+      "invalidatedNote": "(غير صالح، أعد التوليد قبل التصدير)",
+      "stageVisibilityAria": "تبديل رؤية {stage}",
+      "shapeCount": {
+        "zero": "{count} شكل",
+        "one": "{count} شكل",
+        "two": "{count} شكلان",
+        "few": "{count} أشكال",
+        "many": "{count} شكلاً",
+        "other": "{count} شكل"
+      },
+      "hideGenerated": "إخفاء الهندسة المولدة",
+      "showGenerated": "إظهار الهندسة المولدة",
+      "generatedVisibilityAria": "تبديل رؤية الهندسة المولدة"
+    },
+    "scene": {
+      "title": "الكائنات المستوردة",
+      "add": "إضافة هندسة",
+      "addTip": "إضافة هندسة (SVG / STL)",
+      "group": "تجميع (Ctrl+G)",
+      "ungroup": "فك التجميع (Ctrl+Shift+G)",
+      "lock": "تبديل القفل",
+      "delete": "حذف التحديد",
+      "emptyTitle": "لا توجد مسارات بعد",
+      "emptyText": "استورد ملف SVG أو STL لملء شجرة المشهد.",
+      "meshName": "{name} (شبكة مجسمة)",
+      "lockedByParent": "مقفل بواسطة العنصر الأب",
+      "containsLocked": "يحتوي على عناصر مقفلة",
+      "treeAria": "شجرة المشهد",
+      "unnamedGroup": "مجموعة",
+      "rowAction": "{action}: {name}",
+      "deleteGroup": "حذف المجموعة",
+      "deleteGroupAria": "حذف المجموعة: {name}",
+      "unnamedShape": "شكل",
+      "remove": "إزالة",
+      "removeAria": "إزالة {name}",
+      "untitled": "بدون عنوان",
+      "compoundShape": "شكل مركب",
+      "shapeName": "{type} {number}",
+      "groupedShape": "{group} · {type}",
+      "types": {
+        "path": "مسار",
+        "circle": "دائرة",
+        "rectangle": "مستطيل",
+        "obround": "مستطيل مستدير الحواف",
+        "arc": "قوس",
+        "elliptical_arc": "قوس بيضاوي",
+        "bezier": "منحنى بيزييه"
+      }
+    },
+    "placement": {
+      "title": "وضع اللوحة",
+      "notLoaded": "غير محمل",
+      "xOffset": "قيمة X بالمليمتر",
+      "yOffset": "قيمة Y بالمليمتر",
+      "rotation": "دوران اللوحة بالدرجات"
+    },
+    "stock": {
+      "title": "إعداد الخامة",
+      "originOffset": "إزاحة نقطة أصل الخامة",
+      "xOffset": "إزاحة X لنقطة أصل الخامة بالمليمتر",
+      "yOffset": "إزاحة Y لنقطة أصل الخامة بالمليمتر",
+      "fit": "ملاءمة مع الكائن",
+      "fitTip": "ملاءمة أبعاد الخامة مع حجم الشكل. تضبط الكائنات ثلاثية الأبعاد السماكة أيضًا."
+    },
+    "transform": {
+      "title": "تحويل الشكل",
+      "alignBottomLeft": "أسفل-يسار",
+      "alignChuck": "الظرف",
+      "offset": "إزاحة",
+      "offsetOnAxis": "إزاحة المحور",
+      "rotation": "دوران",
+      "scale": "تغيير الحجم",
+      "mirror": "عكس",
+      "size": "الحجم: {width} x {height:mm}",
+      "size3d": "الحجم: {width} x {depth} x {height:mm}"
+    },
+    "machine": {
+      "title": "إعدادات الماكينة"
+    },
+    "inspector": {
+      "title": "إعدادات العملية",
+      "empty": "← حدد هندسة ملف من قائمة العمليات لعرض المزيد.",
+      "noDesignTitle": "لم يتم تحميل أي تصميم",
+      "noDesignText": "استورد ملف SVG لبدء تعيين عمليات القطع.",
+      "noSelectionTitle": "لم يتم تحديد أي شيء",
+      "noSelectionText": "حدد مسارًا لإنشاء عملية.",
+      "mixedSelection": "لا يمكن الجمع بين الأشكال الموجهة ثنائية الأبعاد ونماذج الشبكات ثلاثية الأبعاد",
+      "needsVector": "تتطلب {operation} هندسة موجهة ثنائية الأبعاد (SVG)",
+      "needsMesh": "تتطلب {operation} هندسة شبكية ثلاثية الأبعاد (STL)",
+      "incompatibleTitle": "تحديد غير متوافق",
+      "incompatibleText": "لا يمكن الجمع بين الأشكال الموجهة ثنائية الأبعاد ونماذج الشبكات ثلاثية الأبعاد في عملية واحدة.",
+      "operationTitle": "{type} - {file}",
+      "operationTypeAria": "نوع العملية"
+    },
+    "viz": {
+      "open": "إعدادات التصور المرئي",
+      "title": "التصور المرئي",
+      "display": "العرض",
+      "layers": "الطبقات",
+      "advanced": "متقدم",
+      "log": "السجل",
+      "geometry": "الهندسة",
+      "toolpaths": "مسارات الأداة",
+      "generatedPaths": "المسارات المولدة",
+      "toolPreviews": "معاينات الأداة"
+    },
+    "invalidation": {
+      "title": "تم إبطال الهندسة",
+      "redo": "حذف الهندسة غير الصالحة وإعادة البناء"
+    },
+    "warnings": {
+      "header": {
+        "zero": "{count} تحذير",
+        "one": "{count} تحذير",
+        "two": "{count} تحذيران",
+        "few": "{count} تحذيرات",
+        "many": "{count} تحذيرًا",
+        "other": "{count} تحذير"
+      }
+    },
+    "operation": {
+      "actions": {
+        "generate": "توليد",
+        "laserPaths": "توليد مسارات الليزر",
+        "offsets": "توليد مسارات الإزاحة",
+        "preview": "توليد المعاينة",
+        "toolpaths": "حساب مسارات الأداة",
+        "exportManager": "مدير التصدير",
+        "withTools": {
+          "zero": "{action} ({count} أداة)",
+          "one": "{action} ({count} أداة)",
+          "two": "{action} ({count} أداتان)",
+          "few": "{action} ({count} أدوات)",
+          "many": "{action} ({count} أداة)",
+          "other": "{action} ({count} أداة)"
+        },
+        "comingSoon": "قريبًا",
+        "regenerateOffsets": "إعادة توليد مسارات الإزاحة",
+        "exportGcode": "تصدير كود G",
+        "generateArtifact": "توليد {artifact}"
+      },
+      "output": {
+        "title": "المخرجات",
+        "summary": {
+          "zero": "<strong>{count} مسار أداة</strong>، ~{time}، {distance:mm}",
+          "one": "<strong>{count} مسار أداة</strong>، ~{time}، {distance:mm}",
+          "two": "<strong>{count} مسارا أداة</strong>، ~{time}، {distance:mm}",
+          "few": "<strong>{count} مسارات أداة</strong>، ~{time}، {distance:mm}",
+          "many": "<strong>{count} مسار أداة</strong>، ~{time}، {distance:mm}",
+          "other": "<strong>{count} مسار أداة</strong>، ~{time}، {distance:mm}"
+        },
+        "none": "لم يتم حساب أي مسارات أداة.",
+        "note": "يتم ضبط الملفات والترتيب وتغييرات الأدوات في مدير التصدير."
+      },
+      "drillCard": {
+        "peck": "{count} تم ثقبها بنقر الرايش",
+        "mill": "{count} تم تفريزها",
+        "skip": "{count} تم تجاهلها",
+        "rows": {
+          "zero": "<strong>{count} صف:</strong> {parts}",
+          "one": "<strong>{count} صف:</strong> {parts}",
+          "two": "<strong>{count} صفان:</strong> {parts}",
+          "few": "<strong>{count} صفوف:</strong> {parts}",
+          "many": "<strong>{count} صفًا:</strong> {parts}",
+          "other": "<strong>{count} صف:</strong> {parts}"
+        },
+        "noSizes": "لم يتم اكتشاف أي أحجام ثقوب بعد.",
+        "tools": "الأدوات: {tools}",
+        "noTools": "لم يتم تعيين أرقام أدوات بعد.",
+        "configureTip": "قم بتعيين استراتيجية وقاطعة ورقم T لكل صف. تحصل الثقوب والمجاري ذات الحجم الواحد على صف خاص بها.",
+        "configureDisabledTip": "لم يتم اكتشاف أي أحجام ثقوب بعد - قم بالتوليد مرة واحدة لإنشاء الجدول."
+      },
+      "noDrillOps": "لم يتم تحميل أي عمليات ثقب. أضف ملف ثقب أولاً.",
+      "summary": {
+        "title": "الهندسة المصدر",
+        "primitives": "<strong>العناصر الأولية:</strong> {count}",
+        "types": {
+          "path": {
+            "zero": "{count} مسار",
+            "one": "{count} مسار",
+            "two": "{count} مساران",
+            "few": "{count} مسارات",
+            "many": "{count} مسارًا",
+            "other": "{count} مسار"
+          },
+          "circle": {
+            "zero": "{count} دائرة",
+            "one": "{count} دائرة",
+            "two": "{count} دائرتان",
+            "few": "{count} دوائر",
+            "many": "{count} دائرة",
+            "other": "{count} دائرة"
+          },
+          "rectangle": {
+            "zero": "{count} مستطيل",
+            "one": "{count} مستطيل",
+            "two": "{count} مستطيلان",
+            "few": "{count} مستطيلات",
+            "many": "{count} مستطيلاً",
+            "other": "{count} مستطيل"
+          },
+          "obround": {
+            "zero": "{count} مستطيل مستدير الحواف",
+            "one": "{count} مستطيل مستدير الحواف",
+            "two": "{count} مستطيلان مستديرا الحواف",
+            "few": "{count} مستطيلات مستديرة الحواف",
+            "many": "{count} مستطيلاً مستدير الحواف",
+            "other": "{count} مستطيل مستدير الحواف"
+          },
+          "arc": {
+            "zero": "{count} قوس",
+            "one": "{count} قوس",
+            "two": "{count} قوسان",
+            "few": "{count} أقواس",
+            "many": "{count} قوسًا",
+            "other": "{count} قوس"
+          },
+          "elliptical_arc": {
+            "zero": "{count} قوس بيضاوي",
+            "one": "{count} قوس بيضاوي",
+            "two": "{count} قوسان بيضاويان",
+            "few": "{count} أقواس بيضاوية",
+            "many": "{count} قوسًا بيضاويًا",
+            "other": "{count} قوس بيضاوي"
+          },
+          "bezier": {
+            "zero": "{count} منحنى",
+            "one": "{count} منحنى",
+            "two": "{count} منحنيان",
+            "few": "{count} منحنيات",
+            "many": "{count} منحنى",
+            "other": "{count} منحنى"
+          }
+        },
+        "holes": "<strong>الثقوب:</strong> {holes}",
+        "slots": "<strong>المجاري:</strong> {slots}",
+        "rejected": {
+          "zero": "<strong>مرفوض:</strong> {count} شكل غير مدعوم",
+          "one": "<strong>مرفوض:</strong> {count} شكل غير مدعوم",
+          "two": "<strong>مرفوض:</strong> {count} شكلان غير مدعومين",
+          "few": "<strong>مرفوض:</strong> {count} أشكال غير مدعومة",
+          "many": "<strong>مرفوض:</strong> {count} شكلاً غير مدعوم",
+          "other": "<strong>مرفوض:</strong> {count} شكل غير مدعوم"
+        },
+        "roles": {
+          "drill_hole": {
+            "zero": "{count} ثقب",
+            "one": "{count} ثقب",
+            "two": "{count} ثقبان",
+            "few": "{count} ثقوب",
+            "many": "{count} ثقبًا",
+            "other": "{count} ثقب"
+          },
+          "drill_slot": {
+            "zero": "{count} مجرى",
+            "one": "{count} مجرى",
+            "two": "{count} مجريان",
+            "few": "{count} مجارٍ",
+            "many": "{count} مجرى",
+            "other": "{count} مجرى"
+          },
+          "drill_milling_path": {
+            "zero": "{count} مسار تفريز",
+            "one": "{count} مسار تفريز",
+            "two": "{count} مسارا تفريز",
+            "few": "{count} مسارات تفريز",
+            "many": "{count} مسار تفريز",
+            "other": "{count} مسار تفريز"
+          },
+          "unclassified": {
+            "zero": "{count} عنصر غير مصنف",
+            "one": "{count} عنصر غير مصنف",
+            "two": "{count} عنصران غير مصنفين",
+            "few": "{count} عناصر غير مصنفة",
+            "many": "{count} عنصرًا غير مصنف",
+            "other": "{count} عنصر غير مصنف"
+          }
+        },
+        "features": "<strong>المعالم:</strong> {features}",
+        "output": "<strong>المخرجات المولدة:</strong>",
+        "apertures": "الفتحات: {count}",
+        "skippedOverlapping": "تم التخطي (متداخل): {count}",
+        "paths": "<strong>المسارات المولدة:</strong> {count}",
+        "achievedWidth": "<strong>العرض المحقق:</strong> {actual:mm} (الهدف: {target:mm})",
+        "clearingDepth": "<strong>عمق الإزالة:</strong> {actual:mm}",
+        "noPaths": "تم توليد 0 مسارات. قد يكون قطر الأداة أو الإزاحة كبيرًا جدًا."
+      },
+      "exportSummary": {
+        "stencilTitle": "ملخص تصدير الإستنسل",
+        "laserTitle": "ملخص تصدير الليزر",
+        "operation": "<strong>العملية:</strong> {type}",
+        "strategy": "<strong>الاستراتيجية:</strong> {strategy}",
+        "passes": "<strong>الأشواط:</strong> {count}",
+        "paths": "<strong>عدد المسارات:</strong> {count}",
+        "skippedPads": "<strong>الوسادات المتداخلة المتخطاة:</strong> {count}"
+      }
+    }
+  },
+  "modals": {
+    "narrow": {
+      "title": "يوصي هذا التطبيق/يتطلب شاشة أعرض.",
+      "text": "إذا أمكن، قم بتدوير جهازك أو التبديل إلى شاشة أكبر."
+    },
+    "welcome": {
+      "title": "مرحبًا بك في {app}",
+      "subtitle": "حدد سير العمل",
+      "status": {
+        "ready": "جاهز",
+        "beta": "تجريبي (Beta)"
+      },
+      "prefs": {
+        "label": "التفضيلات"
+      },
+      "devices": {
+        "label": "مخرجات الماكينة"
+      },
+      "sponsors": {
+        "title": "رعاة المشروع",
+        "fabAcademyAria": "زيارة صفحة فاب أكاديمي لـ فاب لاب بنفيكا.",
+        "fabAcademyAlt": "الراعي - فاب أكاديمي @ فاب لاب بنفيكا",
+        "slotAria": "مكان رعاية متاح",
+        "yourLogo": "شعارك هنا",
+        "cta": "تعرف على كيفية الانضمام كرعاية",
+        "ctaAria": "فتح نافذة دعم المشروع"
+      }
+    },
+    "laserConfig": {
+      "title": "تحديد نوع الليزر",
+      "intro": "حدد نوع الليزر لديك. يتم استخدام نفس ملفات PCB - يتغير تنسيق المخرجات فقط.",
+      "types": {
+        "uv": {
+          "title": "ليزر UV",
+          "badge": "تم اختباره",
+          "text": "جميع عمليات الليزر - عزل النحاس، والتفريغ، والثقب، وقص حواف اللوحة.",
+          "action": "تحديد UV"
+        },
+        "fiber": {
+          "title": "ليزر الألياف (Fiber)",
+          "badge": "تم اختباره جزئيًا",
+          "text": "ليزر لعمليات العزل والتفريغ. كود G لماكينات CNC للثقب وقص اللوحة.",
+          "action": "استخدام فايبر + CNC"
+        }
+      },
+      "diodeNote": "<strong>ليزر الدايود / ليزر كود G:</strong> إذا كان الليزر لديك يستخدم كود G القياسي (مثل GRBL-LPC أو Marlin)، فاستخدم مسار CNC مع معالج ما بعد تشغيل متوافق مع الليزر. ينتج مسار الليزر ملفات موجهة/نقطية لبرامج الليزر المستقلة (LightBurn, RDWorks, LaserGRBL)."
+    },
+    "quickstart": {
+      "title": "بدء مشروع",
+      "example": "تحميل مثال:",
+      "loadAria": "تحميل مشروع المثال المحدد",
+      "zones": {
+        "isolation": "تحميل ملف تفريز العزل. انقر أو اسحب الملف هنا.",
+        "drill": "تحميل ملف الثقب. انقر أو اسحب الملف هنا.",
+        "clearing": "تحميل ملف إزالة النحاس. انقر أو اسحب الملف هنا.",
+        "cutout": "تحميل ملف قص اللوحة. انقر أو اسحب الملف هنا.",
+        "unassigned": "تحميل ملف موجه أو ملف شبكة مجسمة. انقر أو اسحب الملف هنا."
+      },
+      "designFile": "ملف التصميم",
+      "zoneHint": "انقر أو أسقط هنا",
+      "process": "معالجة الملفات",
+      "processAria": "معالجة الملفات المحملة وفتح مساحة العمل",
+      "backAria": "العودة إلى نافذة الترحيب",
+      "dontShow": "عدم إظهار هذا مرة أخرى",
+      "startEmpty": "البدء بمشروع فارغ",
+      "startEmptyAria": "إغلاق النافذة والبدء بمساحة عمل فارغة",
+      "loading": "جارٍ التحميل…"
+    },
+    "support": {
+      "title": "دعم {app}",
+      "intro": "هذا المشروع مجاني ومفتوح المصدر. يساعد دعمك في تغطية وقت التطوير وتكاليف الاستضافة وأجهزة الاختبار.",
+      "sponsor": {
+        "title": "كن راعيًا",
+        "text": "احصل على ظهور لشعارك على شاشة الترحيب والتوثيق والمستودع. أبحث أيضًا بنشاط عن شراكات في مجال الأجهزة والعتاد.",
+        "copyHint": "انقر لنسخ البريد الإلكتروني",
+        "copyAria": "نسخ البريد الإلكتروني للراعي إلى الحافظة",
+        "copied": "تم النسخ إلى الحافظة!"
+      },
+      "donate": {
+        "title": "دعم المشروع",
+        "text": "المساهمات الفردية تمول مباشرة البنية التحتية للمشروع ووقت التطوير. أي مساهمة تساعد في استمرار المشروع.",
+        "kofi": "الدعم عبر Ko-fi",
+        "kofiAria": "الدعم عبر Ko-fi (يفتح في علامة تبويب جديدة)"
+      }
+    },
+    "help": {
+      "title": "سير العمل واختصارات لوحة المفاتيح",
+      "workflow": {
+        "title": "سير العمل",
+        "loadSources": {
+          "title": "تحميل ملفات المصدر",
+          "text": "أضف ملفات Gerber أو Excellon أو SVG إلى فئات العمليات"
+        },
+        "placeBoard": {
+          "title": "ضبط وضع اللوحة",
+          "text": "اضبط نقطة الأصل، والدوران، وإعدادات الماكينة"
+        },
+        "generate": {
+          "title": "توليد الهندسة",
+          "text": "حدد ملفًا، واضبط معلمات الأداة، ثم انقر على \"توليد مسارات الإزاحة\""
+        },
+        "previewExport": {
+          "title": "المعاينة والتصدير",
+          "text": "قم بتوليد المعاينة، ثم استخدم مدير العمليات لتصدير كود G"
+        },
+        "importFiles": {
+          "title": "استيراد الملفات",
+          "text": "حمل تصميمك من Illustrator أو Inkscape أو Affinity Designer"
+        },
+        "assignOperations": {
+          "title": "تعيين العمليات",
+          "text": "حدد المسارات وعين عمليات التفريز المحيطي، الجيب، الثقب، أو النقش"
+        },
+        "setParameters": {
+          "title": "ضبط المعلمات",
+          "text": "اضبط الأداة، والعمق، وسرعات التغذية، والاستراتيجية لكل عملية"
+        },
+        "exportGcode": {
+          "title": "تصدير كود G",
+          "text": "قم بتوليد وتنزيل ملفات جاهزة للماكينة"
+        }
+      },
+      "shortcuts": {
+        "title": "اختصارات لوحة المفاتيح",
+        "general": "عام",
+        "view": "عناصر التحكم في العرض",
+        "origin": "عناصر التحكم في نقطة الأصل",
+        "display": "تبديل العرض",
+        "operations": "تحديد العمليات",
+        "global": "اختصارات عامة",
+        "toggle3d": "التبديل بين العرض ثنائي وثلاثي الأبعاد",
+        "undo": "تراجع",
+        "redo": "إعادة",
+        "selectAll": "تحديد الكل",
+        "group": "تجميع التحديد",
+        "deleteSelection": "حذف التحديد",
+        "deselect": "إلغاء التحديد / إغلاق النافذة",
+        "importSvg": "استيراد الملفات",
+        "zoomIn": "تكبير",
+        "zoomOut": "تصغير",
+        "zoomInOut": "تكبير / تصغير",
+        "fit": "ملاءمة العرض",
+        "pan": "تحريك مساحة الرسم",
+        "shiftArrows": "<kbd/> + الأسهم",
+        "panFast": "تحريك أسرع",
+        "originBottomLeft": "نقطة الأصل إلى أسفل-اليسار",
+        "originCenter": "نقطة الأصل إلى المركز",
+        "originSave": "حفظ نقطة الأصل الحالية",
+        "toggleGrid": "تبديل الشبكة",
+        "toggleWireframe": "تبديل الإطار السلكي",
+        "cycleOperations": "التنقل بين العمليات المحملة من نوع واحد: 1 العزل، 2 الثقب، 3 الإزالة، 4 الإستنسل، 5 القص",
+        "focusZones": "التنقل بين مناطق التركيز",
+        "removeOperation": "إزالة العملية المحددة",
+        "toggleVisibility": "تبديل رؤية الطبقة",
+        "showHelp": "إظهار هذه المساعدة"
+      },
+      "a11y": {
+        "title": "التنقل لتسهيل الوصول",
+        "zones": "مناطق التركيز",
+        "zonesIntro": "تنقسم الواجهة إلى مناطق. اضغط على <kbd/> للتنقل بينها:",
+        "toolbar": "<strong>شريط الأدوات:</strong> الإجراءات العلوية وأوضاع العرض",
+        "tree": "<strong>شجرة العمليات:</strong> الشريط الجانبي الأيسر (التنقل بين الملفات)",
+        "properties": "<strong>الخصائص:</strong> الشريط الجانبي الأيمن (الإعدادات)",
+        "skipNote": "ملاحظة: استخدم <strong>رابط التخطي</strong> (مفتاح Tab عند التحميل) للانتقال إلى مساحة الرسم."
+      },
+      "tips": {
+        "title": "نصائح سريعة",
+        "firefox": "يبدو أن متصفح Firefox يقدم أسرع تنفيذ لأكواد JS/WASM",
+        "dragDetect": "اسحب الملفات مباشرة إلى مساحة الرسم لاكتشاف نوع العملية تلقائيًا",
+        "protel": "تساعد امتدادات Protel في تعيين الملفات المسحوبة تلقائيًا بكفاءة",
+        "eyeIcon": "استخدم أيقونة العين في الشجرة لتبديل رؤية الطبقات",
+        "mouse": "عجلة الماوس تقوم بالتكبير؛ النقر بالزر الأوسط أو الأيمن مع السحب يحرك العرض",
+        "vizPanel": "راجع لوحة التصور المرئي (أسفل اليسار) لخيارات تصحيح الأخطاء"
+      },
+      "feedback": {
+        "title": "المشكلات والملاحظات",
+        "text": "هل تواجه مشكلة؟ ابحث في المشكلات المفتوحة أو افتح مشكلة جديدة في <link>متتبع مشكلات GitHub</link>.",
+        "linkAria": "متتبع مشكلات GitHub (يفتح في علامة تبويب جديدة)"
+      },
+      "docs": "التوثيق الكامل",
+      "docsAria": "قراءة التوثيق الكامل (يفتح في علامة تبويب جديدة)",
+      "gotIt": "فهمت ذلك"
+    },
+    "exporter": {
+      "title": "مدير العمليات والتصدير",
+      "operationsTitle": "تحديد العمليات للمعالجة",
+      "orderHint": "حدد للتضمين. اسحب لتعيين الترتيب داخل الملفات المدمجة.",
+      "order": {
+        "label": "ترتيب المعالجة",
+        "help": "حدد عملية لتصديرها. يتم تنفيذ العمليات المدمجة في ملف واحد من الأعلى إلى الأسفل - اسحب لإعادة ترتيبها."
+      },
+      "outputTitle": "ملفات المخرجات",
+      "filename": {
+        "label": "الاسم الأساسي",
+        "help": "يبدأ كل ملف مصدر بهذا الاسم، متبوعًا بالعملية التي يتضمنها؛ وكذلك ملف ZIP. إذا تُرك فارغًا، فسيأخذ اسم أول عملية في القائمة."
+      },
+      "singleFile": {
+        "label": "تصدير كملف واحد",
+        "help": "يدمج العمليات التي تعمل على نفس الماكينة في ملف واحد، مقطوعة بترتيب القائمة. يتطلب عمليتين أو أكثر من نفس النوع؛ يتم دائمًا تصدير الإستنسل بشكل منفصل."
+      },
+      "splitDrills": {
+        "label": "تقسيم ملفات الثقب حسب الريشة",
+        "help": "ينشئ ملفًا واحدًا لكل ريشة ثقب، للماكينات التي لا تحتوي على مبدل أدوات. تظل أحجام الثقوب التي تقطعها نفس الريشة في ملف واحد، لذا يظهر هذا فقط لعمليات الثقب التي تستخدم أكثر من ريشة."
+      },
+      "zip": {
+        "label": "حزم الملفات في أرشيف .zip واحد",
+        "help": "يقدم جميع الملفات في أرشيف واحد يسمى باسم الملف الأساسي. إيقاف: يتم تنزيل كل ملف على حدة."
+      },
+      "includeComments": {
+        "label": "تضمين تعليقات العملية",
+        "help": "يضيف ملاحظات مقروءة لكل ملف: تعليق لكل عملية في كود G، ورأس في SVG. غير متاح إذا كان معالج ما بعد التشغيل لا يدعم التعليقات."
+      },
+      "verboseComments": {
+        "label": "تعليقات مفصلة",
+        "help": "يضيف أداة كل عملية ومعدلات التغذية والأعماق وأعمق نقطة Z إلى رأس كود G، حتى يُقرأ الملف القديم بدون المشروع. تعليقات كود G تكون بالإنجليزية دائمًا."
+      },
+      "cncTitle": "خيارات مخرجات CNC",
+      "postProcessor": "استخدام معالج ما بعد التشغيل: <post/>.",
+      "toolLibrary": "أدوات من المكتبة المخصصة <file/>.",
+      "toolChanges": {
+        "label": "إدراج أوامر تغيير الأداة",
+        "help": "يصدر T و M6، بالإضافة إلى أوامر تعويض طول الأداة عند تبديل الأدوات. يتطلب ملفًا يحتوي على أكثر من رقم أداة - قم بتفعيل تصدير الملف الواحد أو امنح العمليات أرقام T خاصة بها - ومعالج ما بعد تشغيل يدعم تبديل الأدوات."
+      },
+      "groupByTool": {
+        "label": "تجميع العمليات حسب الأداة",
+        "help": "يعيد ترتيب الملف المدمج بحيث تعمل العمليات التي تشترك في أداة واحدة بشكل متتابع، متجاوزًا ترتيب القائمة. يتطلب تصدير ملف واحد وأكثر من رقم أداة في الملف."
+      },
+      "optimize": {
+        "label": "تحسين مسار الحركة (كامل العمل)",
+        "help": "يعيد ترتيب المسارات لتقليل حركة الانتقال بين القطوع. قم بإيقافه للحفاظ على الترتيب المولد عند تتبع حركة غير متوقعة."
+      },
+      "laserTitle": "خيارات تصدير الليزر",
+      "laserPadding": "هامش مادي حول حدود اللوحة المصدرة بالمليمتر",
+      "laserProfile": "استخدام ملف التعريف: <profile/>.",
+      "settingsHint": "التغيير في إعدادات الماكينة (الشريط الجانبي الأيمن).",
+      "stencilTitle": "خيارات تصدير الإستنسل",
+      "stencilPadding": "هامش حول حدود الإستنسل بالمليمتر",
+      "previewTitle": "معاينة كود G",
+      "previewing": "معاينة:",
+      "stats": {
+        "lines": "الأسطر: <value/>",
+        "operations": "العمليات: <value/>",
+        "time": "الوقت المقدر: <value/>",
+        "distance": "المسافة: <value/>"
+      },
+      "previewPlaceholder": "انقر على \"حساب مسارات الأداة\" لتوليد كود G",
+      "previewAria": "معاينة مخرجات كود G",
+      "copy": "نسخ إلى الحافظة",
+      "cancelAria": "إلغاء وإغلاق النافذة",
+      "calculate": {
+        "label": "حساب مسارات الأداة",
+        "help": "معالجة العمليات المحددة وتوليد معاينة كود G بناءً على الترتيب والإعدادات الحالية."
+      },
+      "calculateAria": "توليد معاينة كود G",
+      "export": "تصدير الملفات",
+      "exportAria": "تصدير الملفات المحددة",
+      "reasons": {
+        "commentsOff": "التعليقات معطلة",
+        "gcodeOnly": "كود G فقط",
+        "nothingToCombine": "لا يوجد شيء لدمجه",
+        "singleFileOn": "تصدير الملف الواحد مفعل",
+        "noDrill": "لم يتم تحديد أي ثقب",
+        "oneBit": "ريشة واحدة فقط",
+        "oneFile": "ملف واحد فقط",
+        "notOnPost": "غير مدعوم في هذا المعالج",
+        "oneToolPerFile": "أداة واحدة لكل ملف",
+        "singleFileOnly": "ملف واحد فقط",
+        "oneToolInFile": "أداة واحدة في الملف"
+      },
+      "summary": {
+        "none": "لم يتم تحديد أي عمليات",
+        "files": {
+          "zero": "{count} ملف - {kinds}",
+          "one": "{count} ملف - {kinds}",
+          "two": "{count} ملفان - {kinds}",
+          "few": "{count} ملفات - {kinds}",
+          "many": "{count} ملفًا - {kinds}",
+          "other": "{count} ملف - {kinds}"
+        },
+        "kind": "{count} {format}",
+        "zip": "{name} - {kinds}"
+      },
+      "toolNotice": {
+        "shared": "يتم استدعاء T{number} مرة واحدة لـ {sizes}",
+        "title": "تشترك بعض أحجام الأدوات في نفس الأرقام",
+        "text": "لا بأس إذا كانت أداة فيزيائية واحدة - يقارن EasyCAM الأحجام وليس أسماء مكتبة الأدوات. إذا كانت أدوات قطع مختلفة، فامنح كل واحدة رقم أداة خاص بها في قسم الأداة في مرحلة الهندسة.",
+        "size": "⌀{diameter:mm} ({label})"
+      },
+      "stencilSeparate": "يتم تصديره كملف منفصل - تختلف خامة الإستنسل عن إعدادات باقي العمليات."
+    },
+    "drillTooling": {
+      "title": "أدوات الثقب",
+      "configure": "تهيئة أدوات الثقب…",
+      "empty": "لم يتم اكتشاف أي معالم ثقب. حمل ملف ثقب وقم بتوليد استراتيجية الثقب أولاً.",
+      "subtitle": {
+        "zero": "{file} - {count} قطر",
+        "one": "{file} - {count} قطر",
+        "two": "{file} - {count} قطران",
+        "few": "{file} - {count} أقطار",
+        "many": "{file} - {count} قطرًا",
+        "other": "{file} - {count} قطر"
+      },
+      "holes": {
+        "zero": "{count} ثقب",
+        "one": "{count} ثقب",
+        "two": "{count} ثقبان",
+        "few": "{count} ثقوب",
+        "many": "{count} ثقبًا",
+        "other": "{count} ثقب"
+      },
+      "slots": {
+        "zero": "{count} مجرى",
+        "one": "{count} مجرى",
+        "two": "{count} مجريان",
+        "few": "{count} مجارٍ",
+        "many": "{count} مجرى",
+        "other": "{count} مجرى"
+      },
+      "columns": {
+        "size": "الحجم",
+        "features": "المعالم",
+        "strategy": "الاستراتيجية",
+        "tool": "قطر الأداة ⌀ (مم)",
+        "toolNumber": "رقم T",
+        "peck": "النقرة",
+        "feed": "التغذية",
+        "plunge": "الغوص",
+        "rpm": "دورة/دقيقة"
+      },
+      "help": {
+        "size": "قطر الثقب، أو عرض المجرى. في ملف Excellon، مرر المؤشر فوق الحجم لرؤية كود الأداة.",
+        "features": "عدد الثقوب أو المجاري التي يتضمنها الصف. تحصل الثقوب والمجاري ذات الحجم الواحد على صف خاص بها، حتى تتمكن كل منها من أخذ استراتيجيتها وقاطعتها الخاصة.",
+        "strategy": "ينزل النقر عموديًا عند كل ثقب وفي كلا طرفي المجرى. يفرز التفريز معالم أعرض من القاطعة؛ ويُقطع المعلم المماثل لعرض القاطعة في شوط واحد، كمجرى على طول خط المنتصف أو كثقب كغوص مباشر. يتخطى خيار التخطي الصف دون قطع.",
+        "tool": "قطر القاطعة للصف. إذا تُرك فارغًا يُستخدم حجم المعلم نفسه. يؤدي تغييره إلى تجاهل المسارات المولدة.",
+        "toolNumber": "رقم T الذي يستدعي قاطعة الصف: جيبها أو ظرفها. يحتاجه كل صف باستثناء التخطي؛ ويمكن للصفوف التي تشترك في قاطعة أن تشترك في رقم واحد.",
+        "peck": "عمق كل نقرة في صف النقر. مع دورات الثقب الجاهزة، تكون كلمة Q لـ G83 و G73؛ وفي المعالج الذي لا يدعمها يكتب EasyCAM حلقة النقر بنفسه. تركه فارغًا يستخدم عمق النقرة للعملية. القيمة 0، أو دورة جاهزة بدون، تثقب في غوص واحد.",
+        "feed": "تغذية حركات تفريز الصف، بمم/دقيقة. تركه فارغًا يستخدم معدل تغذية العملية.",
+        "plunge": "معدل الغوص لنقرات الصف ودخول Z، بمم/دقيقة. تركه فارغًا يستخدم معدل غوص العملية.",
+        "rpm": "سرعة دوران المغزل لقاطعة الصف. تركه فارغًا يستخدم سرعة مغزل العملية."
+      },
+      "excellonCode": "كود Excellon: {codes}",
+      "holeSize": "ثقوب {size:mm}",
+      "slotSize": "مجاري {size:mm}",
+      "strategyAria": "استراتيجية {holes}",
+      "toolDiameterAria": "قطر الأداة بالمليمتر لـ {holes}",
+      "toolNumberAria": "رقم الأداة لـ {holes}",
+      "feedRateAria": "معدل التغذية لـ {holes}",
+      "plungeRateAria": "معدل الغوص لـ {holes}",
+      "spindleSpeedAria": "سرعة المغزل لـ {holes}",
+      "peckDepthAria": "عمق النقرة لـ {holes}",
+      "strategies": {
+        "peck": "نقر",
+        "mill": "تفريز",
+        "skip": "تخطي"
+      },
+      "presets": {
+        "flatten": "إعادة التعيين إلى الافتراضي",
+        "match": "مطابقة تلقائية مع مكتبة الأدوات"
+      },
+      "notice": {
+        "geometry": "تحصل الثقوب والمجاري ذات الحجم الواحد على صف خاص بها. حدد لكل صف استراتيجية وقاطعة ورقم T؛ والصف المتخطى لا يحتاج لأي منها. يؤدي تغيير الاستراتيجية أو القاطعة إلى تجاهل المسارات المولدة؛ بينما لا يؤدي تغيير رقم T إلى ذلك.",
+        "strategy": "عمق النقرة لكل صف. اتركه فارغًا لاستخدام عمق النقرة للعملية. يتم تعيين الاستراتيجية والقاطعة ورقم T في مرحلة هندسة XY.",
+        "machine": "معدلات التغذية وسرعة المغزل لكل صف. اترك الحقل فارغًا لاستخدام قيمة العملية. يتم تعيين الاستراتيجية والقاطعة ورقم T في مرحلة هندسة XY."
+      },
+      "inherit": "العملية"
+    },
+    "warning": {
+      "title": "تحذير"
+    }
+  },
+  "dialogs": {
+    "deleteGeometry": {
+      "title": "حذف الهندسة",
+      "items": {
+        "zero": "{count} عنصر",
+        "one": "{count} عنصر",
+        "two": "{count} عنصران",
+        "few": "{count} عناصر",
+        "many": "{count} عنصرًا",
+        "other": "{count} عنصر"
+      },
+      "message": "هل تريد حذف {items}؟ يمكن التراجع عن هذا باستخدام Ctrl+Z.",
+      "messageWithOps": {
+        "zero": "هل تريد حذف {items}؟ سيؤدي هذا أيضًا إلى إزالة {count} عملية. يمكن التراجع باستخدام Ctrl+Z.",
+        "one": "هل تريد حذف {items}؟ سيؤدي هذا أيضًا إلى إزالة {count} عملية. يمكن التراجع باستخدام Ctrl+Z.",
+        "two": "هل تريد حذف {items}؟ سيؤدي هذا أيضًا إلى إزالة {count} عمليتين. يمكن التراجع باستخدام Ctrl+Z.",
+        "few": "هل تريد حذف {items}؟ سيؤدي هذا أيضًا إلى إزالة {count} عمليات. يمكن التراجع باستخدام Ctrl+Z.",
+        "many": "هل تريد حذف {items}؟ سيؤدي هذا أيضًا إلى إزالة {count} عملية. يمكن التراجع باستخدام Ctrl+Z.",
+        "other": "هل تريد حذف {items}؟ سيؤدي هذا أيضًا إلى إزالة {count} عملية. يمكن التراجع باستخدام Ctrl+Z."
+      }
+    },
+    "openCutout": {
+      "probeFailed": "فشل الفحص.",
+      "joined": {
+        "zero": "تم ربط {joined} من أصل {count} مقطع",
+        "one": "تم ربط {joined} من أصل {count} مقطع",
+        "two": "تم ربط {joined} من أصل {count} مقطعين",
+        "few": "تم ربط {joined} من أصل {count} مقاطع",
+        "many": "تم ربط {joined} من أصل {count} مقطعًا",
+        "other": "تم ربط {joined} من أصل {count} مقطع"
+      },
+      "closed": "تم إغلاق المسار بنجاح باستخدام تفاوت قدره {tolerance:mm}.",
+      "remaining": {
+        "zero": "يبقى {count} مقطع منفصلاً.",
+        "one": "يبقى {count} مقطع منفصلاً.",
+        "two": "يبقى {count} مقطعان منفصلين.",
+        "few": "تبقى {count} مقاطع منفصلة.",
+        "many": "يبقى {count} مقطعًا منفصلاً.",
+        "other": "يبقى {count} مقطع منفصلاً."
+      },
+      "increase": "قم بزيادة نسبة التفاوت لسد الفجوات الأكبر.",
+      "intro": "تحتوي هندسة القص في <strong>{file}</strong> على مقاطع غير متصلة.",
+      "partial": {
+        "zero": "تم استخراج <strong>{count}</strong> حلقة مغلقة بنجاح، ولكن تعذر ضم {segments}.",
+        "one": "تم استخراج <strong>{count}</strong> حلقة مغلقة بنجاح، ولكن تعذر ضم {segments}.",
+        "two": "تم استخراج <strong>{count}</strong> حلقتين مغلقين بنجاح، ولكن تعذر ضم {segments}.",
+        "few": "تم استخراج <strong>{count}</strong> حلقات مغلقة بنجاح، ولكن تعذر ضم {segments}.",
+        "many": "تم استخراج <strong>{count}</strong> حلقة مغلقة بنجاح، ولكن تعذر ضم {segments}.",
+        "other": "تم استخراج <strong>{count}</strong> حلقة مغلقة بنجاح، ولكن تعذر ضم {segments}."
+      },
+      "segmentCount": {
+        "zero": "{count} مقطع",
+        "one": "{count} مقطع",
+        "two": "{count} مقطعان",
+        "few": "{count} مقاطع",
+        "many": "{count} مقطعًا",
+        "other": "{count} مقطع"
+      },
+      "gaps": "<strong>الفجوات المكتشفة:</strong> {gaps}",
+      "setTolerance": "اضبط تفاوتًا كبيرًا بما يكفي لتغطية أقصى فجوة:",
+      "unknownGaps": "غير معروف",
+      "tolerance": "التفاوت:",
+      "test": "اختبار",
+      "title": "تم اكتشاف مسار قص مفتوح",
+      "confirm": "إغلاق المسار",
+      "cancel": "الإبقاء كما هو",
+      "positive": "أدخل قيمة تفاوت موجبة."
+    },
+    "drillRecovery": {
+      "intro": {
+        "zero": "يحتوي ملف SVG <strong>{file}</strong> على {count} مسار مركب يطابق أشكال ثقوب معروفة.",
+        "one": "يحتوي ملف SVG <strong>{file}</strong> على {count} مسار مركب يطابق أشكال ثقوب معروفة.",
+        "two": "يحتوي ملف SVG <strong>{file}</strong> على {count} مسارين مركبين يطابقان أشكال ثقوب معروفة.",
+        "few": "يحتوي ملف SVG <strong>{file}</strong> على {count} مسارات مركبة تطابق أشكال ثقوب معروفة.",
+        "many": "يحتوي ملف SVG <strong>{file}</strong> على {count} مسارًا مركبًا يطابق أشكال ثقوب معروفة.",
+        "other": "يحتوي ملف SVG <strong>{file}</strong> على {count} مسار مركب يطابق أشكال ثقوب معروفة."
+      },
+      "circles": "المرشحات لتكون دوائر ({count})",
+      "circlesHint": "مسارات مركبة تشكل دوائر كاملة.",
+      "obrounds": "المرشحات لتكون مستطيلات مستديرة ({count})",
+      "obroundsHint": "مسارات مركبة تشكل أشكال كبسولات/ملاعب.",
+      "question": "هل تريد تحويل هذه الأشكال إلى هندسة ثقوب ومجاري صالحة لعملية الثقب؟",
+      "title": "هندسة ثقب قابلة للاسترداد",
+      "confirm": "تحويل",
+      "cancel": "تخطي"
+    },
+    "deleteOperation": {
+      "title": "حذف العملية",
+      "shape": "هل تريد إزالة {name} ومساراتها المولدة؟ يمكن التراجع عن هذا باستخدام Ctrl+Z.",
+      "unnamed": "هذه العملية",
+      "trace": "هل تريد إزالة {name} وكل ما تم توليده منها؟ لا يمكن التراجع عن هذا الإجراء."
+    }
+  },
+  "messages": {
+    "theme": {
+      "loadFailed": "تعذر تحميل السمة: {error}"
+    },
+    "language": {
+      "loadFailed": "تعذر تحميل اللغة: {error}"
+    },
+    "storage": {
+      "settingsNotSaved": "تعذر حفظ الإعدادات: مساحة تخزين المتصفح ممتلئة أو محظورة. تستمر التغييرات حتى إغلاق هذه الصفحة."
+    },
+    "drill": {
+      "toolingChanged": "تغيرت أدوات الثقب بعد التوليد - أعد التوليد قبل التصدير.",
+      "recovered": {
+        "zero": "تمت استعادة {count} شكل ثقب",
+        "one": "تمت استعادة {count} شكل ثقب",
+        "two": "تمت استعادة {count} شكلي ثقب",
+        "few": "تمت استعادة {count} أشكال ثقوب",
+        "many": "تمت استعادة {count} شكل ثقب",
+        "other": "تمت استعادة {count} شكل ثقب"
+      },
+      "recoverySkipped": "تم تخطي الأشكال المركبة",
+      "multiToolOn": "الثقب متعدد الأدوات مفعل - عين أداة لكل صف في أدوات الثقب.",
+      "multiToolOff": "الثقب بأداة واحدة - تقوم أداة العملية بقطع كل ثقب.",
+      "modeMilling": "تم التبديل إلى وضع التفريز",
+      "modePecking": "تم التبديل إلى وضع الثقب النقري",
+      "completeTooling": "أكمل إعداد أدوات الثقب متعددة الأدوات قبل التوليد.",
+      "allSkipped": "تم تعيين كل صف على التخطي - لن يتم قطع أي شيء.",
+      "missingDiameter": "قطر الأداة مفقود أو 0 لـ {sizes}.",
+      "missingNumber": "أدخل رقم أداة (T#) لـ {sizes}.",
+      "squareAsHole": "تمت معاملة المستطيل المربع ({size:mm}) كثقب دائري",
+      "rectangleRejected": "تم رفض المستطيل غير المربع ({width} x {height:mm}) - استخدم دوائر أو مستطيلات مستديرة الحواف للثقوب",
+      "shapeRejected": "تم رفض شكل {type} - عملية الثقب تدعم الدوائر والمستطيلات مستديرة الحواف فقط",
+      "laserMarks": {
+        "zero": "تم توليد {count} علامة ثقب ليزر",
+        "one": "تم توليد {count} علامة ثقب ليزر",
+        "two": "تم توليد {count} علامتي ثقب ليزر",
+        "few": "تم توليد {count} علامات ثقب ليزر",
+        "many": "تم توليد {count} علامة ثقب ليزر",
+        "other": "تم توليد {count} علامة ثقب ليزر"
+      },
+      "peckPositions": {
+        "zero": "{count} موضع نقر",
+        "one": "{count} موضع نقر",
+        "two": "{count} موضعا نقر",
+        "few": "{count} مواضع نقر",
+        "many": "{count} موضع نقر",
+        "other": "{count} موضع نقر"
+      },
+      "millPaths": {
+        "zero": "{count} مسار تفريز",
+        "one": "{count} مسار تفريز",
+        "two": "{count} مسارا تفريز",
+        "few": "{count} مسارات تفريز",
+        "many": "{count} مسار تفريز",
+        "other": "{count} مسار تفريز"
+      },
+      "features": {
+        "zero": "{count} معلم",
+        "one": "{count} معلم",
+        "two": "{count} معلمان",
+        "few": "{count} معالم",
+        "many": "{count} معلمًا",
+        "other": "{count} معلم"
+      },
+      "generated": {
+        "zero": "تم توليد {detail} عبر {count} مجموعة أدوات",
+        "one": "تم توليد {detail} عبر {count} مجموعة أدوات",
+        "two": "تم توليد {detail} عبر {count} مجموعتي أدوات",
+        "few": "تم توليد {detail} عبر {count} مجموعات أدوات",
+        "many": "تم توليد {detail} عبر {count} مجموعة أدوات",
+        "other": "تم توليد {detail} عبر {count} مجموعة أدوات"
+      },
+      "withWarnings": {
+        "zero": "{message} - {count} تحذير",
+        "one": "{message} - {count} تحذير",
+        "two": "{message} - {count} تحذيران",
+        "few": "{message} - {count} تحذيرات",
+        "many": "{message} - {count} تحذيرًا",
+        "other": "{message} - {count} تحذير"
+      },
+      "noToolSkipped": {
+        "zero": "{feature}: تم تخطي {count} معلم - لم يتم تعيين أداة صالحة",
+        "one": "{feature}: تم تخطي {count} معلم - لم يتم تعيين أداة صالحة",
+        "two": "{feature}: تم تخطي {count} معلمين - لم يتم تعيين أداة صالحة",
+        "few": "{feature}: تم تخطي {count} معالم - لم يتم تعيين أداة صالحة",
+        "many": "{feature}: تم تخطي {count} معلمًا - لم يتم تعيين أداة صالحة",
+        "other": "{feature}: تم تخطي {count} معلم - لم يتم تعيين أداة صالحة"
+      }
+    },
+    "quickstart": {
+      "willShow": "سيظهر البدء السريع في الزيارة القادمة"
+    },
+    "examples": {
+      "loadFailed": "تعذر تحميل هذا المثال: {error}",
+      "notFound": "المثال غير موجود: {id}",
+      "loading": "جارٍ تحميل المثال: {name}…",
+      "loaded": "تم تحميل المثال '{name}' بنجاح."
+    },
+    "export": {
+      "nothingToCopy": "لا يوجد كود G مولد لنسخه.",
+      "copied": "تم نسخ كود G إلى الحافظة!",
+      "copyFailed": "فشل النسخ إلى الحافظة. تحقق من أذونات المتصفح.",
+      "noneSelected": "لم يتم تحديد أي عمليات للتصدير.",
+      "producedNothing": "التصدير لم ينتج أي مخرجات.",
+      "failed": "فشل التصدير: {error}",
+      "notReady": "غير جاهز: {files}. أكمل مراحل كل عملية أولاً.",
+      "noCncOperations": "لم يتم تحديد أي عمليات CNC للحساب",
+      "noGcode": "لم يرجع الحساب أي كود G",
+      "calculationFailed": "فشل: {error}",
+      "noneReady": "لا توجد عمليات جاهزة للتصدير. قم بتوليد كل عملية حتى مرحلة الإخراج أولاً.",
+      "skippedFile": "{file} ({reason})",
+      "nothingExported": "لم يتم تصدير أي شيء - {files}",
+      "noFiles": "لم يتم توليد أي ملفات.",
+      "archive": {
+        "zero": "{name} ({count} ملف)",
+        "one": "{name} ({count} ملف)",
+        "two": "{name} ({count} ملفان)",
+        "few": "{name} ({count} ملفات)",
+        "many": "{name} ({count} ملفًا)",
+        "other": "{name} ({count} ملف)"
+      },
+      "fileCount": {
+        "zero": "{count} ملف",
+        "one": "{count} ملف",
+        "two": "{count} ملفان",
+        "few": "{count} ملفات",
+        "many": "{count} ملفًا",
+        "other": "{count} ملف"
+      },
+      "exportedSkipped": "تم تصدير {written}. تم تخطي: {skipped}",
+      "exported": "تم تصدير {written}.",
+      "reasonNotReady": "لم يتم حساب مسارات الأداة",
+      "reasonNoGcode": "لم يتم إنتاج أي كود G",
+      "operationLabel": "{type}: {name}",
+      "featureLabel": "{operation} - {feature}",
+      "noToolChange": "معالج {post} لا يدعم تغيير الأداة، ولكن ملفًا في هذا العمل يحتوي على أكثر من أداة واحدة. قم بإيقاف تشغيل تصدير الملف الواحد، أو قسّم ملفات الثقب، أو امنح تلك العمليات رقم أداة واحد.",
+      "routeIsReplacement": "تم تعيين مسار المحور الدوار للماكينة على استبدال المحور، والذي يحمل طول القوس على الكلمة Y.",
+      "noRotaryWord": "معالج {post} ليس لديه كلمة {word} لمحور دوار حول {axis} - لا يمكن كتابة وضع الفهرسة 3+1 له.",
+      "rotaryNeedsMetric": "يتطلب تصدير المحور الدوار (المحور الرابع) وحدات مترية. قم بتبديل وحدات كود G إلى مليمتر.",
+      "postNotFound": "معالج ما بعد التشغيل '{post}' غير موجود",
+      "noToolNumber": "لم يتم حل أي رقم أداة لهذا العمل - البرنامج لا يحتوي على أي كلمة T.",
+      "spindleCapped": "سرعة المغزل {rpm} دورة/دقيقة أعلى من الحد الأقصى للمعالج {post} البالغ {max} دورة/دقيقة؛ يعمل البرنامج بتشغيل المغزل عند {max} دورة/دقيقة.",
+      "validationFailed": "فشل التحقق من الصحة: {errors}",
+      "faultLine": "السطر {line}: \"{text}\"",
+      "nonNumeric": "تم رفض التصدير - قيمة غير رقمية في البرنامج عند {faults}",
+      "droppedWords": {
+        "zero": "تم رفض التصدير - {count} إحداثي أو تغذية نتج عنها رقم غير محدود وتم إسقاطها. أعد توليد العمليات المتأثرة.",
+        "one": "تم رفض التصدير - {count} إحداثي أو تغذية نتج عنها رقم غير محدود وتم إسقاطها. أعد توليد العمليات المتأثرة.",
+        "two": "تم رفض التصدير - {count} إحداثيان أو تغذيتان نتج عنهما رقم غير محدود وتم إسقاطهما. أعد توليد العمليات المتأثرة.",
+        "few": "تم رفض التصدير - {count} إحداثيات أو تغذيات نتج عنها أرقام غير محدودة وتم إسقاطها. أعد توليد العمليات المتأثرة.",
+        "many": "تم رفض التصدير - {count} إحداثيًا أو تغذية نتج عنها أرقام غير محدودة وتم إسقاطها. أعد توليد العمليات المتأثرة.",
+        "other": "تم رفض التصدير - {count} إحداثي أو تغذية نتج عنها أرقام غير محدودة وتم إسقاطها. أعد توليد العمليات المتأثرة."
+      },
+      "nonFiniteWord": "كلمة الأمر {word} هي {value} - مسار الأداة يحمل قيمة غير محدودة.",
+      "zeroFeed": "معدل التغذية صفر في حركة قطع.",
+      "belowFloor": "قيمة Z المأمورة {z:mm} تقع أسفل Z0 للماكينة ({floor:mm})، والتي لا يمكن لـ Z0 المطلق الوصول إليها. اضبط Z0 للخامة على السرير، أو تحقق من ارتفاع المحور الدوار.",
+      "absoluteZFrames": "لا يمكن لـ Z0 المطلق وضع العمليات المسطحة وعمليات المحور الرابع في برنامج واحد بعد. قم بتصديرها كملفات منفصلة.",
+      "absoluteZWrapped": "لا يدعم Z0 المطلق مسار المحور الرابع باستبدال المحور حتى الآن. اختر مسار الكلمة الدوارة في إعدادات الماكينة.",
+      "absoluteZHeight": "اضبط ارتفاع المحور الدوار في إعدادات الماكينة: يحتاجه Z0 المطلق لتحديد موضع برنامج المحور الرابع.",
+      "feedOverMax": {
+        "zero": "معدل التغذية F{feed} يتجاوز الحد الأقصى للماكينة البالغ F{max}.",
+        "one": "معدل التغذية F{feed} يتجاوز الحد الأقصى للماكينة البالغ F{max}.",
+        "two": "{count} حركتان تتجاوزان الحد الأقصى لتغذية الماكينة البالغ F{max}، الأولى عند F{feed}.",
+        "few": "{count} حركات تتجاوز الحد الأقصى لتغذية الماكينة البالغ F{max}، الأولى عند F{feed}.",
+        "many": "{count} حركة تتجاوز الحد الأقصى لتغذية الماكينة البالغ F{max}، الأولى عند F{feed}.",
+        "other": "{count} حركة تتجاوز الحد الأقصى لتغذية الماكينة البالغ F{max}، الأولى عند F{feed}."
+      },
+      "inverseTimeOverMax": {
+        "zero": "معدل التغذية بالوقت المعكوس F{feed} يتجاوز الحد الأقصى للمعالج البالغ F{max}.",
+        "one": "معدل التغذية بالوقت المعكوس F{feed} يتجاوز الحد الأقصى للمعالج البالغ F{max}.",
+        "two": "{count} حركتان بالوقت المعكوس تتجاوزان الحد الأقصى للمعالج البالغ F{max}، الأولى عند F{feed}.",
+        "few": "{count} حركات بالوقت المعكوس تتجاوز الحد الأقصى للمعالج البالغ F{max}، الأولى عند F{feed}.",
+        "many": "{count} حركة بالوقت المعكوس تتجاوز الحد الأقصى للمعالج البالغ F{max}، الأولى عند F{feed}.",
+        "other": "{count} حركة بالوقت المعكوس تتجاوز الحد الأقصى للمعالج البالغ F{max}، الأولى عند F{feed}."
+      },
+      "depthOverMax": {
+        "zero": "قيمة Z {z:mm} تتجاوز أقصى عمق آمن للماكينة ({max:mm}). تحقق من سماكة الخامة ونقطة أصل Z.",
+        "one": "قيمة Z {z:mm} تتجاوز أقصى عمق آمن للماكينة ({max:mm}). تحقق من سماكة الخامة ونقطة أصل Z.",
+        "two": "{count} حركتان تتجاوزان أقصى عمق آمن للماكينة ({max:mm})، الأولى عند Z {z:mm}. تحقق من سماكة الخامة ونقطة أصل Z.",
+        "few": "{count} حركات تتجاوز أقصى عمق آمن للماكينة ({max:mm})، الأولى عند Z {z:mm}. تحقق من سماكة الخامة ونقطة أصل Z.",
+        "many": "{count} حركة تتجاوز أقصى عمق آمن للماكينة ({max:mm})، الأولى عند Z {z:mm}. تحقق من سماكة الخامة ونقطة أصل Z.",
+        "other": "{count} حركة تتجاوز أقصى عمق آمن للماكينة ({max:mm})، الأولى عند Z {z:mm}. تحقق من سماكة الخامة ونقطة أصل Z."
+      },
+      "winpcFeedUnit": "لا يمكن الجمع بين وحدة تغذية مم/ثانية ومخرجات بالبوصة. اضبط وحدة التغذية على مم/دقيقة، أو قم بتبديل وحدات كود G إلى مليمتر.",
+      "laserProfileMissing": "ملف تعريف الليزر '{id}' غير مسجل",
+      "reasonNoGeometry": "لا توجد هندسة مولدة",
+      "reasonNoData": "المصير لم يرجع أي بيانات",
+      "pngUnavailable": "يتطلب تصدير PNG وجود OffscreenCanvas أو عنصر canvas في DOM؛ كلاهما غير متوفر في هذا المتصفح. قم بالتصدير بصيغة SVG بدلاً من ذلك.",
+      "pngTooLarge": "تعذر تخصيص مساحة رسم بأبعاد {width} x {height}. قلل من دقة DPI للتصدير.",
+      "pngEmpty": "تشفير PNG لم يرجع أي بيانات."
+    },
+    "view": {
+      "no3dContainer": "حاوية منفذ العرض ثلاثي الأبعاد مفقودة من الصفحة",
+      "view3dActive": "العرض ثلاثي الأبعاد نشط. F2 للعودة إلى العرض ثنائي الأبعاد.",
+      "view3dFailed": "فشلت المعاينة ثلاثية الأبعاد: {error}",
+      "only3d": "يحتوي هذا المشهد على هندسة ثلاثية الأبعاد فقط - لا يوجد شيء لعرضه في الوضع ثنائي الأبعاد.",
+      "verboseOn": "تشغيل التصحيح المفصل",
+      "verboseOff": "إيقاف التصحيح المفصل",
+      "zoneFocused": "تم التركيز على {zone}",
+      "canvasEmpty": "لا يوجد شيء في مساحة الرسم لتصديره",
+      "canvasExported": "تم تصدير مساحة الرسم بنجاح",
+      "canvasFailed": "فشل تصدير مساحة الرسم: {error}",
+      "gpuLost": "فقد العرض ثلاثي الأبعاد جهاز معالج الرسوميات GPU الخاص به ({error}). قد يؤدي إعادة تحميل الصفحة إلى استعادته.",
+      "enableFirst": "قم بتمكين '{option}' أولاً",
+      "uiInitFailed": "خطأ في تهيئة واجهة المستخدم: {error}",
+      "fusionFailed": "فشل الدمج: {error}"
+    },
+    "files": {
+      "loadFailed": "فشل تحميل {file}: {error}",
+      "unsupportedType": "نوع ملف غير مدعوم: .{ext}",
+      "readFailed": "فشلت قراءة {file}: {error}",
+      "stlParseError": "خطأ في تحليل STL: {errors}",
+      "parseError": "خطأ في التحليل: {errors}",
+      "stlLoaded": "تم تحميل {file}: {triangles} مثلثات، ارتفاع النموذج {height:mm}",
+      "stlLoadedMeshes": "تم تحميل {file}: {triangles} مثلثات في {count} شبكات مجسمة، ارتفاع النموذج {height:mm}",
+      "plotterError": "خطأ في الراسمة: {error}",
+      "svgImported": {
+        "zero": "تم استيراد {file}: {count} شكل",
+        "one": "تم استيراد {file}: {count} شكل",
+        "two": "تم استيراد {file}: {count} شكلان",
+        "few": "تم استيراد {file}: {count} أشكال",
+        "many": "تم استيراد {file}: {count} شكلاً",
+        "other": "تم استيراد {file}: {count} شكل"
+      },
+      "readFailedShort": "فشلت قراءة الملف",
+      "readFailedNamed": "فشلت قراءة {file}",
+      "loadedPrimitives": {
+        "zero": "تم تحميل {file}: {count} عنصر أولي",
+        "one": "تم تحميل {file}: {count} عنصر أولي",
+        "two": "تم تحميل {file}: {count} عنصران أوليان",
+        "few": "تم تحميل {file}: {count} عناصر أولية",
+        "many": "تم تحميل {file}: {count} عنصرًا أوليًا",
+        "other": "تم تحميل {file}: {count} عنصر أولي"
+      },
+      "processingError": "خطأ أثناء معالجة {file}: {error}",
+      "dropSkipped": {
+        "zero": "تم تخطي {count} ملف لا يمكن لهذا التطبيق تحميلها.",
+        "one": "تم تخطي {count} ملف لا يمكن لهذا التطبيق تحميله.",
+        "two": "تم تخطي {count} ملفين لا يمكن لهذا التطبيق تحميلهما.",
+        "few": "تم تخطي {count} ملفات لا يمكن لهذا التطبيق تحميلها.",
+        "many": "تم تخطي {count} ملفًا لا يمكن لهذا التطبيق تحميلها.",
+        "other": "تم تخطي {count} ملف لا يمكن لهذا التطبيق تحميلها."
+      },
+      "dropWithSkipped": "{message} {skipped}",
+      "warningCount": {
+        "zero": "{count} تحذير",
+        "one": "{count} تحذير",
+        "two": "{count} تحذيران",
+        "few": "{count} تحذيرات",
+        "many": "{count} تحذيرًا",
+        "other": "{count} تحذير"
+      },
+      "dropNothing": "لا توجد ملفات قابلة للتحميل.",
+      "dropFailed": {
+        "zero": "تم تحميل {count} ملف - تعذر تحميل {failed}، راجع السجل.",
+        "one": "تم تحميل {count} ملف - تعذر تحميل {failed}، راجع السجل.",
+        "two": "تم تحميل {count} ملفين - تعذر تحميل {failed}، راجع السجل.",
+        "few": "تم تحميل {count} ملفات - تعذر تحميل {failed}، راجع السجل.",
+        "many": "تم تحميل {count} ملفًا - تعذر تحميل {failed}، راجع السجل.",
+        "other": "تم تحميل {count} ملف - تعذر تحميل {failed}، راجع السجل."
+      },
+      "dropWarnings": {
+        "zero": "تم تحميل {count} ملف مع {warnings}. راجع السجل.",
+        "one": "تم تحميل {count} ملف مع {warnings}. راجع السجل.",
+        "two": "تم تحميل {count} ملفين مع {warnings}. راجع السجل.",
+        "few": "تم تحميل {count} ملفات مع {warnings}. راجع السجل.",
+        "many": "تم تحميل {count} ملفًا مع {warnings}. راجع السجل.",
+        "other": "تم تحميل {count} ملف مع {warnings}. راجع السجل."
+      },
+      "dropLoaded": {
+        "zero": "تم تحميل {count} ملف.",
+        "one": "تم تحميل {count} ملف.",
+        "two": "تم تحميل {count} ملفين.",
+        "few": "تم تحميل {count} ملفات.",
+        "many": "تم تحميل {count} ملفًا.",
+        "other": "تم تحميل {count} ملف."
+      },
+      "dropSuccess": {
+        "zero": "تم تحميل {count} ملف بنجاح.",
+        "one": "تم تحميل {count} ملف بنجاح.",
+        "two": "تم تحميل {count} ملفين بنجاح.",
+        "few": "تم تحميل {count} ملفات بنجاح.",
+        "many": "تم تحميل {count} ملفًا بنجاح.",
+        "other": "تم تحميل {count} ملف بنجاح."
+      },
+      "fileWarning": "{file}: {warning}",
+      "drillsGuessed": {
+        "zero": "تم تحميل {file}: {count} ثقب (تنسيق تم تخمينه!)",
+        "one": "تم تحميل {file}: {count} ثقب (تنسيق تم تخمينه!)",
+        "two": "تم تحميل {file}: {count} ثقبان (تنسيق تم تخمينه!)",
+        "few": "تم تحميل {file}: {count} ثقوب (تنسيق تم تخمينه!)",
+        "many": "تم تحميل {file}: {count} ثقبًا (تنسيق تم تخمينه!)",
+        "other": "تم تحميل {file}: {count} ثقب (تنسيق تم تخمينه!)"
+      },
+      "unknownOperationType": "نوع عملية غير معروف: {type}",
+      "invalidType": "نوع ملف غير صالح لـ {type}. المتوقع: {extensions}"
+    },
+    "machine": {
+      "postSwitched": "تم التبديل إلى {post}. أعد حساب مسارات الأداة لتطبيق التغييرات."
+    },
+    "origin": {
+      "saved": "تم حفظ نقطة الأصل في الموضع الحالي",
+      "reset": "إعادة التعيين إلى نقطة الأصل المحفوظة"
+    },
+    "reorder": {
+      "placed": "تم وضع العنصر",
+      "grabbed": "تم الإمساك بالعنصر. استخدم أعلى/أسفل للتحريك، ومفتاح المسافة للتثبيت.",
+      "cancelled": "تم إلغاء إعادة الترتيب"
+    },
+    "history": {
+      "undone": "تراجع: {action}",
+      "redone": "إعادة: {action}"
+    },
+    "scene": {
+      "lockedByParent": "مقفل بواسطة العنصر الأب - قم بإلغاء قفل الأب أولاً",
+      "skippedLocked": {
+        "zero": "تم تخطي {count} عنصر (مقفل بواسطة العنصر الأب)",
+        "one": "تم تخطي {count} عنصر (مقفل بواسطة العنصر الأب)",
+        "two": "تم تخطي {count} عنصرين (مقفلين بواسطة العنصر الأب)",
+        "few": "تم تخطي {count} عناصر (مقفلة بواسطة العنصر الأب)",
+        "many": "تم تخطي {count} عنصرًا (مقفل بواسطة العنصر الأب)",
+        "other": "تم تخطي {count} عنصر (مقفل بواسطة العنصر الأب)"
+      },
+      "groupNeedsTwo": "حدد عنصرين أو أكثر للتجميع",
+      "grouped": {
+        "zero": "تم تجميع {count} عنصر",
+        "one": "تم تجميع {count} عنصر",
+        "two": "تم تجميع {count} عنصرين",
+        "few": "تم تجميع {count} عناصر",
+        "many": "تم تجميع {count} عنصرًا",
+        "other": "تم تجميع {count} عنصر"
+      },
+      "nothingToUngroup": "لا توجد مجموعات في التحديد لفك تجميعها",
+      "ungrouped": {
+        "zero": "تم فك تجميع {count} مجموعة",
+        "one": "تم فك تجميع {count} مجموعة",
+        "two": "تم فك تجميع {count} مجموعتين",
+        "few": "تم فك تجميع {count} مجموعات",
+        "many": "تم فك تجميع {count} مجموعة",
+        "other": "تم فك تجميع {count} مجموعة"
+      },
+      "tooManyMeshes": "تم تحديد {count} شبكات مجسمة - يحتاج كل نموذج إلى عمليته الخاصة.",
+      "locked": "العنصر مقفل"
+    },
+    "operations": {
+      "sourceChanged": "تغيرت هندسة المصدر. أعد توليد مسارات الإزاحة.",
+      "toolChanged": "تغيرت الأداة '{tool}' في مكتبة الأدوات - أعد التوليد قبل التصدير.",
+      "toolsChanged": {
+        "zero": "{count} عملية تستخدم أداة تم تغييرها في المكتبة - أعد توليدها قبل التصدير.",
+        "one": "{count} عملية تستخدم أداة تم تغييرها في المكتبة - أعد توليدها قبل التصدير.",
+        "two": "{count} عمليتان تستخدمان أداة تم تغييرها في المكتبة - أعد توليدهما قبل التصدير.",
+        "few": "{count} عمليات تستخدم أداة تم تغييرها في المكتبة - أعد توليدها قبل التصدير.",
+        "many": "{count} عملية تستخدم أداة تم تغييرها في المكتبة - أعد توليدها قبل التصدير.",
+        "other": "{count} عملية تستخدم أداة تم تغييرها في المكتبة - أعد توليدها قبل التصدير."
+      },
+      "categorySelected": "فئة {category}",
+      "generationFailed": "فشل التوليد: {error}",
+      "removed": "تمت إزالة العملية",
+      "paramChanged": "تغيرت '{param}' بعد التوليد - أعد التوليد قبل التصدير.",
+      "machineChanged": "تغيرت الماكينة إلى {machine} - أعد التوليد قبل التصدير.",
+      "notFound": "العملية {id} غير موجودة",
+      "noHandler": "لا يوجد معالج لـ '{type}': {error}",
+      "needToolNumber": "أدخل رقم أداة (كلمة T التي تتلقاها وحدة التحكم) قبل التوليد. إذا كانت ماكينتك لا تحتوي على مبدل أدوات، فالقيمة 1 صحيحة.",
+      "generateFirst": "قم بتوليد الهندسة أولاً",
+      "previewFailed": "فشل توليد المعاينة (تحقق من قطر الأداة)",
+      "previewGenerated": "تم توليد المعاينة",
+      "depthWarning": "يصل القطع إلى Z {z:mm}، متجاوزًا أقصى عمق آمن للماكينة ({max:mm}). تحقق من سماكة الخامة ونقطة أصل Z.",
+      "invalidCleared": "تم مسح الهندسة غير الصالحة. جاهز لإعادة التوليد.",
+      "stageFailed": "فشلت مرحلة {stage}: {error}",
+      "staleParams": "تغيرت المعلمات بعد التوليد - أعد التوليد قبل التصدير.",
+      "postChangedIndexed": "تم تغيير معالج ما بعد التشغيل إلى {post}. وضع الفهرسة 3+1 يحتاج إلى كلمة دوران بالدرجات - أعد التوليد للتحقق.",
+      "transformChanged": "تغير تحويل مساحة العمل - أعد حساب مسارات الأداة قبل التصدير.",
+      "superseded": "تم استبدال التوليد بطلب أحدث",
+      "cancelled": "تم إلغاء التوليد - تُركت العملية غير مولدة.",
+      "fieldGenerated": {
+        "zero": "تم توليد {count} مسار {kind} [{passes}]",
+        "one": "تم توليد {count} مسار {kind} [{passes}]",
+        "two": "تم توليد {count} مساري {kind} [{passes}]",
+        "few": "تم توليد {count} مسارات {kind} [{passes}]",
+        "many": "تم توليد {count} مسار {kind} [{passes}]",
+        "other": "تم توليد {count} مسار {kind} [{passes}]"
+      },
+      "fieldKinds": {
+        "relief": "نقش بارز",
+        "rotary": "دوار",
+        "indexed": "مفهرس"
+      },
+      "passRoles": {
+        "roughing": "تخشين",
+        "finishing": "تنعيم"
+      },
+      "noPaths": "لم يتم توليد أي مسارات",
+      "noGeometry": "لم يتم توليد أي هندسة - قد تكون الأداة كبيرة جدًا على المعالم",
+      "laserPaths": {
+        "zero": "تم توليد {count} مسار ليزر [{strategy}]",
+        "one": "تم توليد {count} مسار ليزر [{strategy}]",
+        "two": "تم توليد {count} مساري ليزر [{strategy}]",
+        "few": "تم توليد {count} مسارات ليزر [{strategy}]",
+        "many": "تم توليد {count} مسار ليزر [{strategy}]",
+        "other": "تم توليد {count} مسار ليزر [{strategy}]"
+      },
+      "offsets": {
+        "zero": "تم توليد {count} مسار إزاحة",
+        "one": "تم توليد {count} مسار إزاحة",
+        "two": "تم توليد {count} مساري إزاحة",
+        "few": "تم توليد {count} مسارات إزاحة",
+        "many": "تم توليد {count} مسار إزاحة",
+        "other": "تم توليد {count} مسار إزاحة"
+      },
+      "noEngrave": "لم يتم العثور على مسارات نقش أو توليدها",
+      "engraveGenerated": {
+        "zero": "تم توليد مسار النقش ({count} مسار)",
+        "one": "تم توليد مسار النقش ({count} مسار)",
+        "two": "تم توليد مسار النقش ({count} مساران)",
+        "few": "تم توليد مسارات النقش ({count} مسارات)",
+        "many": "تم توليد مسارات النقش ({count} مسارًا)",
+        "other": "تم توليد مسارات النقش ({count} مسار)"
+      },
+      "pocketOpenPaths": {
+        "zero": "تم اكتشاف {count} مسار مفتوح. يتطلب تفريغ الجيوب أشكالاً مغلقة. أغلق المسارات في محررك (قد لا تكون الأداة الآلية مطبقة بعد).",
+        "one": "تم اكتشاف {count} مسار مفتوح. يتطلب تفريغ الجيوب أشكالاً مغلقة. أغلق المسارات في محررك (قد لا تكون الأداة الآلية مطبقة بعد).",
+        "two": "تم اكتشاف {count} مسارين مفتوحين. يتطلب تفريغ الجيوب أشكالاً مغلقة. أغلق المسارات في محررك (قد لا تكون الأداة الآلية مطبقة بعد).",
+        "few": "تم اكتشاف {count} مسارات مفتوحة. يتطلب تفريغ الجيوب أشكالاً مغلقة. أغلق المسارات في محررك (قد لا تكون الأداة الآلية مطبقة بعد).",
+        "many": "تم اكتشاف {count} مسارًا مفتوحًا. يتطلب تفريغ الجيوب أشكالاً مغلقة. أغلق المسارات في محررك (قد لا تكون الأداة الآلية مطبقة بعد).",
+        "other": "تم اكتشاف {count} مسار مفتوح. يتطلب تفريغ الجيوب أشكالاً مغلقة. أغلق المسارات في محررك (قد لا تكون الأداة الآلية مطبقة بعد)."
+      },
+      "noPocket": "لم يتم توليد أي مسارات جيوب - قد تكون الأداة كبيرة جدًا بالنسبة للشكل",
+      "pocketGenerated": {
+        "zero": "تم تفريغ الجيب: {paths} عبر {count} شوط",
+        "one": "تم تفريغ الجيب: {paths} عبر {count} شوط",
+        "two": "تم تفريغ الجيب: {paths} عبر {count} شوطين",
+        "few": "تم تفريغ الجيب: {paths} عبر {count} أشواط",
+        "many": "تم تفريغ الجيب: {paths} عبر {count} شوطًا",
+        "other": "تم تفريغ الجيب: {paths} عبر {count} شوط"
+      },
+      "pathCount": {
+        "zero": "{count} مسار",
+        "one": "{count} مسار",
+        "two": "{count} مساران",
+        "few": "{count} مسارات",
+        "many": "{count} مسارًا",
+        "other": "{count} مسار"
+      },
+      "profileOpenPaths": {
+        "zero": "تم اكتشاف {count} مسار مفتوح. يتطلب القطع المحيطي أشكالاً مغلقة.",
+        "one": "تم اكتشاف {count} مسار مفتوح. يتطلب القطع المحيطي أشكالاً مغلقة.",
+        "two": "تم اكتشاف {count} مسارين مفتوحين. يتطلب القطع المحيطي أشكالاً مغلقة.",
+        "few": "تم اكتشاف {count} مسارات مفتوحة. يتطلب القطع المحيطي أشكالاً مغلقة.",
+        "many": "تم اكتشاف {count} مسارًا مفتوحًا. يتطلب القطع المحيطي أشكالاً مغلقة.",
+        "other": "تم اكتشاف {count} مسار مفتوح. يتطلب القطع المحيطي أشكالاً مغلقة."
+      },
+      "noProfile": "لم يتم توليد أي مسار محيطي - قد تكون الأداة كبيرة جدًا بالنسبة للشكل",
+      "profileGenerated": "تم توليد مسار القطع المحيطي (قطع {side})",
+      "noRelief": "لم يتم توليد أي مسارات نقش بارز - قد يكون النموذج مسطحًا أو بدقة أقل من المطلوبة",
+      "noReliefSource": "لا يوجد مصدر للنقش البارز - استورد نموذج STL لهذه العملية",
+      "noRotary": "لم يتم توليد أي مسارات دوارة - قد تكون الخامة أسطوانية بالفعل أو بدقة أقل من المطلوبة",
+      "noRotarySource": "لا يوجد مصدر للتشغيل الدوار - استورد نموذج STL لهذه العملية",
+      "noIndexed": "لم يتم توليد أي مسارات مفهرسة - قد يكون النموذج مسطحًا، أو بدقة أقل من المطلوبة، أو خارج نطاق أوجه القطع بالكامل",
+      "noIndexedSource": "لا يوجد مصدر مفهرس - استورد نموذج STL لهذه العملية"
+    },
+    "stock": {
+      "noOriginTarget": "لا يوجد شيء لوضع نقطة الأصل عليه",
+      "nothingToFit": "لا يوجد شيء لملاءمة الخامة معه"
+    },
+    "cutout": {
+      "closed": "تم إغلاق مسارات القص الخارجي تلقائيًا.",
+      "cannotClose": "تعذر الإغلاق - اختبر بنسبة تفاوت أعلى أولاً.",
+      "orphansDiscarded": "تم تجاهل المقاطع المعزولة. تم الحفاظ على حدود اللوحة.",
+      "leftOpen": "تُرك القص كمسار مفتوح.",
+      "openSegments": {
+        "zero": "{count} مقطع لا يشكل حلقات مغلقة. الفجوات: {gaps}",
+        "one": "{count} مقطع لا يشكل حلقات مغلقة. الفجوات: {gaps}",
+        "two": "{count} مقطعان لا يشكلان حلقات مغلقة. الفجوات: {gaps}",
+        "few": "{count} مقاطع لا تشكل حلقات مغلقة. الفجوات: {gaps}",
+        "many": "{count} مقطعًا لا يشكل حلقات مغلقة. الفجوات: {gaps}",
+        "other": "{count} مقطع لا يشكل حلقات مغلقة. الفجوات: {gaps}"
+      },
+      "generated": "تم توليد مسار القص الخارجي"
+    },
+    "board": {
+      "rotationSet": "تم ضبط دوران اللوحة على {angle:°}",
+      "rotationReset": "تمت إعادة ضبط دوران اللوحة (الموضع لم يتغير)",
+      "mirrorXOn": "تم تفعيل الانعكاس الأفقي",
+      "mirrorXOff": "تم تعطيل الانعكاس الأفقي",
+      "mirrorYOn": "تم تفعيل الانعكاس العمودي",
+      "mirrorYOff": "تم تعطيل الانعكاس العمودي",
+      "originCenter": "معاينة: نقطة الأصل في مركز اللوحة (غير محفوظة)",
+      "cannotCenter": "تعذر التوسيط - لا توجد حدود للوحة بعد",
+      "originBottomLeft": "معاينة: نقطة الأصل في أسفل يسار اللوحة (غير محفوظة)",
+      "cannotBottomLeft": "تعذر التعيين في أسفل اليسار - لا توجد حدود للوحة بعد"
+    },
+    "toolpaths": {
+      "needFeeds": "اضبط {feeds} أعلى من الصفر قبل حساب مسارات الأداة. يتم أخذ قيم التغذية تلقائيًا من الأداة المحددة - اختر أداة، أو اكتب قيمة.",
+      "noMotion": "لم ينتج عن حساب مسار الأداة أي حركة",
+      "calculated": {
+        "zero": "{count} مسار أداة - ~{time}، {distance:mm} (هذه العملية وحدها)",
+        "one": "{count} مسار أداة - ~{time}، {distance:mm} (هذه العملية وحدها)",
+        "two": "{count} مسارا أداة - ~{time}، {distance:mm} (هذه العملية وحدها)",
+        "few": "{count} مسارات أداة - ~{time}، {distance:mm} (هذه العملية وحدها)",
+        "many": "{count} مسار أداة - ~{time}، {distance:mm} (هذه العملية وحدها)",
+        "other": "{count} مسار أداة - ~{time}، {distance:mm} (هذه العملية وحدها)"
+      },
+      "failed": "فشل حساب مسار الأداة: {error}",
+      "noContext": "تعذر إنشاء سياق مسار الأداة لهذه العملية",
+      "droppedRotary": {
+        "zero": "{op} - تم تخطي {count} خطة دوارة: لا يمكن للمعالج المحدد إصدار مسار دوار لهذه العملية.",
+        "one": "{op} - تم تخطي {count} خطة دوارة: لا يمكن للمعالج المحدد إصدار مسار دوار لهذه العملية.",
+        "two": "{op} - تم تخطي {count} خطتين دوارتين: لا يمكن للمعالج المحدد إصدار مسار دوار لهذه العملية.",
+        "few": "{op} - تم تخطي {count} خطط دوارة: لا يمكن للمعالج المحدد إصدار مسار دوار لهذه العملية.",
+        "many": "{op} - تم تخطي {count} خطة دوارة: لا يمكن للمعالج المحدد إصدار مسار دوار لهذه العملية.",
+        "other": "{op} - تم تخطي {count} خطة دوارة: لا يمكن للمعالج المحدد إصدار مسار دوار لهذه العملية."
+      },
+      "droppedIndexed": "{op} - تم تخطي خطط الفهرسة 3+1: المعالج المحدد لا يصرح عن كلمة دوران A/B، أو تم ضبط مسار الماكينة الدوار على استبدال المحور، وهو ما لا يمكنه تحديد موضع محور دوار. اختر معالجًا متوافقًا واضبط {param} على {route}.",
+      "operationNote": "{op} - {note}",
+      "slotDropped": "تم إسقاط مجرى خط المنتصف - اضبط {missing} في العملية وأعد التوليد.",
+      "slotTooShort": "تم تخطي مجرى خط المنتصف - يحتوي المسار المولد على أقل من نقطتين.",
+      "slotNoExit": "تم تخطي مجرى خط المنتصف - لم يتم العثور على نقطة خروج من محيطه.",
+      "tabsSkipped": "تم تخطي ألسنة التثبيت في المحيطات القصيرة جدًا لاستيعابها."
+    },
+    "parser": {
+      "invalidDecimal": "إحداثي عشري غير صالح: {value}",
+      "invalidFormatted": "إحداثي بتنسيق غير صالح: {value}",
+      "fatal": "خطأ جسيم: {error}",
+      "excellon": {
+        "formatGuessed": "لم يتم العثور على تنسيق صريح. التعيين الافتراضي هو {format} ({units}). إذا كانت الثقوب/المجاري غير محاذاة، فقد يستخدم الملف تنسيقًا مختلفًا.",
+        "metric": "متري",
+        "inch": "بوصة",
+        "unknownFmat": "السطر {line}: FMAT غير معروف {code}",
+        "invalidTool": "السطر {line}: بناء جملة أداة غير صالح \"{text}\"",
+        "invalidDiameter": "السطر {line}: قطر غير صالح \"{value}\"",
+        "toolUndefined": "السطر {line}: الأداة {tool} غير محددة",
+        "m16Orphan": "السطر {line}: تم العثور على M16 بدون مجرى أو أداة نشطة.",
+        "noToolSelected": "السطر {line}: أمر إحداثيات بدون أداة محددة، يتم التجاهل.",
+        "slotCoordinates": "السطر {line}: خطأ في تحليل إحداثيات المجرى - {error}",
+        "malformedG85": "السطر {line}: أمر مجرى G85 مشوه: \"{text}\"",
+        "slotNoTool": "السطر {line}: لم يتم تحديد أداة لعملية المجرى.",
+        "noTools": "تم العثور على ثقوب ولكن لم يتم تعريف أي أدوات"
+      },
+      "atLine": "السطر {line}: {error}",
+      "largeBoard": "لوحة كبيرة: {width} x {height:mm}",
+      "nonFiniteBounds": "حدود هندسية غير محدودة - أنتج المصدر إحداثيات NaN/غير محدودة (تحقق من التحويلات/الوحدات).",
+      "parseError": "خطأ في التحليل: {error}",
+      "gerber": {
+        "invalidAperture": "السطر {line}: تعريف فتحة غير صالح: {block}",
+        "undefinedMacroIn": "السطر {line}: ماكرو غير محدد '{macro}' في الفتحة {code}",
+        "unparsedAperture": "السطر {line}: تعذر تحليل تعريف الفتحة: {block}",
+        "macroEmpty": "الماكرو {macro} لا يحتوي على عناصر أولية صالحة",
+        "unclosedRegion": "انتهى الملف بمنطقة غير مغلقة",
+        "regionTooSmall": {
+          "zero": "تم تجاهل منطقة تحتوي على {count} نقطة فقط",
+          "one": "تم تجاهل منطقة تحتوي على {count} نقطة فقط",
+          "two": "تم تجاهل منطقة تحتوي على {count} نقطتين فقط",
+          "few": "تم تجاهل منطقة تحتوي على {count} نقاط فقط",
+          "many": "تم تجاهل منطقة تحتوي على {count} نقطة فقط",
+          "other": "تم تجاهل منطقة تحتوي على {count} نقطة فقط"
+        },
+        "regionDeduped": "تقلصت المنطقة إلى {count} نقاط بعد إزالة التكرار (من {from})",
+        "regionDespiked": "تقلصت المنطقة إلى {count} نقاط بعد إزالة النتوءات (من {from})",
+        "regionSimplified": "تم تبسيط المنطقة إلى {count} نقاط بعد تبسيط RDP",
+        "drawNoAperture": "عملية رسم بدون فتحة عند ({x}, {y})",
+        "undefinedAperture": "فتحة غير محددة {aperture}",
+        "flashNoAperture": "عملية وميض بدون فتحة عند ({x}, {y})",
+        "undefinedMacro": "ماكرو غير محدد: {macro}",
+        "macroNoGeometry": "لم ينتج الماكرو {macro} أي هندسة",
+        "macroConvertFailed": "تعذر تحويل الماكرو {macro} إلى هندسة",
+        "unsupportedFlash": "شكل وميض غير مدعوم: {shape}"
+      },
+      "invalidData": "تنسيق بيانات المحلل غير صالح",
+      "stl": {
+        "noTriangles": "لم يتم العثور على مثلثات في ملف STL",
+        "trailingBytes": {
+          "zero": "يحتوي ملف STL على {count} بايت لاحق (تم تجاهله)",
+          "one": "يحتوي ملف STL على {count} بايت لاحق (تم تجاهله)",
+          "two": "يحتوي ملف STL على {count} بايتين لاحقين (تم تجاهلهما)",
+          "few": "يحتوي ملف STL على {count} بايتات لاحقة (تم تجاهلها)",
+          "many": "يحتوي ملف STL على {count} بايتًا لاحقًا (تم تجاهله)",
+          "other": "يحتوي ملف STL على {count} بايت لاحق (تم تجاهله)"
+        },
+        "partialFacet": "عدد رؤوس ملف STL ASCII غير قابل للقسمة على 3 - يتم اقتطاع الوجه الجزئي"
+      },
+      "svg": {
+        "invalid": "ملف SVG غير صالح",
+        "invalidDetail": "ملف SVG غير صالح: {detail}",
+        "parseError": "خطأ في تحليل SVG: {error}",
+        "nonUniformScale": "يحتوي SVG على مقياس viewBox غير منتظم. قد تتشوه الهندسة.",
+        "viewBoxUnits": "لا يحتوي SVG على أبعاد صريحة. بافتراض أن وحدات viewBox هي المليمتر.",
+        "assumed96dpi": "لا يحتوي SVG على أبعاد أو viewBox. بافتراض مقياس قياسي قدره 96 DPI.",
+        "textElements": {
+          "zero": "تم العثور على {count} عنصر نصي. قم بتحويل النص إلى مسارات في محررك لضمان التصيير الصحيح.",
+          "one": "تم العثور على {count} عنصر نصي. قم بتحويل النص إلى مسارات في محررك لضمان التصيير الصحيح.",
+          "two": "تم العثور على {count} عنصرين نصيين. قم بتحويل النص إلى مسارات في محررك لضمان التصيير الصحيح.",
+          "few": "تم العثور على {count} عناصر نصية. قم بتحويل النص إلى مسارات في محررك لضمان التصيير الصحيح.",
+          "many": "تم العثور على {count} عنصرًا نصيًا. قم بتحويل النص إلى مسارات في محررك لضمان التصيير الصحيح.",
+          "other": "تم العثور على {count} عنصر نصي. قم بتحويل النص إلى مسارات في محررك لضمان التصيير الصحيح."
+        },
+        "fillRule": {
+          "zero": "تم العثور على سمة fill-rule في {count} عنصر. قد تظهر الأشكال الهندسية المتداخلة بشكل غير متوقع.",
+          "one": "تم العثور على سمة fill-rule في {count} عنصر. قد تظهر الأشكال الهندسية المتداخلة بشكل غير متوقع.",
+          "two": "تم العثور على سمة fill-rule في {count} عنصرين. قد تظهر الأشكال الهندسية المتداخلة بشكل غير متوقع.",
+          "few": "تم العثور على سمة fill-rule في {count} عناصر. قد تظهر الأشكال الهندسية المتداخلة بشكل غير متوقع.",
+          "many": "تم العثور على سمة fill-rule في {count} عنصرًا. قد تظهر الأشكال الهندسية المتداخلة بشكل غير متوقع.",
+          "other": "تم العثور على سمة fill-rule في {count} عنصر. قد تظهر الأشكال الهندسية المتداخلة بشكل غير متوقع."
+        },
+        "stylesheets": "يحتوي SVG على أوراق أنماط مدمجة. الأنماط القائمة على الفئات ليست مدعومة بالكامل.",
+        "useElements": {
+          "zero": "تم العثور على {count} عنصر 'use'. استنساخ الرموز غير مدعوم بعد.",
+          "one": "تم العثور على {count} عنصر 'use'. استنساخ الرموز غير مدعوم بعد.",
+          "two": "تم العثور على {count} عنصرين 'use'. استنساخ الرموز غير مدعوم بعد.",
+          "few": "تم العثور على {count} عناصر 'use'. استنساخ الرموز غير مدعوم بعد.",
+          "many": "تم العثور على {count} عنصرًا 'use'. استنساخ الرموز غير مدعوم بعد.",
+          "other": "تم العثور على {count} عنصر 'use'. استنساخ الرموز غير مدعوم بعد."
+        },
+        "clipPaths": "يحتوي SVG على مسارات قص أو أقنعة غير مدعومة."
+      },
+      "noParser": "لا يوجد محلل مسجل لـ {file}",
+      "errors": "{errors}",
+      "failed": "فشل التحليل"
+    },
+    "rotary": {
+      "radial": {
+        "depthPastModel": "عمق الحفر {depth:mm} يتجاوز أدنى نصف قطر للنموذج نفسه ({minRadius:mm}): يصبح كل ما هو أسفل {floor:mm} قضيبًا ثابت نصف القطر. اضبط العمق على 0 (تلقائي) لتتبع النموذج بدلاً من ذلك.",
+        "uncovered": "{percent:%} من الشبكة الأسطوانية غير مغطى - تحتفظ تلك المناطق بنصف القطر المحيط بدلاً من النموذج. تحقق من محور الدوران، واتجاه النموذج، وتأكد من أن الشبكة مغلقة.",
+        "stubUnderTool": "نصف قطر محور الإدارة {stub:mm} أقل من مدى وصول الأداة {tool:mm} - يتشكل المحور كإزاحة للأداة عن أسطوانة المركز (آمن، ولكنه أوسع مما تم ضبطه).",
+        "nearCenterline": "يصل عمق الحفر التلقائي إلى مسافة قريبة من خط المنتصف (نصف قطر القاع {floor:mm} من نصف قطر الخامة {radius:mm}) - حدد عمقًا دوارًا صريحًا: يتباطأ التوليد بشدة بالقرب من المحور، وقد لا تكون الشبكة مستديرة حوله."
+      },
+      "indexed": {
+        "blankDerived": "لم يتم ضبط {param} - تم اشتقاق {width:mm} عبر الأسطح المستوية من الإسناد العمودي لأوجه النموذج نفسه. يجب أن تكون الخامة الفعلية بهذا العرض على الأقل، ونقطة أصل Z0 هي أعلى وجهها.",
+        "modelTruncated": "يصل النموذج إلى {reach:mm} من المحور على الوجه {angle:°}، متجاوزًا صيدلية الخامة ({apothem:mm}) - سيتم اقتطاع تلك المادة إلى مستوى الوجه. اضبط {param} على {width:mm} على الأقل.",
+        "stubUnderTool": "نصف قطر محور الإدارة {stub:mm} أقل من نصف قطر الأداة {tool:mm} - يتشكل المحور كإزاحة للأداة عن أسطوانة المركز (آمن، ولكنه أوسع مما تم ضبطه).",
+        "depthClamped": "تم تقييد {param} إلى {depth:mm} أسفل مستوى الوجه.",
+        "depthWindowShort": "تتوقف نافذة العمق {window:mm} بمقدار {short:mm} قبل عمق القطع الفاصل - سيتم اقتطاع كل سطح يتجاوز Z الماكينة {z} إلى مستوى مسطح. اترك {param} عند 0 (تلقائي) إلا إذا كنت تحد من عمق القطع عن قصد.",
+        "noRoutes": "معالج {post} لا يصرح عن أي مسارات للمحور الرابع - سيؤدي تصدير كود G إلى إسقاط هذه العملية.",
+        "needsAWord": "يتطلب وضع الفهرسة 3+1 المسار {route} (درجات مطلقة على {word})؛ يصرح {post} فقط عن {routes} - سيسقط التصدير هذه العملية.",
+        "needsWord": "يحتاج المحور الدوار لـ {axis} إلى الكلمة '{word}'؛ يصرح {post} عن [{words}] - سيسقط التصدير هذه العملية.",
+        "fluteShort": "لا يمكن لحد القاطع {flute:mm} الوصول إلى محور الدوران ({depth:mm} أسفل مستوى الوجه). يحد غلاف حامل الأداة من حركة الأداة لكل خلية؛ توقع بقاء مادة غير مقطوعة بالقرب من خط المنتصف.",
+        "axialMismatch": "ترى الأوجه امتدادات محورية مختلفة للنموذج (يختلف الطرف المنخفض بمقدار {low:mm}، والمرتفع بمقدار {high:mm}) - لن تصطف الجدران النهائية حول القطعة. تحقق من محور الدوران واتجاه النموذج."
+      }
+    },
+    "vcarve": {
+      "openPaths": {
+        "zero": "يتطلب حفر V مسارات مغلقة - {count} مسار مفتوح في التحديد",
+        "one": "يتطلب حفر V مسارات مغلقة - {count} مسار مفتوح في التحديد",
+        "two": "يتطلب حفر V مسارات مغلقة - {count} مساران مفتوحان في التحديد",
+        "few": "يتطلب حفر V مسارات مغلقة - {count} مسارات مفتوحة في التحديد",
+        "many": "يتطلب حفر V مسارات مغلقة - {count} مسارًا مفتوحًا في التحديد",
+        "other": "يتطلب حفر V مسارات مغلقة - {count} مسار مفتوح في التحديد"
+      },
+      "none": "لم يتم توليد مسارات حفر V - قد تكون الأشكال مشوهة أو صغيرة جدًا",
+      "skippedShapes": {
+        "zero": "{message} - تعذر حفر {count} شكل، راجع السجل",
+        "one": "{message} - تعذر حفر {count} شكل، راجع السجل",
+        "two": "{message} - تعذر حفر {count} شكلين، راجع السجل",
+        "few": "{message} - تعذر حفر {count} أشكال، راجع السجل",
+        "many": "{message} - تعذر حفر {count} شكلاً، راجع السجل",
+        "other": "{message} - تعذر حفر {count} شكل، راجع السجل"
+      },
+      "failedShape": "{shape}: {error}",
+      "failedHint": "التقاطعات الذاتية والأجزاء الحادة الدقيقة والنقاط شبه المكررة هي الأسباب المعتادة ويمكن إصلاحها في الرسم. إذا كان الشكل يبدو سليمًا، يرجى الإبلاغ عن المشكلة مع إرفاق الملف.",
+      "generated": {
+        "zero": "تم توليد {count} مسار حفر V",
+        "one": "تم توليد {count} مسار حفر V",
+        "two": "تم توليد {count} مساري حفر V",
+        "few": "تم توليد {count} مسارات حفر V",
+        "many": "تم توليد {count} مسار حفر V",
+        "other": "تم توليد {count} مسار حفر V"
+      },
+      "floors": {
+        "depthLimit": {
+          "zero": "{message} - لامس {count} محيط منطقة مستوية حد العمق",
+          "one": "{message} - لامس {count} محيط منطقة مستوية حد العمق",
+          "two": "{message} - لامس {count} محيطا منطقتين مستويتين حد العمق",
+          "few": "{message} - لامست {count} محيطات مناطق مستوية حد العمق",
+          "many": "{message} - لامس {count} محيط منطقة مستوية حد العمق",
+          "other": "{message} - لامس {count} محيط منطقة مستوية حد العمق"
+        },
+        "bitReach": {
+          "zero": "{message} - لامس {count} محيط منطقة مستوية أقصى وصول للريشة",
+          "one": "{message} - لامس {count} محيط منطقة مستوية أقصى وصول للريشة",
+          "two": "{message} - لامس {count} محيطا منطقتين مستويتين أقصى وصول للريشة",
+          "few": "{message} - لامست {count} محيطات مناطق مستوية أقصى وصول للريشة",
+          "many": "{message} - لامس {count} محيط منطقة مستوية أقصى وصول للريشة",
+          "other": "{message} - لامس {count} محيط منطقة مستوية أقصى وصول للريشة"
+        }
+      },
+      "floorsRidges": {
+        "depthLimit": {
+          "zero": "{message} - لامس {count} محيط منطقة مستوية حد العمق (أوسع من تغطية الريشة: ستبقى نتوءات مركزية حتى يتم تنفيذ إزالة القيعان المستوية)",
+          "one": "{message} - لامس {count} محيط منطقة مستوية حد العمق (أوسع من تغطية الريشة: ستبقى نتوءات مركزية حتى يتم تنفيذ إزالة القيعان المستوية)",
+          "two": "{message} - لامس {count} محيطا منطقتين مستويتين حد العمق (أوسع من تغطية الريشة: ستبقى نتوءات مركزية حتى يتم تنفيذ إزالة القيعان المستوية)",
+          "few": "{message} - لامست {count} محيطات مناطق مستوية حد العمق (أوسع من تغطية الريشة: ستبقى نتوءات مركزية حتى يتم تنفيذ إزالة القيعان المستوية)",
+          "many": "{message} - لامس {count} محيط منطقة مستوية حد العمق (أوسع من تغطية الريشة: ستبقى نتوءات مركزية حتى يتم تنفيذ إزالة القيعان المستوية)",
+          "other": "{message} - لامس {count} محيط منطقة مستوية حد العمق (أوسع من تغطية الريشة: ستبقى نتوءات مركزية حتى يتم تنفيذ إزالة القيعان المستوية)"
+        },
+        "bitReach": {
+          "zero": "{message} - لامس {count} محيط منطقة مستوية أقصى وصول للريشة (أوسع من تغطية الريشة: ستبقى نتوءات مركزية حتى يتم تنفيذ إزالة القيعان المستوية)",
+          "one": "{message} - لامس {count} محيط منطقة مستوية أقصى وصول للريشة (أوسع من تغطية الريشة: ستبقى نتوءات مركزية حتى يتم تنفيذ إزالة القيعان المستوية)",
+          "two": "{message} - لامس {count} محيطا منطقتين مستويتين أقصى وصول للريشة (أوسع من تغطية الريشة: ستبقى نتوءات مركزية حتى يتم تنفيذ إزالة القيعان المستوية)",
+          "few": "{message} - لامست {count} محيطات مناطق مستوية أقصى وصول للريشة (أوسع من تغطية الريشة: ستبقى نتوءات مركزية حتى يتم تنفيذ إزالة القيعان المستوية)",
+          "many": "{message} - لامس {count} محيط منطقة مستوية أقصى وصول للريشة (أوسع من تغطية الريشة: ستبقى نتوءات مركزية حتى يتم تنفيذ إزالة القيعان المستوية)",
+          "other": "{message} - لامس {count} محيط منطقة مستوية أقصى وصول للريشة (أوسع من تغطية الريشة: ستبقى نتوءات مركزية حتى يتم تنفيذ إزالة القيعان المستوية)"
+        }
+      }
+    },
+    "stencil": {
+      "regHolesSkipped": "تم تخطي ثقوب المحاذاة - لا توجد حدود متاحة للوحة.",
+      "cornersSquare": {
+        "zero": "{count} فتحة صغيرة جدًا على نصف قطر ركن قدره {radius:mm} - تُركت مربعة.",
+        "one": "{count} فتحة صغيرة جدًا على نصف قطر ركن قدره {radius:mm} - تُركت مربعة.",
+        "two": "{count} فتحتان صغيرتان جدًا على نصف قطر ركن قدره {radius:mm} - تُركتا مربعتين.",
+        "few": "{count} فتحات صغيرة جدًا على نصف قطر ركن قدره {radius:mm} - تُركت مربعة.",
+        "many": "{count} فتحة صغيرة جدًا على نصف قطر ركن قدره {radius:mm} - تُركت مربعة.",
+        "other": "{count} فتحة صغيرة جدًا على نصف قطر ركن قدره {radius:mm} - تُركت مربعة."
+      },
+      "padsExcluded": {
+        "zero": "تم استبعاد {count} وسادة إستنسل لأنها تتداخل مع الثقوب النافذة.",
+        "one": "تم استبعاد {count} وسادة إستنسل لأنها تتداخل مع الثقوب النافذة.",
+        "two": "تم استبعاد {count} وسادتي إستنسل لأنهما تتداخلان مع الثقوب النافذة.",
+        "few": "تم استبعاد {count} وسادات إستنسل لأنها تتداخل مع الثقوب النافذة.",
+        "many": "تم استبعاد {count} وسادة إستنسل لأنها تتداخل مع الثقوب النافذة.",
+        "other": "تم استبعاد {count} وسادة إستنسل لأنها تتداخل مع الثقوب النافذة."
+      },
+      "cornerBelowCutter": "نصف قطر الركن {radius:mm} أقل من نصف قطر القاطعة {cutter:mm} - ستخرج الفتحات بأركان تبلغ {cutter:mm}.",
+      "needsTool": "يتطلب تفريز الإستنسل عبر CNC قطر أداة صالحًا. حدد أداة في مرحلة الهندسة.",
+      "none": "لم يتم توليد أي فتحات (تمت تصفية الكل)",
+      "noneSkipped": "لم يتم توليد أي فتحات (تم تخطي {skipped})",
+      "generated": {
+        "zero": "تم توليد {count} فتحة إستنسل",
+        "one": "تم توليد {count} فتحة إستنسل",
+        "two": "تم توليد {count} فتحتي إستنسل",
+        "few": "تم توليد {count} فتحات إستنسل",
+        "many": "تم توليد {count} فتحة إستنسل",
+        "other": "تم توليد {count} فتحة إستنسل"
+      },
+      "generatedSkipped": {
+        "zero": "تم توليد {count} فتحة إستنسل (تم تخطي {skipped})",
+        "one": "تم توليد {count} فتحة إستنسل (تم تخطي {skipped})",
+        "two": "تم توليد {count} فتحتي إستنسل (تم تخطي {skipped})",
+        "few": "تم توليد {count} فتحات إستنسل (تم تخطي {skipped})",
+        "many": "تم توليد {count} فتحة إستنسل (تم تخطي {skipped})",
+        "other": "تم توليد {count} فتحة إستنسل (تم تخطي {skipped})"
+      },
+      "skippedPads": {
+        "zero": "{count} وسادة متداخلة",
+        "one": "{count} وسادة متداخلة",
+        "two": "{count} وسادتان متداخلتان",
+        "few": "{count} وسادات متداخلة",
+        "many": "{count} وسادة متداخلة",
+        "other": "{count} وسادة متداخلة"
+      }
+    },
+    "mesh": {
+      "degenerateAxial": "الشبكة المجسمة لها امتداد محوري تالف",
+      "degenerateAxis": "الشبكة المجسمة تالفة حول محور الدوران",
+      "ambiguousWinding": "اتجاه لف الشبكة المجسمة غامض (الحجم المقاس قريب من الصفر) - قد لا يمكن الاعتماد على اقتطاع القشرة في هذا النموذج.",
+      "outsideBlank": "{percent:%} من سطح النموذج يقع خارج نصف قطر الخامة ({radius:mm}) وتم تسطيحه إلى سطح الخامة - لن يتم تشغيل تلك المادة. ارفع {param} أو اضبطه على 0 (تلقائي).",
+      "degenerateXY": "الشبكة المجسمة لها امتداد XY تالف",
+      "depthFlattened": "{percent:%} من الشبكة أعمق من نافذة العمق البالغة {depth:mm} وتم تسطيحها إلى مستوى عند {z:mm}. ارفع العمق أو اضبطه على 0 (تلقائي).",
+      "noCoverage": "لا توجد تغطية للنموذج على الشبكة المقطعة - لا يوجد شيء لتشغيله. تحقق من محور الدوران، واتجاه النموذج، وتأكد من أن الشبكة مغلقة.",
+      "noLength": "إزاحات طرفي الظرف والذيل لا تترك أي طول قابل للتشغيل (النافذة [{from}..{to}] من أصل {total} محطة). الإزاحة السالبة تقتص للداخل من ذلك الطرف - قللها، أو اضبطها على 0. لم يتم توليد أي شيء."
+    }
+  },
+  "history": {
+    "deleteItems": "حذف {items}",
+    "ungroupMany": {
+      "zero": "فك تجميع {count} مجموعة",
+      "one": "فك تجميع {count} مجموعة",
+      "two": "فك تجميع {count} مجموعتين",
+      "few": "فك تجميع {count} مجموعات",
+      "many": "فك تجميع {count} مجموعة",
+      "other": "فك تجميع {count} مجموعة"
+    },
+    "action": "إجراء",
+    "composite": "مركب",
+    "move": {
+      "zero": "تحريك {count} عنصر",
+      "one": "تحريك {count} عنصر",
+      "two": "تحريك {count} عنصرين",
+      "few": "تحريك {count} عناصر",
+      "many": "تحريك {count} عنصرًا",
+      "other": "تحريك {count} عنصر"
+    },
+    "deleteShapes": {
+      "zero": "حذف {count} شكل",
+      "one": "حذف {count} شكل",
+      "two": "حذف {count} شكلين",
+      "few": "حذف {count} أشكال",
+      "many": "حذف {count} شكلاً",
+      "other": "حذف {count} شكل"
+    },
+    "group": {
+      "zero": "تجميع {count} عنصر",
+      "one": "تجميع {count} عنصر",
+      "two": "تجميع {count} عنصرين",
+      "few": "تجميع {count} عناصر",
+      "many": "تجميع {count} عنصرًا",
+      "other": "تجميع {count} عنصر"
+    },
+    "ungroup": "فك التجميع",
+    "removeOperations": {
+      "zero": "إزالة {count} عملية",
+      "one": "إزالة {count} عملية",
+      "two": "إزالة {count} عمليتين",
+      "few": "إزالة {count} عمليات",
+      "many": "إزالة {count} عملية",
+      "other": "إزالة {count} عملية"
+    },
+    "show": {
+      "zero": "إظهار {count} عنصر",
+      "one": "إظهار {count} عنصر",
+      "two": "إظهار {count} عنصرين",
+      "few": "إظهار {count} عناصر",
+      "many": "إظهار {count} عنصرًا",
+      "other": "إظهار {count} عنصر"
+    },
+    "hide": {
+      "zero": "إخفاء {count} عنصر",
+      "one": "إخفاء {count} عنصر",
+      "two": "إخفاء {count} عنصرين",
+      "few": "إخفاء {count} عناصر",
+      "many": "إخفاء {count} عنصرًا",
+      "other": "إخفاء {count} عنصر"
+    },
+    "lock": {
+      "zero": "قفل {count} عنصر",
+      "one": "قفل {count} عنصر",
+      "two": "قفل {count} عنصرين",
+      "few": "قفل {count} عناصر",
+      "many": "قفل {count} عنصرًا",
+      "other": "قفل {count} عنصر"
+    },
+    "unlock": {
+      "zero": "إلغاء قفل {count} عنصر",
+      "one": "إلغاء قفل {count} عنصر",
+      "two": "إلغاء قفل {count} عنصرين",
+      "few": "إلغاء قفل {count} عناصر",
+      "many": "إلغاء قفل {count} عنصرًا",
+      "other": "إلغاء قفل {count} عنصر"
+    },
+    "editTransform": "تعديل التحويل"
+  },
+  "form": {
+    "noCompatibleTools": "لا توجد أدوات متوافقة",
+    "toolOptionTapered": "{name} (قطر قطع {diameter:mm})",
+    "valueInUnit": "{label} بـ {unit}",
+    "notAvailable": "غير متوفر بعد",
+    "lockedBy": "محدد بواسطة {setup}",
+    "incompatible": "{label} (غير متوافق)"
+  },
+  "validation": {
+    "mustBeNumber": "يجب أن يكون {field} رقمًا",
+    "min": "يجب أن يكون {field} على الأقل {min}",
+    "max": "يجب ألا يتجاوز {field} القيمة {max}"
+  },
+  "ops": {
+    "isolation": {
+      "label": "تفريز العزل",
+      "short": "العزل"
+    },
+    "drill": {
+      "label": "الثقب",
+      "short": "الثقب",
+      "generate": "توليد استراتيجية الثقب",
+      "generateLaser": "توليد علامات الثقب"
+    },
+    "clearing": {
+      "label": "إزالة النحاس",
+      "short": "الإزالة"
+    },
+    "cutout": {
+      "label": "قص اللوحة",
+      "short": "القص",
+      "generate": "توليد مسار القص",
+      "generateLaser": "توليد مسار قص الليزر"
+    },
+    "stencil": {
+      "label": "إستنسل اللحام",
+      "short": "الإستنسل",
+      "generate": "توليد الإستنسل"
+    },
+    "profile": {
+      "label": "قطع المحيط",
+      "short": "المحيط",
+      "generate": "توليد مسار المحيط"
+    },
+    "pocket": {
+      "label": "تفريغ الجيب",
+      "short": "الجيب",
+      "generate": "توليد مسارات الجيب"
+    },
+    "vcarve": {
+      "label": "حفر V",
+      "short": "حفر V",
+      "generate": "توليد مسارات حفر V"
+    },
+    "relief": {
+      "label": "نقش بارز / نحت 2.5D",
+      "short": "نقش بارز",
+      "generate": "توليد مسارات النقش البارز"
+    },
+    "rotary": {
+      "label": "تشغيل دوار / المحور الرابع",
+      "short": "دوار",
+      "generate": "توليد مسارات التشغيل الدوار"
+    },
+    "engrave": {
+      "label": "نقش",
+      "short": "نقش",
+      "generate": "توليد مسار النقش"
+    },
+    "pattern": {
+      "label": "نمط",
+      "short": "نمط"
+    },
+    "unassigned": {
+      "label": "أشكال غير معينة",
+      "short": "غير معينة"
+    }
+  },
+  "artifacts": {
+    "offsets": {
+      "label": "مسارات الإزاحة",
+      "label3d": "مسارات 3D"
+    },
+    "preview": {
+      "label": "معاينة"
+    },
+    "toolpath": {
+      "label": "مسارات الأداة"
+    }
+  },
+  "stages": {
+    "geometry": {
+      "label": "هندسة XY"
+    },
+    "strategy": {
+      "label": "استراتيجية Z"
+    },
+    "machine": {
+      "label": "التغذية والمسارات"
+    },
+    "output": {
+      "label": "المخرجات"
+    }
+  },
+  "categories": {
+    "post": "معالج ما بعد التشغيل",
+    "stock": "الخامة",
+    "heights": "الارتفاعات والتغذية",
+    "rotary": "المحور الرابع",
+    "tool": "اختيار الأداة",
+    "blank": "الخامة والمحور",
+    "bounds": "حدود النموذج",
+    "holding": "التثبيت والأطراف",
+    "offset": "إعدادات القطع",
+    "depth": "العمق والأشواط",
+    "passes": "الأشواط والتداخل",
+    "roughing": "التخشين",
+    "finishing": "التنعيم",
+    "tabs": "ألسنة التثبيت",
+    "drill": "استراتيجية الثقب",
+    "pattern": "تخطيط النمط",
+    "quality": "الدقة والإنهاء",
+    "feeds": "السرعات ومعدلات التغذية",
+    "toolpath": "خيارات مسار الأداة",
+    "general": "الإعدادات العامة",
+    "laser": "مخرجات الليزر",
+    "stencil": "إعدادات الإستنسل",
+    "laser_geometry": "العزل",
+    "laser_strategy": "استراتيجية الإزالة",
+    "laser_cutout": "إعدادات القطع",
+    "strategy": "استراتيجية القطع",
+    "cutout": "إعدادات القص الخارجي",
+    "machine": "تكوين الماكينة",
+    "laser_export": "إعدادات التصدير"
+  },
+  "params": {
+    "applyOrigin": {
+      "label": "تطبيق نقطة الأصل",
+      "help": "يحفظ إزاحة المعاينة الحالية كنقطة أصل دائمة جديدة (0,0) للمشروع."
+    },
+    "applyRotation": {
+      "label": "تطبيق الدوران",
+      "help": "يطبق الدوران المحدد على كامل الهندسة."
+    },
+    "arcReconstruction": {
+      "label": "إعادة بناء الأقواس",
+      "help": "محاولة إعادة بناء الأقواس من مقاطع الخطوط في الهندسة المدمجة. يتطلب وضع الدمج."
+    },
+    "boardBounds": {
+      "label": "حدود اللوحة",
+      "help": "إظهار مربع يمثل الحجم الكلي لجميع الملفات المحملة."
+    },
+    "boardRotation": {
+      "label": "دوران اللوحة",
+      "help": "تطبيق دوران (بالدرجات) على جميع الملفات حول نفسها."
+    },
+    "boardSize": {
+      "label": "أبعاد اللوحة",
+      "help": "الأبعاد الإجمالية المحسوبة لجميع الملفات المحملة."
+    },
+    "bottomLeft": {
+      "label": "أسفل-اليسار",
+      "help": "معاينة نقطة الأصل في الركن السفلي الأيسر من الصندوق المحيط باللوحة."
+    },
+    "bwMode": {
+      "label": "أبيض وأسود",
+      "help": "عرض مساحة الرسم بالأبيض والأسود مع تجاهل ألوان الطبقات."
+    },
+    "cannedCycle": {
+      "label": "دورة ثقب جاهزة (Canned Cycle)",
+      "help": "دورة ثقب مبرمجة مسبقًا. يتراجع G83 (الثقب النقري) دوريًا لتفريغ الرايش.",
+      "options": {
+        "none": "بدون (G0 + G1)",
+        "G81": "G81 - ثقب بسيط",
+        "G82": "G82 - ثقب مع توقف مؤقت",
+        "G83": "G83 - نقر الرايش (تراجع كامل)",
+        "G73": "G73 - نقر الرايش (كسر الرايش)"
+      }
+    },
+    "center": {
+      "label": "المركز",
+      "help": "معاينة نقطة الأصل في مركز الصندوق المحيط باللوحة."
+    },
+    "combineOffsets": {
+      "label": "دمج مسارات الإزاحة",
+      "help": "دمج جميع أشواط الإزاحة في هندسة واحدة. يقلل من تعقيد كود G ولكنه يفقد التحكم في الأشواط الفردية."
+    },
+    "cutDepth": {
+      "label": "عمق القطع",
+      "help": "العمق النهائي المستهدف لجميع القطوع، بالنسبة لسطح المادة (Z=0). يجب أن يكون قيمة سالبة (مثل -0.05 مم)."
+    },
+    "cutSide": {
+      "label": "جهة القطع",
+      "help": "موقع الأداة بالنسبة لمحيط المضلع. 'خارجي' يزيل المادة حول الشكل. 'داخلي' يفرغ داخله. 'على المسار' يوسط الأداة فوق الخط.",
+      "options": {
+        "outside": "خارجي",
+        "inside": "داخلي",
+        "on": "على المسار (خط المنتصف)"
+      }
+    },
+    "cutouts": {
+      "label": "القصاصات"
+    },
+    "debugArcs": {
+      "label": "تصحيح أخطاء الأقواس",
+      "help": "إظهار جميع الأقواس/الدوائر التي أعيد بناؤها بنجاح."
+    },
+    "debugPoints": {
+      "label": "تصحيح أخطاء النقاط",
+      "help": "إظهار جميع النقاط الفردية في جميع الأشكال الهندسية."
+    },
+    "depthPerPass": {
+      "label": "العمق لكل شوط",
+      "help": "العمق المتزايد لكل شوط عند استخدام القطع متعدد الأعماق. القيم الأصغر ألطف على الأداة."
+    },
+    "detectNesting": {
+      "label": "اكتشاف التداخل والاحتواء",
+      "help": "عند التمكين، تُعامل الأشكال المحتواة بالكامل داخل أشكال أخرى كثقوب وتُطرح من الحدود الخارجية أثناء توليد الإزاحة."
+    },
+    "drillMultiTool": {
+      "label": "الثقب بأدوات متعددة",
+      "help": "يعين استراتيجية وقاطعة ورقم أداة لكل صف من جدول الثقب. يحصل كل حجم ثقب وحجم مجرى على صف خاص به."
+    },
+    "drillStepOver": {
+      "label": "التداخل الجانبي",
+      "help": "نسبة قطر الأداة المراد تداخلها في كل حلقة تفريز متحدة المركز داخل الثقوب الأكبر من الأداة."
+    },
+    "drillMultiDepth": {
+      "label": "تفريز متعدد الأعماق",
+      "help": "تفريز الثقوب الكبيرة على عدة مستويات Z بدلاً من شوط واحد بكامل العمق. أسهل على القواطع الصغيرة."
+    },
+    "drillDepthPerPass": {
+      "label": "العمق لكل شوط",
+      "help": "المادة المزالة لكل مستوى Z أثناء تفريز ثقب كبير."
+    },
+    "drillEntryType": {
+      "label": "طريقة الدخول",
+      "help": "كيفية دخول القاطعة إلى ثقب كبير. الدخول الحلزوني ينزل ببطء ويوزع الحمل برفق؛ الغوص ينزل عموديًا ويتطلب ريشة قاطعة في المركز.",
+      "options": {
+        "helix": "حلزوني (دخول لولبي)",
+        "plunge": "غوص (رأسي)"
+      }
+    },
+    "drills": {
+      "label": "الثقوب"
+    },
+    "dwellTime": {
+      "label": "وقت التوقف المؤقت",
+      "help": "مدة التوقف المؤقت في قاع الثقب (بالثواني). يتيح تفريغ الرايش ويقلل من النتوءات."
+    },
+    "startCode": {
+      "label": "كود G للبداية",
+      "help": "كتلة البداية المخصصة الخاصة بك لهذا المعالج، تضاف حيث يبدأ برنامجه. يحتفظ كل معالج بكتلته الخاصة بدءًا من إعداده. تصبح {{toolNumber}} رقم الأداة الأولى."
+    },
+    "endCode": {
+      "label": "كود G النهائي",
+      "help": "كتلة النهاية المخصصة الخاصة بك لهذا المعالج، تضاف حيث ينتهي برنامجه. يحتفظ كل معالج بكتلته الخاصة بدءًا من إعداده. تصبح {{safeZ}} و {{travelZ}} تلك الارتفاعات، ولا تقل أبدًا عن نقطة انتهاء البرنامج."
+    },
+    "entryType": {
+      "label": "نوع الدخول",
+      "help": "كيفية دخول الأداة إلى المادة. غوص: مستقيم للأسفل. منحدر: قطري. حلزوني: لولبي للأسفل.",
+      "options": {
+        "plunge": "غوص (رأسي)"
+      }
+    },
+    "feedRate": {
+      "label": "معدل التغذية",
+      "help": "السرعة التي تتحرك بها الأداة أثناء القطع (مم/دقيقة أو بوصة/دقيقة)."
+    },
+    "finishStepover": {
+      "label": "تداخل شوط التنعيم",
+      "help": "نسبة التداخل لشوط التنعيم. القيم الأقل تمنح تشطيبًا سطحيًا أفضل."
+    },
+    "finishingPass": {
+      "label": "شوط التنعيم",
+      "help": "يضيف شوطًا نهائيًا خفيفًا بكامل العمق مع تداخل جانبي مخفض للحصول على قاع جيب أكثر نعومة."
+    },
+    "fusionMode": {
+      "label": "وضع الدمج",
+      "help": "دمج جميع هندسات العزل/التفريغ المتداخلة. مطلوب لإعادة بناء الأقواس."
+    },
+    "units": {
+      "label": "وحدات كود G",
+      "help": "يحدد وحدات ملف كود G المصدر (G21 للمليمتر، G20 للبوصة).",
+      "options": {
+        "mm": "مليمتر (G21)",
+        "inch": "بوصة (G20)"
+      }
+    },
+    "grid": {
+      "label": "الشبكة",
+      "help": "تبديل رؤية شبكة مساحة الرسم."
+    },
+    "indexDwell": {
+      "label": "توقف استقرار الفهرسة",
+      "help": "توقف مؤقت بعد كل دوران فهرسة، قبل عودة الأداة للقطع، لكي يستقر المحور الدوار المدار بالسيور. يبدأ بقيمة معالج ما بعد التشغيل؛ المحاور الدوارة ذات السيرفو أو التروس لا تحتاجه غالبًا."
+    },
+    "rotaryAxisHeight": {
+      "label": "ارتفاع المحور الدوار",
+      "help": "المسافة التي يرتفع بها خط مركز الدوران فوق Z0 للماكينة. يقاس كل بعد Z لبرنامج المحور الرابع من هذا الخط، لذا يرفعه هذا الإعداد إلى إطار الماكينة. يُرفض تصدير المحور الرابع بـ Z0 مطلق طالما كان فارغًا.",
+      "placeholder": "غير محدد"
+    },
+    "indexedAxisOvercut": {
+      "label": "القطع الزائد عن المحور",
+      "help": "المسافة التي يمكن لكل وجه قطعها متجاوزًا محور الدوران. الأوجه المتقابلة التي تتوقف تمامًا عند المحور تكون مماسية وليست متداخلة، لذا فإن أي خلوص أو خطأ تصفير يترك حافة ناتئة عند خط المنتصف. اتركه فارغًا لاختيار نصف قطر أداة واحدة؛ القيمة 0 تتوقف تمامًا عند المحور. هذا يعمق الفائض فقط ولا يقطع في محور الإدارة ذي نصف القطر الأدنى.",
+      "placeholder": "تلقائي"
+    },
+    "indexedBlankWidth": {
+      "label": "عرض الخامة (بين الأسطح)",
+      "help": "المسافة بين الأسطح المستوية للخامة الخام. اتركه فارغًا لاشتقاقه من النموذج. أي جزء من النموذج يبرز خارج الخامة لا يمكن الوصول إليه ويتم تسطيحه، لذا ارفع هذه القيمة إذا كانت القطعة أكبر مما صرحت به.",
+      "placeholder": "تلقائي"
+    },
+    "indexedCollisionGuard": {
+      "label": "حماية من التصادم",
+      "help": "يحد من عمق الرأس حتى لا يلمس الساق والحامل السطح. يتطلب cuttingLength و shankDiameter و holderDiameter و holderStickout في سجل الأداة؛ يتم تخطيه تلقائيًا بدونها."
+    },
+    "indexedCrossFinish": {
+      "label": "شوط تنعيم متقاطع",
+      "help": "يضيف شوط تنعيم ثانيًا بزاوية 90 درجة بالنسبة للأول. يضاعف وقت التنعيم تقريبًا ويحسن السطح بشكل ملحوظ على الأوجه المنحنية."
+    },
+    "indexedDepth": {
+      "label": "عمق الحفر",
+      "help": "أقصى عمق يمكن لكل وجه قطعه أسفل مستوى وجه الخامة. اتركه فارغًا للوصول إلى ما بعد محور الدوران مباشرة، وهو أقصى عمق مفيد لوجه واحد - أي شيء أبعد ينتمي إلى الوجه المقابل. عين قيمة فقط للتوقف عند عمق أقل من ذلك.",
+      "placeholder": "تلقائي"
+    },
+    "indexedFaceCount": {
+      "label": "عدد الأوجه",
+      "help": "كم عدد الأوجه المسطحة المراد تفريزها حول القطعة. تزيد الأوجه الكثيرة من تقريب السطح الدائري ولكنها تضاعف وقت التشغيل. أربعة تناسب خامة مربعة، وستة أو ثمانية تناسب خامة دائرية مسبقة الخراطة.",
+      "options": {
+        "2": "2 (أمامي / خلفي)",
+        "3": "3 (منشور ثلاثي)",
+        "4": "4 (خامة مربعة)",
+        "6": "6 (خامة سداسية)",
+        "8": "8 (خامة ثمانية)"
+      }
+    },
+    "indexedRasterAxis": {
+      "label": "اتجاه المسح الخطي",
+      "help": "الاتجاه الذي تسير فيه خطوط التنعيم على كل وجه. على طول المحور الدوار يعطي أشواطًا طويلة مستمرة. عبر الوجه يناسب القطع التي تمتد تفاصيلها حول محيط القطعة وليس بطولها.",
+      "options": {
+        "axial": "على طول المحور الدوار",
+        "cross": "عبر الوجه"
+      }
+    },
+    "indexedRoughStepdown": {
+      "label": "عمق شوط التخشين",
+      "help": "مقدار العمق الذي تزيله كل طبقة تخشين على الوجه. القيم الأصغر ألطف على الأداة وتستغرق وقتًا أطول. يُعد ثلث قطر الأداة نقطة بداية آمنة."
+    },
+    "indexedStartAngle": {
+      "label": "زاوية البداية",
+      "help": "يدور كامل مجموعة الأوجه. استخدمه لمحاذاة الوجه الأول مع معلم في النموذج، أو لوضع خط الانفصال في مكان لا يمانع ظهوره."
+    },
+    "laserClearStrategy": {
+      "label": "استراتيجية الإزالة",
+      "help": "كيف يملأ الليزر المناطق التي تحتاج إلى إزالة النحاس.\n\n• مضلع ممتلئ: تصدير أشكال مصمتة - يتولى برنامج الليزر نمط التعبئة. بصيغة SVG فقط.\n• مسارات إزاحة: مسارات متحدة المركز تتقلص للداخل. الأكثر موثوقية لمنع الخطوط.\n• تهشير متوازٍ: خطوط مستقيمة بزاوية ثابتة. سريع ولكنه في اتجاه واحد.\n• تهشير: مجموعات متعامدة من الخطوط. الأشواط الإضافية تدور الزاوية فيما بينها.",
+      "options": {
+        "filled": "مضلع ممتلئ - برنامج الليزر يتحكم في التعبئة",
+        "offset": "مسارات إزاحة - متحدة المركز، تمنع الخطوط",
+        "hatch": "تعبئة بالتهشير - تغطية خطية اتجاهية"
+      }
+    },
+    "laserClearingPadding": {
+      "label": "هامش الإزالة",
+      "help": "هامش إضافي يتم استئصاله حول منطقة النحاس خارج حدودها. يمنح الشعاع مساحة عند حواف المساحات المصبوبة."
+    },
+    "laserHatchPasses": {
+      "label": "أشواط التهشير",
+      "help": "عدد أشواط التهشير المطلوب تنفيذها. يتم تدوير كل شوط إضافي عن الزاوية الأساسية لتسوية التغطية بدلاً من ترك خطوط في اتجاه واحد."
+    },
+    "colorPerPass": {
+      "label": "لون فريد لكل شوط عزل/إزالة",
+      "help": "يعين تلقائيًا لونًا مختلفًا لكل شوط قطع. مفيد للبرامج التي تتيح تعيين إعدادات القطع وفقًا للألوان."
+    },
+    "laserCutSide": {
+      "label": "جهة القطع",
+      "help": "أين يقع عرض شق الليزر بالنسبة لمحيط اللوحة.\n\n• خارجي: يقطع الليزر خارج الخط (تحتفظ اللوحة بالحجم الاسمي الكامل).\n• داخلي: يقطع الليزر داخل الخط (تنكمش اللوحة بمقدار عرض الشق).\n• على الخط: يتبع الليزر الخط بدقة (تنكمش اللوحة بنصف عرض الشق من كل جانب).",
+      "options": {
+        "outside": "خارجي (عرض الشق للخارج)",
+        "inside": "داخلي (عرض الشق للداخل)",
+        "on": "على الخط (بدون تعويض)"
+      }
+    },
+    "laserExportPadding": {
+      "label": "هامش التصدير الإضافي",
+      "help": "هامش مادي بالمليمتر يضاف حول الهندسة المصدرة. يمنح برنامج الليزر مساحة للمحاذاة."
+    },
+    "exportDPI": {
+      "label": "دقة التصدير (DPI)",
+      "help": "دقة صورة PNG المصدرة. تمنح القيمة الأعلى تفاصيل أدق لكن بحجم ملف أكبر. 1000 DPI مناسب لمعظم لوحات PCB. طابق هذا مع إعداد دقة النقش في برنامج الليزر لديك."
+    },
+    "exportFormat": {
+      "label": "تنسيق التصدير",
+      "help": "يصدر SVG مسارات موجهة يفسرها برنامج الليزر (LightBurn, RDWorks) بإعدادات القدرة/السرعة الخاصة به لكل طبقة لون. بينما يصدر PNG صورة نقطية بالدقة المحددة - مفيد لأوضاع نقش الصور المباشر.",
+      "options": {
+        "svg": "SVG - رسوميات موجهة",
+        "png": "PNG - صورة نقطية"
+      }
+    },
+    "laserHatchAngle": {
+      "label": "زاوية التهشير",
+      "help": "زاوية خطوط التهشير بالدرجات. للتهشير المتوازي، تسير الخطوط بهذه الزاوية. للتهشير المتقاطع، تسير المجموعة الثانية بشكل عمودي (الزاوية + 90 درجة). 45 درجة افتراضي ممتاز - يقطع المسارات الأفقية والعمودية."
+    },
+    "heatManagement": {
+      "label": "تمكين الإدارة الحرارية",
+      "help": "يعيد ترتيب الأشواط بحيث لا تتجاور القطوع المتتالية، مما يمنح المادة وقتًا لتبرد. عند الإيقاف تصدر المسارات بالترتيب الهندسي.",
+      "options": {
+        "off": "إيقاف",
+        "standard": "قياسي"
+      }
+    },
+    "laserIsolationWidth": {
+      "label": "عرض العزل",
+      "help": "العرض الإجمالي للنحاس المراد استئصاله حول المسارات، مقاسًا من حافة المسار للخارج. يُحسب عدد أشواط الليزر تلقائيًا من هذه القيمة، وحجم النقطة البؤرية، ونسبة التداخل."
+    },
+    "laserLinesPerCm": {
+      "label": "خطوط لكل سم",
+      "help": "عدد أشواط الليزر لكل سنتيمتر. القيم الأعلى تعطي تغطية أكثر كثافة."
+    },
+    "laserLinesPerInch": {
+      "label": "خطوط لكل بوصة (LPI)",
+      "help": "عدد أشواط الليزر لكل بوصة. القيم الأعلى تعطي تغطية أكثر كثافة."
+    },
+    "language": {
+      "label": "اللغة"
+    },
+    "theme": {
+      "label": "السمة",
+      "options": {
+        "dark": "داكن",
+        "light": "فاتح",
+        "hc-dark": "تباين عالٍ داكن",
+        "hc-light": "تباين عالٍ فاتح"
+      }
+    },
+    "activeProfile": {
+      "label": "برنامج الليزر",
+      "help": "البرنامج الذي ستفتح فيه الملف المصدر. يحدد كيفية تجميع الطبقات، وما إذا كانت الألوان ترمز للأشواط، وأي لوحة ألوان مستخدمة.",
+      "options": {
+        "generic": "عام"
+      }
+    },
+    "reverseCutOrder": {
+      "label": "عكس ترتيب القطع",
+      "help": "إصدار الطبقات من الأخيرة إلى الأولى. مفيد إذا كان برنامج الاستيراد يعالج الملف من الأسفل للأعلى، حتى يصبح القطع الأول المقصود في البداية."
+    },
+    "laserSpacingMode": {
+      "label": "وضع تباعد الأشواط",
+      "help": "اختر كيفية تحديد المسافة بين أشواط الليزر المتتالية. يستخدم التداخل نسبة مئوية من حجم النقطة، بينما تحدد الخطوط/سم والخطوط/بوصة الكثافة مباشرة.",
+      "options": {
+        "stepover": "نسبة التداخل %",
+        "lpcm": "خطوط لكل سم",
+        "lpi": "خطوط لكل بوصة"
+      }
+    },
+    "laserSpotSize": {
+      "label": "حجم نقطة الليزر",
+      "help": "تذكير للقراءة فقط بحجم النقطة البؤرية المضبوط في إعدادات الماكينة حيث يتم تغييره. تعتمد استراتيجيات الإزاحة والتهشير عليه في حساب التباعد."
+    },
+    "spotSize": {
+      "label": "حجم نقطة الليزر",
+      "help": "عرض القطع الفعلي لشعاع الليزر لديك. يفترض أن تذكره الشركة المصنعة في ورقة المواصفات. القيم النموذجية: ليزر UV بين 0.02-0.08 مم، ليزر الألياف 0.03-0.15 مم."
+    },
+    "layerColors": {
+      "label": "ألوان الطبقات",
+      "help": "اللون المعين لكل نوع عملية في الملف المصدر. تطابق معظم برامج الليزر الألوان مع إعدادات القطع."
+    },
+    "lineNumbers": {
+      "label": "أرقام الأسطر (N)",
+      "help": "إضافة بادئة أرقام الأسطر لكتل كود G مثل (N10, N20…). تظهر فقط عندما تقبل وحدة تحكم المعالج ذلك."
+    },
+    "lineNumberStep": {
+      "label": "خطوة أرقام الأسطر",
+      "help": "مقدار الزيادة بين أرقام الأسطر المتتالية (كلمات N). خطوة مقدارها 10 تخرج N10, N20, N30… مما يترك مساحة لإدراج كتل يدوية عند وحدة تحكم الماكينة."
+    },
+    "laserStepOver": {
+      "label": "نسبة التداخل",
+      "help": "النسبة المئوية لقطر النقطة التي تتداخل فيها المسارات المجاورة. تمنح القيم المنخفضة (تداخل أكبر) إزالة أفضل للنحاس ولكنها تزيد وقت المعالجة. 50% نقطة بداية جيدة؛ خفضها إلى 30% إذا ظهرت خطوط."
+    },
+    "svgGrouping": {
+      "label": "تجميع مسارات SVG",
+      "help": "كيفية تجميع المسارات في الملف. يقرر برنامج الليزر لديك ما يمكنه قراءته: يقرأ البعض الطبقات، والبعض المجموعات، والبعض يعتمد على الألوان فقط.",
+      "options": {
+        "none": "بدون",
+        "layer": "طبقة",
+        "group": "مجموعة",
+        "color": "لون"
+      }
+    },
+    "millHoles": {
+      "label": "تفريز الثقوب",
+      "help": "إذا تم تحديده، ينشئ مسارات تفريز دائرية داخل أي ثقوب أكبر من الأداة. إذا لم يتم تحديده، ينشئ ثقبًا/نقرًا بسيطًا في المركز."
+    },
+    "mirrorGeometry": {
+      "label": "عكس الهندسة",
+      "help": "عكس هندسة الملف. مفيد مع عزل الطبقة السفلية."
+    },
+    "multiDepth": {
+      "label": "قطع متعدد الأعماق",
+      "help": "تمكين عدة أشواط على أعماق مختلفة للقطوع العميقة. يقلل من إجهاد الأداة."
+    },
+    "offsets": {
+      "label": "مسارات الإزاحة",
+      "help": "إظهار/إخفاء هندسة الإزاحة المحسوبة. يتم إخفاء هذا تلقائيًا عند توليد المعاينة."
+    },
+    "originOffset": {
+      "label": "إزاحة نقطة الأصل",
+      "help": "تعيين نقطة أصل X/Y جديدة. انقر على 'تطبيق نقطة الأصل' لحفظ هذا الموضع كنقطة جديدة (0,0)."
+    },
+    "pads": {
+      "label": "الوسادات"
+    },
+    "passes": {
+      "label": "عدد الأشواط",
+      "help": "عدد أشواط الإزاحة المطلوب إنشاؤها. الأشواط الأكثر تزيل نحاسًا أكثر ولكنها تستغرق وقتًا أطول."
+    },
+    "thickness": {
+      "label": "سماكة الخامة",
+      "help": "السماكة الإجمالية للمادة الخام. تستخدم لحسابات عمق القص الخارجي."
+    },
+    "thicknessCopper": {
+      "label": "سماكة النحاس",
+      "help": "سماكة رقاقة النحاس، عادة 0.035 مم لـ 1 أونصة. تُستخدم لاقتراح عمق العزل."
+    },
+    "width": {
+      "label": "العرض",
+      "help": "عرض الخامة على طول المحور X."
+    },
+    "length": {
+      "label": "الطول",
+      "help": "طول الخامة على طول المحور Y."
+    },
+    "margin": {
+      "label": "هامش الملاءمة",
+      "help": "خلوص مضاف حول الهندسة عند استخدام ملاءمة مع الكائن."
+    },
+    "material": {
+      "label": "المادة",
+      "help": "مادة الخامة. تستخدم لاقتراحات سرعة التغذية والدوران؛ ولا تغير أي إحداثيات مولدة.",
+      "options": {
+        "fr": "FR",
+        "plywood": "خشب رقائقي (أبلاكاش)",
+        "mdf": "خشب مضغوط (MDF)",
+        "hardwood": "خشب صلب",
+        "softwood": "خشب لين",
+        "acrylic": "أكريليك",
+        "aluminum": "ألومنيوم (طري)",
+        "foam": "فوم / لوح نمذجة",
+        "custom": "مخصص"
+      }
+    },
+    "zeroReference": {
+      "label": "مرجع نقطة أصل Z",
+      "help": "موقع Z0. 'سطح المادة' يعني التصفير فوق الخامة؛ 'سرير الماكينة' يعني التصفير على لوح التضحية وتُقاس الأعماق من هناك صعودًا.",
+      "options": {
+        "material": "سطح المادة (الأعلى)",
+        "bed": "سرير الماكينة (لوح التضحية)"
+      }
+    },
+    "coolant": {
+      "label": "سائل التبريد",
+      "help": "سائل التبريد الذي يشغله البرنامج في بدايته ويوقفه في نهايته: رذاذ أو غمر، برموز المعالج نفسه (M7/M8 و M9 في معظم المعالجات). خيار بدون يترك التحكم للمشغل.",
+      "options": {
+        "none": "بدون",
+        "mist": "رذاذ",
+        "flood": "غمر"
+      }
+    },
+    "vacuum": {
+      "label": "الشفاط",
+      "help": "تشغيل الشفاط أو مجمع الغبار في بداية البرنامج وإيقافه عند نهايته، بأكواد المعالج نفسه (M10/M11 في معظم المعالجات، M331/M332 في Makera، ومخرج مساعد في WinPC-NC)."
+    },
+    "peckDepth": {
+      "label": "عمق النقرة",
+      "help": "عمق كل نقرة قبل تراجع الريشة لتفريغ الرايش. مع دورات الثقب الجاهزة، تكون كلمة Q لـ G83 و G73؛ وفي المعالج الذي لا يدعمها يكتب EasyCAM حلقة النقر بنفسه. القيمة 0، أو دورة جاهزة بدون، تثقب في غوص واحد. يمكن لصف أدوات الثقب تحديد عمق خاص به."
+    },
+    "plungeRate": {
+      "label": "معدل الغوص",
+      "help": "السرعة التي تنزل بها الأداة داخل المادة (مم/دقيقة أو بوصة/دقيقة). عادة ما تكون أبطأ من معدل التغذية."
+    },
+    "pocketStrategy": {
+      "label": "استراتيجية تفريغ الجيب",
+      "help": "كيفية تفريغ الجزء الداخلي للجيب. إزاحات متحدة المركز تتقلص للداخل عبر أشواط. المسح الخطي يمسح ذهابًا وإيابًا في خطوط مستقيمة.",
+      "options": {
+        "offset": "إزاحات متحدة المركز",
+        "raster": "مسح خطي (Raster)"
+      }
+    },
+    "postProcessor": {
+      "label": "معالج ما بعد التشغيل",
+      "help": "يحدد الإعداد الخاص بوحدة تحكم CNC لديك: كود G الذي تكتبه والقيم التي تبدأ منها هذه الإعدادات. يمكن للإعداد أيضًا قفل بعضها."
+    },
+    "preprocessed": {
+      "label": "معالج مسبقًا",
+      "help": "يظهر الهندسة *بعد* الدمج ولكن *قبل* إعادة بناء الأقواس. يتطلب وضع الدمج."
+    },
+    "previews": {
+      "label": "المعاينات",
+      "help": "إظهار/إخفاء معاينات مسار الأداة، والتي تمثل المسار الفعلي لحركة الأداة."
+    },
+    "rapidFeed": {
+      "label": "التغذية السريعة",
+      "help": "معدل التغذية (مم/دقيقة) لحركات G0 السريعة (حركات الانتقال والتحرك إلى ارتفاع Z الآمن)."
+    },
+    "rasterAngle": {
+      "label": "زاوية المسح الخطي",
+      "help": "زاوية خطوط المسح لتفريغ الجيوب. 0 درجة أفقية، 90 درجة عمودية، 45 درجة قطرية."
+    },
+    "rasterBidirectional": {
+      "label": "مسح خطي ثنائي الاتجاه",
+      "help": "عند التحديد، تقطع الأداة في كلا الاتجاهين. عند عدم التحديد، ترتفع وتعود بعد كل خط للقطع في اتجاه واحد فقط (Climb)."
+    },
+    "optimizeToolpath": {
+      "label": "تحسين مسارات الأداة",
+      "help": "إعادة ترتيب وتبسيط مسار الأداة النهائي لتقليل وقت الانتقال. قم بإيقافه للحفاظ على المسارات بنفس الترتيب الذي تم توليده به تمامًا."
+    },
+    "regions": {
+      "label": "المناطق"
+    },
+    "reliefBoundaryMm": {
+      "label": "امتداد الحدود",
+      "help": "المسافة بعد محيط الشكل الخارجي التي يتم تشكيل الحدود عندها. يستخدم مع خياري الالتفاف والتمديد."
+    },
+    "reliefBoundaryMode": {
+      "label": "حدود الشكل الخارجي",
+      "help": "ما يحدث عند محيط الشكل الخارجي للنموذج. التوقف يترك الخامة المحيطة. الالتفاف يشكل جدارًا هابطًا متجاوزًا الحافة. التمديد يواصل القطع لمسافة محددة بعدها.",
+      "options": {
+        "stop": "توقف عند حافة النموذج",
+        "rollover": "التفاف حول الحافة (جدار حدودي)",
+        "extend": "تمديد لما بعد الحافة (+مم)"
+      }
+    },
+    "reliefCellSize": {
+      "label": "حجم خلية الشبكة",
+      "help": "خطوة شبكة أخذ العينات بالمليمتر. اتركه فارغًا لاشتقاقه من حجم النموذج وسقف الدقة أدناه.",
+      "placeholder": "تلقائي"
+    },
+    "reliefCornerRadius": {
+      "label": "نصف قطر الركن",
+      "help": "نصف قطر ركن الأداة كروية الحواف (Bull nose). يتم تجاهله مع الرؤوس الكروية والمسطحة."
+    },
+    "reliefCrossFinish": {
+      "label": "شوط تنعيم متقاطع",
+      "help": "يضيف شوط تنعيم ثانيًا بزاوية 90 درجة بالنسبة للأول. يضاعف وقت التنعيم تقريبًا ويحسن الأسطح المنحنية بشكل ملحوظ."
+    },
+    "reliefDepth": {
+      "label": "عمق الحفر",
+      "help": "إجمالي عمق الحفر أسفل السطح. اتركه فارغًا لاستخدام ارتفاع النموذج نفسه.",
+      "placeholder": "تلقائي"
+    },
+    "reliefDepthMapping": {
+      "label": "تعيين العمق",
+      "help": "المدرج يمدد نطاق ارتفاع النموذج ليناسب عمق الحفر - استخدمه للأعمال الفنية. الفعلي يحتفظ بمليمترات النموذج الحقيقية - استخدمه للقطع الهندسية محددة الأبعاد.",
+      "options": {
+        "scaled": "مدرج حسب العمق (نقش فني بارز)",
+        "literal": "الارتفاع الفعلي للنموذج (قطعة بأبعاد محددة)"
+      }
+    },
+    "reliefFinishStepoverPct": {
+      "label": "تداخل التنعيم",
+      "help": "الخطوة الجانبية بين أشواط التنعيم كنسبة مئوية من قطر الأداة. القيمة الأقل تمنح نعومة أكبر وتستغرق وقتًا أطول."
+    },
+    "reliefGridMaxDim": {
+      "label": "دقة الشبكة التلقائية",
+      "help": "الحد الأقصى للضلع الأطول للشبكة المشتقة. القيمة الأعلى تلتقط تفاصيل أدق وتزيد من وقت المعالجة واستهلاك الذاكرة."
+    },
+    "reliefInvert": {
+      "label": "عكس (وضع القالب)",
+      "help": "يقطع معكوس النموذج لإنتاج قالب مباشر له."
+    },
+    "reliefMaskUncovered": {
+      "label": "حصر القطع في حدود النموذج",
+      "help": "يقطع فقط حيث يستقر النموذج بالفعل. اتركه معطلاً لتفريغ الشبكة بأكملها حتى القاع."
+    },
+    "reliefMinSegmentLength": {
+      "label": "أدنى طول لمقطع التخشين",
+      "help": "يسقط مقاطع التخشين الأقصر من هذه القيمة. يزيل التردد والاهتزاز دون تغيير القطع."
+    },
+    "reliefMode": {
+      "label": "الشوط",
+      "help": "يزيل التخشين الكتلة الكبيرة في طبقات مسطحة، بينما يمسح التنعيم السطح. كلاهما يشغلهما بالتتابع باستخدام نفس الأداة.",
+      "options": {
+        "roughing": "تخشين",
+        "finishing": "تنعيم",
+        "both": "كلاهما (أداة واحدة)"
+      }
+    },
+    "reliefRasterAxis": {
+      "label": "اتجاه المسح الخطي",
+      "help": "الاتجاه الذي تمسح فيه الأشواط. اجعلها تمسح عبر التفاصيل الطويلة للنموذج وليس على طولها.",
+      "options": {
+        "x": "على طول X",
+        "y": "على طول Y"
+      }
+    },
+    "reliefRoughStepdown": {
+      "label": "عمق شوط التخشين",
+      "help": "عمق المحور Z المزال لكل طبقة تخشين."
+    },
+    "reliefRoughStepoverPct": {
+      "label": "تداخل التخشين",
+      "help": "الخطوة الجانبية بين أشواط التخشين كنسبة مئوية من قطر الأداة."
+    },
+    "reliefRoughStock": {
+      "label": "سماكة متبقية للتنعيم",
+      "help": "المادة المتروكة على السطح ليزيلها شوط التنعيم."
+    },
+    "reliefSimplifyTolerance": {
+      "label": "تبسيط المسار",
+      "help": "أقصى انحراف مسموح به عند تسوية مسارات التنعيم. القيم الأكبر تنتج كود G أصغر حجمًا."
+    },
+    "reliefSkipFloor": {
+      "label": "تخطي القاع المسطح",
+      "help": "يتخطى شوط القاع المسطح. آمن عندما يفرغ التخشين القاع مسبقًا بنفس الأداة."
+    },
+    "reliefStartDepth": {
+      "label": "عمق البداية",
+      "help": "عمق السطح الذي يبدأ منه النقش البارز. استخدمه للنحت داخل قاع جيب موجود مسبقًا."
+    },
+    "reliefToolShape": {
+      "label": "شكل رأس الأداة",
+      "help": "هندسة الرأس التي يحاكيها نظام التعويض. الكروي يتبع المنحنيات بشكل أفضل، والمسطح أسرع في النقوش الضحلة، وكروي الحواف هو مسطح بزوايا مستديرة.",
+      "options": {
+        "ball": "نصف كروية (Ball Nose)",
+        "flat": "مفرزة مسطحة (Flat Endmill)",
+        "bull": "كروية الحواف (Bull Nose)"
+      }
+    },
+    "resetRotation": {
+      "label": "إعادة ضبط الدوران",
+      "help": "إعادة ضبط دوران اللوحة إلى 0 دون تغيير موضع نقطة الأصل."
+    },
+    "resetUnsaved": {
+      "label": "إلغاء التغييرات غير المحفوظة",
+      "help": "تجاهل أي تغييرات غير محفوظة في إزاحة نقطة الأصل والعودة إلى آخر نقطة أصل محفوظة."
+    },
+    "retractHeight": {
+      "label": "ارتفاع التراجع",
+      "help": "الارتفاع المراد التراجع إليه بين الثقوب. يجب أن يعبر فوق اللوحة بأمان مع تقليل وقت الانتقال."
+    },
+    "rolandModel": {
+      "label": "طراز الماكينة",
+      "help": "اختر ماكينة Roland الخاصة بك. تأتي خطواتها لكل مليمتر، وحدود التغذية، والتحكم في المغزل، وتسلسلات البداية والنهاية من جدول الإعدادات؛ والماكينة غير الموجودة بالجدول تحتاج إلى إعداد مخصص بطراز خاص بها.",
+      "options": {
+        "custom": "ماكينة مخصصة"
+      },
+      "notes": {
+        "mdx15": "تتطلب الواجهة التسلسلية تحكمًا في التدفق عبر العتاد (RTS/CTS). استخدم محول تسلسلي إلى USB يعتمد على FTDI لضمان اتصال موثوق.",
+        "mdx20": "تتطلب الواجهة التسلسلية تحكمًا في التدفق عبر العتاد (RTS/CTS).",
+        "imodela": "صلابة منخفضة - استخدم معدلات تغذية متحفظة لأعمال لوحات الدوائر المطبوعة PCB.",
+        "srm20": "ترفض لوحة VPanel أكواد RML التي تحتوي على أخطاء نحوية. يوفر وضع RML دقة 0.01 مم؛ بينما يوفر وضع كود NC دقة 0.001 مم للأعمال فائقة الدقة.",
+        "egx350": "سرعة مغزل عالية - ممتازة لعزل PCB بريش V.",
+        "custom": "تكوين مخصص - تحقق من كل معلمة بالرجوع إلى دليل الماكينة لديك."
+      }
+    },
+    "rolandZMode": {
+      "label": "وضع أمر المحور Z",
+      "help": "يستخدم الوضع ثلاثي الأبعاد الأمر Z لحركة XYZ المتزامنة (MDX-40A فما فوق). بينما يستخدم وضع 2.5D الأمرين PU/PD اللذين يدعمان فقط القطع في مستوى XY عند عمق ثابت محدد بواسطة !PZ.",
+      "options": {
+        "3d": "3D - Z x,y,z (حركة متزامنة XYZ)",
+        "2.5d": "2.5D - PU/PD (رفع/خفض الأداة فقط)"
+      }
+    },
+    "rotaryAxis": {
+      "label": "محور الدوران في الماكينة",
+      "help": "المحور الذي تدور حوله قطعة العمل: X ينتج عنه الكلمة A، و Y ينتج عنه الكلمة B. يمثل كيفية تركيب المحور الدوار لذا تستخدمه كل عمليات المحور الرابع، وتغييره يحددها لإعادة التوليد. يمكن فقط تصدير الكلمات التي يصرح عنها المعالج.",
+      "options": {
+        "x": "A - على طول X لمساحة العمل",
+        "y": "B - على طول Y لمساحة العمل"
+      }
+    },
+    "rotaryChuckSide": {
+      "label": "جهة الظرف",
+      "help": "أي طرف من المحور الدوار يمسكه الظرف. تنطبق إعدادات حدود طرف الظرف لكل عملية عند ذلك الطرف، وإعدادات طرف الذيل عند الطرف الآخر.",
+      "options": {
+        "low": "الطرف الأدنى (باتجاه -X / -Y)",
+        "high": "الطرف الأعلى (باتجاه +X / +Y)"
+      }
+    },
+    "rotaryGrid": {
+      "label": "الشبكة في عرض المحور الرابع",
+      "help": "يرسم الشبكة الأرضية في مشهد المحور الرابع بالعرض ثلاثي الأبعاد عند نقطة Z0 للبرنامج: خط مركز الدوران، أو مع Z0 المطلق السرير (ارتفاع المحور الدوار أسفل خط المنتصف)، وفي مسار استبدال المحور أعلى الخامة. للعرض فقط."
+    },
+    "rotaryWorkholding": {
+      "label": "الظرف وغراب الذيل",
+      "help": "يرسم ظرفًا مبسطًا في مشهد المحور الرابع بالعرض ثلاثي الأبعاد عند طرف القطعة الذي يمسكه الظرف، وغراب ذيل عند الطرف الآخر عندما تثبت العملية القطعة بين ذنبين. للعرض فقط."
+    },
+    "rotaryBlankDiameter": {
+      "label": "قطر الخامة",
+      "help": "القطر الخارجي للخامة الأسطوانية. اتركه فارغًا لملاءمة الخامة مع النموذج تلقائيًا. ضبطه بقيمة أصغر من النموذج يسطح كل ما يبرز خارجه، لذا لا تقلله إلا إذا كانت الخامة أصغر بالفعل.",
+      "placeholder": "تلقائي"
+    },
+    "rotaryCellSize": {
+      "label": "حجم خلية الشبكة",
+      "help": "حجم خلية أخذ العينات الواحدة على سطح النموذج. اتركه فارغًا لاشتقاقه من إعداد الدقة أدناه. ضبطه يدويًا يتجاوز ذلك وقد يجعل التوليد بطيئًا جدًا في القطع الكبيرة.",
+      "placeholder": "تلقائي"
+    },
+    "rotaryChuckEndMm": {
+      "label": "إزاحة طرف الظرف",
+      "help": "ينقل الموضع الذي يعتبر عنده طرف الظرف منتهيًا على طول المحور. القيمة السالبة تتوقف قبل الحافة الحقيقية - مفيدة لقاعدة مائلة أو منحدر مماس لا يمكن لأداتك دخوله بنظافة. القيمة الموجبة تشغل مسافة أبعد متجاوزة إياه، مع خراطة الفائض نزولاً إلى نصف القطر الأدنى أثناء الحركة. القيمة السالبة الكبيرة جدًا لا تترك شيئًا لتشغيله وستتلقى تحذيرًا. في وضعي الالتفاف والاستدقاق، يمثل هذا عمق الحافة أو طول المخروط، وتكون القيمة موجبة دائمًا."
+    },
+    "rotaryChuckEndMode": {
+      "label": "حدود طرف الظرف",
+      "help": "ما يحدث عندما ينتهي النموذج عند الظرف. 'توقف عند الهندسة' هو الخيار الافتراضي والموثوق: يتم تنحيف الفائض حتى نصف القطر الأدنى وتتوقف الأداة عند القطعة. 'التفاف حول الحافة' يترك شفة صغيرة حول الحافة ولكنه يعمل فقط على طرف مسطح ومتعامد مع المحور (الأطراف المائلة أو المقببة أو غير المركزية ستظهر نتوءات مسننة وتحذيرًا). 'مستدق' يتدرج بمخروط نحو محور الإدارة بدلاً من التدرج بدرجة حادة.",
+      "options": {
+        "stop": "توقف عند الهندسة (مخروط حتى المركز)",
+        "rollover": "التفاف حول الحافة - شفة (يتطلب طرفًا مسطحًا)",
+        "taper": "مستدق - انحدار مخروطي نحو محور الإدارة"
+      }
+    },
+    "rotaryCornerRadius": {
+      "label": "نصف قطر الركن",
+      "help": "نصف قطر ركن أداة كروية الحواف (Bull nose). يُستخدم فقط عندما يكون شكل الرأس كروي الحواف. يجب أن يكون أقل من نصف قطر الأداة."
+    },
+    "rotaryDepth": {
+      "label": "عمق الحفر",
+      "help": "أقصى عمق للقطع أسفل سطح الخامة، مقاسًا كنصف قطر. اتركه فارغًا لتتبع النموذج نزولاً إلى أنحف نقطة فيه. حساب العمق التلقائي بالقرب من محور الدوران يجعل التوليد بطيئًا جدًا، لذا حدد قيمة صريحة في النماذج الكبيرة.",
+      "placeholder": "تلقائي"
+    },
+    "rotaryFinishPattern": {
+      "label": "نمط التنعيم",
+      "help": "الحلزوني هو لولب مستمر بنقطة دخول واحدة وبدون علامات توقف وهو الخيار الافتراضي الأفضل. على طول المحور يناسب القطع ذات المعالم المحورية الطولية. محيطي يقطع حلقات مغلقة ويناسب القطع ذات التفاصيل الدورانية.",
+      "options": {
+        "spiral": "حلزوني (لولب مستمر)",
+        "along": "على طول المحور",
+        "around": "محيطي (حلقات)"
+      }
+    },
+    "rotaryFinishStepoverPct": {
+      "label": "تداخل التنعيم",
+      "help": "المسافة بين أشواط التنعيم كنسبة مئوية من قطر الأداة. 10% تعطي تشطيبًا فائق النعومة. القيم الأكبر أسرع ولكنها تترك نتوءات واضحة."
+    },
+    "rotaryGridMaxDim": {
+      "label": "دقة الشبكة التلقائية",
+      "help": "دقة أخذ العينات على طول البعد الأطول للنموذج، وتستخدم عندما يكون حجم الخلية تلقائيًا. القيمة الأعلى تلتقط تفاصيل أدق وتستغرق وقتًا أطول. 1024 تناسب معظم الأعمال."
+    },
+    "rotaryHoldingMode": {
+      "label": "تثبيت القطعة",
+      "help": "بين ذنبين يفترض أن غراب الذيل يدعم الطرف البعيد، وبالتالي تكون المادة بعد ذلك الطرف محمية. الظرف فقط يفترض أن القطعة مثبتة ككابولي وأن الطرف البعيد حر في الهواء.",
+      "options": {
+        "between_centers": "بين ذنبين (مدعوم بغراب الذيل)",
+        "chuck_only": "الظرف فقط (كابولي)"
+      }
+    },
+    "rotaryKinematics": {
+      "label": "حركية المحور الدوار (Kinematics)",
+      "help": "قطري يدور القطعة باستمرار تحت الأداة للحصول على أسطح دائرية ناعمة. مفهرس 3+1 يدور بزاوية ثابتة، ويفرز ذلك الوجه مستويًا، ثم يدور مرة أخرى. يتطلب المفهرس معالجًا يحتوي على الكلمة A أو B؛ ويمكن للقطري أيضًا العمل على ماكينة متصل محورها الدوار بمشغل المحور Y.",
+      "options": {
+        "radial": "قطري (تشغيل سطحي مستمر)",
+        "indexed": "مفهرس 3+1 (أوجه مسطحة بزوايا ثابتة)"
+      }
+    },
+    "rotaryMinRadius": {
+      "label": "نصف القطر الأدنى",
+      "help": "نصف قطر محور الإدارة الذي لا تقطعه الأداة أبدًا: وهو ما يقبض عليه الظرف ويستند إليه سنتر غراب الذيل. وهو أيضًا نصف القطر الذي ينحدر إليه الطرف المستدق. في وضع الفهرسة 3+1، يُطبق كأسطوانة أمان حول خط المنتصف، لذا فإن القيمة هنا هي حد أدنى ثابت لعمق قطع أي وجه بالقرب من المحور - القيمة الافتراضية 2 مم تحافظ على لب سليم مقداره 2 مم لن يقطعه أي وجه. اضبطه على 0 لطرف حر ترغب في قطعه وفصله تمامًا."
+    },
+    "rotaryMode": {
+      "label": "الشوط",
+      "help": "أي الأشواط المطلوب توليدها. يزيل التخشين الكتلة الكبيرة في طبقات متساوية نصف القطر. ويتبع التنعيم السطح النهائي. كلاهما ينفذهما بالترتيب باستخدام أداة واحدة.",
+      "options": {
+        "roughing": "تخشين",
+        "finishing": "تنعيم",
+        "both": "كلاهما (أداة واحدة)"
+      }
+    },
+    "rotaryRoughAxis": {
+      "label": "اتجاه التخشين",
+      "help": "الاتجاه الذي تسير فيه خطوط مسح التخشين. على طول المحور يناسب القطع الطويلة النحيفة. حول المحيط يناسب القطع القصيرة السميكة ويحافظ على حمل قطع أكثر انتظامًا للأداة.",
+      "options": {
+        "x": "على طول المحور",
+        "y": "حول المحيط"
+      }
+    },
+    "rotaryRoughStepdown": {
+      "label": "عمق شوط التخشين",
+      "help": "مقدار نصف القطر الذي تزيله كل طبقة تخشين. القيم الأصغر ألطف على الأداة وتستغرق وقتًا أطول. يُعد ثلث قطر الأداة نقطة بداية آمنة."
+    },
+    "rotaryRoughStepoverPct": {
+      "label": "تداخل التخشين",
+      "help": "المسافة بين خطوط مسح التخشين، كنسبة مئوية من قطر الأداة. 45% قيمة افتراضية مناسبة للتخشين."
+    },
+    "rotaryRoughStock": {
+      "label": "سماكة متبقية للتنعيم",
+      "help": "المادة التي يتركها التخشين على السطح ليقوم شوط التنعيم بإزالتها. 0.3 مم قيمة افتراضية جيدة. القليل جدًا يُظهر علامات التخشين، والكثير يرهق أداة التنعيم."
+    },
+    "rotaryRoute": {
+      "label": "مسار المحور الرابع",
+      "help": "كيفية وصول أوامر المحور الرابع إلى الماكينة. 'كلمة دوارة' ترسل A أو B وتسقط Y - يتولى برنامج CAM الحساب - بالدرجات أو بميليمترات القوس للمحور الدوار المعاير بالوحدات الخطية. 'استبدال المحور' يبقي Y ناقلاً لميليمترات القوس عند نصف قطر المرجع، للمحور الدوار المتصل بمشغل المحور Y مع معايرة الخطوات/مم. تُعرض فقط المسارات المصرح بها في معالج ما بعد التشغيل لديك.",
+      "options": {
+        "a-word": "كلمة دوارة (A/B بالدرجات)",
+        "a-linear": "كلمة دوارة (A/B بميليمترات القوس)",
+        "wrapped-linear": "استبدال المحور (Y يحمل طول القوس)"
+      }
+    },
+    "rotaryStockShape": {
+      "label": "المقطع العرضي للخامة",
+      "help": "المقطع العرضي للخامة غير المشغلة. يبدأ الدائري القطع عند قطر الخامة. بينما يبدأ المربع عند نصف قطر الأركان ويخرط الخامة لتصبح دائرية أثناء الهبوط، مما يضيف وقت تخشين ولكنه يغنيك عن خراطتها مسبقًا.",
+      "options": {
+        "round": "دائري (قطر الخامة)",
+        "square": "مربع (الضلع = قطر الخامة)"
+      }
+    },
+    "rotaryTailEndMm": {
+      "label": "إزاحة طرف الذيل",
+      "help": "ينقل الموضع الذي يعتبر عنده طرف غراب الذيل منتهيًا على طول المحور. القيمة السالبة تتوقف قبل الحافة الحقيقية - مفيدة لقمة مائلة أو منحدر مماس لا يمكن لأداتك دخوله بنظافة. القيمة الموجبة تشغل مسافة أبعد متجاوزة إياه، مع خراطة الفائض نزولاً إلى نصف القطر الأدنى أثناء الحركة. القيمة السالبة الكبيرة جدًا لا تترك شيئًا لتشغيله وستتلقى تحذيرًا. في وضعي الالتفاف والاستدقاق، يمثل هذا عمق الحافة أو طول المخروط، وتكون القيمة موجبة دائمًا."
+    },
+    "rotaryTailEndMode": {
+      "label": "حدود طرف الذيل",
+      "help": "ما يحدث عندما ينتهي النموذج عند غراب الذيل. 'توقف عند الهندسة' هو الخيار الافتراضي والموثوق: يتم تنحيف الفائض حتى نصف القطر الأدنى وتتوقف الأداة عند القطعة. 'التفاف حول الحافة' يترك شفة صغيرة حول الحافة ولكنه يعمل فقط على طرف مسطح ومتعامد مع المحور (الأطراف المائلة أو المقببة أو غير المركزية ستظهر نتوءات مسننة وتحذيرًا). 'مستدق' يتدرج بمخروط نحو محور الإدارة بدلاً من التدرج بدرجة حادة.",
+      "options": {
+        "stop": "توقف عند الهندسة (مخروط حتى المركز)",
+        "rollover": "التفاف حول الحافة - شفة (يتطلب طرفًا مسطحًا)",
+        "taper": "مستدق - انحدار مخروطي نحو محور الإدارة"
+      }
+    },
+    "rotaryToolShape": {
+      "label": "شكل رأس الأداة",
+      "help": "شكل طرف القطع. الرأس نصف الكروي يعطي أنعم أسطح منحنية. والمسطح يترك درجات على المنحنيات لكنه يقطع الأسطح المستوية بنظافة. وكروي الحواف هو مفرزة مسطحة بأركان مستديرة.",
+      "options": {
+        "ball": "نصف كروية (Ball Nose)",
+        "flat": "مفرزة مسطحة (Flat Endmill)",
+        "bull": "كروية الحواف (Bull Nose)"
+      }
+    },
+    "rulers": {
+      "label": "المساطر",
+      "help": "إظهار/إخفاء المساطر حول مساحة الرسم."
+    },
+    "safeZ": {
+      "label": "ارتفاع Z الآمن",
+      "help": "أقصى ارتفاع آمن للحركات السريعة وتغيير الأدوات (G0). يجب أن يتجاوز كل الكلبسات ومثبتات الشغلة بأمان."
+    },
+    "spindleDwell": {
+      "label": "توقف استقرار المغزل",
+      "help": "الوقت بالثواني للانتظار. ضروري للمغزل ذي القصور الذاتي العالي الذي يحتاج إلى وقت إضافي ليصل لسرعته المقررة."
+    },
+    "spindleSpeed": {
+      "label": "سرعة المغزل",
+      "help": "سرعة دوران المغزل (دورة في الدقيقة). سرعات أعلى للأدوات الأصغر قطرًا."
+    },
+    "spotDepth": {
+      "label": "عمق ثقب التوجيه (Spot)",
+      "help": "عمق ثقب التوجيه الاستكشافي المبدئي."
+    },
+    "spotDrill": {
+      "label": "ثقب التوجيه المبدئي",
+      "help": "غوص ثقب توجيهي ضحل في كل موقع قبل شوط الثقب الرئيسي. يحسن الدقة على الأسطح المنحنية أو غير المستوية."
+    },
+    "stencilAddRegHoles": {
+      "label": "ثقوب المحاذاة",
+      "help": "توليد 4 ثقوب محاذاة دائرية خارج حدود اللوحة لتثبيت الإستنسل بالدبابيس أثناء دهان معجون اللحام يدويًا."
+    },
+    "stencilExcludeDrillPads": {
+      "label": "استبعاد وسادات الثقوب",
+      "help": "يزيل تلقائيًا فتحات الإستنسل الواقعة مباشرة فوق الثقوب النافذة لمنع سقوط معجون اللحام بداخلها."
+    },
+    "stencilExportPadding": {
+      "label": "هامش تصدير الإستنسل",
+      "help": "هامش مادي (بالمليمتر) يضاف حول هندسة الإستنسل في ملف SVG المصدر. يمنح مساحة للتثبيت على قواطع الفينيل وراسمات الليزر."
+    },
+    "stencilIgnoreRegions": {
+      "label": "تجاهل المساحات الكبيرة",
+      "help": "إذا تم تحديده، يتجاهل مساحات ومسارات النحاس الكبيرة، ويولد فتحات فقط لوسادات المكونات الفعلية (Flashes)."
+    },
+    "stencilOffset": {
+      "label": "إزاحة فتحة الإستنسل",
+      "help": "تقليص (سالب) أو توسيع (موجب) فتحات الإستنسل. القيمة -0.05 مم شائعة لمنع تكون جسور لحام قصديرية."
+    },
+    "stencilMachine": {
+      "label": "مخرجات الإستنسل",
+      "help": "ما يتم قص الإستنسل عليه. الراوتر يفرز الفتحات ويصدر كود G؛ بينما تقطع السكين على المسار مع تعويض إزاحة القاطع وتصدر ملفًا موجهًا. يؤدي التغيير إلى تبديل المعلمات والمراحل المتاحة للعملية.",
+      "options": {
+        "router": "تفريز CNC (كود G)",
+        "knife": "فينيل / ليزر CO2 (ملف SVG)"
+      }
+    },
+    "stencilCornerRadius": {
+      "label": "نصف قطر ركن الفتحة",
+      "help": "تدوير كل ركن للفتحة حتى تتمكن سكين السحب أو قاطعة الفينيل من تتبعها. يخرج نصف القطر الأصغر من تعويض القاطعة مربعًا لأن القاطعة المستديرة لا يمكنها قص ركن أضيق من قطرها."
+    },
+    "stencilRegDiameter": {
+      "label": "قطر ثقب المحاذاة",
+      "help": "القطر الفعلي لدبابيس/خابورات المحاذاة التي تخطط لاستخدامها."
+    },
+    "stencilRegMargin": {
+      "label": "هامش ثقوب المحاذاة",
+      "help": "كم تبعد ثقوب المحاذاة خارج حدود اللوحة المحسوبة."
+    },
+    "stepOver": {
+      "label": "التداخل الجانبي",
+      "help": "النسبة المئوية لقطر الأداة المراد تداخلها في كل شوط. 50% قيمة افتراضية شائعة."
+    },
+    "tabHeight": {
+      "label": "ارتفاع ألسنة التثبيت",
+      "help": "سماكة لسان التثبيت المتبقي. قيمة -0.5 مم في قطع عمقه -1.8 مم ستترك لسانًا بسماكة 0.5 مم."
+    },
+    "tabWidth": {
+      "label": "عرض ألسنة التثبيت",
+      "help": "طول كل لسان تثبيت بالمليمتر."
+    },
+    "tabs": {
+      "label": "عدد ألسنة التثبيت",
+      "help": "عدد الألسنة الصغيرة غير المقطوعة المتروكة لتثبيت اللوحة في مكانها بالخامة."
+    },
+    "tool": {
+      "label": "الأداة",
+      "help": "اختر أداة من مكتبتك. سيتم استخدام قطر الأداة في جميع الحسابات."
+    },
+    "toolDiameter": {
+      "label": "قطر الأداة",
+      "help": "قطر قطع الأداة - أوسع دائرة تقطعها. في عزل النحاس والنقش يتم استنتاجه من العرض الفعلي لريشة V عند العمق المطلوب، لأن الإزاحة تعتمد عليه."
+    },
+    "toolLengthCompMode": {
+      "label": "تعويض طول الأداة",
+      "help": "من أين تحصل وحدة التحكم على طول Z للأداة الجديدة بعد التبديل. 'جدول أدوات وحدة التحكم' يفترض قياس كل أداة مسبقًا في جدول إزاحات التحكم (G43 Hn). و'H مشتقة من T' تجعل التحكم يأخذ سجل الإزاحة من كلمة T. و'مقاس عند التبديل' تعني أن ماكرو وحدة التحكم يتحسس الأداة مباشرة بدون إصدار G43. و'بدون' لا يصدر شيئًا وتصفر Z يدويًا على الريشة الجديدة بنفسك.",
+      "options": {
+        "none": "بدون",
+        "table": "جدول أدوات وحدة التحكم (G43 Hn)",
+        "table-implicit": "جدول وحدة التحكم، H من T (Tn M06 G43)",
+        "probe": "مقاس عند التبديل (ماكرو وحدة التحكم)"
+      }
+    },
+    "absoluteZ": {
+      "label": "نقطة Z0 المطلقة",
+      "help": "تكون Z0 ثابتة على الماكينة - السرير - بدلاً من تصفيرها باللمس على الخامة. لا يمكن لأي حركة النزول أسفلها، لذا اضبط Z0 للخامة على السرير. تُرفع برامج المحور الرابع بمقدار ارتفاع المحور الدوار. وتُرفض حاليًا البرامج التي تخلط بين العمليات المسطحة وعمليات المحور الرابع، بالإضافة إلى مسار استبدال المحور."
+    },
+    "toolNumber": {
+      "label": "رقم الأداة",
+      "help": "منفذ المخزن أو جيب البرج أو الظرف الذي تستقر فيه أداة هذه العملية - كلمة T التي ستتلقاها وحدة التحكم. إذا كانت ماكينتك بدون مبدل أدوات، فإن ترك 1 في كل العمليات آمن."
+    },
+    "traces": {
+      "label": "المسارات النحاسية"
+    },
+    "travelZ": {
+      "label": "ارتفاع الانتقال Z",
+      "help": "الارتفاع فوق اللوحة (Z=0) الذي تتحرك عنده الأداة سريعًا بين مسارات القطع."
+    },
+    "vbitAngle": {
+      "label": "زاوية ريشة V",
+      "help": "الزاوية الشاملة لريشة V. القيم الشائعة هي 60 و 90 و 120 درجة. تحدد عرض القطع عند عمق معين."
+    },
+    "vbitTipRadius": {
+      "label": "نصف قطر رأس الريشة",
+      "help": "نصف القطر عند طرف الريشة تمامًا. 0 نقطة حادة تامة؛ عادة ما تحتوي الريشة الحقيقية على نصف قطر ركن صغير أو شطب مسطح."
+    },
+    "vcarveCornerAngle": {
+      "label": "عتبة الركن",
+      "help": "زاوية الانفصال التي يُعتبر ما دونها فرعًا هيكليًا مساعدًا ويتم إسقاطه. ارفعها لإسقاط مزيد من التفاصيل على المحيطات المنحنية."
+    },
+    "vcarveSampleSpacing": {
+      "label": "تباعد عينات المحيط",
+      "help": "الخطوة المستخدمة لإعادة أخذ عينات المحيطات قبل بناء المحور المتوسط. قللها للنصوص الصغيرة جدًا؛ ويجب أن تكون أقل من أنحف خط رسم."
+    },
+    "vcarveNoiseThreshold": {
+      "label": "عتبة التشويش",
+      "help": "تسقط الفروع المتوسطة التي يتغير خلوصها بأقل من هذا. القيمة 0 تعطل المرشح."
+    },
+    "vcarveMaxDepth": {
+      "label": "أقصى عمق حفر",
+      "help": "أقصى عمق لقطوع حفر V. اضبطه على 0 للحصول على عمق حر طبيعي (بدون قاع مسطح). اضبطه > 0 لتقييد العمق وتوليد مسارات قيعان مسطحة في المساحات العريضة."
+    },
+    "vcarveMinChainLength": {
+      "label": "أدنى طول مسار",
+      "help": "تسقط سلاسل الحفر الأقصر من هذه القيمة. تزيل البقع الناتجة عن المحيطات المشوشة."
+    },
+    "vcarveStartDepth": {
+      "label": "عمق البداية",
+      "help": "إزاحة عمق البداية. تستخدم للنقش أسفل قاع جيب تم تفريزه مسبقًا."
+    },
+    "verboseDebug": {
+      "label": "تصحيح أخطاء مفصل",
+      "help": "إظهار رسائل 'تصحيح الأخطاء' الموسعة في سجل الحالة ووحدة تحكم المتصفح. يتطلب إعادة تحميل الصفحة لرؤية رسائل بدء التشغيل."
+    },
+    "wireframe": {
+      "label": "إطار سلكي",
+      "help": "تصيير كافة الأشكال الهندسية كخطوط حدودية رفيعة بدلاً من أشكال مصمتة ممتلئة."
+    },
+    "makeraToolChangeMode": {
+      "label": "وضع تغيير الأداة",
+      "options": {
+        "atc": "تلقائي (ATC)",
+        "manual": "يدوي (MTC)"
+      }
+    },
+    "fanucProgramNumber": {
+      "label": "رقم البرنامج (O)"
+    },
+    "fanucProgramName": {
+      "label": "اسم البرنامج (تعليق سطر O)"
+    },
+    "fanucWorkOffset": {
+      "label": "إزاحة نظام الإحداثيات (Work Offset)",
+      "options": {
+        "G54": "G54",
+        "G55": "G55",
+        "G56": "G56",
+        "G57": "G57",
+        "G58": "G58",
+        "G59": "G59"
+      }
+    },
+    "fanucRotaryUnwind": {
+      "label": "موضع المحور الدوار عند نهاية البرنامج",
+      "options": {
+        "none": "الترك في مكان التوقف (بدون حركة)",
+        "g92": "تصفير في الموقع الحالي (G92) - بدون حركة",
+        "g28": "إرجاع المحور الدوار لنقطة المرجع (G28) - فك كامل للدوران"
+      }
+    },
+    "winpcProgramName": {
+      "label": "اسم البرنامج (سطر %)"
+    },
+    "winpcFeedUnit": {
+      "label": "وحدة التغذية",
+      "options": {
+        "mmmin": "مم/دقيقة",
+        "mms": "مم/ثانية"
+      }
+    },
+    "winpcAuxOutput": {
+      "label": "الشفاط / مخرج مساعد",
+      "options": {
+        "none": "غير موصل",
+        "70": "مخرج 100 (M70 / M-70)",
+        "71": "مخرج 101 (M71 / M-71)",
+        "72": "مخرج 102 (M72 / M-72)",
+        "73": "مخرج 103 (M73 / M-73)"
+      }
+    },
+    "patternType": {
+      "label": "نوع النمط",
+      "options": {
+        "grid": "شبكة مستطيلة",
+        "hex": "سداسي",
+        "radial": "مصفوفة دائرية",
+        "linear": "مصفوفة خطية"
+      }
+    },
+    "patternRows": {
+      "label": "الصفوف"
+    },
+    "patternCols": {
+      "label": "الأعمدة"
+    },
+    "patternSpacingX": {
+      "label": "التباعد في X"
+    },
+    "patternSpacingY": {
+      "label": "التباعد في Y"
+    },
+    "patternCount": {
+      "label": "العدد"
+    },
+    "patternRadius": {
+      "label": "نصف القطر"
+    },
+    "patternStartAngle": {
+      "label": "زاوية البداية"
+    },
+    "patternEndAngle": {
+      "label": "زاوية النهاية"
+    },
+    "patternRotateInstances": {
+      "label": "تدوير العناصر لتتجه للخارج"
+    },
+    "patternLinearAngle": {
+      "label": "زاوية المصفوفة"
+    },
+    "patternMirror": {
+      "label": "انعكاس",
+      "options": {
+        "none": "بدون",
+        "horizontal": "أفقي",
+        "vertical": "عمودي",
+        "both": "كلا المحورين"
+      }
+    }
+  },
+  "units": {
+    "%": "%",
+    "°": "°",
+    "cells": "خلايا",
+    "DPI": "DPI",
+    "lines/cm": "خطوط/سم",
+    "lines/inch": "خطوط/بوصة",
+    "mm": "مم",
+    "mm/min": "مم/دقيقة",
+    "mm/s": "مم/ثانية",
+    "RPM": "دورة/دقيقة",
+    "s": "ث",
+    "steps/mm": "خطوات/مم",
+    "x": "x"
+  },
+  "quantities": {
+    "%": "{value}%",
+    "°": "{value}°",
+    "mm": "{value}mm",
+    "μm": "{value}μm"
+  },
+  "keys": {
+    "ctrl": "Ctrl",
+    "shift": "Shift",
+    "delete": "Delete",
+    "escape": "Esc",
+    "home": "Home"
+  },
+  "tools": {
+    "names": {
+      "flat": "مفرزة مسطحة {diameter:mm}",
+      "ball": "مفرزة نصف كروية {diameter:mm}",
+      "bull": "مفرزة كروية الحواف {diameter:mm} (R{cornerRadius:mm})",
+      "corn": "قاطعة مسننة كوز الذرة {diameter:mm}",
+      "drill": "ريشة ثقب {diameter:mm}",
+      "vbit": "ريشة V بزاوية {angle:°} ورأس {tipDiameter:mm}",
+      "taperedBall": "مفرزة مخروطية كروية {tipDiameter:mm} ({halfAngle:°}/جانب)",
+      "withHolder": "{name} + حامل {holderDiameter:mm}"
+    },
+    "validation": {
+      "notLibrary": "ليست مكتبة أدوات: لا توجد قائمة باسم \"tools\"",
+      "missingId": "المعرف id مفقود",
+      "duplicateId": "المعرف مستخدم بالفعل بواسطة أداة أخرى",
+      "unknownType": "نوع غير معروف '{type}' (المتوقع {types})",
+      "name": "يجب أن يكون name نصًا غير فارغ عند وجوده",
+      "missingGeometry": "الهندسة geometry مفقودة",
+      "positive": "يجب أن يكون {field} رقمًا موجبًا",
+      "cornerRadius": "قيمة geometry.cornerRadius أكبر من نصف قطر الأداة",
+      "vbitAngle": "يجب أن تكون geometry.angle أقل من 180",
+      "halfAngle": "يجب أن تكون geometry.halfAngle أقل من 90",
+      "tipWider": "قيمة geometry.tipDiameter أعرض من geometry.diameter",
+      "effectiveWider": "قيمة geometry.effectiveDiameter أعرض من geometry.diameter",
+      "holderPair": "يجب تواجد geometry.holderDiameter و geometry.holderStickout معًا",
+      "holderNeeds": "يتطلب الحامل وجود geometry.shankDiameter و geometry.cuttingLength",
+      "missingCutting": "بيانات القطع cutting مفقودة",
+      "operations": "يجب أن تكون operations قائمة",
+      "toolNumber": "يجب أن يكون toolNumber رقمًا صحيحًا موجبًا",
+      "toolNumberTaken": "رقم الأداة {number} محجوز بالفعل لـ '{id}'"
+    }
+  },
+  "devices": {
+    "maturity": {
+      "less-experimental": {
+        "label": "{name} (أقل تجريبية)",
+        "note": "تم اختباره ولكن ليس بثقة 100% بعد. تحقق من المخرجات قبل تشغيله أول مرة."
+      },
+      "experimental": {
+        "label": "{name} (تجريبي)",
+        "note": "تم اختباره نسبيًا على بعض الماكينات مع تقييمات جيدة. تحقق جيدًا من المخرجات قبل التشغيل."
+      },
+      "very-experimental": {
+        "label": "{name} (تجريبي جدًا)",
+        "note": "تم اختباره بالكاد على عدد محدود من التجهيزات. توقع أخطاء وراجع المخرجات قبل التشغيل."
+      },
+      "radioactive": {
+        "label": "{name} (خطر / غير مختبر)",
+        "note": "يكاد يخلو من أي اختبارات سابقة. قم بتشغيل تجريبي وهمي في الهواء أولاً وتصرف بحذر شديد."
+      },
+      "custom": {
+        "label": "{name} (مخصص)",
+        "note": "تم تحميله من ملف مخصص. توخى الحذر التام مع كود G الناتج."
+      }
+    },
+    "inUse": {
+      "device": "{kind}: {name}",
+      "customDevice": "{kind}: {name}، من {file}",
+      "library": "{kind}: مدمج",
+      "customLibrary": "{kind}: من {file}"
+    }
+  },
+  "examples": {
+    "exampleSMD1": "مثال 1 - عناصر سطحية (SMD)",
+    "exampleThroughHole1": "مثال 2 - ثقوب نافذة (Through-Hole)",
+    "line": "اختبار الخطوط",
+    "calibration": "مربع معايرة 100 مم خطوة/مم",
+    "mesa": "طاولة قهوة ألواح قابلة للفك",
+    "vcarve-sign": "حفر V - قلب الأوراق",
+    "relief-tile": "نقش بارز مسطح - شبه جزيرة سيتوبال",
+    "rotary-pawn": "نقش بارز دوار - جندي فايكنج من Printical (معدل)"
+  },
+  "output": {
+    "svg": {
+      "header": "تصدير SVG من {app}",
+      "date": "التاريخ: {date}",
+      "operationCount": "العمليات: {count}",
+      "operationEntry": "- {type}: {file}"
+    },
+    "canvas": {
+      "header": "تصدير مساحة الرسم من {app} | {date}",
+      "view": "الوضع: {mode} | الهندسة: {geometry}",
+      "wireframe": "إطار سلكي",
+      "solid": "مصمت",
+      "fused": "مدمج",
+      "source": "المصدر"
+    }
+  },
+  "customFiles": {
+    "kinds": {
+      "theme": "السمة",
+      "language": "اللغة",
+      "setup": "إعداد معالج ما بعد التشغيل",
+      "laserProfile": "ملف تعريف الليزر",
+      "toolLibrary": "مكتبة الأدوات"
+    },
+    "types": {
+      "string": "نص",
+      "number": "رقم",
+      "integer": "عدد صحيح",
+      "boolean": "صحيح أو خطأ",
+      "object": "كائن",
+      "array": "مصفوفة",
+      "null": "قيمة فارغة (null)"
+    },
+    "report": {
+      "title": "الملفات المخصصة",
+      "summary": "الملفات المخصصة: تم إضافة {added}، وتم رفض {refused}.",
+      "added": "{file}: تم إضافة {items}.",
+      "item": "{kind} {name}",
+      "itemReplacing": "{kind} {name} (بدلاً من {previous})",
+      "refused": "لم تتم إضافة {file}:",
+      "importFailed": "تعذر فحص الملفات المخصصة: {error}",
+      "where": {
+        "theme": "قيد الاستخدام الآن، ومدرج في محدد السمات على شاشة الترحيب. يتم الاحتفاظ به طالما تم اختياره: بمجرد اختيار سمة أخرى، تتم إزالته في المرة التالية التي يتم فيها تحميل الصفحة.",
+        "language": "قيد الاستخدام الآن، ومدرج في محدد اللغة على شاشة الترحيب. يتم الاحتفاظ به طالما تم اختياره: بمجرد اختيار لغة أخرى، تتم إزالته في المرة التالية التي يتم فيها تحميل الصفحة.",
+        "setup": "مدرج تحت إعدادات الماكينة > معالج ما بعد التشغيل.",
+        "laserProfile": "مدرج تحت إعدادات الماكينة > برنامج الليزر.",
+        "toolLibrary": "قيد الاستخدام الآن بدلاً من الأدوات المدمجة. مسمى تحت إعدادات الماكينة > معالج ما بعد التشغيل."
+      }
+    },
+    "remove": {
+      "tip": "{device} - انقر لإزالة هذا الملف المخصص",
+      "title": "إزالة الملف المخصص",
+      "message": "هل تريد إيقاف استخدام {file}؟ ستتم إزالته من هذا المتصفح وسيحل محله ملف مدمج. لن يتم المساس بالملف الموجود على جهازك.",
+      "done": "تمت إزالة {file} - الملف المدمج قيد الاستخدام الآن.",
+      "failed": "تعذر إزالة {file}: {error}"
+    },
+    "restore": {
+      "noRules": "لم يتم تحميل الملفات المخصصة المحفوظة: قواعد التحقق مفقودة.",
+      "superseded": "تمت إزالة {kind} {id} المخزن في هذا المتصفح: يستخدم عنصر مدمج الآن هذا المعرف.",
+      "refused": {
+        "zero": "تمت إزالة {kind} {id} المخزن في هذا المتصفح: {reason}",
+        "one": "تمت إزالة {kind} {id} المخزن في هذا المتصفح: {reason}",
+        "two": "تمت إزالة {kind} {id} المخزن في هذا المتصفح: {reason} ({count} مشكلتان)",
+        "few": "تمت إزالة {kind} {id} المخزن في هذا المتصفح: {reason} ({count} مشكلات)",
+        "many": "تمت إزالة {kind} {id} المخزن في هذا المتصفح: {reason} ({count} مشكلة)",
+        "other": "تمت إزالة {kind} {id} المخزن في هذا المتصفح: {reason} ({count} مشكلة)"
+      },
+      "failed": "تعذر تحميل {kind} {id} المخزن في هذا المتصفح وتم الاحتفاظ به لبدء التشغيل التالي: {reason}",
+      "fallback": "{kind} {id} غير متاح؛ سيتم استخدام {fallback} لهذه الجلسة."
+    },
+    "problems": {
+      "tooLarge": "حجم الملف {size} كيبوبايت؛ يمكن للملفات المخصصة أن تصل إلى {max} كيبوبايت كحد أقصى.",
+      "json": "ملف JSON غير صالح: {error}",
+      "kindMissing": "الملف لا يصرح بمحتواه: meta.kind مفقود (المتوقع واحد من {kinds}).",
+      "kind": "نوع meta.kind '{kind}' ليس نوع ملف يدعمه هذا التطبيق (المتوقع واحد من {kinds}).",
+      "logic": "المسار {path} ('{value}') ليس منطق معالج ما بعد تشغيل موجود بهذا التطبيق ({expected}).",
+      "builtIn": "'{id}' هو معرف عنصر {kind} مدمج مسبقًا؛ امنح العنصر المخصص معرفًا مختلفًا.",
+      "labelTaken": "{path}: الاسم '{label}' مستخدم بالفعل في الإعداد {id}. امنح هذا الملف اسمًا فريدًا خاصًا به.",
+      "registerFailed": "تعذر وضع الملف قيد الاستخدام: {error}",
+      "checkFailed": "تعذر فحص الملف: {error}",
+      "noTools": "لم تجتز أي أداة في المكتبة اختبارات الفحص.",
+      "tools": "ليست مكتبة أدوات متوافقة مع هذا التطبيق: {reason}",
+      "const": "يجب أن يكون {path} بقيمة {expected}.",
+      "enum": "يجب أن يكون {path} واحدًا من {expected}.",
+      "type": "يجب أن يكون {path} من نوع {expected}.",
+      "minLength": "المسار {path} قصير جدًا: الحد الأدنى {limit} حرفًا.",
+      "maxLength": "المسار {path} طويل جدًا: الحد الأقصى {limit} حرفًا.",
+      "pattern": {
+        "default": "{path} ('{value}') ليس بالصيغة المتوقعة.",
+        "id": "يجب أن يحتوي {path} ('{value}') على ما بين 2 إلى 32 حرفًا صغيرًا أو رقمًا أو شرطة، ويبدأ بحرف.",
+        "hex": "يجب أن يكون {path} ('{value}') لونًا سداسيًا عشريًا مكونًا من 6 خانات مثل #1a2b3c.",
+        "gcode": "يمكن أن يحتوي {path} على حروف ASCII قابلة للطباعة وفواصل أسطر فقط.",
+        "fileExtension": "يجب أن يكون {path} ('{value}') نقطة متبوعة بما يصل إلى 5 أحرف أو أرقام، مثل .nc.",
+        "mWord": "يجب أن يكون {path} ('{value}') كلمة M مثل M3."
+      },
+      "placeholder": "يستخدم {path} المتغير {name}، الذي لا يعوضه أي شيء هنا (يمكن استخدام {expected}).",
+      "minimum": "يجب أن يكون {path} بقيمة {limit} على الأقل.",
+      "maximum": "يجب ألا يتجاوز {path} القيمة {limit}.",
+      "exclusiveMinimum": "يجب أن يكون {path} أكبر قطعيًا من {limit}.",
+      "minItems": "يتطلب {path} ما لا يقل عن {limit} مدخلات.",
+      "maxItems": "يمكن لـ {path} أن يحتوي على {limit} مدخلات كحد أقصى.",
+      "uniqueItems": "يحتوي {path} على إدخال مكرر مرتين.",
+      "minProperties": "يتطلب {path} ما لا يقل عن {limit} خصائص.",
+      "required": "الحقل {path} مفقود.",
+      "unknown": "{path} ليس مفتاحًا معروفًا لهذا النوع من الملفات.",
+      "unused": "{path}: هذا الإعداد لا يستخدم هذا الخيار، لذا لا يمكنه ضبطه أو قفله.",
+      "byName": {
+        "unknown": "{path} ليس أحد المعلمات المتوقعة {expected}.",
+        "duplicate": "يصرح {path} عن {name} مرة ثانية."
+      },
+      "format": {
+        "color": "{path} ('{value}') ليس لون CSS صالحًا.",
+        "cssValue": "قد لا يقوم {path} بتحميل أي موارد: يمنع استخدام url() أو image-set() أو image() أو element() أو @import أو expression().",
+        "declaredProperty": "{path}: '{value}' ليس رمزًا معلنًا في css/base.css.",
+        "locale": "{path} ('{value}') ليس وسم لغة صالح؛ استخدم وسمًا مثل pt-BR أو de-x-test.",
+        "localeForm": "يجب كتابة {path} ('{value}') كـ {canonical}.",
+        "shippedLocale": "{path}: توجد حزمة مدمجة بالفعل باسم '{value}'. لتجربة تعديلات عليها، استخدم وسمًا خاصًا مثل {value}-x-test.",
+        "listedLocale": "{path}: لا توجد حزمة لغة متاحة باسم '{value}'."
+      },
+      "reference": {
+        "unavailable": "تعذر تحميل السمة المدمجة المرجعية للمقارنة: {error}",
+        "missing": {
+          "zero": "يفتقر {path} إلى {count} لون تصرح عنه السمات المدمجة: {keys}",
+          "one": "يفتقر {path} إلى {count} لون تصرح عنه السمات المدمجة: {keys}",
+          "two": "يفتقر {path} إلى {count} لونين تصرح عنهما السمات المدمجة: {keys}",
+          "few": "يفتقر {path} إلى {count} ألوان تصرح عنها السمات المدمجة: {keys}",
+          "many": "يفتقر {path} إلى {count} لونًا تصرح عنه السمات المدمجة: {keys}",
+          "other": "يفتقر {path} إلى {count} لون تصرح عنه السمات المدمجة: {keys}"
+        },
+        "extra": {
+          "zero": "يصرح {path} عن {count} لون لا تتضمنه السمات المدمجة: {keys}",
+          "one": "يصرح {path} عن {count} لون لا تتضمنه السمات المدمجة: {keys}",
+          "two": "يصرح {path} عن {count} لونين لا تتضمنهما السمات المدمجة: {keys}",
+          "few": "يصرح {path} عن {count} ألوان لا تتضمنها السمات المدمجة: {keys}",
+          "many": "يصرح {path} عن {count} لونًا لا تتضمنه السمات المدمجة: {keys}",
+          "other": "يصرح {path} عن {count} لون لا تتضمنه السمات المدمجة: {keys}"
+        },
+        "hex": "يجب أن يكون {path} ('{value}') لونًا سداسيًا عشريًا مكونًا من 6 خانات، كما في السمات المدمجة.",
+        "colorFunction": "يجب أن يكون {path} ('{value}') لونًا بصيغة rgb() أو hsl()، كما في السمات المدمجة."
+      },
+      "language": {
+        "plural": "يجب أن يكون {path} نصًا أو كائن صيغ جمع (zero, one, two, few, many, other) يتضمن other بينها.",
+        "notText": "يجب أن يكون {path} نصًا.",
+        "pluralNoCount": "لا يمكن لـ {path} أن يأخذ صيغ جمع: النص الإنجليزي لا يحتوي على قيمة عدد count.",
+        "tokens": "يجب أن يحتفظ {path} بمتغيرات النص الإنجليزي {expected} ولا يضيف أي متغير آخر.",
+        "slots": "يجب أن يحتفظ {path} بوسوم النص الإنجليزي {expected}.",
+        "empty": "{path} فارغ: احذف المفتاح وسيظهر النص الإنجليزي."
+      }
+    },
+    "notes": {
+      "toolLeftOut": "تم استبعاد الأداة {id}: {reason}",
+      "notStored": "تعذر على المتصفح تخزين الملف ({error}): يظل قيد الاستخدام حتى إغلاق هذه الصفحة.",
+      "missingKeys": {
+        "zero": "المفتاح {keys} مفقود من en.json ويظهر بالإنجليزية",
+        "one": "المفتاح {keys} مفقود من en.json ويظهر بالإنجليزية",
+        "two": "المفتاحان {keys} مفقودان من en.json ويظهران بالإنجليزية",
+        "few": "{count} مفاتيح من en.json مفقودة وتظهر بالإنجليزية: {keys}",
+        "many": "{count} مفتاحًا من en.json مفقود وتظهر بالإنجليزية: {keys}",
+        "other": "{count} مفتاح من en.json مفقود وتظهر بالإنجليزية: {keys}"
+      },
+      "extraKeys": {
+        "zero": "المفتاح {keys} ليس في en.json ويتم تجاهله",
+        "one": "المفتاح {keys} ليس في en.json ويتم تجاهله",
+        "two": "المفتاحان {keys} ليسا في en.json ويتم تجاهلهما",
+        "few": "{count} مفاتيح ليست في en.json ويتم تجاهلها: {keys}",
+        "many": "{count} مفتاحًا ليس في en.json ويتم تجاهله: {keys}",
+        "other": "{count} مفتاح ليس في en.json ويتم تجاهله: {keys}"
+      },
+      "pluralForms": {
+        "zero": "{count} صيغة جمع تفتقر إلى الأشكال التي تستخدمها هذه اللغة ({forms}) وتُظهر other هناك: {keys}",
+        "one": "{count} صيغة جمع تفتقر إلى الأشكال التي تستخدمها هذه اللغة ({forms}) وتُظهر other هناك: {keys}",
+        "two": "{count} صيغتا جمع تفتقران إلى الأشكال التي تستخدمها هذه اللغة ({forms}) وتُظهران other هناك: {keys}",
+        "few": "{count} صيغ جمع تفتقر إلى الأشكال التي تستخدمها هذه اللغة ({forms}) وتُظهر other هناك: {keys}",
+        "many": "{count} صيغة جمع تفتقر إلى الأشكال التي تستخدمها هذه اللغة ({forms}) وتُظهر other هناك: {keys}",
+        "other": "{count} صيغة جمع تفتقر إلى الأشكال التي تستخدمها هذه اللغة ({forms}) وتُظهر other هناك: {keys}"
+      }
+    },
+    "rules": {
+      "toolChangeSwap": "{path}: يتطلب supportsToolChange تفعيل useM6 أو pauseAfterToolChange، وإلا لن يكتب تغيير الأداة أي أمر تبديل على الإطلاق.",
+      "useM6NeedsToolChange": "{path}: useM6 يعمل فقط مع supportsToolChange. لإصدار M6 على الأداة الأولى وحدها، استخدم initialToolUsesM6.",
+      "pauseNeedsToolChange": "{path}: pauseAfterToolChange يعمل فقط مع supportsToolChange.",
+      "lengthCompNeedsSwap": "{path}: أوضاع تعويض طول الأداة خلاف none تتطلب supportsToolChange و useM6. تحصل الأداة الأولى على G43 عبر تبديل M6، ويعتمد probe على ماكرو M6 الخاص بوحدة التحكم.",
+      "rotaryWords": "{path}: تتطلب مسارات a-word و a-linear إدخالاً واحدًا على الأقل في rotary.axisWords.",
+      "rotaryRouteDefault": "{path}: الإعداد الذي يصرح عن مسارات دوارة يحتاج إلى defaults.rotaryRoute، محددًا بأحدها.",
+      "lineNumberRange": "{path}: يجب أن تكون defaults.lineNumberStep أقل من flags.lineNumberMax.",
+      "lumpingNeedsPalette": "{path}: يتطلب paletteLumping وجود لوحة ألوان palette.",
+      "defaultInOptions": "{path}: يجب أن تكون القيمة الافتراضية default أحد الخيارات المتاحة."
+    }
+  },
+  "apps": {
+    "easytrace5000": {
+      "app": {
+        "title": "{app} - تطبيق CAM عبر المتصفح لتفريز وليرز لوحات الدوائر المطبوعة PCB",
+        "toolbar": {
+          "title": "{app} - مساحة عمل CAM لـ PCB"
+        },
+        "sidebars": {
+          "left": "العمليات"
+        }
+      },
+      "modals": {
+        "welcome": {
+          "tagline": "برنامج CAM لتصنيع لوحات الدوائر المطبوعة، عبر تفريز CNC أو الليزر.",
+          "sibling": "أيضًا ضمن باقة EasyCAM5000: <link/>، للتفريز العام عبر ماكينات راوتر CNC.",
+          "pipelines": {
+            "cnc": {
+              "title": "تفريز CNC",
+              "text": "تفريز العزل، وتفريغ النحاس، والثقب، وقص أطراف اللوحات.",
+              "action": "البدء عبر CNC"
+            },
+            "laser": {
+              "title": "معالجة بالليزر",
+              "text": "ملفات موجهة أو نقطية للاستئصال، والإستنسل، وقص اللوحات.",
+              "action": "البدء عبر الليزر"
+            }
+          }
+        },
+        "quickstart": {
+          "subtitle": "تحميل ملفات تصنيع لوحات PCB",
+          "dropIntro": "أو أسقط الملفات في كل نوع عملية:",
+          "hint": "ملاحظة: يمكنك أيضًا سحب الملفات مباشرة إلى مساحة الرسم أو استخدام أزرار + في الشريط الجانبي. نظرًا للتعرف على امتدادات Protel، يتم تعيينها تلقائيًا للعملية الصحيحة عند السحب والإفلات."
+        }
+      }
+    },
+    "easyshape5000": {
+      "app": {
+        "title": "{app} - تطبيق CAM عبر المتصفح لماكينات راوتر CNC",
+        "toolbar": {
+          "title": "{app} - مساحة عمل CAM لماكينات راوتر CNC"
+        },
+        "sidebars": {
+          "left": "المشهد والعمليات"
+        }
+      },
+      "modals": {
+        "welcome": {
+          "tagline": "برنامج CAM لتفريز CNC، من المسارات ثنائية الأبعاد 2.5D إلى النقوش ثلاثية الأبعاد 3D.",
+          "sibling": "أيضًا ضمن باقة EasyCAM5000: <link/>، لتصنيع لوحات PCB.",
+          "pipelines": {
+            "cnc": {
+              "title": "مساحة عمل 2D",
+              "text": "مسارات محيطية 2.5D، والجيوب، والثقب، والنقش.",
+              "action": "البدء في 2D"
+            },
+            "3d": {
+              "title": "مساحة عمل 3D",
+              "text": "نفس العمليات بالإضافة إلى حفر V وخرائط النقوش البارزة، المسطحة أو الدوارة",
+              "action": "البدء في 3D"
+            }
+          }
+        },
+        "quickstart": {
+          "subtitle": "تحميل ملفات التصميم الموجهة أو المجسمة",
+          "dropIntro": "أسقط ملف التصميم أدناه للبدء:",
+          "hint": "ملاحظة: يمكنك أيضًا سحب الملفات مباشرة إلى مساحة الرسم. افتح <strong>إعداد الخامة</strong> في الشريط الجانبي الأيمن لتهيئة أبعاد المادة الخام."
+        }
+      }
+    }
+  }
+}

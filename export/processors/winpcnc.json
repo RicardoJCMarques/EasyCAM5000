@@ -1,0 +1,70 @@
+{
+  "_projectInfo": {
+    "file": "export/processors/winpcnc.json",
+    "description": "Post-processor setup: WinPC-NC",
+    "author": "Eltryus - Ricardo Marques",
+    "see": "https://github.com/RicardoJCMarques/EasyCAM5000",
+    "license": "AGPL-3.0-or-later",
+    "copyright": "Copyright (C) 2025-2026 Eltryus - Ricardo Marques"
+  },
+  "meta": {
+    "kind": "setup"
+  },
+  "id": "winpcnc",
+  "label": "WinPC-NC",
+  "logic": "winpcnc",
+  "maturity": "radioactive",
+  "flags": {
+    "fileExtension": ".nc",
+    "commentStyle": "parenthesis",
+    "supportsComments": true,
+    "supportsUnits": true,
+    "supportsCoolant": true,
+    "supportsLineNumbers": true,
+    "lineNumberMax": 999999,
+    "modalCommands": true,
+    "coordinateDecimals": 3,
+    "rotaryDecimals": 3,
+    "feedDecimals": 0,
+    "spindleDecimals": 0,
+    "maxSpindleSpeed": 30000,
+    "spindle": { "on": "M3", "off": "M5", "scale": null },
+    "dwellUnit": "s",
+    "dwellWord": "F",
+    "supportsArcCommands": true,
+    "arcFormat": "IJ",
+    "supportsCannedCycles": false,
+    "supportsToolChange": true,
+    "useM6": true,
+    "initialToolUsesM6": false,
+    "emitsInitialTool": true,
+    "pauseAfterToolChange": false,
+    "toolLengthComp": ["none"],
+    "supportsAbsoluteZ": true,
+    "rotary": {
+      "routes": ["a-word", "wrapped-linear"],
+      "axisWords": ["A", "B"],
+      "inverseTime": false,
+      "maxInverseTime": 9999.99,
+      "continuous": true
+    }
+  },
+  "defaults": {
+    "startCode": "",
+    "endCode": "",
+    "toolLengthCompMode": "none",
+    "rotaryRoute": "a-word",
+    "indexDwell": 0,
+    "lineNumbers": true,
+    "lineNumberStep": 1
+  },
+  "locks": {},
+  "_notes": {
+    "useM6": "The interpreter refuses to run a program that never selects a tool, changer or not, and M6 is required alongside the T word.",
+    "pauseAfterToolChange": "The control owns its tool-change procedure (a prompt or an ATC macro, set in its own parameters): an M0 on top of it would be a second stop the operator has to clear.",
+    "supportsCannedCycles": "G81/G82 exist but with inverted retract semantics and no G80/G83/G73 to go with them. MachineProcessor's non-canned branch emits a full peck loop with dwell, so nothing is lost by leaving this off until the cycles are bench-verified.",
+    "dwellWord": "G04 times on F, in seconds. P belongs to the G81/G82 cycles, in milliseconds.",
+    "rotary": "No G93: feeds on mixed linear/rotary moves are honest at the reference radius and run fast below it.",
+    "defaults": "generateHeader and generateFooter own the whole start and park sequence; these are the user's extras."
+  }
+}

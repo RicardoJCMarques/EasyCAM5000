@@ -1,0 +1,64 @@
+{
+  "_projectInfo": {
+    "file": "export/processors/grblhal.json",
+    "description": "Post-processor setup: grblHAL",
+    "author": "Eltryus - Ricardo Marques",
+    "see": "https://github.com/RicardoJCMarques/EasyCAM5000",
+    "license": "AGPL-3.0-or-later",
+    "copyright": "Copyright (C) 2025-2026 Eltryus - Ricardo Marques"
+  },
+  "meta": { "kind": "setup" },
+  "id": "grblhal",
+  "label": "grblHAL",
+  "logic": "rs274",
+  "maturity": "experimental",
+  "flags": {
+    "fileExtension": ".nc",
+    "commentStyle": "parenthesis",
+    "supportsComments": true,
+    "supportsUnits": true,
+    "supportsCoolant": true,
+    "supportsLineNumbers": true,
+    "lineNumberMax": 99999,
+    "modalCommands": true,
+    "coordinateDecimals": 3,
+    "rotaryDecimals": 3,
+    "feedDecimals": 0,
+    "spindleDecimals": 0,
+    "maxSpindleSpeed": 30000,
+    "spindle": { "on": "M3", "off": "M5", "scale": null },
+    "dwellUnit": "s",
+    "dwellWord": "P",
+    "supportsArcCommands": true,
+    "arcFormat": "IJ",
+    "supportsCannedCycles": true,
+    "supportsToolChange": true,
+    "useM6": true,
+    "initialToolUsesM6": false,
+    "emitsInitialTool": true,
+    "pauseAfterToolChange": true,
+    "toolLengthComp": ["none", "table"],
+    "supportsAbsoluteZ": false,
+    "rotary": {
+      "routes": ["wrapped-linear", "a-word"],
+      "axisWords": ["A", "B"],
+      "inverseTime": false,
+      "maxInverseTime": 9999.99,
+      "continuous": true
+    }
+  },
+  "defaults": {
+    "startCode": "",
+    "endCode": "M5\nG0 X0 Y0\nM2",
+    "toolLengthCompMode": "none",
+    "rotaryRoute": "wrapped-linear",
+    "indexDwell": 0.3,
+    "lineNumbers": false,
+    "lineNumberStep": 10
+  },
+  "locks": {},
+  "_notes": {
+    "toolLengthComp": "grblHAL supports G43 H<n> only when a tool table is configured and populated. An empty table silently applies offset zero, so 'none' leads: the user opts in.",
+    "rotary": "grblHAL builds can enable A/B/C. DRAFT - inverseTime stays false until G93 is confirmed on the target build. False is the safe direction (feeds pass as G94 mm/min: honest at the blank surface, fast at depth), so 'wrapped-linear' leads until verified. indexDwell is a starting value for a belt-driven hobby rotary; Machine Settings overrides it - this is hardware, not firmware."
+  }
+}

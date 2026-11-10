@@ -1,0 +1,430 @@
+{
+  "_projectInfo": {
+    "file": "tools/tools.json",
+    "description": "EasyCAM5000 shared tool library",
+    "author": "Eltryus - Ricardo Marques",
+    "see": "https://github.com/RicardoJCMarques/EasyCAM5000",
+    "license": "AGPL-3.0-or-later",
+    "copyright": "Copyright (C) 2025-2026 Eltryus - Ricardo Marques"
+  },
+  "_schema": {
+    "meta": "kind is toolLibrary: read only when the file is added as a custom library, which replaces this one (tools/README.md).",
+    "id": "Unique in the library and never changed once shipped: profiles (defaultTool) and saved operations refer to tools by id.",
+    "type": "flat | ball | bull | corn | drill | vbit | taperedBall. Decides the required geometry and the generated name (tools.names.<type> in the language pack).",
+    "name": "Optional. Shown exactly as written, in every language, instead of the generated name.",
+    "geometry": "Millimeters and degrees. Always: diameter, the widest cutting diameter. bull: cornerRadius. vbit: tipDiameter and angle (included). taperedBall: tipDiameter and halfAngle (per side).",
+    "geometryOptional": "effectiveDiameter (vbit and taperedBall: the width cut at engraving depth; defaults to tipDiameter), flutes, pointAngle, cuttingLength, shankDiameter, totalLength. holderDiameter and holderStickout go together, need shankDiameter and cuttingLength, and enable the indexed collision guard.",
+    "cutting": "Required: feedRate and plungeRate (mm/min), spindleSpeed (RPM). Optional: maxDepthPerPass (mm), stepOver (%), peckDepth (mm), spindleDwell (s), dwellTime (s, reserved: not read yet).",
+    "operations": "Operation types whose tool list includes this tool. May be empty.",
+    "toolNumber": "Optional changer slot: a positive integer, unique in the library."
+  },
+  "meta": { "kind": "toolLibrary" },
+  "tools": [
+    {
+      "id": "em_0.1mm_flat",
+      "type": "flat",
+      "geometry": { "diameter": 0.1, "flutes": 2, "cuttingLength": 2.0, "shankDiameter": 3.175, "totalLength": 38 },
+      "cutting": { "feedRate": 100, "plungeRate": 30, "spindleSpeed": 15000, "maxDepthPerPass": 0.03, "stepOver": 50 },
+      "operations": ["isolation", "clearing", "profile", "pocket"]
+    },
+    {
+      "id": "em_0.15mm_flat",
+      "type": "flat",
+      "geometry": { "diameter": 0.15, "flutes": 2, "cuttingLength": 2.5, "shankDiameter": 3.175, "totalLength": 38 },
+      "cutting": { "feedRate": 120, "plungeRate": 40, "spindleSpeed": 14000, "maxDepthPerPass": 0.04, "stepOver": 50 },
+      "operations": ["isolation", "clearing", "profile", "pocket"]
+    },
+    {
+      "id": "em_0.2mm_flat",
+      "type": "flat",
+      "geometry": { "diameter": 0.2, "flutes": 2, "cuttingLength": 3.0, "shankDiameter": 3.175, "totalLength": 38 },
+      "cutting": { "feedRate": 150, "plungeRate": 50, "spindleSpeed": 12000, "maxDepthPerPass": 0.05, "stepOver": 50 },
+      "operations": ["isolation", "clearing", "profile", "pocket"]
+    },
+    {
+      "id": "em_0.3mm_flat",
+      "type": "flat",
+      "geometry": { "diameter": 0.3, "flutes": 2, "cuttingLength": 5.0, "shankDiameter": 3.175, "totalLength": 38 },
+      "cutting": { "feedRate": 200, "plungeRate": 60, "spindleSpeed": 12000, "maxDepthPerPass": 0.08, "stepOver": 50 },
+      "operations": ["isolation", "clearing", "profile", "pocket"]
+    },
+    {
+      "id": "em_0.4mm_flat",
+      "type": "flat",
+      "geometry": { "diameter": 0.4, "flutes": 2, "cuttingLength": 6.0, "shankDiameter": 3.175, "totalLength": 38 },
+      "cutting": { "feedRate": 220, "plungeRate": 70, "spindleSpeed": 11000, "maxDepthPerPass": 0.1, "stepOver": 50 },
+      "operations": ["isolation", "clearing", "drill", "profile", "pocket"]
+    },
+    {
+      "id": "em_0.5mm_flat",
+      "type": "flat",
+      "geometry": { "diameter": 0.5, "flutes": 2, "cuttingLength": 8.0, "shankDiameter": 3.175, "totalLength": 38 },
+      "cutting": { "feedRate": 250, "plungeRate": 80, "spindleSpeed": 10000, "maxDepthPerPass": 0.1, "stepOver": 50 },
+      "operations": ["isolation", "clearing", "cutout", "drill", "stencil", "profile", "pocket"]
+    },
+    {
+      "id": "em_0.6mm_flat",
+      "type": "flat",
+      "geometry": { "diameter": 0.6, "flutes": 2, "cuttingLength": 8.0, "shankDiameter": 3.175, "totalLength": 38 },
+      "cutting": { "feedRate": 280, "plungeRate": 90, "spindleSpeed": 10000, "maxDepthPerPass": 0.12, "stepOver": 55 },
+      "operations": ["clearing", "cutout", "drill", "profile", "pocket"]
+    },
+    {
+      "id": "em_0.8mm_flat",
+      "type": "flat",
+      "geometry": { "diameter": 0.8, "flutes": 2, "cuttingLength": 10.0, "shankDiameter": 3.175, "totalLength": 38 },
+      "cutting": { "feedRate": 300, "plungeRate": 100, "spindleSpeed": 10000, "maxDepthPerPass": 0.15, "stepOver": 60 },
+      "operations": ["clearing", "cutout", "drill", "profile", "pocket"]
+    },
+    {
+      "id": "em_1.0mm_flat",
+      "type": "flat",
+      "geometry": { "diameter": 1.0, "flutes": 2, "cuttingLength": 12.0, "shankDiameter": 3.175, "totalLength": 38 },
+      "cutting": { "feedRate": 350, "plungeRate": 120, "spindleSpeed": 8000, "maxDepthPerPass": 0.2, "stepOver": 60 },
+      "operations": ["clearing", "cutout", "drill", "profile", "pocket", "relief", "rotary"]
+    },
+    {
+      "id": "em_1.2mm_flat",
+      "type": "flat",
+      "geometry": { "diameter": 1.2, "flutes": 2, "cuttingLength": 12.0, "shankDiameter": 3.175, "totalLength": 38 },
+      "cutting": { "feedRate": 380, "plungeRate": 130, "spindleSpeed": 8000, "maxDepthPerPass": 0.25, "stepOver": 60 },
+      "operations": ["clearing", "cutout", "drill", "profile", "pocket", "relief", "rotary"]
+    },
+    {
+      "id": "em_1.5mm_flat",
+      "type": "flat",
+      "geometry": { "diameter": 1.5, "flutes": 2, "cuttingLength": 15.0, "shankDiameter": 3.175, "totalLength": 38 },
+      "cutting": { "feedRate": 400, "plungeRate": 140, "spindleSpeed": 7000, "maxDepthPerPass": 0.3, "stepOver": 60 },
+      "operations": ["clearing", "cutout", "drill", "profile", "pocket", "relief", "rotary"]
+    },
+    {
+      "id": "em_2.0mm_flat",
+      "type": "flat",
+      "geometry": { "diameter": 2.0, "flutes": 2, "cuttingLength": 15.0, "shankDiameter": 3.175, "totalLength": 38 },
+      "cutting": { "feedRate": 450, "plungeRate": 150, "spindleSpeed": 6000, "maxDepthPerPass": 0.4, "stepOver": 60 },
+      "operations": ["clearing", "cutout", "drill", "profile", "pocket", "relief", "rotary"]
+    },
+    {
+      "id": "em_2.5mm_flat",
+      "type": "flat",
+      "geometry": { "diameter": 2.5, "flutes": 2, "cuttingLength": 15.0, "shankDiameter": 3.175, "totalLength": 38 },
+      "cutting": { "feedRate": 480, "plungeRate": 160, "spindleSpeed": 5500, "maxDepthPerPass": 0.5, "stepOver": 60 },
+      "operations": ["clearing", "cutout", "profile", "pocket", "relief", "rotary"]
+    },
+    {
+      "id": "em_3.0mm_flat",
+      "type": "flat",
+      "geometry": { "diameter": 3.0, "flutes": 2, "cuttingLength": 18.0, "shankDiameter": 3.175, "totalLength": 45 },
+      "cutting": { "feedRate": 500, "plungeRate": 180, "spindleSpeed": 5000, "maxDepthPerPass": 0.6, "stepOver": 60 },
+      "operations": ["clearing", "cutout", "profile", "pocket", "relief", "rotary"]
+    },
+    {
+      "id": "em_3.175mm_flat",
+      "type": "flat",
+      "geometry": { "diameter": 3.175, "flutes": 2, "cuttingLength": 20.0, "shankDiameter": 3.175, "totalLength": 45 },
+      "cutting": { "feedRate": 520, "plungeRate": 180, "spindleSpeed": 5000, "maxDepthPerPass": 0.6, "stepOver": 60 },
+      "operations": ["clearing", "cutout", "profile", "pocket", "relief", "rotary"]
+    },
+    {
+      "id": "vbit_10deg_0.1mm",
+      "type": "vbit",
+      "geometry": { "diameter": 3.175, "tipDiameter": 0.1, "angle": 10, "effectiveDiameter": 0.12, "cuttingLength": 3.0, "shankDiameter": 3.175, "totalLength": 38 },
+      "cutting": { "feedRate": 80, "plungeRate": 20, "spindleSpeed": 18000, "maxDepthPerPass": 0.02, "stepOver": 30 },
+      "operations": ["isolation", "engrave", "vcarve"]
+    },
+    {
+      "id": "vbit_20deg_0.1mm",
+      "type": "vbit",
+      "geometry": { "diameter": 3.175, "tipDiameter": 0.1, "angle": 20, "effectiveDiameter": 0.14, "cuttingLength": 4.0, "shankDiameter": 3.175, "totalLength": 38 },
+      "cutting": { "feedRate": 90, "plungeRate": 25, "spindleSpeed": 16000, "maxDepthPerPass": 0.03, "stepOver": 35 },
+      "operations": ["isolation", "engrave", "vcarve"]
+    },
+    {
+      "id": "vbit_30deg_0.1mm",
+      "type": "vbit",
+      "geometry": { "diameter": 3.175, "tipDiameter": 0.1, "angle": 30, "effectiveDiameter": 0.15, "cuttingLength": 5.0, "shankDiameter": 3.175, "totalLength": 38 },
+      "cutting": { "feedRate": 100, "plungeRate": 30, "spindleSpeed": 15000, "maxDepthPerPass": 0.05, "stepOver": 40 },
+      "operations": ["isolation", "engrave", "vcarve"]
+    },
+    {
+      "id": "vbit_45deg_0.2mm",
+      "type": "vbit",
+      "geometry": { "diameter": 3.175, "tipDiameter": 0.2, "angle": 45, "effectiveDiameter": 0.28, "cuttingLength": 6.0, "shankDiameter": 3.175, "totalLength": 38 },
+      "cutting": { "feedRate": 120, "plungeRate": 40, "spindleSpeed": 14000, "maxDepthPerPass": 0.08, "stepOver": 40 },
+      "operations": ["isolation", "engrave", "vcarve"]
+    },
+    {
+      "id": "vbit_60deg_0.2mm",
+      "type": "vbit",
+      "geometry": { "diameter": 3.175, "tipDiameter": 0.2, "angle": 60, "effectiveDiameter": 0.32, "cuttingLength": 8.0, "shankDiameter": 3.175, "totalLength": 38 },
+      "cutting": { "feedRate": 150, "plungeRate": 50, "spindleSpeed": 12000, "maxDepthPerPass": 0.1, "stepOver": 40 },
+      "operations": ["isolation", "engrave", "vcarve"]
+    },
+    {
+      "id": "vbit_90deg_0.3mm",
+      "type": "vbit",
+      "geometry": { "diameter": 3.175, "tipDiameter": 0.3, "angle": 90, "effectiveDiameter": 0.5, "cuttingLength": 10.0, "shankDiameter": 3.175, "totalLength": 38 },
+      "cutting": { "feedRate": 180, "plungeRate": 60, "spindleSpeed": 10000, "maxDepthPerPass": 0.15, "stepOver": 45 },
+      "operations": ["isolation", "clearing", "engrave", "vcarve"]
+    },
+    {
+      "id": "drill_0.3mm",
+      "type": "drill",
+      "geometry": { "diameter": 0.3, "pointAngle": 118, "cuttingLength": 8.0, "shankDiameter": 3.175, "totalLength": 38 },
+      "cutting": { "feedRate": 40, "plungeRate": 20, "spindleSpeed": 15000, "peckDepth": 0.3, "dwellTime": 0.1 },
+      "operations": ["drill"]
+    },
+    {
+      "id": "drill_0.4mm",
+      "type": "drill",
+      "geometry": { "diameter": 0.4, "pointAngle": 118, "cuttingLength": 8.0, "shankDiameter": 3.175, "totalLength": 38 },
+      "cutting": { "feedRate": 45, "plungeRate": 22, "spindleSpeed": 14000, "peckDepth": 0.4, "dwellTime": 0.1 },
+      "operations": ["drill"]
+    },
+    {
+      "id": "drill_0.5mm",
+      "type": "drill",
+      "geometry": { "diameter": 0.5, "pointAngle": 118, "cuttingLength": 10.0, "shankDiameter": 3.175, "totalLength": 38 },
+      "cutting": { "feedRate": 50, "plungeRate": 25, "spindleSpeed": 12000, "peckDepth": 0.5, "dwellTime": 0.1 },
+      "operations": ["drill"]
+    },
+    {
+      "id": "drill_0.6mm",
+      "type": "drill",
+      "geometry": { "diameter": 0.6, "pointAngle": 118, "cuttingLength": 12.0, "shankDiameter": 3.175, "totalLength": 38 },
+      "cutting": { "feedRate": 55, "plungeRate": 28, "spindleSpeed": 11000, "peckDepth": 0.6, "dwellTime": 0.1 },
+      "operations": ["drill"]
+    },
+    {
+      "id": "drill_0.7mm",
+      "type": "drill",
+      "geometry": { "diameter": 0.7, "pointAngle": 118, "cuttingLength": 12.0, "shankDiameter": 3.175, "totalLength": 38 },
+      "cutting": { "feedRate": 58, "plungeRate": 29, "spindleSpeed": 10500, "peckDepth": 0.7, "dwellTime": 0.1 },
+      "operations": ["drill"]
+    },
+    {
+      "id": "drill_0.8mm",
+      "type": "drill",
+      "geometry": { "diameter": 0.8, "pointAngle": 118, "cuttingLength": 15.0, "shankDiameter": 3.175, "totalLength": 38 },
+      "cutting": { "feedRate": 60, "plungeRate": 30, "spindleSpeed": 10000, "peckDepth": 0.8, "dwellTime": 0.1 },
+      "operations": ["drill"]
+    },
+    {
+      "id": "drill_0.9mm",
+      "type": "drill",
+      "geometry": { "diameter": 0.9, "pointAngle": 118, "cuttingLength": 15.0, "shankDiameter": 3.175, "totalLength": 38 },
+      "cutting": { "feedRate": 70, "plungeRate": 35, "spindleSpeed": 9000, "peckDepth": 0.9, "dwellTime": 0.1 },
+      "operations": ["drill"]
+    },
+    {
+      "id": "drill_1.0mm",
+      "type": "drill",
+      "geometry": { "diameter": 1.0, "pointAngle": 118, "cuttingLength": 18.0, "shankDiameter": 3.175, "totalLength": 38 },
+      "cutting": { "feedRate": 80, "plungeRate": 40, "spindleSpeed": 8000, "peckDepth": 1.0, "dwellTime": 0.1 },
+      "operations": ["drill"]
+    },
+    {
+      "id": "drill_1.1mm",
+      "type": "drill",
+      "geometry": { "diameter": 1.1, "pointAngle": 118, "cuttingLength": 18.0, "shankDiameter": 3.175, "totalLength": 38 },
+      "cutting": { "feedRate": 85, "plungeRate": 42, "spindleSpeed": 7500, "peckDepth": 1.1, "dwellTime": 0.1 },
+      "operations": ["drill"]
+    },
+    {
+      "id": "drill_1.2mm",
+      "type": "drill",
+      "geometry": { "diameter": 1.2, "pointAngle": 118, "cuttingLength": 20.0, "shankDiameter": 3.175, "totalLength": 38 },
+      "cutting": { "feedRate": 90, "plungeRate": 45, "spindleSpeed": 7000, "peckDepth": 1.2, "dwellTime": 0.1 },
+      "operations": ["drill"]
+    },
+    {
+      "id": "drill_1.5mm",
+      "type": "drill",
+      "geometry": { "diameter": 1.5, "pointAngle": 118, "cuttingLength": 20.0, "shankDiameter": 3.175, "totalLength": 38 },
+      "cutting": { "feedRate": 100, "plungeRate": 50, "spindleSpeed": 6000, "peckDepth": 1.5, "dwellTime": 0.1 },
+      "operations": ["drill"]
+    },
+    {
+      "id": "drill_2.0mm",
+      "type": "drill",
+      "geometry": { "diameter": 2.0, "pointAngle": 118, "cuttingLength": 22.0, "shankDiameter": 3.175, "totalLength": 45 },
+      "cutting": { "feedRate": 120, "plungeRate": 60, "spindleSpeed": 5000, "peckDepth": 1.5, "dwellTime": 0.1 },
+      "operations": ["drill"]
+    },
+    {
+      "id": "drill_2.5mm",
+      "type": "drill",
+      "geometry": { "diameter": 2.5, "pointAngle": 118, "cuttingLength": 25.0, "shankDiameter": 3.175, "totalLength": 45 },
+      "cutting": { "feedRate": 140, "plungeRate": 70, "spindleSpeed": 4500, "peckDepth": 1.5, "dwellTime": 0.1 },
+      "operations": ["drill"]
+    },
+    {
+      "id": "drill_3.0mm",
+      "type": "drill",
+      "geometry": { "diameter": 3.0, "pointAngle": 118, "cuttingLength": 28.0, "shankDiameter": 3.175, "totalLength": 50 },
+      "cutting": { "feedRate": 160, "plungeRate": 80, "spindleSpeed": 4000, "peckDepth": 1.5, "dwellTime": 0.1 },
+      "operations": ["drill"]
+    },
+    {
+      "id": "drill_3.175mm",
+      "type": "drill",
+      "geometry": { "diameter": 3.175, "pointAngle": 118, "cuttingLength": 30.0, "shankDiameter": 3.175, "totalLength": 50 },
+      "cutting": { "feedRate": 170, "plungeRate": 85, "spindleSpeed": 3800, "peckDepth": 1.5, "dwellTime": 0.1 },
+      "operations": ["drill"]
+    },
+    {
+      "id": "corn_teeth_0.8mm",
+      "type": "corn",
+      "geometry": { "diameter": 0.8, "cuttingLength": 4.0, "shankDiameter": 3.175, "totalLength": 38 },
+      "cutting": { "feedRate": 400, "plungeRate": 100, "spindleSpeed": 20000, "maxDepthPerPass": 0.8, "stepOver": 40 },
+      "operations": ["cutout"]
+    },
+    {
+      "id": "corn_teeth_1.0mm",
+      "type": "corn",
+      "geometry": { "diameter": 1.0, "cuttingLength": 5.0, "shankDiameter": 3.175, "totalLength": 38 },
+      "cutting": { "feedRate": 450, "plungeRate": 120, "spindleSpeed": 18000, "maxDepthPerPass": 1.0, "stepOver": 40 },
+      "operations": ["cutout"]
+    },
+    {
+      "id": "corn_teeth_1.2mm",
+      "type": "corn",
+      "geometry": { "diameter": 1.2, "cuttingLength": 6.0, "shankDiameter": 3.175, "totalLength": 38 },
+      "cutting": { "feedRate": 500, "plungeRate": 140, "spindleSpeed": 16000, "maxDepthPerPass": 1.2, "stepOver": 45 },
+      "operations": ["cutout"]
+    },
+    {
+      "id": "corn_teeth_1.5mm",
+      "type": "corn",
+      "geometry": { "diameter": 1.5, "cuttingLength": 8.0, "shankDiameter": 3.175, "totalLength": 38 },
+      "cutting": { "feedRate": 550, "plungeRate": 160, "spindleSpeed": 14000, "maxDepthPerPass": 1.5, "stepOver": 50 },
+      "operations": ["cutout"]
+    },
+    {
+      "id": "corn_teeth_2.0mm",
+      "type": "corn",
+      "geometry": { "diameter": 2.0, "cuttingLength": 10.0, "shankDiameter": 3.175, "totalLength": 45 },
+      "cutting": { "feedRate": 600, "plungeRate": 180, "spindleSpeed": 12000, "maxDepthPerPass": 2.0, "stepOver": 50 },
+      "operations": ["cutout"]
+    },
+    {
+      "id": "em_1.0mm_ball",
+      "type": "ball",
+      "geometry": { "diameter": 1.0, "flutes": 2, "cuttingLength": 12, "shankDiameter": 3.175, "totalLength": 38 },
+      "cutting": { "feedRate": 350, "plungeRate": 120, "spindleSpeed": 8000 },
+      "operations": ["relief", "rotary"]
+    },
+    {
+      "id": "em_1.5mm_ball",
+      "type": "ball",
+      "geometry": { "diameter": 1.5, "flutes": 2, "cuttingLength": 15, "shankDiameter": 3.175, "totalLength": 38 },
+      "cutting": { "feedRate": 400, "plungeRate": 140, "spindleSpeed": 7000 },
+      "operations": ["relief", "rotary"]
+    },
+    {
+      "id": "em_2.0mm_ball",
+      "type": "ball",
+      "geometry": { "diameter": 2.0, "flutes": 2, "cuttingLength": 15, "shankDiameter": 3.175, "totalLength": 38 },
+      "cutting": { "feedRate": 450, "plungeRate": 150, "spindleSpeed": 6000 },
+      "operations": ["relief", "rotary"]
+    },
+    {
+      "id": "em_3.0mm_ball",
+      "type": "ball",
+      "geometry": { "diameter": 3.0, "flutes": 2, "cuttingLength": 18, "shankDiameter": 3.175, "totalLength": 45 },
+      "cutting": { "feedRate": 500, "plungeRate": 180, "spindleSpeed": 5000 },
+      "operations": ["relief", "rotary"]
+    },
+    {
+      "id": "em_3.175mm_ball",
+      "type": "ball",
+      "geometry": { "diameter": 3.175, "flutes": 2, "cuttingLength": 20, "shankDiameter": 3.175, "totalLength": 45 },
+      "cutting": { "feedRate": 520, "plungeRate": 180, "spindleSpeed": 5000 },
+      "operations": ["relief", "rotary"]
+    },
+    {
+      "id": "em_4.0mm_ball",
+      "type": "ball",
+      "geometry": { "diameter": 4.0, "flutes": 2, "cuttingLength": 22, "shankDiameter": 6.0, "totalLength": 50 },
+      "cutting": { "feedRate": 550, "plungeRate": 190, "spindleSpeed": 4500 },
+      "operations": ["relief", "rotary"]
+    },
+    {
+      "id": "em_6.0mm_ball",
+      "type": "ball",
+      "geometry": { "diameter": 6.0, "flutes": 2, "cuttingLength": 28, "shankDiameter": 6.0, "totalLength": 55 },
+      "cutting": { "feedRate": 650, "plungeRate": 220, "spindleSpeed": 3500 },
+      "operations": ["relief", "rotary"]
+    },
+    {
+      "id": "em_8.0mm_ball",
+      "type": "ball",
+      "geometry": { "diameter": 8.0, "flutes": 2, "cuttingLength": 32, "shankDiameter": 6.0, "totalLength": 60 },
+      "cutting": { "feedRate": 750, "plungeRate": 250, "spindleSpeed": 2800 },
+      "operations": ["relief", "rotary"]
+    },
+    {
+      "id": "em_3.175mm_bull",
+      "type": "bull",
+      "geometry": { "diameter": 3.175, "cornerRadius": 0.5, "flutes": 2, "cuttingLength": 20, "shankDiameter": 3.175, "totalLength": 45 },
+      "cutting": { "feedRate": 520, "plungeRate": 180, "spindleSpeed": 5000 },
+      "operations": ["relief", "rotary"]
+    },
+    {
+      "id": "em_4.0mm_bull",
+      "type": "bull",
+      "geometry": { "diameter": 4.0, "cornerRadius": 0.5, "flutes": 2, "cuttingLength": 22, "shankDiameter": 6.0, "totalLength": 50 },
+      "cutting": { "feedRate": 550, "plungeRate": 190, "spindleSpeed": 4500 },
+      "operations": ["relief", "rotary"]
+    },
+    {
+      "id": "em_6.0mm_bull",
+      "type": "bull",
+      "geometry": { "diameter": 6.0, "cornerRadius": 1.0, "flutes": 2, "cuttingLength": 28, "shankDiameter": 6.0, "totalLength": 55 },
+      "cutting": { "feedRate": 650, "plungeRate": 220, "spindleSpeed": 3500 },
+      "operations": ["relief", "rotary"]
+    },
+    {
+      "id": "em_8.0mm_bull",
+      "type": "bull",
+      "geometry": { "diameter": 8.0, "cornerRadius": 1.5, "flutes": 2, "cuttingLength": 32, "shankDiameter": 8.0, "totalLength": 60 },
+      "cutting": { "feedRate": 750, "plungeRate": 250, "spindleSpeed": 2800 },
+      "operations": ["relief", "rotary"]
+    },
+    {
+      "id": "em_10.0mm_bull",
+      "type": "bull",
+      "geometry": { "diameter": 10.0, "cornerRadius": 2.0, "flutes": 2, "cuttingLength": 35, "shankDiameter": 10.0, "totalLength": 65 },
+      "cutting": { "feedRate": 850, "plungeRate": 280, "spindleSpeed": 2200 },
+      "operations": ["relief", "rotary"]
+    },
+    {
+      "id": "tb_0.5mm_10deg",
+      "type": "taperedBall",
+      "geometry": { "diameter": 3.175, "tipDiameter": 0.5, "halfAngle": 10, "effectiveDiameter": 0.5, "cuttingLength": 8, "shankDiameter": 3.175, "totalLength": 41 },
+      "cutting": { "feedRate": 150, "plungeRate": 50, "spindleSpeed": 12000 },
+      "operations": []
+    },
+    {
+      "id": "tb_1.0mm_10deg",
+      "type": "taperedBall",
+      "geometry": { "diameter": 3.175, "tipDiameter": 1.0, "halfAngle": 10, "effectiveDiameter": 1, "cuttingLength": 10, "shankDiameter": 3.175, "totalLength": 42 },
+      "cutting": { "feedRate": 180, "plungeRate": 60, "spindleSpeed": 10000 },
+      "operations": []
+    },
+    {
+      "id": "tb_1.0mm_15deg",
+      "type": "taperedBall",
+      "geometry": { "diameter": 3.175, "tipDiameter": 1.0, "halfAngle": 15, "effectiveDiameter": 1, "cuttingLength": 10, "shankDiameter": 3.175, "totalLength": 42 },
+      "cutting": { "feedRate": 200, "plungeRate": 65, "spindleSpeed": 9500 },
+      "operations": []
+    },
+    {
+      "id": "em_3.175mm_ball_h",
+      "type": "ball",
+      "geometry": { "diameter": 3.175, "flutes": 2, "cuttingLength": 20, "shankDiameter": 3.175, "totalLength": 45, "holderDiameter": 16.0, "holderStickout": 30.0 },
+      "cutting": { "feedRate": 520, "plungeRate": 180, "spindleSpeed": 5000 },
+      "operations": ["relief", "rotary"]
+    }
+  ]
+}

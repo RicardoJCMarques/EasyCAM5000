@@ -4,6 +4,32 @@ All notable changes to the **EasyCAM5000** project will be documented in this fi
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.0] - 2026-11-10
+
+### Added
+- **i18n Translations:** i18n sub-systems have been added which allow for UI text to be replaced. Console messages for debugging remains English only.
+- **i18n Comparator:** Small tool has been added to help with fixing existing language packs and making new ones. [Comparator's README](language/comparator/README.md)
+- **Custom Files:** It is now possible to drag'n'drop custom json files that can affect different systems. Custom Themes, Language packs, Machine Setups, Laser Profiles and Tool Libraries. [#28](https://github.com/RicardoJCMarques/EasyCAM5000/issues/28) Read more at [here](core/CUSTOM.md). Other means of adding custom files are planned.
+- **High-Contrast Themes:** New Themes were added to help satisfy WCAG 2.1 - 1.4.3 & 1.4.11. Plus a few more accessibility tweaks.
+- **Verbose Comments:** During export a new toggle allows adding some operational parameters to the header comments so they are easily readable in "old" job files.
+- **Rotation Cues:** A cube/cylinder helps keep track of orientation in space wherever the camera may be pointing. Plus some extra arrows for transform cues.
+- **Chuck/Tail Models:** The new models appear on rotary operations and help understanding machine vs object orientation.
+
+### Changed
+- **Rotary Scene:** Complete rework of the 4th axis interface with more predictable/familiar transforms instead of obscure automated selectors.
+- **Post-Processors:** They were split into main logic and controller/machine setup jsons. Logic files expand a base logic module with a handful of overrides while setups hold config flags and can be replaced on the fly.
+- **Welcome Modal:** Tweaks to fit Language and Theme selectors plus other custom file warnings.
+- **Multi-tool Drilling:** Stages needed a few tweaks. Probably not finished yet.
+
+### Fixed
+- **V-Carve Mirror:** Bottomed out regions show up with mirroring on now.
+
+### Known Problems
+- **2D Previews on Edge:** Some 2D preview geometry may render with artifacts in Edge. 3D and Chrome don't seem to be affected. (Firefox remains my recommendation.)
+- **Mold Mode:** The inversion on 3D flat reliefs is sort of working but not in a usable way yet.
+- **Reordering CNC Jobs:** Export Modal rework broke it so they are always set in the default order unless grouping by tool is selected (minimize tool changes).
+
+
 ## [1.6.2] - 2026-10-10
 
 ### Added
@@ -67,7 +93,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - **3D Toolpath Preview:** Calculating toolpaths was spun-off the export modal into it's own phase/node that triggers the 3d rendering frustum. Changing between rendering system is possible (Icon or F2).
 - **CNC Stencils:** The stencil operation can generate g-code now for those aiming to mill their stencil stock. [#18](https://github.com/RicardoJCMarques/EasyCAM5000/discussions/18)
 - **Rounded Stencils:** Corner radius was added as a parameter for SVG stencil geometry so that it's easier to cut on vinyl/drag knife plotters.
-- **Internal Offset Optimizations:** Added a first draft of allowing all internal offsets to link to bypass retract/rapid/plunge. (Holes/nesting not yet supported.)
+- **Internal Offset Optimizations:** Added a first draft of allowing all internal offsets to link directly and bypass retract/rapid/plunge movements. (Holes/nesting not yet supported.)
 
 ### Changed
 - **Line Numbers:** Instead of being locked by the post-processor, all programs can carry line numbers now (selectable from Machine Settings). Post-processors can set different defaults. 
@@ -459,7 +485,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - **Improved UI Responsivenes:** Made the UI values more flexible. Workspace should be more usable even with smaller screens. (Not aiming at narrow smartphones, yet)
 - **Fixed Marlin Post-processor:** Marlin has been flagged as Not supporting modal commands.
 - **Added ARIA Tags:** Initial implementation of Accessible Rich Internet Applications tag management.
-- **Fixed/Expanded Keyboard Shortcuts/Navigation:** See [Accessibility Documentation](docs/ACCESSIBILITY.md) for more details.
+- **Fixed/Expanded Keyboard Shortcuts/Navigation:** See [Accessibility Documentation](easytrace5000/doc/ACCESSIBILITY.md) for more details. (And more recently added for [EasyShape5000](easyshape5000/doc/ACCESSIBILITY.md)).
 - **Added Favicons**
 - **SEO Changes**
 

@@ -11,8 +11,8 @@
  *              rotaryKinematics param is 'indexed'. Each face k at angle
  *              θk is one standard `kind:'relief'` field job:
  *
- *                orient_k = R_axis(+θk) · visualOrient(axis, upright)
- *                offset_k = R_axis(+θk) · C_visual
+ *               orient_k = R_axis(+θk) · visualOrient(axis, upright)
+ *               offset_k = R_axis(+θk) · C_visual
  *
  *              where C_visual is the rotary-axis line's cross-section
  *              center (model bounds center + user axis offsets) in the
@@ -20,9 +20,9 @@
  *              HeightmapBuilder applies p' = orient·p - offset, so in
  *              every face's sliced frame:
  *
- *                x = axial position along the rotary axis (shared)
- *                y = 0 ON THE AXIS LINE (shared across all faces)
- *                z = 0 at the axis; face plane at exactly z = +apothem
+ *               x = axial position along the rotary axis (shared)
+ *               y = 0 ON THE AXIS LINE (shared across all faces)
+ *               z = 0 at the axis; face plane at exactly z = +apothem
  *
  *              The A move is therefore the ONLY thing that changes
  *              between faces, by construction. No internalOrient, no
@@ -63,16 +63,16 @@
  *              verbatim - never "fix" it there.
  *
  *              ── PROPS STAMPED ON EVERY CHAIN ─────────────────────────
- *                props.indexed          → translator frame branch
+ *               props.indexed           → translator frame branch
  *                                         (identity mapPt, surfaceZ 0)
- *                props.indexA (deg)     → plan.metadata.indexedA →
+ *               props.indexA (deg)      → plan.metadata.indexedA →
  *                                         insertIndexMoves A rapids
- *                props.indexOrder       → metadata + _IX: groupKey →
+ *               props.indexOrder        → metadata + _IX: groupKey →
  *                                         optimizer face ordering
- *                props.axisKind         → A vs B word
- *                props.indexedFaceOrder → optimizer groupRank mode
- *                props.indexedApothem   → preview wrap + export Z shift
- *                props.indexedClearRadius → index-move retract height
+ *               props.axisKind          → A vs B word
+ *               props.indexedFaceOrder  → optimizer groupRank mode
+ *               props.indexedApothem    → preview wrap + export Z shift
+ *               props.indexedClearRadius → index-move retract height
  *
  *              ── v1 SCOPE ─────────────────────────────────────────────
  *              Prismatic (flat-faced) blanks only - square/rect or an
@@ -91,502 +91,459 @@
  */
 
 (function() {
-    'use strict';
-    const ROOT = globalThis;
+  'use strict';
 
-    const T3D = ROOT.Transform3D;
+  const ROOT = globalThis;
+  const T3D = ROOT.Transform3D;
 
-    class ShapeIndexedHandler extends FieldOperationHandler {
-
-        passTypePrefix() { return 'indexed'; }
-        pipelineLabel()  { return 'INDEXED'; }
-        emptyMessage() {
-            return 'No indexed paths generated - model may be flat, below ' +
-                   'resolution, or entirely outside the face windows';
-        }
-
-        validateSource(operation) {
-            if (!this.getMeshSource(operation)) {
-                return {
-                    success: false,
-                    message: 'No indexed source - import an STL model for this operation',
-                    status: 'warning'
-                };
-            }
-            return null;
-        }
-
-        // Parameter resolution
-
-        /**
-         * Post-capability precheck - advisory only. The machine pass
-         * (insertIndexMoves) stays the authority at export; this puts the
-         * same mismatch in the status bar at GENERATE time, before a full
-         * slice+compensate pass on a job the post cannot emit.
-         */
-        postCapabilityWarning(machineAxis) {
-            const gen = this.core?.gcodeGenerator;
-            const postName = this.core?.settings?.gcode?.postProcessor;
-            if (!gen?.getProcessorInfo || !postName) return null;
-            const caps = gen.getProcessorInfo(postName)?.capabilities?.rotary;
-            const routes = caps?.routes || [];
-            const wantWord = (machineAxis === 'y') ? 'B' : 'A';
-            if (routes.length === 0) {
-                return `Post '${postName}' declares no 4th-axis routes - ` +
-                    `G-code export will drop this operation.`;
-            }
-            if (routes.indexOf('a-word') < 0) {
-                return `Indexed 3+1 needs the 'a-word' route (absolute degrees ` +
-                    `on ${wantWord}); post '${postName}' declares ` +
-                    `[${routes.join(', ')}] - export will drop this operation.`;
-            }
-            if ((caps.axisWords || []).indexOf(wantWord) < 0) {
-                return `A rotary axis of ${machineAxis.toUpperCase()} needs the ` +
-                    `'${wantWord}' word; post '${postName}' declares ` +
-                    `[${(caps.axisWords || []).join(', ') || 'none'}] - ` +
-                    `export will drop this operation.`;
-            }
-            return null;
-        }
-
-        /**
-         * Face angle list (degrees, MACHINING ORDER - never sorted).
-         * n evenly spaced faces, offset by indexedStartAngle so a 4-face job
-         * can sit at ±45/±135 instead of 0/90/180/270. Negatives are emitted
-         * verbatim on the A word - insertIndexMoves does not normalize, and
-         * must not: -90 and 270 are the same face but different travel.
-         * An explicit angle LIST needs a text-input field type first.
-         */
-        resolveFaceAngles(s) {
-            const start = Number(s.indexedStartAngle) || 0;
-            const n = Math.max(1, Math.round(Number(s.indexedFaceCount) || 2));
-            const out = new Array(n);
-            for (let k = 0; k < n; k++) out[k] = start + (360 / n) * k;
-            return out;
-        }
-
-        /**
-         * Plain-data holder descriptor (postMessage-safe) or null.
-         * cuttingLength doubles as fluteLength until the library grows an
-         * explicit override.
-         */
-        buildHolder(settings) {
-            if (settings.indexedCollisionGuard !== true) return null; // Inert until a rotary tool select exists: the guard needs settings.tool.
-            const tool = this.core?.toolLibrary.getTool(settings.tool);
-            const g = tool?.geometry;
-            if (!g) {
-                this.debug('collisionGuard on but tool record unavailable - guard skipped');
-                return null;
-            }
-            const fluteLength = g.fluteLength ?? g.cuttingLength;
-            const { shankDiameter, holderDiameter, holderStickout } = g;
-            if (!(fluteLength > 0) || !(shankDiameter > 0) ||
-                !(holderDiameter > 0) || !(holderStickout > 0)) {
-                this.debug('collisionGuard on but tool lacks holder fields ' +
-                    '(need cuttingLength/fluteLength, shankDiameter, ' +
-                    'holderDiameter, holderStickout) - guard skipped');
-                return null;
-            }
-            return {
-                fluteLength, shankDiameter, holderDiameter, holderStickout,
-                margin: 0.5   // added to shank/holder radii in the envelope
-            };
-        }
-
-        /**
-         * One resolution pass per generation. Every key is schema-backed;
-         * inline `??` values MATCH the schema and exist only for direct API
-         * callers. Keys that differ IN KIND between kinematics carry an
-         * indexed* name (indexedRoughStepdown is Z-per-layer,
-         * rotaryRoughStepdown is radius-per-layer); everything else is
-         * shared on the rotary* key.
-         *
-         * All prism geometry - Z datum, depth window, facet band, rotation
-         * clearance, stub cap - comes from IndexedBlank, which surveys the
-         * mesh ONCE and returns every number finite. Workholding comes from
-         * the SAME resolver radial uses.
-         */
-        resolveIndexedParams(s, mesh, warnings, operation) {
-            const machineAxis = (s.rotaryAxis === 'y') ? 'y' : 'x';
-            const upright = (s.rotaryModelUp ?? 'upright') === 'upright';
-            const visualOrient = FieldParams.visualOrient(machineAxis, upright);
-            const angles = this.resolveFaceAngles(s);
-
-            const capWarn = this.postCapabilityWarning(machineAxis);
-            if (capWarn) warnings.push(capWarn);
-
-            // HeightmapBuilder maps cols→x, rows→y unswapped. In indexed slicing,
-            // the 2D grid's axial direction (axialAxis) maps 1:1 to the physical
-            // machine axis (machineAxis). They remain separate: machineAxis drives
-            // A/B words, axialAxis drives grid stride in FieldSpace.
-            const axialAxis = machineAxis;
-            const crossAxis = (axialAxis === 'x') ? 'y' : 'x';
-            // Raster direction is SEMANTIC: 'axial' or 'cross'.
-            const rasterAxis = s.indexedRasterAxis === 'cross' ? crossAxis : axialAxis;
-
-            const toolDiameter = s.toolDiameter || 3;
-            const wh = FieldParams.workholding(s);
-
-            const survey = IndexedBlank.survey(mesh.triangles, {
-                machineAxis, visualOrient, angles,
-                offB: s.rotaryAxisOffsetB ?? 0,
-                offC: s.rotaryAxisOffsetC ?? 0
-            });
-            const resolveOpts = {
-                angles,
-                blankWidth: s.indexedBlankWidth,
-                toolDiameter,
-                coreRadius: wh.coreRadius,
-                overcutUser: Number(s.indexedAxisOvercut) || 0,
-                depthUser: s.indexedDepth
-            };
-            let prism = IndexedBlank.resolve(survey, resolveOpts);
-
-            // Sticky derived width. A blank is a physical object: its
-            // across-flats - and with it the Z datum the operator touched
-            // off - must not shrink because the face count changed (the
-            // tightest 8-prism IS wider than the tightest slab). An
-            // explicit indexedBlankWidth wins outright; otherwise the
-            // widest support this operation has ever derived is the floor.
-            // Grow-only: a bigger mesh still grows it, a smaller one keeps
-            // it - harmless, the blank merely exceeds the part.
-            if (!(s.indexedBlankWidth > 0) && operation) {
-                const sticky = operation._stickyBlankWidth || 0;
-                if (sticky > prism.blankWidth + 1e-9) {
-                    prism = IndexedBlank.resolve(survey,
-                        { ...resolveOpts, blankWidth: sticky });
-                }
-                operation._stickyBlankWidth = Math.max(sticky, prism.blankWidth);
-            }
-            for (const issue of prism.issues) warnings.push(issue);
-
-            const holder = this.buildHolder(s);
-            if (holder && holder.fluteLength < prism.apothem + prism.overcut - 1e-9) {
-                warnings.push(`Flute ${holder.fluteLength}mm cannot reach the ` +
-                    `rotation axis (${(prism.apothem + prism.overcut).toFixed(2)}mm ` +
-                    `below the face plane). The holder envelope limits the tool ` +
-                    `per-cell; expect uncut material near the centerline.`);
-            }
-
-            // LOCKED GRID. HeightmapBuilder derives auto cell size from the
-            // ROTATED bounds, and a rectangular section at 45° has a bbox √2
-            // larger than at 0° - so every face would quantize its end bands
-            // differently ("end walls don't line up around the part"). One
-            // size from orientation-invariant extents, passed explicitly.
-            const gridMaxDim = s.rotaryGridMaxDim ?? 1024;
-            const lockedCell = (s.rotaryCellSize > 0)
-                ? s.rotaryCellSize
-                : Math.max(0.005, Math.max(
-                    survey.axialExt, 2 * prism.stockHalfSpan) / gridMaxDim);
-
-            const C = ROOT.CAMConfig.constants.rotary;
-
-            // Axial datum. Resolved ONCE on the survey, not per face: the axial
-            // extent is rotation-invariant so every face would resolve the same
-            // number in exact arithmetic, but a face that barely reaches an end
-            // can quantize differently and slide its whole toolpath along the
-            // axis relative to its neighbours.
-            const axialShift = FieldParams.axialDatum(s, survey.axialMin, survey.axialMax);
-
-            return {
-                machineAxis: machineAxis,
-                upright: upright,
-                visualOrient: visualOrient,
-                angles: angles,
-                axialAxis: axialAxis,
-                crossAxis: crossAxis,
-                axialShift: axialShift,
-                Cvis: survey.Cvis,
-                apothem: prism.apothem,
-                blankWidth: prism.blankWidth,
-                blankWidthDerived: prism.derivedBlank,
-                clearRadius: prism.clearRadius,
-                facetHalfWidth: prism.facetHalfWidth,
-                // Grid half-width across the face: the facet this setup owns
-                // plus the collar the tool centre needs to form its edge.
-                crossGridHalf: prism.facetHalfWidth + toolDiameter / 2 + C.padSlackMm,
-                coreRadius: prism.coreRadius,
-                overcut: prism.overcut,
-                totalDepth: prism.depthWindow,
-                prism,
-                holdingMode: wh.holdingMode, ends: wh.ends,
-                faceOrder: s.indexedFaceOrder ?? 'sequential', // | 'phase'
-                toolDiameter,
-                toolShape: s.rotaryToolShape,
-                cornerRadius: s.rotaryCornerRadius ,
-                mode: s.rotaryMode,
-                roughStepdown: s.indexedRoughStepdown,
-                roughStepoverPct: s.rotaryRoughStepoverPct,
-                roughStock: s.rotaryRoughStock,
-                finishStepoverPct: s.rotaryFinishStepoverPct,
-                crossFinish: s.indexedCrossFinish === true,
-                rasterAxis,
-                cellSize: lockedCell,
-                gridMaxDim,
-                simplifyTolerance: C.simplifyTolerance,
-                minSegmentLength: C.minSegmentLength,
-                holder
-            };
-        }
-
-        // Job construction
-
-        buildJobs(operation, settings, warnings) {
-            const mesh = this.getMeshSource(operation);
-            if (!mesh) return [];
-
-            const ix = this.resolveIndexedParams(settings, mesh, warnings, operation);
-            const genOptions = this.buildFaceGenOptions(ix);
-
-            this.debug(`Faces: [${ix.angles.map(a => a.toFixed(1)).join(', ')}]° ` +
-                `about ${ix.machineAxis.toUpperCase()} (axial grid=${ix.axialAxis}, ` +
-                `raster=${ix.rasterAxis}), ${IndexedBlank.describe(ix.prism)}, ` +
-                // Every plane the pipeline can write, in MACHINE Z (= face
-                // value + apothem). Z0 is the rotation axis. A flat mesa in
-                // the output sits at one of these.
-                `planes[machineZ]: window=${(ix.apothem - ix.totalDepth).toFixed(2)} ` +
-                `severance=${(-ix.overcut).toFixed(2)}, mode=${ix.mode}, ` +
-                `${ix.holdingMode}, chuck=${ix.ends.chuck.mode}/tail=${ix.ends.tail.mode}, ` +
-                `order=${ix.faceOrder}` +
-                (ix.holder ? `, holder Ø${ix.holder.holderDiameter}mm` : ''));
-
-            // The resolved bag rides the job rather than the handler: two
-            // generations of the same operation can overlap, and instance
-            // state would let the newer one's frame stamp the older one's
-            // chains. Extra job fields are not posted to the worker.
-            return ix.angles.map((_, k) => ({
-                kind: 'relief',
-                mesh,
-                sliceOptions: this.buildFaceSliceOptions(ix, k),
-                genOptions,
-                ix,
-                faceIndex: k
-            }));
-        }
-
-        buildFaceSliceOptions(ix, k) {
-            // SIGN CALIBRATION POINT - see file header. Rotate by +θk (NOT
-            // -θk): a 4th-axis viewer/controller places a move at
-            // R_axis(-A)·(X,Y,Z) and the A word is emitted verbatim as θk.
-            // The preview's walkPlans wrap uses the SAME R_axis(-A) sense so
-            // screen == G-code; flip together or not at all.
-            const R = T3D.rotAboutAxis(ix.machineAxis, ix.angles[k]);
-
-            // Grid reserved PER END from that end's own reach - the same
-            // numbers the generator's axial window consumes, so the window
-            // cannot clamp at the grid edge instead of forming the end wall.
-            // Cross gets one cutting radius + slack for the dilated
-            // silhouette collar; the outermost collar cell may clip at the
-            // grid edge by ≤ 1 cell - bounded.
-            const alongLow  = Math.max(0, ix.ends.chuck.reach) + ROOT.CAMConfig.constants.rotary.padSlackMm;
-            const alongHigh = Math.max(0, ix.ends.tail.reach)  + ROOT.CAMConfig.constants.rotary.padSlackMm;
-            // crossGridHalf is ALWAYS finite here - null would read as zero through > 0.
-            const across = ix.toolDiameter / 2 + ROOT.CAMConfig.constants.rotary.padSlackMm;
-            const expandTo = (ix.axialAxis === 'y')
-                ? { minX: -ix.crossGridHalf, maxX: ix.crossGridHalf }
-                : { minY: -ix.crossGridHalf, maxY: ix.crossGridHalf };
-            const axialPad = (ix.axialAxis === 'y')
-                ? { x0: across,   x1: across,    y0: alongLow, y1: alongHigh }
-                : { x0: alongLow, x1: alongHigh, y0: across,   y1: across };
-
-            return {
-                // composeOrient, never a bare mul: visualOrient is null for
-                // a lying-down model, and null = identity by contract.
-                orient: FieldParams.composeOrient(R, ix.visualOrient),
-                // Rotates WITH the frame: the axis lands at (y=0, z=0) in
-                // every face's sliced coordinates → shared XY frame, face
-                // plane at exactly z = +apothem (the surfaceRefZ contract).
-                offset: T3D.applyVec(R, ix.Cvis),
-                cellSize: ix.cellSize > 0 ? ix.cellSize : null,
-                gridMaxDim: ix.gridMaxDim,
-                padding: axialPad,
-                expandTo
-            };
-        }
-
-        /** Identical for every face - built once per generation. */
-        buildFaceGenOptions(ix) {
-            const d = ix.toolDiameter;
-            return {
-                toolDiameter: d,
-                toolShape: ix.toolShape,
-                cornerRadius: ix.cornerRadius,
-                // 'literal' + surfaceRefZ is the multi-face Z contract:
-                // depth 0 = blank face plane (z = apothem, absolute in the
-                // sliced frame via hm.zMin), NOT the per-view model top.
-                // 'scaled' would rescale each face independently - never
-                // expose it for indexed.
-                depthMapping: 'literal',
-                surfaceRefZ: ix.apothem,
-                totalDepth: ix.totalDepth,
-                startDepth: 0,
-                // Deepest legal tip position past the axis. Resolved ONCE,
-                // in resolveIndexedParams; consumed verbatim.
-                axialOvercut: ix.overcut,
-                // Half-width of the facet this setup owns. Roughing clears
-                // stock out to here; finishing stays on the silhouette.
-                // Always finite - see IndexedBlank.resolve.
-                axialFacetHalfWidth: ix.facetHalfWidth,
-                invert: false,
-                roughing: ix.mode !== 'finishing',
-                finishing: ix.mode !== 'roughing',
-                roughStepdown: ix.roughStepdown,
-                roughStepover: d * (ix.roughStepoverPct / 100),
-                roughStock: ix.roughStock,
-                finishStepover: d * (ix.finishStepoverPct / 100),
-                crossFinish: ix.crossFinish,
-                rasterAxis: ix.rasterAxis,
-                simplifyTolerance: ix.simplifyTolerance,
-                minSegmentLength: ix.minSegmentLength,
-                skipFloor: false,
-                // AXIAL LIMITS - supersedes the isotropic boundary policy.
-                // The pipeline computes model span, per-end reach window and
-                // the composed end targets along this grid direction.
-                // Chuck = LOW axial index, tail = HIGH.
-                axial: {
-                    axis: ix.axialAxis,
-                    ends: ix.ends
-                },
-                // Core radius for the composed radial floor - a cylinder
-                // about the rotation axis, paired with surfaceRefZ above,
-                // which locates that axis at z = -apothem in every face's
-                // frame. 0 means NO floor at all, not a plane at the axis.
-                coreRadius: ix.coreRadius,
-                // 0 = auto. The pipeline forces it to 1 under the axial
-                // policy - its target carries a tool-reach cliff at the
-                // collar boundary that bilinear upsampling would drag into
-                // the emission mask. Left at 0 so plain relief (same
-                // generator, no o.axial) still gets the auto speed-up.
-                compLattice: 0,
-                // Plain data by design - the generator wraps the profile
-                // itself (closures die at the postMessage boundary).
-                holder: ix.holder
-            };
-        }
-
-        // Per-face stamping and caching
-
-        /**
-         * Datum. One shift for every face - resolved on the survey, not per
-         * container, because a per-face resolution would let a face that barely
-         * reaches an end quantize to a different zero and offset that face's
-         * whole toolpath along the axis.
-         */
-        onJobPrimitives(prims, job, container) {
-            const ix = job.ix;
-            const alongX = ix.axialAxis === 'x';
-            FieldParams.applyAxialShift(
-                prims, container, ix.axialShift,
-                alongX ? 0 : 1,
-                alongX ? 'originX' : 'originY'
-            );
-            // existing per-face stamping continues below
-            const k = job.faceIndex;
-            for (const prim of prims) {
-                const props = prim.properties || (prim.properties = {});
-                props.indexed = true; // translator frame branch
-                props.indexA = ix.angles[k]; // degrees, machine A/B word
-                props.indexOrder = k; // machining order, _IX: group
-                props.axisKind = ix.machineAxis; // 'x'→A word, 'y'→B word
-                props.indexedFaceOrder = ix.faceOrder;
-                // Preview contract: the rotation axis line sits at
-                // (y=0, z=-apothem) below the face top in every face's
-                // frame - the 3D walker needs the value to wrap.
-                props.indexedApothem = ix.apothem;
-                // Rotation clearance (radius from the axis) -
-                // insertIndexMoves lifts every index move above this.
-                props.indexedClearRadius = ix.clearRadius;
-            }
-        }
-
-        /**
-         * Face heightmaps are FACE-FRAME (axis-centered), not workspace
-         * geometry. The base publishes face 0 as operation.fieldPrimitive and
-         * keeps it off operation.primitives; this override only adds the
-         * cross-face consistency check.
-         */
-        cacheFields(operation, ctx) {
-            const ix = ctx.jobs[0].ix;
-
-            // Per-face axial span check. With a locked cell size the three
-            // numbers below are identical on every face unless the model is
-            // not actually symmetric about the rotation axis.
-            const axialOf = (hm) => hm && ((ix.axialAxis === 'y')
-                ? [hm.originY, hm.originY + (hm.rows - 1) * hm.cellSize]
-                : [hm.originX, hm.originX + (hm.cols - 1) * hm.cellSize]);
-
-            const spans = ctx.containers.map(axialOf).filter(Boolean);
-            if (spans.length > 1) {
-                const lo = spans.map(s => s[0]), hi = spans.map(s => s[1]);
-                const dLo = Math.max(...lo) - Math.min(...lo);
-                const dHi = Math.max(...hi) - Math.min(...hi);
-                const tol = 2 * (ix.cellSize > 0 ? ix.cellSize : 0.2);
-                if (dLo > tol || dHi > tol) {
-                    ctx.warnings.push(`Faces see different axial model extents ` +
-                        `(chuck end varies ${dLo.toFixed(2)}mm, tail end ` +
-                        `${dHi.toFixed(2)}mm) - end walls will not line up around ` +
-                        `the part. Check the rotation axis and model orientation.`);
-                }
-            }
-
-            super.cacheFields(operation, ctx);
-        }
-
-        buildSharedMetadata(ctx) {
-            const hm = ctx.containers[0];
-            const o = ctx.jobs[0].genOptions;
-            const ix = ctx.jobs[0].ix;
-
-            return {
-                generatedAt: Date.now(),
-                toolDiameter: o.toolDiameter,
-                toolShape: o.toolShape,
-                indexed: true,
-                faceCount: ix.angles.length,
-                indexedFaceOrder: ix.faceOrder,
-                rotaryAxisKind: ix.machineAxis,
-                blankWidth: ix.blankWidth,
-                apothem: ix.apothem,
-                // Preview frame - the indexed counterpart of continuous
-                // rotary's rotaryFrame. refresh3D needs the VISUAL orient
-                // plus the axis line's cross-section center to move the mesh
-                // into the same frame the toolpaths are wrapped in. Slicing
-                // subtracts Cvis outright, so exported paths are
-                // AXIS-CENTERED: the mesh must be translated by
-                // -axisCenter.b on the cross axis, unlike continuous rotary
-                // which publishes a world axis and zeroes XY.
-                //
-                // The blank prism lives INSIDE this object, not at metadata
-                // top level, so refresh3D reads one object and cannot
-                // half-resolve a blank. clearRadius is the CIRCUMradius -
-                // corner to axis, the same number insertIndexMoves lifts its
-                // rotation moves above - not the apothem.
-                indexedFrame: {
-                    orient: ix.visualOrient,
-                    machineAxis: ix.machineAxis,
-                    apothem: ix.apothem,
-                    axisCenter: {
-                        b: "y" === ix.machineAxis ? ix.Cvis[0] : ix.Cvis[1],
-                        c: ix.Cvis[2]
-                    },
-                    clearRadius: ix.clearRadius,
-                    faceCount: ix.angles.length,
-                    startAngle: ix.angles[0] || 0,
-                    gridCols: "y" === ix.axialAxis ? hm?.rows : hm?.cols,
-                    cellSize: hm?.cellSize,
-                    originX: "y" === ix.axialAxis ? hm?.originY : hm?.originX,
-                    axialShift: ix.axialShift || 0
-                },
-                gridCols: hm?.cols,
-                gridRows: hm?.rows,
-                cellSize: hm?.cellSize,
-                axialShift: ix.axialShift || 0,
-                is3DToolpath: true
-                // NOTE: no developedSpace, no refRadius - indexed plans
-                // must NEVER route into convertDevelopedToRotary.
-            };
-        }
+  class ShapeIndexedHandler extends FieldOperationHandler {
+    passTypePrefix() {
+      return 'indexed';
     }
 
-    ROOT.ShapeIndexedHandler = ShapeIndexedHandler;
+    pipelineLabel()  {
+      return 'INDEXED';
+    }
+
+    emptyMessage() {
+      return { key: 'messages.operations.noIndexed' };
+    }
+
+    validateSource(operation) {
+      if (!this.getMeshSource(operation)) {
+        return {
+          success: false,
+          message: { key: 'messages.operations.noIndexedSource' },
+          status: 'warning'
+        };
+      }
+      return null;
+    }
+
+    /**
+     * How the rotary is mounted is machine setup, not part of an
+     * operation: the axis it turns about and the end its chuck holds.
+     */
+    machineParams(settings) {
+      return {
+        rotaryAxis: settings.gcode.rotaryAxis,
+        rotaryChuckSide: settings.gcode.rotaryChuckSide
+      };
+    }
+
+    // Parameter resolution
+
+    /**
+     * Post-capability precheck - advisory only. The machine pass
+     * (insertIndexMoves) stays the authority at export; this puts the
+     * same mismatch in the status bar at GENERATE time, before a full
+     * slice+compensate pass on a job the post cannot emit.
+     */
+    postCapabilityWarning(machineAxis) {
+      const desc = this.core.gcodeGenerator.getProcessorInfo(this.core.settings.gcode.postProcessor);
+      const { routes, axisWords } = desc.capabilities.rotary;
+      const wantWord = machineAxis === 'y' ? 'B' : 'A';
+      const post = desc.label;
+      if (routes.length === 0) {
+        return {
+          key: 'messages.rotary.indexed.noRoutes',
+          values: { post }
+        };
+      }
+      if (!routes.includes('a-word')) {
+        // Routes are named by their Machine Settings captions.
+        const route = (r) => ({ key: ['params', 'rotaryRoute', 'options', r] });
+        return {
+          key: 'messages.rotary.indexed.needsAWord',
+          values: {
+            word: wantWord, post,
+            route: route('a-word'),
+            routes: routes.map(route) },
+        };
+      }
+      if (!axisWords.includes(wantWord)) {
+        return {
+          key: 'messages.rotary.indexed.needsWord',
+          values: {
+            axis: machineAxis.toUpperCase(),
+            word: wantWord, post,
+            words: axisWords.length ? { list: axisWords, type: 'unit' } : '-',
+          },
+        };
+      }
+      return null;
+    }
+
+    /**
+     * Face angle list (degrees, MACHINING ORDER - never sorted).
+     * n evenly spaced faces, offset by indexedStartAngle so a 4-face job
+     * can sit at ±45/±135 instead of 0/90/180/270. Negatives are emitted
+     * verbatim on the A word - insertIndexMoves does not normalize, and
+     * must not: -90 and 270 are the same face but different travel.
+     * An explicit angle LIST needs a text-input field type first.
+     */
+    resolveFaceAngles(s) {
+      const start = Number(s.indexedStartAngle) || 0;
+      const n = Math.max(1, Math.round(Number(s.indexedFaceCount) || 2));
+      const out = new Array(n);
+      for (let k = 0; k < n; k++) out[k] = start + (360 / n) * k;
+      return out;
+    }
+
+    /** Plain-data holder descriptor (postMessage-safe) or null. */
+    buildHolder(settings) {
+      if (settings.indexedCollisionGuard !== true) return null;
+      // Inert until a rotary tool select exists: the guard needs settings.tool.
+      const tool = this.core?.toolLibrary.getTool(settings.tool);
+      const g = tool?.geometry;
+      if (!g) {
+        this.debug('collisionGuard on but tool record unavailable - guard skipped');
+        return null;
+      }
+      // ToolLibrary validates the holder fields as a set: a tool has all of them or none.
+      if (g.holderDiameter == null) {
+        this.debug('collisionGuard on but the tool has no holder (holderDiameter, holderStickout) - guard skipped');
+        return null;
+      }
+      return {
+        fluteLength: g.cuttingLength,
+        shankDiameter: g.shankDiameter,
+        holderDiameter: g.holderDiameter,
+        holderStickout: g.holderStickout,
+        margin: 0.5 // added to shank/holder radii in the envelope
+      };
+    }
+
+    /**
+     * One resolution pass per generation. Every key is schema-backed;
+     * inline `??` values MATCH the schema and exist only for direct API
+     * callers. Keys that differ IN KIND between kinematics carry an
+     * indexed* name (indexedRoughStepdown is Z-per-layer,
+     * rotaryRoughStepdown is radius-per-layer); everything else is
+     * shared on the rotary* key.
+     *
+     * All prism geometry - Z datum, depth window, facet band, rotation
+     * clearance, stub cap - comes from IndexedBlank, which surveys the
+     * mesh ONCE and returns every number finite. Workholding comes from
+     * the SAME resolver radial uses.
+     */
+    resolveIndexedParams(s, mesh, warnings, operation) {
+      const machineAxis = s.rotaryAxis === 'y' ? 'y' : 'x';
+      const angles = this.resolveFaceAngles(s);
+      const capWarn = this.postCapabilityWarning(machineAxis);
+      if (capWarn) warnings.push(capWarn);
+      // HeightmapBuilder maps cols→x, rows→y unswapped. In indexed slicing,
+      // the 2D grid's axial direction (axialAxis) maps 1:1 to the physical
+      // machine axis (machineAxis). They remain separate: machineAxis drives
+      // A/B words, axialAxis drives grid stride in FieldSpace.
+      const axialAxis = machineAxis;
+      const crossAxis = axialAxis === 'x' ? 'y' : 'x';
+      // Raster direction is SEMANTIC: 'axial' or 'cross'.
+      const rasterAxis = s.indexedRasterAxis === 'cross' ? crossAxis : axialAxis;
+      const toolDiameter = s.toolDiameter || 3;
+      const wh = FieldParams.workholding(s);
+      const survey = IndexedBlank.survey(mesh.triangles, { machineAxis, angles });
+      const resolveOpts = {
+        angles,
+        blankWidth: s.indexedBlankWidth,
+        toolDiameter,
+        coreRadius: wh.coreRadius,
+        overcutUser: s.indexedAxisOvercut,
+        depthUser: s.indexedDepth
+      };
+      let prism = IndexedBlank.resolve(survey, resolveOpts);
+      // Sticky derived width. A blank is a physical object: its
+      // across-flats - and with it the Z datum the operator touched
+      // off - must not shrink because the face count changed (the
+      // tightest 8-prism IS wider than the tightest slab). An
+      // explicit indexedBlankWidth wins outright; otherwise the
+      // widest support this operation has ever derived is the floor.
+      // Grow-only: a bigger mesh still grows it, a smaller one keeps
+      // it - harmless, the blank merely exceeds the part.
+      if (!(s.indexedBlankWidth > 0) && operation) {
+        const sticky = operation._stickyBlankWidth || 0;
+        if (sticky > prism.blankWidth + 1e-9) prism = IndexedBlank.resolve(survey, { ...resolveOpts, blankWidth: sticky });
+        operation._stickyBlankWidth = Math.max(sticky, prism.blankWidth);
+      }
+      for (const issue of prism.issues) warnings.push(issue);
+      const holder = this.buildHolder(s);
+      if (holder && holder.fluteLength < prism.apothem + prism.overcut - 1e-9) {
+        warnings.push({
+          key: 'messages.rotary.indexed.fluteShort',
+          values: {
+            flute: String(holder.fluteLength),
+            depth: (prism.apothem + prism.overcut).toFixed(2)
+          }
+        });
+      }
+      // LOCKED GRID. HeightmapBuilder derives auto cell size from the
+      // ROTATED bounds, and a rectangular section at 45° has a bbox √2
+      // larger than at 0° - so every face would quantize its end bands
+      // differently ("end walls don't line up around the part"). One
+      // size from orientation-invariant extents, passed explicitly.
+      const gridMaxDim = s.rotaryGridMaxDim ?? 1024;
+      const lockedCell = s.rotaryCellSize > 0 ? s.rotaryCellSize
+        : Math.max(0.005, Math.max(survey.axialExt, 2 * prism.stockHalfSpan) / gridMaxDim);
+      const C = ROOT.CAMConfig.constants.rotary;
+      return {
+        machineAxis,
+        angles,
+        axialAxis,
+        crossAxis,
+        apothem: prism.apothem,
+        blankWidth: prism.blankWidth,
+        blankWidthDerived: prism.derivedBlank,
+        clearRadius: prism.clearRadius,
+        facetHalfWidth: prism.facetHalfWidth,
+        // Grid half-width across the face: the facet this setup owns
+        // plus the collar the tool centre needs to form its edge.
+        crossGridHalf: prism.facetHalfWidth + toolDiameter / 2 + C.padSlackMm,
+        coreRadius: prism.coreRadius,
+        overcut: prism.overcut,
+        totalDepth: prism.depthWindow,
+        prism,
+        holdingMode: wh.holdingMode,
+        ends: wh.ends,
+        faceOrder: s.indexedFaceOrder ?? 'sequential', // | 'phase'
+        toolDiameter,
+        toolShape: s.rotaryToolShape,
+        cornerRadius: s.rotaryCornerRadius,
+        mode: s.rotaryMode,
+        roughStepdown: s.indexedRoughStepdown,
+        roughStepoverPct: s.rotaryRoughStepoverPct,
+        roughStock: s.rotaryRoughStock,
+        finishStepoverPct: s.rotaryFinishStepoverPct,
+        crossFinish: s.indexedCrossFinish === true,
+        rasterAxis,
+        cellSize: lockedCell,
+        gridMaxDim,
+        simplifyTolerance: C.simplifyTolerance,
+        minSegmentLength: C.minSegmentLength,
+        holder
+      };
+    }
+
+    // Job construction
+
+    buildJobs(operation, settings, warnings) {
+      const mesh = this.getMeshSource(operation);
+      if (!mesh) return [];
+
+      const ix = this.resolveIndexedParams(settings, mesh, warnings, operation);
+      const genOptions = this.buildFaceGenOptions(ix);
+
+      this.debug(`Faces: [${ix.angles.map(a => a.toFixed(1)).join(', ')}]° ` +
+        `about ${ix.machineAxis.toUpperCase()} (axial grid=${ix.axialAxis}, ` +
+        `raster=${ix.rasterAxis}), ${IndexedBlank.describe(ix.prism)}, ` +
+        // Every plane the pipeline can write, in MACHINE Z (= face
+        // value + apothem). Z0 is the rotation axis. A flat mesa in
+        // the output sits at one of these.
+        `planes[machineZ]: window=${(ix.apothem - ix.totalDepth).toFixed(2)} ` +
+        `severance=${(-ix.overcut).toFixed(2)}, mode=${ix.mode}, ` +
+        `${ix.holdingMode}, low=${ix.ends.low.mode}/high=${ix.ends.high.mode}, ` +
+        `order=${ix.faceOrder}` +
+        (ix.holder ? `, holder Ø${ix.holder.holderDiameter}mm` : ''));
+
+      // The resolved bag rides the job rather than the handler: two
+      // generations of the same operation can overlap, and instance
+      // state would let the newer one's frame stamp the older one's
+      // chains. Extra job fields are not posted to the worker.
+      return ix.angles.map((_, k) => ({
+        kind: 'relief', mesh,
+        sliceOptions: this.buildFaceSliceOptions(ix, k),
+        genOptions, ix, faceIndex: k
+      }));
+    }
+
+    buildFaceSliceOptions(ix, k) {
+      // SIGN CALIBRATION POINT - see file header. Rotate by +θk (NOT
+      // -θk): a 4th-axis viewer/controller places a move at
+      // R_axis(-A)·(X,Y,Z) and the A word is emitted verbatim as θk.
+      // The preview's walkPlans wrap uses the SAME R_axis(-A) sense so
+      // screen == G-code; flip together or not at all.
+      const R = T3D.rotAboutAxis(ix.machineAxis, ix.angles[k]);
+      // Grid reserved PER END from that end's own reach - the same
+      // numbers the generator's axial window consumes, so the window
+      // cannot clamp at the grid edge instead of forming the end wall.
+      // Cross gets one cutting radius + slack for the dilated
+      // silhouette collar; the outermost collar cell may clip at the
+      // grid edge by ≤ 1 cell - bounded.
+      const alongLow = Math.max(0, ix.ends.low.reach) + ROOT.CAMConfig.constants.rotary.padSlackMm;
+      const alongHigh = Math.max(0, ix.ends.high.reach) + ROOT.CAMConfig.constants.rotary.padSlackMm;
+      // crossGridHalf is ALWAYS finite here - null would read as zero through > 0.
+      const across = ix.toolDiameter / 2 + ROOT.CAMConfig.constants.rotary.padSlackMm;
+      const expandTo = ix.axialAxis === 'y'
+        ? { minX: -ix.crossGridHalf, maxX: ix.crossGridHalf }
+        : { minY: -ix.crossGridHalf, maxY: ix.crossGridHalf };
+      const axialPad = ix.axialAxis === 'y'
+        ? { x0: across, x1: across, y0: alongLow, y1: alongHigh }
+        : { x0: alongLow, x1: alongHigh, y0: across, y1: across };
+      return {
+        // The face rotation is the whole frame: the mesh arrives oriented, with
+        // the axis through the origin, so the axis stays at (y=0, z=0) in every
+        // face's sliced coordinates → shared XY frame, face plane at exactly
+        // z = +apothem (the surfaceRefZ contract).
+        orient: R,
+        cellSize: ix.cellSize > 0 ? ix.cellSize : null,
+        gridMaxDim: ix.gridMaxDim,
+        padding: axialPad,
+        expandTo
+      };
+    }
+
+    /** Identical for every face - built once per generation. */
+    buildFaceGenOptions(ix) {
+      const d = ix.toolDiameter;
+      return {
+        toolDiameter: d,
+        toolShape: ix.toolShape,
+        cornerRadius: ix.cornerRadius,
+        // 'literal' + surfaceRefZ is the multi-face Z contract:
+        // depth 0 = blank face plane (z = apothem, absolute in the
+        // sliced frame via hm.zMin), NOT the per-view model top.
+        // 'scaled' would rescale each face independently - never
+        // expose it for indexed.
+        depthMapping: 'literal',
+        surfaceRefZ: ix.apothem,
+        totalDepth: ix.totalDepth,
+        startDepth: 0,
+        // Deepest legal tip position past the axis. Resolved ONCE,
+        // in resolveIndexedParams; consumed verbatim.
+        axialOvercut: ix.overcut,
+        // Half-width of the facet this setup owns. Roughing clears
+        // stock out to here; finishing stays on the silhouette.
+        // Always finite - see IndexedBlank.resolve.
+        axialFacetHalfWidth: ix.facetHalfWidth,
+        invert: false,
+        roughing: ix.mode !== 'finishing',
+        finishing: ix.mode !== 'roughing',
+        roughStepdown: ix.roughStepdown,
+        roughStepover: d * (ix.roughStepoverPct / 100),
+        roughStock: ix.roughStock,
+        finishStepover: d * (ix.finishStepoverPct / 100),
+        crossFinish: ix.crossFinish,
+        rasterAxis: ix.rasterAxis,
+        simplifyTolerance: ix.simplifyTolerance,
+        minSegmentLength: ix.minSegmentLength,
+        skipFloor: false,
+        // AXIAL LIMITS - supersedes the isotropic boundary policy.
+        // The pipeline computes model span, per-end reach window and
+        // the composed end targets along this grid direction.
+        axial: {
+          axis: ix.axialAxis,
+          ends: ix.ends
+        },
+        // Core radius for the composed radial floor - a cylinder
+        // about the rotation axis, paired with surfaceRefZ above,
+        // which locates that axis at z = -apothem in every face's
+        // frame. 0 means NO floor at all, not a plane at the axis.
+        coreRadius: ix.coreRadius,
+        // 0 = auto. The pipeline forces it to 1 under the axial
+        // policy - its target carries a tool-reach cliff at the
+        // collar boundary that bilinear upsampling would drag into
+        // the emission mask. Left at 0 so plain relief (same
+        // generator, no o.axial) still gets the auto speed-up.
+        compLattice: 0,
+        // Plain data by design - the generator wraps the profile
+        // itself (closures die at the postMessage boundary).
+        holder: ix.holder
+      };
+    }
+
+    // Per-face stamping and caching
+
+    /** Per-face stamping: what every chain of face k carries downstream. */
+    onJobPrimitives(prims, job) {
+      const ix = job.ix;
+      const k = job.faceIndex;
+      for (const prim of prims) {
+        const props = prim.properties || (prim.properties = {});
+        props.indexed = true; // translator frame branch
+        props.indexA = ix.angles[k]; // degrees, machine A/B word
+        props.indexOrder = k; // machining order, _IX: group
+        props.axisKind = ix.machineAxis; // 'x'→A word, 'y'→B word
+        props.indexedFaceOrder = ix.faceOrder;
+        // Preview contract: the rotation axis line sits at
+        // (y=0, z=-apothem) below the face top in every face's
+        // frame - the 3D walker needs the value to wrap.
+        props.indexedApothem = ix.apothem;
+        // Rotation clearance (radius from the axis) -
+        // insertIndexMoves lifts every index move above this.
+        props.indexedClearRadius = ix.clearRadius;
+      }
+    }
+
+    /**
+     * Face heightmaps are FACE-FRAME (axis-centered), not workspace
+     * geometry. The base publishes face 0 as operation.fieldPrimitive and
+     * keeps it off operation.primitives; this override only adds the
+     * cross-face consistency check.
+     */
+    cacheFields(operation, ctx) {
+      const ix = ctx.jobs[0].ix;
+
+      // Per-face axial span check. With a locked cell size the three
+      // numbers below are identical on every face unless the model is
+      // not actually symmetric about the rotation axis.
+      const axialOf = (hm) => hm && ((ix.axialAxis === 'y')
+        ? [hm.originY, hm.originY + (hm.rows - 1) * hm.cellSize]
+        : [hm.originX, hm.originX + (hm.cols - 1) * hm.cellSize]);
+
+      const spans = ctx.containers.map(axialOf).filter(Boolean);
+      if (spans.length > 1) {
+        const lo = spans.map(s => s[0]), hi = spans.map(s => s[1]);
+        const dLo = Math.max(...lo) - Math.min(...lo);
+        const dHi = Math.max(...hi) - Math.min(...hi);
+        const tol = 2 * (ix.cellSize > 0 ? ix.cellSize : 0.2);
+        if (dLo > tol || dHi > tol) {
+          ctx.warnings.push({
+            key: 'messages.rotary.indexed.axialMismatch',
+            values: {
+              low: dLo.toFixed(2),
+              high: dHi.toFixed(2)
+            }
+          });
+        }
+      }
+
+      super.cacheFields(operation, ctx);
+    }
+
+    buildSharedMetadata(ctx) {
+      const hm = ctx.containers[0];
+      const o = ctx.jobs[0].genOptions;
+      const ix = ctx.jobs[0].ix;
+      return {
+        generatedAt: Date.now(),
+        toolDiameter: o.toolDiameter,
+        toolShape: o.toolShape,
+        indexed: true,
+        indexedFaceOrder: ix.faceOrder,
+        rotaryAxisKind: ix.machineAxis,
+        // The blank prism refresh3D draws about the axis, in the radial frame the
+        // mesh was sliced in. It lives INSIDE this object, not at metadata top
+        // level, so refresh3D reads one object and cannot half-resolve a blank.
+        // clearRadius is the CIRCUMradius - corner to axis, the same number
+        // insertIndexMoves lifts its rotation moves above - not the apothem.
+        indexedFrame: {
+          machineAxis: ix.machineAxis,
+          apothem: ix.apothem,
+          clearRadius: ix.clearRadius,
+          faceCount: ix.angles.length,
+          startAngle: ix.angles[0] || 0,
+          gridCols: ix.axialAxis === 'y' ? hm?.rows : hm?.cols,
+          cellSize: hm?.cellSize,
+          originX: ix.axialAxis === 'y' ? hm?.originY : hm?.originX
+        },
+        gridCols: hm?.cols,
+        gridRows: hm?.rows,
+        cellSize: hm?.cellSize,
+        // NOTE: no developedSpace, no refRadius - indexed plans
+        // must NEVER route into convertDevelopedToRotary.
+        is3DToolpath: true
+      };
+    }
+  }
+
+  ROOT.ShapeIndexedHandler = ShapeIndexedHandler;
 })();

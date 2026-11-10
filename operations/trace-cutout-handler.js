@@ -10,84 +10,80 @@
  */
 
 (function() {
-    'use strict';
-    const ROOT = globalThis;
+  'use strict';
 
-    class TraceCutoutHandler extends OffsetOperationHandler {
-        // Base OffsetOperationHandler hooks already handle cutSide-driven offset direction.
-        // No hook overrides needed - cutout is the base case.
+  const ROOT = globalThis;
 
-        /**
-         * Classifies raw plotter primitives for cutout operations.
-         * Extracts closed loops from multi-segment geometry, detects topology (board outlines vs internal holes), and flags orphan segments for the closure prompt.
-         */
-        classifyPrimitives(operation, rawPrimitives) {
-            const warnings = [];
-            let primitives = rawPrimitives;
+  class TraceCutoutHandler extends OffsetOperationHandler {
+    // Base OffsetOperationHandler hooks already handle cutSide-driven offset direction.
+    // No hook overrides needed - cutout is the base case.
 
-            if (primitives.length > 1) {
-                const { loops, orphans, orphanGaps } = GeometryTopology.extractClosedLoops(primitives);
+    /**
+     * Classifies raw plotter primitives for cutout operations.
+     * Extracts closed loops from multi-segment geometry, detects topology (board outlines vs internal holes), and flags orphan segments for the closure prompt.
+     */
+    classifyPrimitives(operation, rawPrimitives) {
+      const warnings = [];
+      let primitives = rawPrimitives;
 
-                if (loops.length > 0) {
-                    const topology = GeometryTopology.classifyCutoutTopology(loops);
-                    const compounds = GeometryTopology.assembleCutoutCompounds(topology);
+      if (primitives.length > 1) {
+        const { loops, orphans, orphanGaps } = GeometryTopology.extractClosedLoops(primitives);
 
-                    if (compounds.length > 0) {
-                        primitives = compounds;
-                        const holeCount = topology.filter(t => t.isHole).length;
-                        this.debug(`Cutout: ${compounds.length} board(s), ${holeCount} hole(s) from ${loops.length} loop(s)`);
-                    } else {
-                        primitives = loops;
-                    }
+        if (loops.length > 0) {
+          const topology = GeometryTopology.classifyCutoutTopology(loops);
+          const compounds = GeometryTopology.assembleCutoutCompounds(topology);
 
-                    // Preserve loops for re-classification if orphans get resolved later
-                    if (orphans.length > 0) {
-                        operation.extractedLoops = loops;
-                    }
-                }
+          if (compounds.length > 0) {
+            primitives = compounds;
+            const holeCount = topology.filter(t => t.isHole).length;
+            this.debug(`Cutout: ${compounds.length} board(s), ${holeCount} hole(s) from ${loops.length} loop(s)`);
+          } else {
+            primitives = loops;
+          }
 
-                if (orphans.length > 0) {
-                    operation.needsClosurePrompt = true;
-                    operation.closureInfo = {
-                        rawPrimitives: orphans,
-                        gaps: orphanGaps || []
-                    };
-
-                    const gapText = orphanGaps && orphanGaps.length > 0
-                        ? orphanGaps.map(g => g.toFixed(4) + 'mm').join(', ')
-                        : 'unknown';
-                    warnings.push({
-                        message: `${orphans.length} segment(s) do not form closed loops. Gaps: ${gapText}`,
-                        severity: 'warning'
-                    });
-                    this.debug(`${orphans.length} orphan segment(s) flagged for closure prompt`);
-                }
-
-            } else if (primitives.length === 1) {
-                const pts = primitives[0].contours?.[0]?.points;
-                if (pts && pts.length >= 3 && GeometryUtils.isClockwise(pts)) {
-                    GeometryTopology.reverseContourWinding(primitives[0].contours[0]);
-                    this.debug('Single cutout primitive reversed to CCW');
-                }
-            }
-
-            return { primitives, warnings };
+          // Preserve loops for re-classification if orphans get resolved later
+          if (orphans.length > 0) operation.extractedLoops = loops;
         }
 
-        /** Both tiers: loops the closure prompt just closed must merge as holes, not stand as extra board outlines. */
-        resolveSourceTopology(operation) {
-            return this.resolveContourTopology(operation.primitives, { mergeNesting: true });
-        }
+        if (orphans.length > 0) {
+          operation.needsClosurePrompt = true;
+          operation.closureInfo = {
+            rawPrimitives: orphans,
+            gaps: orphanGaps || []
+          };
 
-        async orchestrateGeneration(operation, params, core, options = {}) {
-            const result = await super.orchestrateGeneration(operation, params, core, options);
-            // Override CNC message for cutout
-            if (result.success && !options.isLaser) {
-                result.message = 'Cutout path generated';
-            }
-            return result;
+          const gaps = orphanGaps?.length > 0 ? orphanGaps.map(g => ({key: 'common.millimeters', values: {value: g.toFixed(4) }})) : {key: 'dialogs.openCutout.unknownGaps'};
+          warnings.push({
+            message: {
+              key: 'messages.cutout.openSegments',
+              values: {count: orphans.length, gaps}},
+              severity: 'warning'
+            });
+          this.debug(`${orphans.length} orphan segment(s) flagged for closure prompt`);
         }
+      } else if (primitives.length === 1) {
+        const pts = primitives[0].contours?.[0]?.points;
+        if (pts && pts.length >= 3 && GeometryUtils.isClockwise(pts)) {
+          GeometryTopology.reverseContourWinding(primitives[0].contours[0]);
+          this.debug('Single cutout primitive reversed to CCW');
+        }
+      }
+
+      return { primitives, warnings };
     }
 
-    ROOT.TraceCutoutHandler = TraceCutoutHandler;
+    /** Both tiers: loops the closure prompt just closed must merge as holes, not stand as extra board outlines. */
+    resolveSourceTopology(operation) {
+      return this.resolveContourTopology(operation.primitives, { mergeNesting: true });
+    }
+
+    async orchestrateGeneration(operation, params, core, options = {}) {
+      const result = await super.orchestrateGeneration(operation, params, core, options);
+      // Override CNC message for cutout
+      if (result.success && !options.isLaser) result.message = { key: 'messages.cutout.generated' };
+      return result;
+    }
+  }
+
+  ROOT.TraceCutoutHandler = TraceCutoutHandler;
 })();

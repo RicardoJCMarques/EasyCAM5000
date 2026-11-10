@@ -1,0 +1,154 @@
+{
+  "_readme": [
+    "High-contrast dark theme. Kept COMPLETE: it declares every key dark.json",
+    "declares, as the other shipped themes do.",
+    "",
+    "Every text colour reaches 7:1 against every background tier (hover and",
+    "active included); disabled text reaches 4.5:1. Borders, the focus ring,",
+    "canvas strokes and the 3D cut colours reach at least 3:1 against the",
+    "surface they sit on, most of them 7:1.",
+    "",
+    "Every accent and semantic colour here is light, so text.onEmphasis - the",
+    "text on an accent or semantic fill - is black."
+  ],
+  "meta": {"kind": "theme"},
+  "id": "hc-dark",
+  "base": "dark",
+  "description": "High-contrast dark theme: black surfaces, white text, light accents.",
+  "author": "Eltryus - Ricardo Marques",
+  "license": "AGPL-3.0-or-later",
+  "homepage": "https://github.com/RicardoJCMarques/EasyCAM5000",
+  "tokens": {},
+  "colors": {
+    "background": {
+      "primary": "#000000",
+      "secondary": "#000000",
+      "tertiary": "#141414",
+      "hover": "#262626",
+      "active": "#383838"
+    },
+    "text": {
+      "primary": "#ffffff",
+      "secondary": "#d9d9d9",
+      "disabled": "#a6a6a6",
+      "hint": "#cccccc",
+      "onEmphasis": "#000000"
+    },
+    "border": {
+      "primary": "#999999",
+      "secondary": "#ffffff",
+      "focus": "#33e1ff"
+    },
+    "accent": {
+      "primary": "#ffd400",
+      "hover": "#ffe04d",
+      "active": "#ffeb80"
+    },
+    "semantic": {
+      "success": "#4dff7a",
+      "warning": "#ffb84d",
+      "error": "#ff7a7a",
+      "info": "#66ccff",
+      "scrim": "rgba(0, 0, 0, 0.75)",
+      "scrimStrong": "rgba(0, 0, 0, 0.9)"
+    },
+    "operations": {
+      "isolation": "#ff9933",
+      "drill": "#4db8ff",
+      "clearing": "#5cff8a",
+      "cutout": "#ff66ff",
+      "stencil": "#ff8ac4",
+      "toolpath": "#00ffff",
+      "profile": "#8cffc6",
+      "pocket": "#8cb3ff",
+      "engrave": "#e0a3ff",
+      "vcarve": "#ff8080",
+      "relief": "#ffcc66",
+      "rotary": "#66e0ff",
+      "pattern": "#d9e866"
+    },
+    "render2d": {
+      "background": "#000000",
+      "grid": "#6b6b6b",
+      "origin": "#ffffff",
+      "originOutline": "#000000",
+      "bounds": "#ffffff",
+      "ruler": "#ffffff",
+      "rulerText": "#ffffff"
+    },
+    "render3d": {
+      "background": "#000000",
+      "sky": "#ffffff",
+      "ground": "#808080",
+      "grid": "#4d4d4d",
+      "gridCenter": "#a6a6a6",
+      "rapid": "#b3b3b3",
+      "cutShallow": "#33e1ff",
+      "cutDeep": "#ff7a7a",
+      "stock": "#9c8a66",
+      "surface": "#d9cfb8",
+      "tool": "#ffffff",
+      "axisX": "#ff5c5c",
+      "axisY": "#4dff7a",
+      "axisZ": "#4d94ff",
+      "workholding": "#a6a6a6"
+    },
+    "geometry": {
+      "source": {
+        "isolation": "#ff9933",
+        "drill": "#4db8ff",
+        "clearing": "#5cff8a",
+        "cutout": "#999999",
+        "unassigned": "#4dd9e6",
+        "stencil": "#ff8ac4"
+      },
+      "offset": {
+        "external": "#ff5c5c",
+        "internal": "#4dff7a",
+        "on": "#ffeb3b"
+      },
+      "preview": "#4d94ff",
+      "toolpath": "#00ffff",
+      "selection": "#ffffff",
+      "laser": {
+        "filled": "#4d94ff"
+      }
+    },
+    "primitives": {
+      "offsetInternal": "#4dff7a",
+      "offsetExternal": "#ff5c5c",
+      "peckMarkGood": "#4dff7a",
+      "peckMarkWarn": "#ffd400",
+      "peckMarkError": "#ff5c5c",
+      "peckMarkSlow": "#ff9933",
+      "reconstructed": "#00ffff",
+      "reconstructedPath": "#ffeb3b"
+    },
+    "debug": {
+      "points": "#ff66ff",
+      "arcs": "#00ffff",
+      "wireframe": "#4dff7a",
+      "bounds": "#ff5c5c",
+      "preprocessedStroke": "#00ffff",
+      "preprocessedFill": "#003d3d"
+    },
+    "bw": {
+      "black": "#000000",
+      "white": "#ffffff"
+    },
+    "pipelines": {
+      "cnc": "#ff9933",
+      "laser": "#d98cff",
+      "3d": "#33e1ff"
+    },
+    "interaction": {
+      "sponsorship": "#b3a6ff",
+      "kofi": "#4dffc3",
+      "selectionStroke": "#33e1ff",
+      "selectionFill": "#003d47",
+      "marqueeStroke": "#66a3ff",
+      "marqueeFill": "#0a1f40",
+      "groupBounds": "#33e1ff"
+    }
+  }
+}

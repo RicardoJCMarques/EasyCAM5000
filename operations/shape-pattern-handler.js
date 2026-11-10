@@ -12,23 +12,23 @@
 
 // Not wired
 (function() {
-    'use strict';
-    const ROOT = globalThis;
+  'use strict';
 
-    class ShapePatternHandler extends BaseOperationHandler {
+  const ROOT = globalThis;
 
-        async orchestrateGeneration(operation, params, core, options = {}) {
-            return {
-                success: false,
-                message: 'Pattern generation not implemented yet.',
-                status: 'warning'
-            };
-        }
-
-        async generateGeometry(operation, settings) {
-            return [];
-        }
+  class ShapePatternHandler extends BaseOperationHandler {
+    async orchestrateGeneration(operation, params, core, options = {}) {
+      return {
+        success: false,
+        message: 'Pattern generation not implemented yet.',
+        status: 'warning'
+      };
     }
 
-    ROOT.ShapePatternHandler = ShapePatternHandler;
+    async generateGeometry(operation, settings) {
+      return [];
+    }
+  }
+
+  ROOT.ShapePatternHandler = ShapePatternHandler;
 })();

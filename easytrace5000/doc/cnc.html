@@ -1,598 +1,616 @@
 <!DOCTYPE html>
 <html lang="en" data-theme="dark">
 <head>
-    <meta charset="UTF-8">
-    <!--!
-        @file        easytrace5000/doc/cnc.html
-        @description CNC Guide
-        @author      Eltryus - Ricardo Marques
-        @copyright   2025-2026 Eltryus - Ricardo Marques
-        @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
+  <meta charset="UTF-8">
+  <!--!
+    @file        easytrace5000/doc/cnc.html
+    @description CNC Guide
+    @author      Eltryus - Ricardo Marques
+    @copyright   2025-2026 Eltryus - Ricardo Marques
+    @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
 
-        SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
-        SPDX-License-Identifier: AGPL-3.0-or-later
-    -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>EasyTrace5000 Doc - PCB CNC Milling Guide</title>
+    SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
+    SPDX-License-Identifier: AGPL-3.0-or-later
+  -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>EasyTrace5000 Doc - PCB CNC Milling Guide</title>
 
-    <meta name="description" content="Complete PCB isolation routing guide: Gerber to G-code, drill strategy, per-diameter tooling, automatic tool changes, and all ten post-processors.">
-    <meta name="author" content="Eltryus">
-    <meta name="robots" content="index, follow">
-    <meta name="theme-color" content="#1a1a1a">
+  <meta name="description" content="Complete PCB isolation routing guide: Gerber to G-code, drill strategy, per-diameter tooling, automatic tool changes, and all ten post-processors.">
+  <meta name="author" content="Eltryus">
+  <meta name="robots" content="index, follow">
+  <meta name="theme-color" content="#1a1a1a">
 
-    <link rel="canonical" href="https://cam.eltryus.design/easytrace5000/doc/cnc">
+  <link rel="canonical" href="https://cam.eltryus.design/easytrace5000/doc/cnc">
 
-    <meta property="og:type" content="article">
-    <meta property="og:url" content="https://cam.eltryus.design/easytrace5000/doc/cnc">
-    <meta property="og:title" content="EasyTrace5000 Doc - PCB CNC Milling Guide">
-    <meta property="og:description" content="Complete PCB isolation routing guide: Gerber to G-code, drill strategy, per-diameter tooling, automatic tool changes, and all ten post-processors.">
-    <meta property="og:image" content="https://cam.eltryus.design/images/social-trace.jpg">
-    <meta property="og:image:width" content="1200">
-    <meta property="og:image:height" content="630">
-    <meta property="og:site_name" content="EasyCAM5000">
-    <meta property="og:locale" content="en_US">
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://cam.eltryus.design/easytrace5000/doc/cnc">
+  <meta property="og:title" content="EasyTrace5000 Doc - PCB CNC Milling Guide">
+  <meta property="og:description" content="Complete PCB isolation routing guide: Gerber to G-code, drill strategy, per-diameter tooling, automatic tool changes, and all ten post-processors.">
+  <meta property="og:image" content="https://cam.eltryus.design/images/social-trace.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:site_name" content="EasyCAM5000">
+  <meta property="og:locale" content="en_US">
 
-    <link rel="icon" type="image/png" href="../../images/favicon/favicon-96x96.png" sizes="96x96">
-    <link rel="icon" type="image/svg+xml" href="../../images/favicon/favicon.svg">
-    <link rel="shortcut icon" href="../../images/favicon/favicon.ico">
-    <link rel="apple-touch-icon" sizes="180x180" href="../../images/favicon/apple-touch-icon.png">
-    <link rel="manifest" href="../../images/favicon/site.webmanifest">
+  <link rel="icon" type="image/png" href="../../images/favicon/favicon-96x96.png" sizes="96x96">
+  <link rel="icon" type="image/svg+xml" href="../../images/favicon/favicon.svg">
+  <link rel="shortcut icon" href="../../images/favicon/favicon.ico">
+  <link rel="apple-touch-icon" sizes="180x180" href="../../images/favicon/apple-touch-icon.png">
+  <link rel="manifest" href="../../images/favicon/site.webmanifest">
 
-    <link rel="stylesheet" href="../../css/base.css">
-    <link rel="stylesheet" href="../../css/components.css">
-    <link rel="stylesheet" href="../../css/theme.css">
-    <link rel="stylesheet" href="../../css/doc.css">
+  <link rel="stylesheet" href="../../css/base.css">
+  <link rel="stylesheet" href="../../css/components.css">
+  <link rel="stylesheet" href="../../css/theme.css">
+  <link rel="stylesheet" href="../../css/doc.css">
 
-    <script type="application/ld+json">
-    {
-        "@context": "https://schema.org",
-        "@graph": [
-            {
-                "@type": "Organization",
-                "@id": "https://www.eltryus.design/#organization",
-                "name": "Eltryus",
-                "url": "https://www.eltryus.design/"
-            },
-            {
-                "@type": "WebSite",
-                "@id": "https://cam.eltryus.design/#website",
-                "name": "EasyCAM5000",
-                "alternateName": "Eltryus EasyCAM5000 Suite",
-                "url": "https://cam.eltryus.design/",
-                "inLanguage": "en",
-                "publisher": { "@id": "https://www.eltryus.design/#organization" }
-            },
-            {
-                "@type": "WebApplication",
-                "@id": "https://cam.eltryus.design/easytrace5000/#app",
-                "name": "EasyTrace5000",
-                "url": "https://cam.eltryus.design/easytrace5000/"
-            },
-            {
-                "@type": "CollectionPage",
-                "@id": "https://cam.eltryus.design/easytrace5000/doc/#docs",
-                "name": "EasyTrace5000 Documentation",
-                "url": "https://cam.eltryus.design/easytrace5000/doc/"
-            },
-            {
-                "@type": "WebPage",
-                "@id": "https://cam.eltryus.design/easytrace5000/doc/cnc#webpage",
-                "url": "https://cam.eltryus.design/easytrace5000/doc/cnc",
-                "name": "EasyTrace5000 Doc - PCB CNC Milling Guide",
-                "inLanguage": "en",
-                "isPartOf": { "@id": "https://cam.eltryus.design/#website" },
-                "about": { "@id": "https://cam.eltryus.design/easytrace5000/#app" },
-                "mainEntity": { "@id": "https://cam.eltryus.design/easytrace5000/doc/cnc#article" },
-                "breadcrumb": { "@id": "https://cam.eltryus.design/easytrace5000/doc/cnc#breadcrumb" },
-                "primaryImageOfPage": "https://cam.eltryus.design/images/social-trace.jpg"
-            },
-            {
-                "@type": "TechArticle",
-                "@id": "https://cam.eltryus.design/easytrace5000/doc/cnc#article",
-                "headline": "EasyTrace5000 CNC Milling Guide",
-                "description": "Learn how to generate G-code for multi-pass isolation routing, peck and helical milling, copper clearing, and board cutouts.",
-                "image": "https://cam.eltryus.design/images/social-trace.jpg",
-                "url": "https://cam.eltryus.design/easytrace5000/doc/cnc",
-                "inLanguage": "en",
-                "mainEntityOfPage": { "@id": "https://cam.eltryus.design/easytrace5000/doc/cnc#webpage" },
-                "isPartOf": { "@id": "https://cam.eltryus.design/easytrace5000/doc/#docs" },
-                "about": { "@id": "https://cam.eltryus.design/easytrace5000/#app" },
-                "author": { "@id": "https://www.eltryus.design/#organization" },
-                "publisher": { "@id": "https://www.eltryus.design/#organization" },
-                "datePublished": "2025-01-16",
-                "dateModified": "2026-08-24"
-            },
-            {
-                "@type": "BreadcrumbList",
-                "@id": "https://cam.eltryus.design/easytrace5000/doc/cnc#breadcrumb",
-                "itemListElement": [
-                    { "@type": "ListItem", "position": 1, "name": "EasyCAM5000", "item": "https://cam.eltryus.design/" },
-                    { "@type": "ListItem", "position": 2, "name": "EasyTrace5000", "item": "https://cam.eltryus.design/easytrace5000/" },
-                    { "@type": "ListItem", "position": 3, "name": "Docs", "item": "https://cam.eltryus.design/easytrace5000/doc/" },
-                    { "@type": "ListItem", "position": 4, "name": "CNC Guide", "item": "https://cam.eltryus.design/easytrace5000/doc/cnc" }
-                ]
-            }
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": "https://www.eltryus.design/#organization",
+        "name": "Eltryus",
+        "url": "https://www.eltryus.design/"
+      },
+      {
+        "@type": "WebSite",
+        "@id": "https://cam.eltryus.design/#website",
+        "name": "EasyCAM5000",
+        "alternateName": "Eltryus EasyCAM5000 Suite",
+        "url": "https://cam.eltryus.design/",
+        "inLanguage": "en",
+        "publisher": { "@id": "https://www.eltryus.design/#organization" }
+      },
+      {
+        "@type": "WebApplication",
+        "@id": "https://cam.eltryus.design/easytrace5000/#app",
+        "name": "EasyTrace5000",
+        "url": "https://cam.eltryus.design/easytrace5000/"
+      },
+      {
+        "@type": "CollectionPage",
+        "@id": "https://cam.eltryus.design/easytrace5000/doc/#docs",
+        "name": "EasyTrace5000 Documentation",
+        "url": "https://cam.eltryus.design/easytrace5000/doc/"
+      },
+      {
+        "@type": "WebPage",
+        "@id": "https://cam.eltryus.design/easytrace5000/doc/cnc#webpage",
+        "url": "https://cam.eltryus.design/easytrace5000/doc/cnc",
+        "name": "EasyTrace5000 Doc - PCB CNC Milling Guide",
+        "inLanguage": "en",
+        "isPartOf": { "@id": "https://cam.eltryus.design/#website" },
+        "about": { "@id": "https://cam.eltryus.design/easytrace5000/#app" },
+        "mainEntity": { "@id": "https://cam.eltryus.design/easytrace5000/doc/cnc#article" },
+        "breadcrumb": { "@id": "https://cam.eltryus.design/easytrace5000/doc/cnc#breadcrumb" },
+        "primaryImageOfPage": "https://cam.eltryus.design/images/social-trace.jpg"
+      },
+      {
+        "@type": "TechArticle",
+        "@id": "https://cam.eltryus.design/easytrace5000/doc/cnc#article",
+        "headline": "EasyTrace5000 CNC Milling Guide",
+        "description": "Learn how to generate G-code for multi-pass isolation routing, peck and helical milling, copper clearing, and board cutouts.",
+        "image": "https://cam.eltryus.design/images/social-trace.jpg",
+        "url": "https://cam.eltryus.design/easytrace5000/doc/cnc",
+        "inLanguage": "en",
+        "mainEntityOfPage": { "@id": "https://cam.eltryus.design/easytrace5000/doc/cnc#webpage" },
+        "isPartOf": { "@id": "https://cam.eltryus.design/easytrace5000/doc/#docs" },
+        "about": { "@id": "https://cam.eltryus.design/easytrace5000/#app" },
+        "author": { "@id": "https://www.eltryus.design/#organization" },
+        "publisher": { "@id": "https://www.eltryus.design/#organization" },
+        "datePublished": "2025-01-16",
+        "dateModified": "2026-11-10"
+      },
+      {
+        "@type": "BreadcrumbList",
+        "@id": "https://cam.eltryus.design/easytrace5000/doc/cnc#breadcrumb",
+        "itemListElement": [
+          { "@type": "ListItem", "position": 1, "name": "EasyCAM5000", "item": "https://cam.eltryus.design/" },
+          { "@type": "ListItem", "position": 2, "name": "EasyTrace5000", "item": "https://cam.eltryus.design/easytrace5000/" },
+          { "@type": "ListItem", "position": 3, "name": "Docs", "item": "https://cam.eltryus.design/easytrace5000/doc/" },
+          { "@type": "ListItem", "position": 4, "name": "CNC Guide", "item": "https://cam.eltryus.design/easytrace5000/doc/cnc" }
         ]
-    }
-    </script>
+      }
+    ]
+  }
+  </script>
 </head>
 <body>
-    <a href="#doc-content" class="skip-link">Skip to Main Content</a>
-
-    <header class="doc-header">
-        <div class="doc-brand"><a href="/" aria-label="EasyCAM5000 Homepage">EasyCAM5000</a></div>
-
-        <nav class="doc-breadcrumb" aria-label="Breadcrumb">
-            <ol>
-                <li><a href="/easytrace5000/" draggable="false">EasyTrace5000</a></li>
-                <li><a href="./" draggable="false">Docs</a></li>
-                <li><span aria-current="page">CNC Guide</span></li>
-            </ol>
-        </nav>
-
-        <button class="doc-menu-toggle" aria-label="Toggle Navigation Menu" aria-expanded="false">
-            <svg class="icon-menu cam-icon" width="24" height="24" aria-hidden="true"><use href="#icon-menu"></use></svg>
-            <svg class="icon-close cam-icon" width="24" height="24" aria-hidden="true"><use href="#icon-close"></use></svg>
-        </button>
-
-        <nav class="doc-nav" aria-label="Main Navigation">
-            <a href="cnc" class="active" aria-current="page" draggable="false">CNC Guide</a>
-            <a href="laser" draggable="false">Laser Guide</a>
-            <a href="operations" draggable="false">Operations</a>
-            <a href="parameters" draggable="false">Parameters</a>
-            <a href="accessibility" draggable="false">Accessibility</a>
-            <span class="separator" aria-hidden="true"></span>
-            <a href="/easytrace5000/" draggable="false">Launch App</a>
-            <a href="https://github.com/RicardoJCMarques/EasyCAM5000" target="_blank" draggable="false" aria-label="GitHub Repository (opens in a new tab)">GitHub</a>
-
-            <button id="theme-toggle" class="btn btn--icon" title="Toggle Theme" aria-label="Toggle Theme">
-                <svg class="cam-icon" width="16" height="16"><use href="#icon-sun"></use></svg>
-            </button>
-        </nav>
-    </header>
-
-    <div class="doc-wrapper has-sidebar">
-        <nav class="doc-sidebar" id="toc" aria-label="Table of contents">
-            <p class="doc-sidebar-title">Contents</p>
-            <ol>
-                <li><a href="#safety" draggable="false">Safety &amp; Material</a></li>
-                <li><a href="#interface" draggable="false">Interface Overview</a></li>
-                <li><a href="#how-a-job-works" draggable="false">Stages</a></li>
-                <li>
-                    <a href="#workflow" draggable="false">The Workflow</a>
-                    <ol>
-                        <li><a href="#workflow-load" draggable="false">1. Loading Files</a></li>
-                        <li><a href="#workflow-coords" draggable="false">2. Placing the Board</a></li>
-                        <li><a href="#workflow-machine" draggable="false">3. Machine Settings</a></li>
-                        <li><a href="#workflow-offsets" draggable="false">4. Offsets</a></li>
-                        <li><a href="#workflow-preview" draggable="false">5. Preview</a></li>
-                        <li><a href="#workflow-toolpaths" draggable="false">6. Toolpaths</a></li>
-                        <li><a href="#workflow-export" draggable="false">7. Export</a></li>
-                    </ol>
-                </li>
-                <li>
-                    <a href="#operations" draggable="false">Operation Settings</a>
-                    <ol>
-                        <li><a href="#op-isolation" draggable="false">Copper Isolation</a></li>
-                        <li><a href="#op-drill" draggable="false">Drill</a></li>
-                        <li><a href="#op-clearing" draggable="false">Copper Clearing</a></li>
-                        <li><a href="#op-cutout" draggable="false">Board Cutout</a></li>
-                        <li><a href="#op-stencil" draggable="false">Stencil</a></li>
-                    </ol>
-                </li>
-                <li><a href="#machine-reference" draggable="false">Machine Settings Reference</a></li>
-                <li><a href="#posts" draggable="false">Post-Processors</a></li>
-                <li><a href="#visualization" draggable="false">Visualization Options</a></li>
-                <li><a href="#tips" draggable="false">Tips &amp; Troubleshooting</a></li>
-            </ol>
-        </nav>
-
-        <main id="doc-content" class="doc-main">
-
-            <div class="callout callout--warning">
-                <p>Development goes fast, documentation may be outdated. Proceed with some caution.</p>
-            </div>
-
-            <section class="hero">
-                <h1>EasyTrace5000 CNC Milling Guide</h1>
-                <p class="tagline">Gerber and Excellon to G-code, start to finish</p>
-            </section>
-
-            <section id="safety">
-                <h2>Safety &amp; Material</h2>
-                <div class="callout callout--warning">
-                    <h3>Read this before machining your first board</h3>
-                    <p><strong>Avoid FR4 for home milling.</strong> Standard FR4 stock is epoxy reinforced with fibreglass. Milling it produces fine glass dust that is hazardous to breathe and abrasive enough to eat both your tooling and your machine's linear motion.</p>
-                    <p><strong>FR1 (phenolic paper) is strongly recommended.</strong> No fibreglass, safer to machine, and it extends tool life significantly.</p>
-                    <p><strong>Always extract.</strong> A vacuum or an enclosure, every time. Even FR1 dust should not be inhaled. Sensible feeds and speeds also help - they produce chips rather than powder.</p>
-                </div>
-            </section>
-
-            <section id="interface">
-                <h2>Interface Overview</h2>
-                <p>A central canvas with a sidebar either side. The left holds your files, the right holds board placement, machine settings and the parameters for whatever you have selected. The footer carries status, the log and the display options.</p>
-
-                <figure>
-                    <div class="doc-figure" data-figure="fig-trace-interface.svg"></div>
-                    <figcaption>(1) Toolbar, (2) Operations Tree, (3) Canvas, (4) Properties Panel, (5) Status Bar</figcaption>
-                </figure>
-
-                <h3>Top Toolbar</h3>
-                <p>On the left, the Actions menu covers file loading, toolpath management and SVG export. On the right, zoom controls, the 2D/3D toggle (<kbd>F2</kbd>) and the theme switch.</p>
-
-                <h3>Left Sidebar: Operations Tree</h3>
-                <p>Five operation categories, each holding the source files you assign to it:</p>
-                <dl>
-                    <dt>Copper Isolation</dt><dd>Copper layer Gerbers, for separating traces and pads.</dd>
-                    <dt>Drill</dt><dd>Excellon files, or SVGs whose circles and obrounds you want treated as holes.</dd>
-                    <dt>Copper Clearing</dt><dd>Gerbers for pour or keep-out removal.</dd>
-                    <dt>Board Cutout</dt><dd>Outline files for the final board shape.</dd>
-                    <dt>Stencil</dt><dd>Soldermask or paste-layer Gerbers, for paste apertures.</dd>
-                </dl>
-                <p>Click a category header to open a file browser filtered to the types that operation accepts. Click a loaded file to select it; its parameters appear on the right. Everything you generate appears underneath the file, each with its own visibility toggle.</p>
-
-                <figure>
-                    <div class="doc-figure" data-figure="fig-trace-tree.svg"></div>
-                    <figcaption>The operations tree with an expanded isolation file showing what it has generated</figcaption>
-                </figure>
-
-                <h3>Center Canvas</h3>
-                <p>Drag to pan, scroll to zoom, and use the zoom controls in the toolbar to fit the view. The bottom-left readout shows cursor position in millimetres and the current zoom.</p>
-
-                <h3>2D and 3D</h3>
-                <p>The canvas starts in 2D. When you reach the <strong>Toolpaths</strong> stage it switches to the 3D view by itself, because that is where a toolpath is worth looking at.</p>
-                <p>You are not stuck there. The view button on the right of the toolbar - or <kbd>F2</kbd> - flips between 2D and 3D at any time, before or after generating anything.</p>
-
-                <h3>Right Sidebar</h3>
-                <p>Three collapsible sections. <strong>Origin &amp; Rotation</strong> places the machine origin and rotates or mirrors the board. <strong>Machine Settings</strong> holds everything that affects every output file. <strong>Properties</strong> changes with your selection and shows the parameters for the step you are on.</p>
-
-                <h3>Footer</h3>
-                <p>Click the eye icon for the display options - what is drawn, and which layers are visible. Click the status bar to expand the log, which is the first place to look when something did not do what you expected.</p>
-            </section>
-
-            <section id="how-a-job-works">
-                <h2>Stages</h2>
-                <p>Every operation is generated in <strong>stages</strong>. A stage is what the big generate button acts on: you set that stage's parameters, generate, and get a layer you can show, hide and redo on its own. Re-running a stage replaces its own layer and clears the ones after it, never the ones before - so changing your mind about depth never costs you the offsets you already generated.</p>
-
-                <figure>
-                    <div class="doc-figure" data-figure="fig-trace-steps.svg"></div>
-                    <figcaption>A router operation runs four stages. Laser and knife run two - this guide covers the router.</figcaption>
-                </figure>
-
-                <p>Change something an earlier stage depends on - the tool diameter, the board rotation, a machine setting - and everything generated after it is invalidated and cleared. The message names the stage to go back to.</p>
-
-                <div class="callout callout--info">
-                    <h4>The Toolpaths stage is a preview of the program</h4>
-                    <p>What it draws is what gets exported: the same motion, the same order, the same depths. Only the preamble, the postamble and the moves between operations are added later, when the Export Manager puts the job together.</p>
-                </div>
-            </section>
-
-            <section id="workflow">
-                <h2>The Workflow</h2>
-                <p>Seven steps. Steps 4 to 7 are the operation's four stages - the rest is setup you do once.</p>
-
-                <h3 id="workflow-load">1. Loading Files</h3>
-                <p>Four ways in, all equivalent:</p>
-                <ul>
-                    <li><strong>Welcome modal</strong> - load a built-in example, open the file modal, or start empty.</li>
-                    <li><strong>File upload modal</strong> - Actions &rarr; Add Files. Drop zones for isolation, drill, clearing and cutout. Stencils are added from the tree instead.</li>
-                    <li><strong>Drag and drop</strong> anywhere on the window. Files are matched to an operation by extension, so Gerber exported with Protel extensions lands in the right category by itself.</li>
-                    <li><strong>Category headers</strong> in the operations tree, which open a browser filtered to that operation's types.</li>
-                </ul>
-                <p>Each operation holds one file. Loading a second file into the same category creates a second operation of the same type.</p>
-
-                <h3 id="workflow-coords">2. Placing the Board</h3>
-                <p>The origin you set here becomes (0,0) in your G-code. It has to match where you will zero the machine on the physical stock, so pick something you can find again: a board corner, or the board centre.</p>
-                <dl>
-                    <dt>Origin Offset</dt>
-                    <dd>Shifts where (0,0) sits relative to the geometry. By default it is the lower-left corner of everything loaded, and the <em>Center</em> and <em>Bottom-Left</em> buttons jump to those two. (From the canvas, <kbd>C</kbd> and <kbd>B</kbd> preview the same two positions and <kbd>O</kbd> commits one.)</dd>
-                    <dt>Board Rotation</dt>
-                    <dd>Rotates all geometry about its centre, in degrees - useful when your stock is a different orientation to your board.</dd>
-                    <dt>Mirror</dt>
-                    <dd>Flips horizontally or vertically, independently. Used for bottom-copper work. Cut direction is corrected automatically, so a mirrored board still climbs or conventionals the same way.</dd>
-                </dl>
-                <figure>
-                    <div class="doc-figure" data-figure="fig-origin-placement.svg"></div>
-                    <figcaption>The origin is where you will zero the machine. Rotation turns the geometry around it.</figcaption>
-                </figure>
-
-                <div class="callout callout--warning">
-                    <h4>Placement changes invalidate generated work</h4>
-                    <p>Origin, rotation and mirror are baked into toolpaths, so changing any of them afterwards invalidates the operations that used them. Place the board before you generate, and regenerate if you change your mind.</p>
-                </div>
-
-                <h3 id="workflow-machine">3. Machine Settings</h3>
-                <p>Global settings that affect every output file - covered field by field in the <a href="#machine-reference" draggable="false">Machine Settings Reference</a> below. Set the post-processor first, because it decides which of the other options exist.</p>
-
-                <h3 id="workflow-offsets">4. Generating Offsets</h3>
-                <p>Select a source file and set the geometry parameters: tool and passes for isolation and clearing, cut side for cutout, hole handling for drilling, aperture settings for a stencil.</p>
-                <p>Click <em>Generate Offsets</em>. The result appears as an <strong>Offsets</strong> layer - thin centrelines showing where the tool will travel in X and Y. Curved geometry stays curved, so an offset pad exports as a real arc rather than a string of tiny line segments.</p>
-                <p>Nothing about depth exists yet. This stage is purely the shape of the path.</p>
-
-                <h3 id="workflow-preview">5. Generating the Preview</h3>
-                <p>Select the Offsets layer and set the depth parameters: cut depth, multi-depth and depth per pass, entry type, plus tabs on a cutout or drill-cycle settings on a drill.</p>
-                <p>Click <em>Generate Preview</em>. The offset paths are redrawn at the real tool diameter, so you can see the copper that will actually be removed rather than the line the spindle centre follows.</p>
-
-                <figure>
-                    <div class="doc-figure" data-figure="fig-offset-vs-preview.svg"></div>
-                    <figcaption>Offsets (centreline) versus Preview (full tool width)</figcaption>
-                </figure>
-
-                <p>The preview is a visual check - it is the last chance to catch a tool that is too wide for the gaps on your board.</p>
-
-                <figure>
-                    <div class="doc-figure" data-figure="fig-depth-passes.svg"></div>
-                    <figcaption>Cut depth is divided into as many passes as it takes; the last one takes whatever is left</figcaption>
-                </figure>
-
-                <h3 id="workflow-toolpaths">6. Generating Toolpaths</h3>
-                <p>Select the Preview layer and set the machine parameters: feed rate, plunge rate, spindle speed and dwell, the tool number, and whether to optimize.</p>
-                <p>Click <em>Generate Toolpaths</em>. The canvas switches to the 3D view so you can look over the result - depth passes, entry moves, retracts and rapids. The toolbar view button, or <kbd>F2</kbd>, takes you back to 2D.</p>
-
-                <h3 id="workflow-export">7. Exporting G-code</h3>
-                <p>Open the Export Manager from any operation's Output node, or from Actions &rarr; Manage Toolpaths. Only operations that have been through <em>Generate Toolpaths</em> appear.</p>
-                <ol>
-                    <li><strong>Select and order.</strong> Check the operations you want and drag them into the order you want to run them - typically isolation, clearing, drilling, and cutout last so the board stays attached. (The list also reorders from the keyboard: <kbd>Space</kbd> to grab, arrows to move, <kbd>Space</kbd> to drop.)</li>
-                    <li><strong>Set the output options</strong> (below).</li>
-                    <li><strong>Review</strong> the G-code preview, with line count, operation count, estimated time and total travel.</li>
-                    <li><strong>Export</strong> to download. The file extension comes from the post-processor.</li>
-                </ol>
-
-                <h4>Output Options</h4>
-                <dl>
-                    <dt>Export as single file</dt>
-                    <dd>Combines every selected operation into one program. Required if you want tool changes handled across operations.</dd>
-                    <dt>Include operation comments</dt>
-                    <dd>Adds comments identifying each operation in the output.</dd>
-                    <dt>Optimize toolpaths</dt>
-                    <dd>Reorders and simplifies the paths to cut travel time. On by default.</dd>
-                    <dt>Insert tool changes</dt>
-                    <dd>Emits a tool change whenever the tool number changes, with a retract and spindle stop around it. Greyed out on posts that do not support tool changes.</dd>
-                    <dt>Group by tool</dt>
-                    <dd>Reorders operations so each tool is used once. This overrides the order you dragged, so it is never applied unless you ask for it.</dd>
-                    <dt>Split drill files by hole diameter</dt>
-                    <dd>Multi-file mode only. Writes one program per hole size, so each file loads exactly one cutter.</dd>
-                    <dt>Output filename</dt>
-                    <dd>Base name only - the extension follows the post-processor.</dd>
-                </dl>
-
-                <div class="callout callout--warning">
-                    <h4>Tool numbers are yours to manage</h4>
-                    <p>Nothing here can know which slot a cutter is physically in, and it will not pretend to. Assign the numbers, keep them matched to the machine, and check them before you run. An operation with no tool number blocks the export rather than picking one for you.</p>
-                </div>
-            </section>
-
-            <section id="operations">
-                <h2>Operation Settings</h2>
-                <p>What to set for each operation and why. Full ranges and defaults are on the <a href="parameters" draggable="false">Parameter Guide</a>; what each operation is for is on the <a href="operations" draggable="false">Operation Guide</a>.</p>
-
-                <h3 id="op-isolation">Copper Isolation</h3>
-                <p>Cuts a clearance channel around copper so traces and pads end up electrically separated. Passes run outward from the copper edge; each extra pass widens the cleared band.</p>
-
-                <figure>
-                    <div class="doc-figure" data-figure="fig-isolation-passes.svg"></div>
-                    <figcaption>Isolation passes step outward from the copper edge</figcaption>
-                </figure>
-
-                <p><strong>Geometry:</strong> tool and tool diameter - smaller tools (0.1-0.2 mm) allow tighter trace spacing but break easily; number of passes; step-over; combine passes.</p>
-                <p><strong>Depth:</strong> 0.1 to 0.15 mm is typical for 35 µm copper, plus multi-depth and depth per pass for thicker copper.</p>
-                <p><strong>Machine:</strong> feed 100-400 mm/min, plunge 25-50% of feed, spindle 10,000-24,000 RPM.</p>
-                <p>For a V-bit, the width it cuts depends on how deep it goes, so the offsets are calculated from the width it will actually produce at your cut depth rather than the number on the packet.</p>
-
-                <h3 id="op-drill">Drill</h3>
-                <p>Handles holes from Excellon files and from SVG circles and obrounds. Each hole is measured against the tool and given a strategy automatically.</p>
-
-                <figure>
-                    <div class="doc-figure" data-figure="fig-drill-strategy.svg"></div>
-                    <figcaption>Strategy is chosen per hole from its diameter against the tool</figcaption>
-                </figure>
-
-                <h4>Milling holes and slots</h4>
-                <p>Turn on <em>Mill Holes</em> and any hole wider than the tool is cut out rather than drilled: the tool drops inside the hole and walks a circle inset by its own radius, taking as many passes as the step-over needs to clear the middle. It is how you get a 3 mm hole out of a 1 mm bit, and it is slower than drilling - which is why it is a choice rather than the default.</p>
-                <p>Obround slots work the same way, along a line instead of a circle. The tool runs the slot's centreline and stops one radius short of each end, so the finished slot matches the width and length you drew.</p>
-
-                <figure>
-                    <div class="doc-figure" data-figure="fig-mill-holes.svg"></div>
-                    <figcaption>Milling an oversize hole, and milling an obround slot</figcaption>
-                </figure>
-
-                <p><strong>Multi-tool drilling.</strong> Turn on <em>Multi-Tool Drilling</em> to open a table with a row per hole size. Each row gets its own strategy (peck, mill or skip), its own cutter diameter and its own tool number. <em>Auto-match Tool Library</em> fills strategy and cutter for you. <em>Copy Excellon T numbers</em> pulls the numbers out of the file header - those are the file's own indices, not your machine's slots, so check them before you cut. A row left without a tool number falls back to the operation's number.</p>
-                <p>On export, a single-file job puts the tool changes inline. In multi-file mode, <em>Split drill files by hole diameter</em> writes one program per size, which is how you run a multi-tool drill job on a machine without a changer.</p>
-                <p><strong>Key parameters:</strong> mill holes and mill step-over; drill cycle (G81/G82/G83/G73), peck depth, dwell time, retract height; entry type and multi-depth for milled holes.</p>
-
-                <h3 id="op-clearing">Copper Clearing</h3>
-                <p>Removes large copper areas - ground pours, fills - rather than just isolating them. Passes work inward until the area is gone. Islands inside a pour are recognised and left alone.</p>
-                <p>Running out of material to remove is the intended end state here, so a message saying the geometry collapsed at some pass is this operation finishing normally, not failing.</p>
-                <p><strong>Key parameters:</strong> tool diameter and step-over, then the same depth settings as isolation. Larger tools clear much faster and are the right call unless the area has fine detail.</p>
-
-                <h3 id="op-cutout">Board Cutout</h3>
-                <p>Cuts the board free from the stock along its outline, with holding tabs so it does not shift on the last pass.</p>
-
-                <figure>
-                    <div class="doc-figure" data-figure="fig-cutout-tabs.svg"></div>
-                    <figcaption>Tabs interrupt the cut; tab height is measured from the cut floor</figcaption>
-                </figure>
-
-                <p>If your outline has small gaps where segments do not quite meet, you get a prompt offering to close them rather than an open path that would produce a nonsense toolpath. Multiple boards in one file are handled as separate outlines.</p>
-                <p><strong>Key parameters:</strong> cut side - outside gives a board matching the outline, inside makes a window, on-line centres the tool on the line; number of tabs (4-6 for a small board), tab width (the bridge length along the outline) and tab height. 2-3 mm wide and 0.3-0.5 mm tall is a good starting point.</p>
-                <p><strong>Depth:</strong> the full stock thickness, with multi-depth on. Cut the board out last.</p>
-
-                <h3 id="op-stencil">Stencil</h3>
-                <p>Generates solder-paste apertures from your pad geometry, ready to cut. On the CNC route you choose what cuts it.</p>
-                <p><strong>Stencil Output</strong> picks between <em>Router</em>, which mills the apertures out of thin stencil stock and exports G-code, and <em>Knife</em>, which produces a vector file with the cutter offset applied, for a drag knife or vinyl cutter. Choosing one changes the rest of the form, since a milled stencil needs depth and feeds and a cut one does not.</p>
-                <p><strong>Corner radius</strong> exists because a round cutter cannot turn a corner tighter than itself. On a drag knife/vinyl cutter a square aperture corner means the blade can overshoot or distort the opening; rounding it gives the blade something it can track easier.</p>
-
-                <figure>
-                    <div class="doc-figure" data-figure="fig-stencil-corners.svg"></div>
-                    <figcaption>Set a radius smaller than the cutter and the corner stays square - you get a warning rather than a silent surprise</figcaption>
-                </figure>
-                <p><strong>Aperture offset</strong> shrinks or grows every aperture. A small negative value such as -0.05 mm is the usual starting point; it stops paste bridging between close pads.</p>
-                <p><strong>Registration holes</strong> are optional alignment holes outside the board, for pinning the stencil over the PCB. They ignore the aperture offset and the corner radius - they have to match your dowels, not your paste.</p>
-                <p>Lasering a stencil instead? That lives in the <a href="laser#stencil" draggable="false">Laser Guide</a>.</p>
-            </section>
-
-            <section id="machine-reference">
-                <h2>Machine Settings Reference</h2>
-                <p>These apply to every operation in the job.</p>
-                <dl>
-                    <dt>Post-Processor</dt>
-                    <dd>The G-code dialect your controller expects. Set it first: it decides which other settings appear, including tool changes, tool length compensation, rotary routes and any extra fields that post needs.</dd>
-                    <dt>Start / End G-code</dt>
-                    <dd>Free-text blocks emitted at the very start and end of the program. Use them for dust collection, coolant, a homing sequence, anything your machine needs around the job.</dd>
-                    <dt>Units</dt>
-                    <dd>Millimetres or inches. Selecting inches scales the output; it does not change how you enter parameters.</dd>
-                    <dt>PCB Thickness</dt>
-                    <dd>Used for depth checks and for the cutout's full-depth guidance.</dd>
-                    <dt>Safe Z (typical 5-15 mm)</dt>
-                    <dd>Maximum clearance height, used at program start and end. Must clear every clamp, fixture and high point.</dd>
-                    <dt>Travel Z (typical 2-5 mm)</dt>
-                    <dd>Lower retract for moves between nearby cuts. Faster than going to Safe Z every time, but it must still clear the workpiece and any debris.</dd>
-                    <dt>Rapid Feed (typical 1000-3000 mm/min)</dt>
-                    <dd>Speed for positioning moves. Some controllers ignore it and move at maximum; others respect it.</dd>
-                    <dt>Line Numbers</dt>
-                    <dd>Any program can carry <code>N</code> line numbers, with a step you choose. Each post has its own default, but the choice is yours - some controllers and file senders want them, most do not care.</dd>
-                    <dt>Tool Length Compensation</dt>
-                    <dd>Only shown for posts that support it. <em>Table</em> tells the control which offset to use after each swap. <em>Table (implicit)</em> lets the control take the offset from the tool number itself. <em>Probe</em> leaves it alone, because the machine measures the tool during the change. Pick whichever your controller is set up for.</dd>
-                    <dt>Rotary Route</dt>
-                    <dd>Only shown for posts with a rotary axis. Not used by EasyTrace5000 - it is here because the setting is shared with EasyShape5000.</dd>
-                    <dt>Extra post fields</dt>
-                    <dd>Some posts need settings no other post does - the Roland profiles are the largest example. They appear here when that post is selected.</dd>
-                </dl>
-                <div class="callout callout--warning">
-                    <h4>Machine settings invalidate generated work</h4>
-                    <p>Heights, units and thickness go straight into toolpaths, so changing them afterwards invalidates your operations and the export blocks until you regenerate. Changing the post-processor does the same, since a different post may not support what the old one did.</p>
-                </div>
-            </section>
-
-            <section id="posts">
-                <h2>Post-Processors</h2>
-                <p>Ten dialects ship with the suite, shared with EasyShape5000:</p>
-                <p>GRBL &middot; grblHAL &middot; UCCNC &middot; Mach3 &middot; LinuxCNC &middot; Fanuc &middot; WinPC-NC &middot; Makera (Carvera) &middot; Marlin &middot; Roland RML</p>
-                <p>Each sets its own file extension, arc format and tool-change dialect.</p>
-
-                <div class="callout callout--warning">
-                    <h4>Check a new post before you rely on it</h4>
-                    <p>These are in use and working, but "controller X, firmware Y" covers a lot of ground and no one person can test all of it. Read the first program a new post produces, or run it in the air, and then <a href="https://github.com/RicardoJCMarques/EasyCAM5000/discussions" target="_blank" draggable="false">say how it went</a> - what works is as useful to hear as what does not.</p>
-                    <p>The exception is <strong>Fanuc</strong>. It is being developed against one machine and has had no outside feedback at all, so treat it as unfinished rather than untested.</p>
-                </div>
-            </section>
-
-            <section id="visualization">
-                <h2>Visualization Options</h2>
-                <p>Open with the eye icon in the footer. Some of it exists for debugging, but several toggles are useful day to day.</p>
-
-                <h3>Display</h3>
-                <dl>
-                    <dt>Grid</dt><dd>Reference grid, spacing adapts to zoom.</dd>
-                    <dt>Wireframe</dt><dd>Paths only, no fill. The fastest way to see what a file actually contains.</dd>
-                    <dt>Board Bounds</dt><dd>Rectangle around all loaded geometry.</dd>
-                    <dt>Rulers</dt><dd>Millimetre rulers along the canvas edges.</dd>
-                </dl>
-
-                <h3>Layer Visibility</h3>
-                <p>Source geometry splits into regions, traces, pads, drills and cutouts; what you generate splits into offsets, previews and toolpaths. Each is toggled independently, and the setting sticks per operation rather than resetting when you regenerate.</p>
-
-                <h3>Advanced</h3>
-                <p>The rest are diagnostic overlays - fusion mode, preprocessed geometry, debug points and arcs, black-and-white rendering. They exist for working out why a file looks wrong, and they are safe to leave off. <strong>Verbose Debug</strong> is the one worth knowing: it writes detailed logging to the browser console and the status log, and attaching that output to a bug report makes it far more likely to get fixed.</p>
-            </section>
-
-            <section id="tips">
-                <h2>Tips &amp; Troubleshooting</h2>
-
-                <h3>Best Practices</h3>
-                <h4>Start with an example</h4>
-                <p>Load a built-in example and run it all the way through before processing your own board. It is the fastest way to learn what each step should look like.</p>
-
-                <h4>Verify the origin before exporting</h4>
-                <p>Your origin has to match where you will zero the machine on the stock. Check it once more before the final export - it is the single most common cause of a scrapped board.</p>
-
-                <h4>Order operations for the job</h4>
-                <p>Isolation, then clearing, then drilling, then cutout last so the board stays attached while everything else happens. Drilling and cutout often share a tool, which is worth planning for if your post has no tool change.</p>
-
-                <h3>Common Issues</h3>
-                <h4>Canvas is blank or black</h4>
-                <p><strong>Cause:</strong> browser graphics compositing, common on laptops with two GPUs. <strong>Fix:</strong> restart the browser; it renders correctly on reload.</p>
-
-                <h4>Files will not load</h4>
-                <p><strong>Cause:</strong> an extension the operation does not accept, or a file variant that will not parse. <strong>Fix:</strong> check the log in the status bar - errors are reported there with a line number. Re-export from your EDA tool with Protel extensions if drag-and-drop puts files in the wrong category.</p>
-
-                <h4>Geometry appears rotated or mirrored</h4>
-                <p><strong>Cause:</strong> board rotation or mirror left set from earlier. <strong>Fix:</strong> reset both in Origin &amp; Rotation, then regenerate anything you had already generated.</p>
-
-                <h4>Drill holes come out the wrong size</h4>
-                <p><strong>Cause:</strong> the tool is larger than the hole, so it pecks at the centre and the hole opens up to the tool. <strong>Fix:</strong> use a smaller bit, or turn on Mill Holes and let it mill the hole to size.</p>
-
-                <h4>Offset generation takes a long time</h4>
-                <p><strong>Cause:</strong> a lot of geometry. Isolation on a dense board is the usual suspect. <strong>Fix:</strong> fewer passes, a larger step-over, or clear the pour with a Clearing operation instead of widening isolation.</p>
-
-                <h4>An operation is invalidated</h4>
-                <p><strong>Cause:</strong> a machine setting, a board transform, or a parameter an earlier stage depends on was changed. <strong>Fix:</strong> regenerate from the stage named in the message. Only the layers after your change are cleared.</p>
-            </section>
-
-        </main>
-        <!-- Footer -->
-        <footer class="doc-footer" aria-label="Footer">
-            <p>
-                <a href="#doc-content" draggable="false">Back to Top</a> |
-                <a href="https://github.com/RicardoJCMarques/EasyCAM5000" target="_blank" draggable="false">GitHub</a> |
-                <a href="/#support" draggable="false">Support Development</a> |
-                <a href="../../LICENSE" target="_blank" draggable="false">AGPLv3 Licensed</a> |
-                <a href="https://www.eltryus.design/" draggable="false">by ELTRYUS</a>
-            </p>
-        </footer>
-    </div>
-</body>
-
-<!-- Scripts -->
-<script defer src="../../themes/theme-loader.js"></script>
-<script defer src="../../images/figures.js"></script>
-<script>
+  <a href="#doc-content" class="skip-link">Skip to Main Content</a>
+
+  <header class="doc-header">
+    <div class="doc-brand"><a href="/" aria-label="EasyCAM5000 Homepage">EasyCAM5000</a></div>
+
+    <nav class="doc-breadcrumb" aria-label="Breadcrumb">
+      <ol>
+        <li><a href="/easytrace5000/" draggable="false">EasyTrace5000</a></li>
+        <li><a href="./" draggable="false">Docs</a></li>
+        <li><span aria-current="page">CNC Guide</span></li>
+      </ol>
+    </nav>
+
+    <button class="doc-menu-toggle" aria-label="Toggle Navigation Menu" aria-expanded="false">
+      <svg class="icon-menu cam-icon" width="24" height="24" aria-hidden="true"><use href="#icon-menu"></use></svg>
+      <svg class="icon-close cam-icon" width="24" height="24" aria-hidden="true"><use href="#icon-close"></use></svg>
+    </button>
+
+    <nav class="doc-nav" aria-label="Main Navigation">
+      <a href="cnc" class="active" aria-current="page" draggable="false">CNC Guide</a>
+      <a href="laser" draggable="false">Laser Guide</a>
+      <a href="operations" draggable="false">Operations</a>
+      <a href="parameters" draggable="false">Parameters</a>
+      <a href="accessibility" draggable="false">Accessibility</a>
+      <span class="separator" aria-hidden="true"></span>
+      <a href="/easytrace5000/" draggable="false">Launch App</a>
+      <a href="https://github.com/RicardoJCMarques/EasyCAM5000" target="_blank" draggable="false" aria-label="GitHub Repository (opens in a new tab)">GitHub</a>
+
+      <button id="theme-toggle" class="btn btn--icon" title="Toggle Theme" aria-label="Toggle Theme">
+        <svg class="cam-icon" width="16" height="16"><use href="#icon-sun"></use></svg>
+      </button>
+    </nav>
+  </header>
+
+  <div class="doc-wrapper has-sidebar">
+    <nav class="doc-sidebar" id="toc" aria-label="Table of contents">
+      <p class="doc-sidebar-title">Contents</p>
+      <ol>
+        <li><a href="#safety" draggable="false">Safety &amp; Material</a></li>
+        <li><a href="#interface" draggable="false">Interface Overview</a></li>
+        <li><a href="#how-a-job-works" draggable="false">Stages</a></li>
+        <li>
+          <a href="#workflow" draggable="false">The Workflow</a>
+          <ol>
+            <li><a href="#workflow-load" draggable="false">1. Loading Files</a></li>
+            <li><a href="#workflow-coords" draggable="false">2. Placing the Board</a></li>
+            <li><a href="#workflow-machine" draggable="false">3. Machine Settings</a></li>
+            <li><a href="#workflow-offsets" draggable="false">4. Offsets</a></li>
+            <li><a href="#workflow-preview" draggable="false">5. Preview</a></li>
+            <li><a href="#workflow-toolpaths" draggable="false">6. Toolpaths</a></li>
+            <li><a href="#workflow-export" draggable="false">7. Export</a></li>
+          </ol>
+        </li>
+        <li>
+          <a href="#operations" draggable="false">Operation Settings</a>
+          <ol>
+            <li><a href="#op-isolation" draggable="false">Copper Isolation</a></li>
+            <li><a href="#op-drill" draggable="false">Drill</a></li>
+            <li><a href="#op-clearing" draggable="false">Copper Clearing</a></li>
+            <li><a href="#op-cutout" draggable="false">Board Cutout</a></li>
+            <li><a href="#op-stencil" draggable="false">Stencil</a></li>
+          </ol>
+        </li>
+        <li><a href="#machine-reference" draggable="false">Machine Settings Reference</a></li>
+        <li><a href="#posts" draggable="false">Post-Processors</a></li>
+        <li><a href="#visualization" draggable="false">Visualization Options</a></li>
+        <li><a href="#tips" draggable="false">Tips &amp; Troubleshooting</a></li>
+      </ol>
+    </nav>
+
+    <main id="doc-content" class="doc-main">
+      <div class="callout callout--warning">
+        <p>Development goes fast, documentation may be outdated. Proceed with some caution.</p>
+      </div>
+
+      <section class="hero">
+        <h1>EasyTrace5000 CNC Milling Guide</h1>
+        <p class="tagline">Gerber and Excellon to G-code, start to finish</p>
+      </section>
+
+      <section id="safety">
+        <h2>Safety &amp; Material</h2>
+        <div class="callout callout--warning">
+          <h3>Read this before machining your first board</h3>
+          <p><strong>Avoid FR4 for home milling.</strong> Standard FR4 stock is epoxy reinforced with fibreglass. Milling it produces fine glass dust that is hazardous to breathe and abrasive enough to eat both your tooling and your machine's linear motion.</p>
+          <p><strong>FR1 (phenolic paper) is strongly recommended.</strong> No fibreglass, safer to machine, and it extends tool life significantly.</p>
+          <p><strong>Always extract.</strong> A vacuum or an enclosure, every time. Even FR1 dust should not be inhaled. Sensible feeds and speeds also help - they produce chips rather than powder.</p>
+        </div>
+      </section>
+
+      <section id="interface">
+        <h2>Interface Overview</h2>
+        <p>A central canvas with a sidebar either side. The left holds your files, the right holds board placement, machine settings and the parameters for whatever you have selected. The footer carries status, the log and the display options.</p>
+
+        <figure>
+          <div class="doc-figure" data-figure="fig-trace-interface.svg"></div>
+          <figcaption>(1) Toolbar, (2) Operations Tree, (3) Canvas, (4) Properties Panel, (5) Status Bar</figcaption>
+        </figure>
+
+        <h3>Top Toolbar</h3>
+        <p>On the left, the Actions menu: <em>Import Files…</em>, <em>Export Files…</em> (the Export Manager) and <em>Export Canvas SVG</em>. On the right, zoom controls, the 2D/3D toggle (<kbd>F2</kbd>) and the theme switch.</p>
+
+        <h3>Left Sidebar: Operations Tree</h3>
+        <p>Five operation categories, each holding the source files you assign to it:</p>
+        <dl>
+          <dt>Copper Isolation</dt><dd>Copper layer Gerbers, for separating traces and pads.</dd>
+          <dt>Drill</dt><dd>Excellon files, or SVGs whose circles and obrounds you want treated as holes.</dd>
+          <dt>Copper Clearing</dt><dd>Gerbers for pour or keep-out removal.</dd>
+          <dt>Board Cutout</dt><dd>Outline files for the final board shape.</dd>
+          <dt>Stencil</dt><dd>Soldermask or paste-layer Gerbers, for paste apertures.</dd>
+        </dl>
+        <p>Click a category header to open a file browser filtered to the types that operation accepts. Click a loaded file to select it; its parameters appear on the right. Everything you generate appears underneath the file, each with its own visibility toggle.</p>
+
+        <figure>
+          <div class="doc-figure" data-figure="fig-trace-tree.svg"></div>
+          <figcaption>The operations tree with an expanded isolation file showing what it has generated</figcaption>
+        </figure>
+
+        <h3>Center Canvas</h3>
+        <p>Drag to pan, scroll to zoom, and use the zoom controls in the toolbar to fit the view. The bottom-left readout shows cursor position in millimetres and the current zoom.</p>
+
+        <h3>2D and 3D</h3>
+        <p>The canvas starts in 2D. When you reach the <strong>Toolpaths</strong> stage it switches to the 3D view by itself, because that is where a toolpath is worth looking at.</p>
+        <p>You are not stuck there. The view button on the right of the toolbar - or <kbd>F2</kbd> - flips between 2D and 3D at any time, before or after generating anything.</p>
+
+        <h3>Right Sidebar</h3>
+        <p>Three collapsible sections. <strong>Board Placement</strong> places the machine origin and rotates or mirrors the board. <strong>Machine Settings</strong> holds everything that affects every output file. <strong>Operation Settings</strong> changes with your selection and shows the parameters for the step you are on.</p>
+
+        <h3>Footer</h3>
+        <p>Click the eye icon for the Visualization settings - what is drawn, which layers are visible, and the log options. Click the status bar to expand the log, which is the first place to look when something did not do what you expected.</p>
+      </section>
+
+      <section id="how-a-job-works">
+        <h2>Stages</h2>
+        <p>Every operation is generated in <strong>stages</strong>. A stage is what the big generate button acts on: you set that stage's parameters, generate, and get a layer you can show, hide and redo on its own. Re-running a stage replaces its own layer and clears the ones after it, never the ones before - so changing your mind about depth never costs you the offsets you already generated.</p>
+
+        <figure>
+          <div class="doc-figure" data-figure="fig-trace-steps.svg"></div>
+          <figcaption>A router operation runs four stages. Laser and knife run two - this guide covers the router.</figcaption>
+        </figure>
+
+        <p>Change something an earlier stage depends on - the tool diameter, the board placement - and what was generated from it is struck through until you regenerate. The message names the stage to go back to.</p>
+        <p>A machine setting changes no geometry. It makes calculated toolpaths stale instead: the operation leaves the Export Manager until you calculate its toolpaths again.</p>
+
+        <div class="callout callout--info">
+          <h4>The Toolpaths stage is a preview of the program</h4>
+          <p>What it draws is what gets exported: the same motion, the same order, the same depths. Only the preamble, the postamble and the moves between operations are added later, when the Export Manager puts the job together.</p>
+        </div>
+      </section>
+
+      <section id="workflow">
+        <h2>The Workflow</h2>
+        <p>Seven steps. Steps 4 to 7 are the operation's four stages - the rest is setup you do once.</p>
+
+        <h3 id="workflow-load">1. Loading Files</h3>
+        <p>Four ways in, all equivalent:</p>
+        <ul>
+          <li><strong>Welcome modal</strong> - load a built-in example, open the file modal, or start empty.</li>
+          <li><strong>File upload modal</strong> - Actions &rarr; Import Files… (or <kbd>I</kbd>). Drop zones for isolation, drill, clearing and cutout. Stencils are added from the tree instead.</li>
+          <li><strong>Drag and drop</strong> anywhere on the window. Files are matched to an operation by extension, so Gerber exported with Protel extensions lands in the right category by itself.</li>
+          <li><strong>Category headers</strong> in the operations tree, which open a browser filtered to that operation's types.</li>
+        </ul>
+        <p>Each operation holds one file. Loading a second file into the same category creates a second operation of the same type.</p>
+
+        <h3 id="workflow-coords">2. Placing the Board</h3>
+        <p>The origin you set here becomes (0,0) in your G-code. It has to match where you will zero the machine on the physical stock, so pick something you can find again: a board corner, or the board centre.</p>
+        <dl>
+          <dt>Origin Offset</dt>
+          <dd>Shifts where (0,0) sits relative to the geometry. By default it is the lower-left corner of everything loaded, and the <em>Center</em> and <em>Bottom-Left</em> buttons jump to those two. (From the canvas, <kbd>C</kbd> and <kbd>B</kbd> preview the same two positions and <kbd>O</kbd> commits one.)</dd>
+          <dt>Board Rotation</dt>
+          <dd>Rotates all geometry about its centre, in degrees - useful when your stock is a different orientation to your board.</dd>
+          <dt>Mirror</dt>
+          <dd>Flips horizontally or vertically, independently. Used for bottom-copper work. Cut direction is corrected automatically, so a mirrored board still climbs or conventionals the same way.</dd>
+        </dl>
+        <figure>
+          <div class="doc-figure" data-figure="fig-origin-placement.svg"></div>
+          <figcaption>The origin is where you will zero the machine. Rotation turns the geometry around it.</figcaption>
+        </figure>
+
+        <div class="callout callout--warning">
+          <h4>Placement changes invalidate generated work</h4>
+          <p>Origin, rotation and mirror are baked into toolpaths, so changing any of them afterwards invalidates the operations that used them. Place the board before you generate, and regenerate if you change your mind.</p>
+        </div>
+
+        <h3 id="workflow-machine">3. Machine Settings</h3>
+        <p>Global settings that affect every output file - covered field by field in the <a href="#machine-reference" draggable="false">Machine Settings Reference</a> below. Set the post-processor first, because it decides which of the other options exist.</p>
+
+        <h3 id="workflow-offsets">4. Generating Offsets</h3>
+        <p>Select a source file and set the geometry parameters: the tool and its tool number, then passes for isolation and clearing, cut side for cutout, hole handling for drilling, aperture settings for a stencil.</p>
+        <p>Click <em>Generate Offsets</em>. The result appears as an <strong>Offsets</strong> layer - thin centrelines showing where the tool will travel in X and Y. Curved geometry stays curved, so an offset pad exports as a real arc rather than a string of tiny line segments.</p>
+        <p>Nothing about depth exists yet. This stage is purely the shape of the path.</p>
+
+        <h3 id="workflow-preview">5. Generating the Preview</h3>
+        <p>Select the Offsets layer and set the depth parameters: cut depth, multi-depth and depth per pass, entry type, plus tabs on a cutout or drill-cycle settings on a drill.</p>
+        <p>Click <em>Generate Preview</em>. The offset paths are redrawn at the real tool diameter, so you can see the copper that will actually be removed rather than the line the spindle centre follows.</p>
+
+        <figure>
+          <div class="doc-figure" data-figure="fig-offset-vs-preview.svg"></div>
+          <figcaption>Offsets (centreline) versus Preview (full tool width)</figcaption>
+        </figure>
+
+        <p>The preview is a visual check - it is the last chance to catch a tool that is too wide for the gaps on your board.</p>
+
+        <figure>
+          <div class="doc-figure" data-figure="fig-depth-passes.svg"></div>
+          <figcaption>Cut depth is divided into as many passes as it takes; the last one takes whatever is left</figcaption>
+        </figure>
+
+        <h3 id="workflow-toolpaths">6. Generating Toolpaths</h3>
+        <p>Select the Preview layer and set the machine parameters: feed rate, plunge rate, spindle speed and dwell, and whether to optimize.</p>
+        <p>Click <em>Calculate Toolpaths</em>. The canvas switches to the 3D view so you can look over the result - depth passes, entry moves, retracts and rapids. The toolbar view button, or <kbd>F2</kbd>, takes you back to 2D.</p>
+
+        <h3 id="workflow-export">7. Exporting G-code</h3>
+        <p>Open the Export Manager from any operation's Output node, or from Actions &rarr; Export Files…. Only operations whose toolpaths are calculated and current appear.</p>
+        <ol>
+          <li><strong>Select and order.</strong> Check the operations you want and drag them into the order you want to run them - typically isolation, clearing, drilling, and cutout last so the board stays attached. (The list also reorders from the keyboard: <kbd>Space</kbd> to grab, arrows to move, <kbd>Space</kbd> to drop.)</li>
+          <li><strong>Set the output options</strong> (below).</li>
+          <li><strong>Review</strong>: <em>Calculate Toolpaths</em> fills the G-code preview, with line count, operation count, estimated time and total travel.</li>
+          <li><strong>Export Files</strong> to download. The file extension comes from the post-processor.</li>
+        </ol>
+
+        <h4>Output Options</h4>
+        <p>An option that cannot apply to this job is greyed out, and says why.</p>
+        <dl>
+          <dt>Base Name</dt>
+          <dd>The name every file starts with. Left empty, it is the first operation's file name. The extension follows the post-processor.</dd>
+          <dt>Export as single file</dt>
+          <dd>Combines every selected operation into one program. Required if you want tool changes handled across operations. A stencil is always its own file: it is cut from different stock.</dd>
+          <dt>Split drill files by bit</dt>
+          <dd>Multi-file mode only. Writes one program per drill bit, so each file loads exactly one cutter.</dd>
+          <dt>Bundle files into one .zip</dt>
+          <dd>One download instead of one per file.</dd>
+          <dt>Include operation comments</dt>
+          <dd>Adds comments identifying each operation in the output. G-code comments are always written in English.</dd>
+          <dt>Verbose comments</dt>
+          <dd>Adds each operation's tool, feeds, depths and deepest Z to the program header, so an old file still reads without the project.</dd>
+          <dt>Insert tool change commands</dt>
+          <dd>Emits a tool change whenever the tool number changes, with a retract and spindle stop around it. Greyed out on posts that do not support tool changes.</dd>
+          <dt>Group operations by tool</dt>
+          <dd>Single-file mode only. Reorders operations so each tool is used once. This overrides the order you dragged, so it is never applied unless you ask for it.</dd>
+          <dt>Optimize path order</dt>
+          <dd>Reorders the paths of the whole job to cut travel time. On by default.</dd>
+        </dl>
+
+        <div class="callout callout--warning">
+          <h4>Tool numbers are yours to manage</h4>
+          <p>Nothing here can know which slot a cutter is physically in, and it will not pretend to. Assign the numbers, keep them matched to the machine, and check them before you run. An operation that needs a tool number and has none refuses to generate rather than picking one for you.</p>
+        </div>
+      </section>
+
+      <section id="operations">
+        <h2>Operation Settings</h2>
+        <p>What to set for each operation and why. Full ranges and defaults are on the <a href="parameters" draggable="false">Parameter Guide</a>; what each operation is for is on the <a href="operations" draggable="false">Operation Guide</a>.</p>
+
+        <h3 id="op-isolation">Copper Isolation</h3>
+        <p>Cuts a clearance channel around copper so traces and pads end up electrically separated. Passes run outward from the copper edge; each extra pass widens the cleared band.</p>
+
+        <figure>
+          <div class="doc-figure" data-figure="fig-isolation-passes.svg"></div>
+          <figcaption>Isolation passes step outward from the copper edge</figcaption>
+        </figure>
+
+        <p><strong>Geometry:</strong> tool and tool diameter - smaller tools (0.1-0.2 mm) allow tighter trace spacing but break easily; number of passes; step-over; combine passes.</p>
+        <p><strong>Depth:</strong> 0.1 to 0.15 mm is typical for 35 µm copper, plus multi-depth and depth per pass for thicker copper.</p>
+        <p><strong>Machine:</strong> feed 100-400 mm/min, plunge 25-50% of feed, spindle 10,000-24,000 RPM.</p>
+        <p>For a V-bit, the width it cuts depends on how deep it goes, so the offsets are calculated from the width it will actually produce at your cut depth rather than the number on the packet.</p>
+
+        <h3 id="op-drill">Drill</h3>
+        <p>Handles holes from Excellon files and from SVG circles and obrounds. Each hole is measured against the tool and given a strategy automatically.</p>
+
+        <figure>
+          <div class="doc-figure" data-figure="fig-drill-strategy.svg"></div>
+          <figcaption>Strategy is chosen per hole from its diameter against the tool</figcaption>
+        </figure>
+
+        <h4>Milling holes and slots</h4>
+        <p>Turn on <em>Mill Holes</em> and any hole wider than the tool is cut out rather than drilled: the tool drops inside the hole and walks a circle inset by its own radius, taking as many passes as the step-over needs to clear the middle. It is how you get a 3 mm hole out of a 1 mm bit, and it is slower than drilling - which is why it is a choice rather than the default.</p>
+        <p>Obround slots work the same way, along a line instead of a circle. The tool runs the slot's centreline and stops one radius short of each end, so the finished slot matches the width and length you drew.</p>
+
+        <figure>
+          <div class="doc-figure" data-figure="fig-mill-holes.svg"></div>
+          <figcaption>Milling an oversize hole, and milling an obround slot</figcaption>
+        </figure>
+
+        <p><strong>Multi-tool drilling.</strong> Turn on <em>Multi-Tool Drilling</em> to open a table with a row per hole size. Each row gets its own strategy (peck, mill or skip), its own cutter diameter and its own tool number. <em>Auto-match Tool Library</em> fills strategy and cutter for you. <em>Copy Excellon T numbers</em> pulls the numbers out of the file header - those are the file's own indices, not your machine's slots, so check them before you cut. Every row that is not skipped needs its own cutter and tool number: the table refuses to generate until each has both.</p>
+        <p>On export, a single file carries the tool changes inline when <em>Insert tool change commands</em> is on and the post supports them. Otherwise <em>Split drill files by bit</em> writes one program per bit, which is how you run a multi-tool drill job on a machine without a changer.</p>
+        <p><strong>Key parameters:</strong> mill holes and mill step-over; drill cycle (G81/G82/G83/G73), peck depth, dwell time, retract height; entry type and multi-depth for milled holes.</p>
+
+        <h3 id="op-clearing">Copper Clearing</h3>
+        <p>Removes large copper areas - ground pours, fills - rather than just isolating them. Passes work inward until the area is gone. Islands inside a pour are recognised and left alone.</p>
+        <p>Running out of material to remove is the intended end state here, so a message saying the geometry collapsed at some pass is this operation finishing normally, not failing.</p>
+        <p><strong>Key parameters:</strong> tool diameter and step-over, then the same depth settings as isolation. Larger tools clear much faster and are the right call unless the area has fine detail.</p>
+
+        <h3 id="op-cutout">Board Cutout</h3>
+        <p>Cuts the board free from the stock along its outline, with holding tabs so it does not shift on the last pass.</p>
+
+        <figure>
+          <div class="doc-figure" data-figure="fig-cutout-tabs.svg"></div>
+          <figcaption>Tabs interrupt the cut; tab height is measured from the cut floor</figcaption>
+        </figure>
+
+        <p>If your outline has small gaps where segments do not quite meet, you get a prompt offering to close them rather than an open path that would produce a nonsense toolpath. Multiple boards in one file are handled as separate outlines.</p>
+        <p><strong>Key parameters:</strong> cut side - outside gives a board matching the outline, inside makes a window, on-line centres the tool on the line; number of tabs (4-6 for a small board), tab width (the bridge length along the outline) and tab height. 2-3 mm wide and 0.3-0.5 mm tall is a good starting point.</p>
+        <p><strong>Depth:</strong> the full stock thickness, with multi-depth on. Cut the board out last.</p>
+
+        <h3 id="op-stencil">Stencil</h3>
+        <p>Generates solder-paste apertures from your pad geometry, ready to cut. On the CNC route you choose what cuts it.</p>
+        <p><strong>Stencil Output</strong> picks between <em>Router</em>, which mills the apertures out of thin stencil stock and exports G-code, and <em>Knife</em>, which produces a vector file with the cutter offset applied, for a drag knife or vinyl cutter. Choosing one changes the rest of the form, since a milled stencil needs depth and feeds and a cut one does not.</p>
+        <p><strong>Corner radius</strong> exists because a round cutter cannot turn a corner tighter than itself. On a drag knife/vinyl cutter a square aperture corner means the blade can overshoot or distort the opening; rounding it gives the blade something it can track easier.</p>
+
+        <figure>
+          <div class="doc-figure" data-figure="fig-stencil-corners.svg"></div>
+          <figcaption>Set a radius smaller than the cutter and the corner stays square - you get a warning rather than a silent surprise</figcaption>
+        </figure>
+        <p><strong>Aperture offset</strong> shrinks or grows every aperture. A small negative value such as -0.05 mm is the usual starting point; it stops paste bridging between close pads.</p>
+        <p><strong>Registration holes</strong> are optional alignment holes outside the board, for pinning the stencil over the PCB. They ignore the aperture offset and the corner radius - they have to match your dowels, not your paste.</p>
+        <p>Lasering a stencil instead? That lives in the <a href="laser#stencil" draggable="false">Laser Guide</a>.</p>
+      </section>
+
+      <section id="machine-reference">
+        <h2>Machine Settings Reference</h2>
+        <p>These apply to every operation in the job. Every field, its values and its default are listed on the <a href="parameters#machine-settings" draggable="false">Parameter Guide</a>; this is what they are for.</p>
+        <dl>
+          <dt>Post-Processor</dt>
+          <dd>The G-code dialect your controller expects. Set it first: it decides which other settings appear, including tool changes, tool length compensation, rotary routes and any extra fields that post needs.</dd>
+          <dt>Start / End G-code</dt>
+          <dd>Free-text blocks emitted at the very start and end of the program. Use them for dust collection, coolant, a homing sequence, anything your machine needs around the job.</dd>
+          <dt>Units</dt>
+          <dd>Millimetres or inches. Selecting inches scales the output; it does not change how you enter parameters.</dd>
+          <dt>PCB Thickness</dt>
+          <dd>Used for depth checks and for the cutout's full-depth guidance.</dd>
+          <dt>Safe Z (typical 5-15 mm)</dt>
+          <dd>Maximum clearance height, used at program start and end. Must clear every clamp, fixture and high point.</dd>
+          <dt>Travel Z (typical 2-5 mm)</dt>
+          <dd>Lower retract for moves between nearby cuts. Faster than going to Safe Z every time, but it must still clear the workpiece and any debris.</dd>
+          <dt>Rapid Feed (typical 1000-3000 mm/min)</dt>
+          <dd>Speed for positioning moves. Some controllers ignore it and move at maximum; others respect it.</dd>
+          <dt>Coolant and Vacuum</dt>
+          <dd>Only shown for posts that support them. Switched on at the start of the program and off at its end, in the post's own codes. A start or end block that already switches them is left alone.</dd>
+          <dt>Line Numbers</dt>
+          <dd>Any program can carry <code>N</code> line numbers, with a step you choose. Each post has its own default, but the choice is yours - some controllers and file senders want them, most do not care.</dd>
+          <dt>Tool Length Compensation</dt>
+          <dd>Only shown for posts that support it. <em>Table</em> tells the control which offset to use after each swap. <em>Table (implicit)</em> lets the control take the offset from the tool number itself. <em>Probe</em> leaves it alone, because the machine measures the tool during the change. Pick whichever your controller is set up for.</dd>
+          <dt>4th Axis</dt>
+          <dd>The rotary settings are shared with EasyShape5000. EasyTrace5000 has no rotary operations and ignores them.</dd>
+          <dt>Extra post fields</dt>
+          <dd>Some posts need settings no other post does - the Roland profiles are the largest example. They appear here when that post is selected.</dd>
+        </dl>
+        <div class="callout callout--warning">
+          <h4>Machine settings make toolpaths stale</h4>
+          <p>Heights, units, thickness and the post-processor go straight into toolpaths, so changing any of them afterwards takes the operations out of the Export Manager until you calculate their toolpaths again. Generated offsets and previews are kept.</p>
+        </div>
+      </section>
+
+      <section id="posts">
+        <h2>Post-Processors</h2>
+        <p>Ten dialects ship with the suite, shared with EasyShape5000:</p>
+        <p>GRBL &middot; grblHAL &middot; UCCNC &middot; Mach3 &middot; LinuxCNC &middot; Fanuc &middot; WinPC-NC &middot; Makera (Carvera) &middot; Marlin &middot; Roland RML</p>
+        <p>Each sets its own file extension, arc format and tool-change dialect.</p>
+
+        <div class="callout callout--warning">
+          <h4>Check a new post before you rely on it</h4>
+          <p>These are in use and working, but "controller X, firmware Y" covers a lot of ground and no one person can test all of it. Read the first program a new post produces, or run it in the air, and then <a href="https://github.com/RicardoJCMarques/EasyCAM5000/discussions" target="_blank" draggable="false">say how it went</a> - what works is as useful to hear as what does not.</p>
+          <p>The exceptions are <strong>Fanuc</strong> and <strong>WinPC-NC</strong>, marked <em>Radioactive</em> in the post picker: little to no testing so far, so treat them as unfinished. The picker labels every post that is still being verified, and says how far along it is.</p>
+        </div>
+      </section>
+
+      <section id="visualization">
+        <h2>Visualization Options</h2>
+        <p>Open with the eye icon in the footer. Some of it exists for debugging, but several toggles are useful day to day.</p>
+
+        <h3>Display</h3>
+        <dl>
+          <dt>Grid</dt><dd>Reference grid, spacing adapts to zoom.</dd>
+          <dt>Wireframe</dt><dd>Paths only, no fill. The fastest way to see what a file actually contains.</dd>
+          <dt>Board Bounds</dt><dd>Rectangle around all loaded geometry.</dd>
+          <dt>Rulers</dt><dd>Millimetre rulers along the canvas edges.</dd>
+        </dl>
+
+        <h3>Layer Visibility</h3>
+        <p>Source geometry splits into regions, traces, pads, drills and cutouts; what you generate into offsets and previews. Each is toggled independently. The eye beside each node in the operations tree hides that one layer, and sticks per operation rather than resetting when you regenerate.</p>
+
+        <h3>Advanced</h3>
+        <p>The rest are diagnostic overlays - fusion mode, preprocessed geometry, arc reconstruction, debug points and arcs, black-and-white rendering. They exist for working out why a file looks wrong, and they are safe to leave off.</p>
+
+        <h3>Log</h3>
+        <p><strong>Verbose Debug</strong> (or <kbd data-i18n="keys.ctrl">Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>D</kbd>) writes detailed logging to the browser console and the status log. Attaching that output to a bug report makes it far more likely to get fixed.</p>
+      </section>
+
+      <section id="tips">
+        <h2>Tips &amp; Troubleshooting</h2>
+
+        <h3>Best Practices</h3>
+        <h4>Start with an example</h4>
+        <p>Load a built-in example and run it all the way through before processing your own board. It is the fastest way to learn what each step should look like.</p>
+
+        <h4>Verify the origin before exporting</h4>
+        <p>Your origin has to match where you will zero the machine on the stock. Check it once more before the final export - it is the single most common cause of a scrapped board.</p>
+
+        <h4>Order operations for the job</h4>
+        <p>Isolation, then clearing, then drilling, then cutout last so the board stays attached while everything else happens. Drilling and cutout often share a tool, which is worth planning for if your post has no tool change.</p>
+
+        <h3>Common Issues</h3>
+        <h4>Canvas is blank or black</h4>
+        <p><strong>Cause:</strong> browser graphics compositing, common on laptops with two GPUs. <strong>Fix:</strong> restart the browser; it renders correctly on reload.</p>
+
+        <h4>Files will not load</h4>
+        <p><strong>Cause:</strong> an extension the operation does not accept, or a file variant that will not parse. <strong>Fix:</strong> check the log in the status bar - errors are reported there with a line number. Re-export from your EDA tool with Protel extensions if drag-and-drop puts files in the wrong category.</p>
+
+        <h4>Geometry appears rotated or mirrored</h4>
+        <p><strong>Cause:</strong> board rotation or mirror left set from earlier. <strong>Fix:</strong> reset both in Board Placement, then regenerate anything you had already generated.</p>
+
+        <h4>Drill holes come out the wrong size</h4>
+        <p><strong>Cause:</strong> the tool is larger than the hole, so it pecks at the centre and the hole opens up to the tool. <strong>Fix:</strong> use a smaller bit, or turn on Mill Holes and let it mill the hole to size.</p>
+
+        <h4>Offset generation takes a long time</h4>
+        <p><strong>Cause:</strong> a lot of geometry. Isolation on a dense board is the usual suspect. <strong>Fix:</strong> fewer passes, a larger step-over, or clear the pour with a Clearing operation instead of widening isolation.</p>
+
+        <h4>An operation is invalidated</h4>
+        <p><strong>Cause:</strong> a board transform, or a parameter an earlier stage depends on, was changed. <strong>Fix:</strong> regenerate from the stage named in the message. Only the layers after your change are cleared.</p>
+
+        <h4>An operation is missing from the Export Manager</h4>
+        <p><strong>Cause:</strong> its toolpaths are not calculated, or a machine setting changed after they were. <strong>Fix:</strong> select its Preview node and run <em>Calculate Toolpaths</em> again.</p>
+      </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="doc-footer" aria-label="Footer">
+      <p>
+        <a href="#doc-content" draggable="false">Back to Top</a> |
+        <a href="https://github.com/RicardoJCMarques/EasyCAM5000" target="_blank" draggable="false">GitHub</a> |
+        <a href="/#support" draggable="false">Support Development</a> |
+        <a href="../../LICENSE" target="_blank" draggable="false">AGPLv3 Licensed</a> |
+        <a href="https://www.eltryus.design/" draggable="false">by ELTRYUS</a>
+      </p>
+    </footer>
+  </div>
+
+  <!-- Scripts -->
+  <script defer src="../../themes/theme-loader.js"></script>
+  <script defer src="../../images/figures.js"></script>
+  <script>
     document.addEventListener('DOMContentLoaded', () => {
-        // Load the SVG Sprite
-        fetch('../../images/icons/sprite.svg')
-            .then(response => {
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                return response.text();
-            })
-            .then(svgText => {
-                const div = document.createElement('div');
-                div.innerHTML = svgText;
-                const svg = div.querySelector('svg');
-                if (svg) {
-                    svg.setAttribute('aria-hidden', 'true');
-                    svg.style.cssText = 'position: absolute; width: 0; height: 0; visibility: hidden;';
-                    document.body.insertBefore(svg, document.body.firstChild);
-                }
-            })
-            .catch(err => console.warn('Failed to load icon sprite:', err));
-
-        // Theme toggle
-        const themeBtn = document.getElementById('theme-toggle');
-        if (themeBtn && window.ThemeLoader) {
-            const useEl = themeBtn.querySelector('use');
-            const initialTheme = document.documentElement.getAttribute('data-theme') || 'dark';
-
-            if (useEl) useEl.setAttribute('href', initialTheme === 'dark' ? '#icon-sun' : '#icon-moon');
-
-            themeBtn.addEventListener('click', async () => {
-                const theme = await window.ThemeLoader.toggleTheme();
-                if (useEl) useEl.setAttribute('href', theme === 'dark' ? '#icon-sun' : '#icon-moon');
-            });
-        }
-
-        // Mobile menu toggle
-        const menuBtn = document.querySelector('.doc-menu-toggle');
-        const nav = document.querySelector('.doc-nav');
-        if (menuBtn && nav) {
-            const useEl = menuBtn.querySelector('use');
-            menuBtn.addEventListener('click', () => {
-                const isExpanded = menuBtn.getAttribute('aria-expanded') === 'true';
-                menuBtn.setAttribute('aria-expanded', !isExpanded);
-                nav.classList.toggle('is-open');
-
-                if (useEl) useEl.setAttribute('href', !isExpanded ? '#icon-close' : '#icon-menu');
-            });
-        }
+      // Load the SVG Sprite
+      fetch('../../images/icons/sprite.svg')
+        .then(response => {
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          return response.text();
+        })
+        .then(svgText => {
+          const div = document.createElement('div');
+          div.innerHTML = svgText;
+          const svg = div.querySelector('svg');
+          if (svg) {
+            svg.setAttribute('aria-hidden', 'true');
+            svg.style.cssText = 'position: absolute; width: 0; height: 0; visibility: hidden;';
+            document.body.insertBefore(svg, document.body.firstChild);
+          }
+        })
+        .catch(err => console.warn('Failed to load icon sprite:', err));
+      // Theme toggle. Every theme but the default is a file, slow to
+      // arrive off localhost: the button waits for it, and the icon
+      // follows each change, including a saved theme that lands after
+      // this runs.
+      const themeBtn = document.getElementById('theme-toggle');
+      if (themeBtn && window.ThemeLoader) {
+        const useEl = themeBtn.querySelector('use');
+        const syncIcon = () => useEl?.setAttribute('href', document.documentElement.getAttribute('data-theme-base') === 'light' ? '#icon-moon' : '#icon-sun');
+        window.addEventListener('themechange', syncIcon);
+        syncIcon();
+        themeBtn.addEventListener('click', async () => {
+          themeBtn.disabled = true;
+          try {
+            await window.ThemeLoader.toggleTheme();
+          } catch (error) {
+            console.error('Theme toggle failed:', error);
+          } finally {
+            themeBtn.disabled = false;
+          }
+        });
+      }
+      // Mobile menu toggle
+      const menuBtn = document.querySelector('.doc-menu-toggle');
+      const nav = document.querySelector('.doc-nav');
+      if (menuBtn && nav) {
+        const useEl = menuBtn.querySelector('use');
+        menuBtn.addEventListener('click', () => {
+          const isExpanded = menuBtn.getAttribute('aria-expanded') === 'true';
+          menuBtn.setAttribute('aria-expanded', !isExpanded);
+          nav.classList.toggle('is-open');
+          if (useEl) useEl.setAttribute('href', !isExpanded ? '#icon-close' : '#icon-menu');
+        });
+      }
     });
-</script>
+  </script>
+</body>
 </html>

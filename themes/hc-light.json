@@ -1,0 +1,154 @@
+{
+  "_readme": [
+    "High-contrast light theme. Kept COMPLETE: it declares every key dark.json",
+    "declares, as the other shipped themes do.",
+    "",
+    "Every text colour reaches 7:1 against every background tier (hover and",
+    "active included); disabled text reaches 4.5:1. Borders, the focus ring,",
+    "canvas strokes and the 3D cut colours reach at least 3:1 against the",
+    "surface they sit on, most of them 7:1.",
+    "",
+    "interaction.kofi is both heading text and a fill under black text, so it",
+    "sits at the one luminance where both reach 4.5:1 on white."
+  ],
+  "meta": {"kind": "theme"},
+  "id": "hc-light",
+  "base": "light",
+  "description": "High-contrast light theme: white surfaces, black text, dark accents.",
+  "author": "Eltryus - Ricardo Marques",
+  "license": "AGPL-3.0-or-later",
+  "homepage": "https://github.com/RicardoJCMarques/EasyCAM5000",
+  "tokens": {},
+  "colors": {
+    "background": {
+      "primary": "#ffffff",
+      "secondary": "#ffffff",
+      "tertiary": "#f2f2f2",
+      "hover": "#e6e6e6",
+      "active": "#d6d6d6"
+    },
+    "text": {
+      "primary": "#000000",
+      "secondary": "#333333",
+      "disabled": "#5c5c5c",
+      "hint": "#404040",
+      "onEmphasis": "#ffffff"
+    },
+    "border": {
+      "primary": "#6b6b6b",
+      "secondary": "#000000",
+      "focus": "#b8006b"
+    },
+    "accent": {
+      "primary": "#0033cc",
+      "hover": "#0029a3",
+      "active": "#001f7a"
+    },
+    "semantic": {
+      "success": "#005c1c",
+      "warning": "#6b4700",
+      "error": "#a30000",
+      "info": "#00528a",
+      "scrim": "rgba(0, 0, 0, 0.6)",
+      "scrimStrong": "rgba(0, 0, 0, 0.8)"
+    },
+    "operations": {
+      "isolation": "#8a3600",
+      "drill": "#0050a0",
+      "clearing": "#005c2e",
+      "cutout": "#8f008f",
+      "stencil": "#8c0052",
+      "toolpath": "#006666",
+      "profile": "#005c40",
+      "pocket": "#2e3fa3",
+      "engrave": "#6e1fa3",
+      "vcarve": "#a30000",
+      "relief": "#6b4100",
+      "rotary": "#00577a",
+      "pattern": "#455200"
+    },
+    "render2d": {
+      "background": "#ffffff",
+      "grid": "#8c8c8c",
+      "origin": "#000000",
+      "originOutline": "#ffffff",
+      "bounds": "#000000",
+      "ruler": "#000000",
+      "rulerText": "#000000"
+    },
+    "render3d": {
+      "background": "#ffffff",
+      "sky": "#ffffff",
+      "ground": "#8c8c8c",
+      "grid": "#b3b3b3",
+      "gridCenter": "#4d4d4d",
+      "rapid": "#595959",
+      "cutShallow": "#0050d0",
+      "cutDeep": "#b30000",
+      "stock": "#9c8a5c",
+      "surface": "#8c8273",
+      "tool": "#262626",
+      "axisX": "#a30000",
+      "axisY": "#005c1c",
+      "axisZ": "#0033cc",
+      "workholding": "#595959"
+    },
+    "geometry": {
+        "source": {
+          "isolation": "#8a3600",
+          "drill": "#0050a0",
+          "clearing": "#005c2e",
+          "cutout": "#595959",
+          "unassigned": "#00616b",
+          "stencil": "#8c0052"
+        },
+        "offset": {
+          "external": "#a30000",
+          "internal": "#005c1c",
+          "on": "#6b5c00"
+        },
+      "preview": "#0047b3",
+      "toolpath": "#006666",
+      "selection": "#0040ff",
+      "laser": {
+        "filled": "#0047b3"
+      }
+    },
+    "primitives": {
+      "offsetInternal": "#005c1c",
+      "offsetExternal": "#a30000",
+      "peckMarkGood": "#005c1c",
+      "peckMarkWarn": "#6b4700",
+      "peckMarkError": "#a30000",
+      "peckMarkSlow": "#8a3600",
+      "reconstructed": "#006666",
+      "reconstructedPath": "#6b5c00"
+    },
+    "debug": {
+      "points": "#8f008f",
+      "arcs": "#006666",
+      "wireframe": "#005c1c",
+      "bounds": "#a30000",
+      "preprocessedStroke": "#006666",
+      "preprocessedFill": "#d9f2f2"
+    },
+    "bw": {
+      "black": "#000000",
+      "white": "#ffffff"
+    },
+    "pipelines": {
+      "cnc": "#8a3600",
+      "laser": "#6e1fa3",
+      "3d": "#00577a"
+    },
+    "interaction": {
+      "sponsorship": "#3d1fcc",
+      "kofi": "#0f856b",
+      "selectionStroke": "#00668f",
+      "selectionFill": "#d6f0f5",
+      "marqueeStroke": "#0033cc",
+      "marqueeFill": "#dde6ff",
+      "groupBounds": "#00668f"
+    }
+  }
+}

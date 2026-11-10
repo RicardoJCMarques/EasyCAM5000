@@ -1,13 +1,15 @@
 {
   "_readme": [
-    "REFERENCE THEME. dark.json defines the complete token surface; every other",
-    "theme is applied as a deep merge OVER this file, so a partial theme is legal",
-    "and a key it omits can never inherit a stale value from whatever was applied",
-    "before it. Keys added here must be added here FIRST - the loader validates",
-    "other themes against this one.",
+    "REFERENCE THEME. dark.json declares the complete key set and is the",
+    "default: css/theme.css is generated from it by .github/scripts/sync-theme.js,",
+    "so a page on the default fetches no theme file. theme.css's :root block",
+    "must never be hand-edited.",
     "",
-    "css/theme.css is generated from this file by .github/scripts/sync-theme.js.",
-    "It is the pre-fetch fallback and must never be hand-edited in its :root block.",
+    "Themes are never partial: every other theme declares every key this file",
+    "declares, because the loader writes a theme over theme.css and a missing",
+    "key would show this file's value. sync-theme.js refuses a shipped theme",
+    "that is incomplete; a key added here is added to every theme in the same",
+    "change.",
     "",
     "colors.<group>.<key> -> --color-<prefix>-<kebab-key>. Group prefixes are fixed",
     "in the loader's mapping table; do not rename a group without updating both the",
@@ -16,17 +18,18 @@
     "tokens.<name> -> --<name>, emitted verbatim with NO prefix. Structure and",
     "sizing live in css/base.css; this block exists so an accessibility or custom",
     "theme can override a specific structural token (shadows, radii, focus ring)",
-    "without a second mechanism. The reference theme leaves it empty on purpose -",
-    "populating it here would duplicate base.css and drift.",
+    "without a second mechanism, and only a token base.css declares. The reference",
+    "theme leaves it empty on purpose - populating it here would duplicate",
+    "base.css and drift.",
     "",
     "Colours are opaque by policy: the palette is composited, and overlapping",
-    "transparency is unmanageable. The loader trims 8-digit hex to 6 and warns.",
-    "semantic.scrim/scrimStrong are the sanctioned exception - a modal backdrop",
-    "must be see-through - which is why rgb()/hsl() functional forms are accepted."
+    "transparency is unmanageable. Values are 6-digit hex; the loader reports",
+    "anything else and sync-theme.js refuses it. semantic.scrim/scrimStrong are",
+    "the sanctioned exception - a modal backdrop must be see-through - and use",
+    "rgb()/hsl() functional forms."
   ],
-
+  "meta": {"kind": "theme"},
   "id": "dark",
-  "label": "Dark",
   "base": "dark",
   "description": "Default dark theme. Reference schema for all other themes.",
   "author": "Eltryus - Ricardo Marques",
@@ -47,7 +50,8 @@
       "primary": "#e5e5e5",
       "secondary": "#a0a0a0",
       "disabled": "#606060",
-      "hint": "#666666"
+      "hint": "#666666",
+      "onEmphasis": "#ffffff"
     },
     "border": {
       "primary": "#2a2a2a",
@@ -105,7 +109,11 @@
       "cutDeep": "#e07a7a",
       "stock": "#8a7a5c",
       "surface": "#b0a58e",
-      "tool": "#d8dde3"
+      "tool": "#d8dde3",
+      "axisX": "#ff4d4d",
+      "axisY": "#4dcc4d",
+      "axisZ": "#4d79ff",
+      "workholding": "#565b63"
     },
 
     "geometry": {
@@ -163,7 +171,6 @@
 
     "interaction": {
       "sponsorship": "#6366f1",
-      "sponsorshipText": "#e9d5ff",
       "kofi": "#42d6aa",
       "selectionStroke": "#22d3ee",
       "selectionFill": "#0a3f47",

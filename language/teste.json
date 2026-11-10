@@ -1,0 +1,2991 @@
+{
+  "_projectInfo": {
+    "file": "language/teste.json",
+    "description": "English strings for the EasyCAM5000 Suite.",
+    "author": "Eltryus - Ricardo Marques",
+    "see": "https://github.com/RicardoJCMarques/EasyCAM5000",
+    "license": "AGPL-3.0-or-later",
+    "copyright": "Copyright (C) 2025-2026 Eltryus - Ricardo Marques"
+  },
+  "meta": {
+    "kind": "language",
+    "locale": "teste",
+    "name": "Teste",
+    "dir": "ltr",
+    "fallback": null
+  },
+  "common": {
+    "ok": "OK",
+    "cancel": "Cancel",
+    "close": "Close",
+    "delete": "Delete",
+    "apply": "Apply",
+    "reset": "Reset",
+    "back": "Back",
+    "done": "Done",
+    "load": "Load",
+    "loading": "Loading…",
+    "toggleVisibility": "Toggle Visibility",
+    "mirrorX": "Horizontal",
+    "mirrorY": "Vertical",
+    "hide": "Hide",
+    "show": "Show",
+    "lock": "Lock",
+    "unlock": "Unlock",
+    "holesOfSize": "⌀{diameter:mm} x {count}",
+    "slotsOfSize": "{width} x {length:mm} x {count}",
+    "millimeters": "{value:mm}",
+    "micrometers": "{value:μm}",
+    "meters": "{value}m"
+  },
+  "app": {
+    "skipToCanvas": "Skip to Canvas",
+    "viewportBar": {
+      "dismiss": "Dismiss warning",
+      "message": "Screen too narrow - rotate device or use a larger screen."
+    },
+    "loading": {
+      "progress": "Application loading progress"
+    },
+    "toolbar": {
+      "label": "Main toolbar",
+      "actions": "Actions",
+      "openFiles": "Import Files…",
+      "exportManager": "Export Files…",
+      "exportCanvas": "Export Canvas SVG",
+      "undo": "Undo",
+      "undoTip": "Undo (Ctrl+Z)",
+      "redo": "Redo",
+      "redoTip": "Redo (Ctrl+Shift+Z)",
+      "toggle3d": "Toggle 2D/3D View",
+      "toggle3dTip": "Toggle 2D/3D View (F2)",
+      "fit": "Fit to View",
+      "fitTip": "Fit to View (F)",
+      "zoomIn": "Zoom In",
+      "zoomInTip": "Zoom In (+)",
+      "zoomOut": "Zoom Out",
+      "zoomOutTip": "Zoom Out (-)",
+      "help": "Help",
+      "helpTip": "Help (F1)",
+      "theme": "Toggle Theme",
+      "toggle3dLocked": "3D only - this scene has no 2D geometry",
+      "undoAction": "Undo: {action}",
+      "redoAction": "Redo: {action}"
+    },
+    "canvas": {
+      "label": "Canvas",
+      "view2d": "2D rendering canvas",
+      "view3d": "3D viewport. Arrow keys orbit, Shift and arrows pan, plus and minus zoom, Home fits."
+    },
+    "sidebars": {
+      "right": "Settings"
+    },
+    "footer": {
+      "zoom": "Zoom: <value/>",
+      "versionTip": "Version",
+      "versionAria": "Changelog (opens in a new tab)",
+      "home": "Home",
+      "homeTip": "Return to Homepage",
+      "licenseTip": "View License",
+      "licenseAria": "View AGPLv3 License (opens in a new tab)",
+      "doc": "Docs",
+      "docTip": "Documentation",
+      "docAria": "Documentation (opens in a new tab)",
+      "help": "Help",
+      "helpAria": "Opens the Help modal",
+      "issues": "Report a problem",
+      "issuesTip": "GitHub Issues",
+      "issuesAria": "Report a problem on GitHub Issues (opens in a new tab)",
+      "repoTip": "Repo",
+      "repoAria": "GitHub repository (opens in a new tab)",
+      "support": "Support Development",
+      "supportTip": "Support the Project",
+      "supportAria": "Opens the Support Project modal",
+      "developer": "by ELTRYUS",
+      "developerAria": "Eltryus, developer of EasyCAM5000"
+    }
+  },
+  "status": {
+    "ready": "Ready - Add files to begin",
+    "readyStats": "Ready: {operations}, {primitives}",
+    "operationCount": {
+      "one": "{count} operation",
+      "other": "{count} operations"
+    },
+    "primitiveCount": {
+      "one": "{count} primitive",
+      "other": "{count} primitives"
+    },
+    "withNotes": {
+      "one": "{message} - {count} warning, see log",
+      "other": "{message} - {count} warnings, see log"
+    },
+    "working": "Working",
+    "initFailed": "Initialization failed: {error}",
+    "wasmFailed": "Warning: WASM failed",
+    "expandLog": "Click to expand log",
+    "toggleLog": "Toggle status log",
+    "progress": "Operation progress",
+    "logHintViz": "Toggle verbose debug messages in the Viz Panel."
+  },
+  "progress": {
+    "overlay": "{label}…",
+    "overlayPercent": "{label}… {percent:%}",
+    "generating": "Generating",
+    "preview": "Generating preview",
+    "toolpaths": "Calculating toolpaths",
+    "cancelling": "Cancelling",
+    "loadingFile": "Loading {file}",
+    "exporting": "Exporting files",
+    "exportingPaced": "Exporting files - pacing downloads for WebKit",
+    "slicingModel": "Slicing model",
+    "medialSkeleton": "Building medial skeleton",
+    "drillHoles": {
+      "one": "Drill {done}/{count} hole",
+      "other": "Drill {done}/{count} holes"
+    },
+    "jobs": "Jobs {done}/{total} done - {stage}",
+    "offsetPass": "{op} pass {pass}",
+    "offsetPassOf": "{op} pass {pass}/{total}",
+    "vcarveShapes": {
+      "one": "V-Carve {done}/{count} shape",
+      "other": "V-Carve {done}/{count} shapes"
+    },
+    "vcarveFloors": "Preparing floors {done}/{total}",
+    "slicingMesh": "Slicing mesh",
+    "compensating": "Compensating",
+    "upsampling": "Upsampling",
+    "emitRoughing": "Emitting roughing",
+    "emitFinishing": "Emitting finishing",
+    "emitSpiral": "Emitting spiral",
+    "vcarveContours": "V-Carve: contours",
+    "vcarveMedial": "V-Carve: medial axis",
+    "vcarveChains": "V-Carve: emitting chains"
+  },
+  "panels": {
+    "operations": {
+      "title": "Operations",
+      "add": {
+        "isolation": "Click to add Isolation file",
+        "drill": "Click to add Drill file",
+        "clearing": "Click to add Clearing file",
+        "cutout": "Click to add Cutout file",
+        "stencil": "Click to add Stencil file"
+      },
+      "unsaved": "Unsaved changes",
+      "deleteGeometry": "Delete Geometry",
+      "empty": "Select geometry and generate offsets to create an operation object.",
+      "deleteAria": "Delete {name}",
+      "visibilityAria": "Toggle visibility of {name}",
+      "nodes": {
+        "laserPaths": "Laser Paths",
+        "offsets": {
+          "one": "Offsets ({count} Pass)",
+          "other": "Offsets ({count} Passes)"
+        },
+        "pass": "Pass {number}",
+        "invalid": "Invalid"
+      },
+      "treeAria": "Operations",
+      "invalidatedNote": "(invalidated, regenerate before export)",
+      "stageVisibilityAria": "Toggle {stage} visibility",
+      "shapeCount": {
+        "one": "{count} shape",
+        "other": "{count} shapes"
+      },
+      "hideGenerated": "Hide generated geometry",
+      "showGenerated": "Show generated geometry",
+      "generatedVisibilityAria": "Toggle generated geometry visibility"
+    },
+    "scene": {
+      "title": "Imported Objects",
+      "add": "Add geometry",
+      "addTip": "Add geometry (SVG / STL)",
+      "group": "Group (Ctrl+G)",
+      "ungroup": "Ungroup (Ctrl+Shift+G)",
+      "lock": "Toggle Lock",
+      "delete": "Delete Selection",
+      "emptyTitle": "No paths yet",
+      "emptyText": "Import an SVG or STL to populate the scene tree.",
+      "meshName": "{name} (mesh)",
+      "lockedByParent": "Locked by parent",
+      "containsLocked": "Contains locked items",
+      "treeAria": "Scene tree",
+      "unnamedGroup": "Group",
+      "rowAction": "{action}: {name}",
+      "deleteGroup": "Delete group",
+      "deleteGroupAria": "Delete group: {name}",
+      "unnamedShape": "Shape",
+      "remove": "Remove",
+      "removeAria": "Remove {name}",
+      "untitled": "Untitled",
+      "compoundShape": "Compound Shape",
+      "shapeName": "{type} {number}",
+      "groupedShape": "{group} · {type}",
+      "types": {
+        "path": "Path",
+        "circle": "Circle",
+        "rectangle": "Rectangle",
+        "obround": "Obround",
+        "arc": "Arc",
+        "elliptical_arc": "Elliptical arc",
+        "bezier": "Bezier curve"
+      }
+    },
+    "placement": {
+      "title": "Board Placement",
+      "notLoaded": "Not loaded",
+      "xOffset": "X value in millimeters",
+      "yOffset": "Y value in millimeters",
+      "rotation": "Board Rotation in degrees"
+    },
+    "stock": {
+      "title": "Stock Setup",
+      "originOffset": "Stock Origin Offset",
+      "xOffset": "Stock origin X offset in mm",
+      "yOffset": "Stock origin Y offset in mm",
+      "fit": "Fit to Object",
+      "fitTip": "Fit Stock to Shape Size. 3D objects also set thickness."
+    },
+    "transform": {
+      "title": "Shape Transform",
+      "alignBottomLeft": "Bot-Left",
+      "alignChuck": "Chuck",
+      "offset": "Offset",
+      "offsetOnAxis": "Axis offset",
+      "rotation": "Rotation",
+      "scale": "Scale",
+      "mirror": "Mirror",
+      "size": "Size: {width} x {height:mm}",
+      "size3d": "Size: {width} x {depth} x {height:mm}"
+    },
+    "machine": {
+      "title": "Machine Settings"
+    },
+    "inspector": {
+      "title": "Operation Settings",
+      "empty": "← Select a File Geometry from the OPERATIONS list to show more.",
+      "noDesignTitle": "No design loaded",
+      "noDesignText": "Import an SVG to begin assigning cuts.",
+      "noSelectionTitle": "Nothing selected",
+      "noSelectionText": "Select a path to create an operation.",
+      "mixedSelection": "Cannot combine 2D vector shapes and 3D mesh models",
+      "needsVector": "{operation} requires 2D vector (SVG) geometry",
+      "needsMesh": "{operation} requires 3D mesh (STL) geometry",
+      "incompatibleTitle": "Incompatible Selection",
+      "incompatibleText": "Cannot combine 2D vector shapes and 3D mesh models into a single operation.",
+      "operationTitle": "{type} - {file}",
+      "operationTypeAria": "Operation type"
+    },
+    "viz": {
+      "open": "Visualization Settings",
+      "title": "Visualization",
+      "display": "Display",
+      "layers": "Layers",
+      "advanced": "Advanced",
+      "log": "Log",
+      "geometry": "Geometry",
+      "toolpaths": "Toolpaths",
+      "generatedPaths": "Generated Paths",
+      "toolPreviews": "Tool Previews"
+    },
+    "invalidation": {
+      "title": "Geometry Invalidated",
+      "redo": "Delete Invalid Geometry & Redo"
+    },
+    "warnings": {
+      "header": {
+        "one": "{count} Warning",
+        "other": "{count} Warnings"
+      }
+    },
+    "operation": {
+      "actions": {
+        "generate": "Generate",
+        "laserPaths": "Generate Laser Paths",
+        "offsets": "Generate Offsets",
+        "preview": "Generate Preview",
+        "toolpaths": "Calculate Toolpaths",
+        "exportManager": "Export Manager",
+        "withTools": {
+          "one": "{action} ({count} tool)",
+          "other": "{action} ({count} tools)"
+        },
+        "comingSoon": "Coming Soon",
+        "regenerateOffsets": "Regenerate Offsets",
+        "exportGcode": "Export G-code",
+        "generateArtifact": "Generate {artifact}"
+      },
+      "output": {
+        "title": "Output",
+        "summary": {
+          "one": "<strong>{count} toolpath</strong>, ~{time}, {distance:mm}",
+          "other": "<strong>{count} toolpaths</strong>, ~{time}, {distance:mm}"
+        },
+        "none": "No toolpaths calculated.",
+        "note": "Files, ordering and tool changes are set in the Export Manager."
+      },
+      "drillCard": {
+        "peck": "{count} pecked",
+        "mill": "{count} milled",
+        "skip": "{count} skipped",
+        "rows": {
+          "one": "<strong>{count} row:</strong> {parts}",
+          "other": "<strong>{count} rows:</strong> {parts}"
+        },
+        "noSizes": "No hole sizes detected yet.",
+        "tools": "Tools: {tools}",
+        "noTools": "No tool numbers assigned yet.",
+        "configureTip": "Assign a strategy, a cutter and a T number per row. Holes and slots of one size get a row each.",
+        "configureDisabledTip": "No hole sizes detected yet - generate once to build the table."
+      },
+      "noDrillOps": "No drill operations loaded. Add a drill file first.",
+      "summary": {
+        "title": "Source Geometry",
+        "primitives": "<strong>Primitives:</strong> {count}",
+        "types": {
+          "path": {
+            "one": "{count} path",
+            "other": "{count} paths"
+          },
+          "circle": {
+            "one": "{count} circle",
+            "other": "{count} circles"
+          },
+          "rectangle": {
+            "one": "{count} rectangle",
+            "other": "{count} rectangles"
+          },
+          "obround": {
+            "one": "{count} obround",
+            "other": "{count} obrounds"
+          },
+          "arc": {
+            "one": "{count} arc",
+            "other": "{count} arcs"
+          },
+          "elliptical_arc": {
+            "one": "{count} elliptical arc",
+            "other": "{count} elliptical arcs"
+          },
+          "bezier": {
+            "one": "{count} curve",
+            "other": "{count} curves"
+          }
+        },
+        "holes": "<strong>Holes:</strong> {holes}",
+        "slots": "<strong>Slots:</strong> {slots}",
+        "rejected": {
+          "one": "<strong>Rejected:</strong> {count} unsupported shape",
+          "other": "<strong>Rejected:</strong> {count} unsupported shapes"
+        },
+        "roles": {
+          "drill_hole": {
+            "one": "{count} hole",
+            "other": "{count} holes"
+          },
+          "drill_slot": {
+            "one": "{count} slot",
+            "other": "{count} slots"
+          },
+          "drill_milling_path": {
+            "one": "{count} milling path",
+            "other": "{count} milling paths"
+          },
+          "unclassified": {
+            "one": "{count} unclassified feature",
+            "other": "{count} unclassified features"
+          }
+        },
+        "features": "<strong>Features:</strong> {features}",
+        "output": "<strong>Generated Output:</strong>",
+        "apertures": "Apertures: {count}",
+        "skippedOverlapping": "Skipped (Overlapping): {count}",
+        "paths": "<strong>Paths Generated:</strong> {count}",
+        "achievedWidth": "<strong>Achieved Width:</strong> {actual:mm} (target: {target:mm})",
+        "clearingDepth": "<strong>Clearing Depth:</strong> {actual:mm}",
+        "noPaths": "0 paths generated. Tool diameter or offset may be too large."
+      },
+      "exportSummary": {
+        "stencilTitle": "Stencil Export Summary",
+        "laserTitle": "Laser Export Summary",
+        "operation": "<strong>Operation:</strong> {type}",
+        "strategy": "<strong>Strategy:</strong> {strategy}",
+        "passes": "<strong>Passes:</strong> {count}",
+        "paths": "<strong>Path count:</strong> {count}",
+        "skippedPads": "<strong>Overlapping Pads Skipped:</strong> {count}"
+      }
+    }
+  },
+  "modals": {
+    "narrow": {
+      "title": "This tool recommends/requires a wider screen.",
+      "text": "If possible, rotate your device or switch to a larger screen."
+    },
+    "welcome": {
+      "title": "Welcome to {app}",
+      "subtitle": "Select a workflow",
+      "status": {
+        "ready": "Ready",
+        "beta": "Beta"
+      },
+      "prefs": {
+        "label": "Preferences"
+      },
+      "devices": {
+        "label": "Machine output"
+      },
+      "sponsors": {
+        "title": "Project Sponsors",
+        "fabAcademyAria": "Visit Fab Lab Benfica's Fab Academy Page.",
+        "fabAcademyAlt": "Sponsor - Fab Academy @ Fab Lab Benfica",
+        "slotAria": "Sponsor Slot Available",
+        "yourLogo": "Your Logo",
+        "cta": "Learn about becoming a sponsor",
+        "ctaAria": "Opens the Support Project modal"
+      }
+    },
+    "laserConfig": {
+        "title": "Select Laser Type",
+        "intro": "Select your laser type. The same PCB files are used - only the output format changes.",
+        "types": {
+          "uv": {
+            "title": "UV Laser",
+            "badge": "Tested",
+            "text": "All Laser operations - copper isolation, clearing, drilling and board cutouts.",
+            "action": "Select UV"
+          },
+          "fiber": {
+            "title": "Fiber Laser",
+            "badge": "Sort of tested",
+            "text": "Laser for isolation and clearing operations. CNC G-code for drilling and cutouts.",
+            "action": "Use Fiber+CNC"
+          }
+        },
+        "diodeNote": "<strong>Diode lasers / G-code lasers:</strong> If your laser uses standard G-code (e.g. GRBL-LPC, Marlin), use the CNC pipeline with a laser-compatible post-processor. The laser pipeline outputs vector/raster files for standalone laser software (LightBurn, RDWorks, LaserGRBL)."
+    },
+    "quickstart": {
+      "title": "Start a Project",
+      "example": "Load example:",
+      "loadAria": "Load selected example project",
+      "zones": {
+        "isolation": "Upload Isolation Routing File. Click or drag file here.",
+        "drill": "Upload Drilling File. Click or drag file here.",
+        "clearing": "Upload Copper Clearing File. Click or drag file here.",
+        "cutout": "Upload Board Cutout File. Click or drag file here.",
+        "unassigned": "Upload Vector or Mesh File. Click or drag file here."
+      },
+      "designFile": "Design File",
+      "zoneHint": "Click or drop",
+      "process": "Process Files",
+      "processAria": "Process uploaded files and open workspace",
+      "backAria": "Return to Welcome modal",
+      "dontShow": "Don't show this again",
+      "startEmpty": "Start Empty",
+      "startEmptyAria": "Close modal and start with empty workspace",
+      "loading": "Loading…"
+    },
+    "support": {
+      "title": "Support {app}",
+      "intro": "This project is free and open-source. Your support helps cover development time, hosting costs, and test hardware.",
+      "sponsor": {
+        "title": "Become a Sponsor",
+        "text": "Gain visibility with your logo on the welcome screen, documentation, and repository. I'm also actively seeking hardware partnerships.",
+        "copyHint": "Click to copy email",
+        "copyAria": "Copy sponsor email address to clipboard",
+        "copied": "Copied to clipboard!"
+      },
+      "donate": {
+        "title": "Support the Project",
+        "text": "Individual contributions directly fund the project's infrastructure and development time. Any amount helps keep the lights on.",
+        "kofi": "Support on Ko-fi",
+        "kofiAria": "Support on Ko-fi (opens in a new tab)"
+      }
+    },
+    "help": {
+      "title": "Workflow & Keyboard Shortcuts",
+      "workflow": {
+        "title": "Workflow",
+        "loadSources": {
+          "title": "Load Source Files",
+          "text": "Add Gerber, Excellon, or SVG files to operation categories"
+        },
+        "placeBoard": {
+          "title": "Set Board Placement",
+          "text": "Configure origin, rotation, and machine settings"
+        },
+        "generate": {
+          "title": "Generate Geometry",
+          "text": "Select a file, set tool parameters, click \"Generate Offsets\""
+        },
+        "previewExport": {
+          "title": "Preview & Export",
+          "text": "Generate preview, then use Operations Manager to export G-code"
+        },
+        "importFiles": {
+          "title": "Import Files",
+          "text": "Load your design from Illustrator, Inkscape, or Affinity Designer"
+        },
+        "assignOperations": {
+          "title": "Assign Operations",
+          "text": "Select paths and assign Profile, Pocket, Drill, or Engrave"
+        },
+        "setParameters": {
+          "title": "Set Parameters",
+          "text": "Configure tool, depth, feeds, and strategy for each operation"
+        },
+        "exportGcode": {
+          "title": "Export G-code",
+          "text": "Generate and download machine-ready files"
+        }
+      },
+      "shortcuts": {
+        "title": "Keyboard Shortcuts",
+        "general": "General",
+        "view": "View Controls",
+        "origin": "Origin Controls",
+        "display": "Display Toggles",
+        "operations": "Operations Selection",
+        "global": "Global Shortcuts",
+        "toggle3d": "Switch between 2D and 3D rendering",
+        "undo": "Undo",
+        "redo": "Redo",
+        "selectAll": "Select all",
+        "group": "Group selection",
+        "deleteSelection": "Delete selection",
+        "deselect": "Deselect / Close modal",
+        "importSvg": "Import files",
+        "zoomIn": "Zoom in",
+        "zoomOut": "Zoom out",
+        "zoomInOut": "Zoom in / out",
+        "fit": "Fit to view",
+        "pan": "Pan canvas",
+        "shiftArrows": "<kbd/> + Arrows",
+        "panFast": "Pan faster",
+        "originBottomLeft": "Origin to bottom-left",
+        "originCenter": "Origin to center",
+        "originSave": "Save current origin",
+        "toggleGrid": "Toggle grid",
+        "toggleWireframe": "Toggle wireframe",
+        "cycleOperations": "Cycle the loaded operations of one type: 1 Isolation, 2 Drill, 3 Clearing, 4 Stencil, 5 Cutout",
+        "focusZones": "Cycle focus zones",
+        "removeOperation": "Remove selected operation",
+        "toggleVisibility": "Toggle layer visibility",
+        "showHelp": "Show this help"
+      },
+      "a11y": {
+        "title": "Accessibility Navigation",
+        "zones": "Focus Zones",
+        "zonesIntro": "The interface is divided into zones. Press <kbd/> to cycle focus between them:",
+        "toolbar": "<strong>Toolbar:</strong> Top actions and view modes",
+        "tree": "<strong>Operations Tree:</strong> Left sidebar (File navigation)",
+        "properties": "<strong>Properties:</strong> Right sidebar (Settings)",
+        "skipNote": "Note: Use the <strong>Skip Link</strong> (Tab on load) to jump to Canvas."
+      },
+      "tips": {
+        "title": "Quick Tips",
+        "firefox": "Firefox seems to have the fastest JS/WASM code execution",
+        "dragDetect": "Drag files directly onto the canvas to auto-detect operation type",
+        "protel": "Protel extensions help dropped files be assigned efficiently",
+        "eyeIcon": "Use the eye icon in the tree to toggle layer visibility",
+        "mouse": "Mouse wheel zooms; middle-click or right-click drags to pan",
+        "vizPanel": "Check the Visualization panel (bottom-left) for debug options"
+      },
+      "feedback": {
+        "title": "Issues & Feedback",
+        "text": "Having problems with something? Search the open issues or start a new one on the <link>GitHub issue tracker</link>.",
+        "linkAria": "GitHub issue tracker (opens in a new tab)"
+      },
+      "docs": "Full Documentation",
+      "docsAria": "Read Full Documentation (opens in a new tab)",
+      "gotIt": "Got it"
+    },
+    "exporter": {
+      "title": "Operations & Export Manager",
+      "operationsTitle": "Select Operations to Process",
+      "orderHint": "Check to include. Drag to set the order inside combined files.",
+      "order": {
+        "label": "Processing Order",
+        "help": "Check an operation to export it. Operations combined into one file are cut top to bottom - drag to reorder them."
+      },
+      "outputTitle": "Output Files",
+      "filename": {
+        "label": "Base Name",
+        "help": "Every exported file starts with this name, followed by the operation it holds, and a ZIP takes it too. Left empty, it is the name of the first operation in the list."
+      },
+      "singleFile": {
+        "label": "Export as single file",
+        "help": "Combines operations that run on the same machine into one file, cut in list order. Needs two or more operations of one kind; stencils always export on their own."
+      },
+      "splitDrills": {
+        "label": "Split drill files by bit",
+        "help": "Writes one file per drill bit, for machines without a tool changer. Hole sizes cut by the same bit stay in one file, so this only appears for drill jobs that use more than one bit."
+      },
+      "zip": {
+        "label": "Bundle files into one .zip",
+        "help": "Delivers every file in one archive named after the base name. Off: each file downloads on its own."
+      },
+      "includeComments": {
+        "label": "Include operation comments",
+        "help": "Adds readable notes to each file: a comment per operation in G-code, a header block in SVG. Unavailable when the post-processor cannot carry comments."
+      },
+      "verboseComments": {
+        "label": "Verbose comments",
+        "help": "Adds each operation's tool, feeds, depths and deepest Z to the G-code header, so an old file reads without the project. G-code comments are always in English."
+      },
+      "cncTitle": "CNC Output Options",
+      "postProcessor": "Using post-processor: <post/>.",
+      "toolLibrary": "Tools from the custom library <file/>.",
+      "toolChanges": {
+        "label": "Insert tool change commands",
+        "help": "Emits T and M6, plus tool length compensation commands, where a file switches tools. Needs a file that holds more than one tool number - turn on single-file export or give operations their own T numbers - and a post-processor with tool changes."
+      },
+      "groupByTool": {
+        "label": "Group operations by tool",
+        "help": "Reorders the combined file so operations that share a tool run back to back, overriding the list order. Needs single-file export and more than one tool number in the file."
+      },
+      "optimize": {
+        "label": "Optimize path order (whole job)",
+        "help": "Reorders paths to shorten travel between cuts. Turn it off to keep the generated order when tracking down an unexpected move."
+      },
+      "laserTitle": "Laser Export Options",
+      "laserPadding": "Physical padding around the exported board bounds in mm",
+      "laserProfile": "Using profile: <profile/>.",
+      "settingsHint": "Change in Machine Settings (right sidebar).",
+      "stencilTitle": "Stencil Export Options",
+      "stencilPadding": "Padding around the stencil bounds in mm",
+      "previewTitle": "G-code Preview",
+      "previewing": "Previewing:",
+      "stats": {
+        "lines": "Lines: <value/>",
+        "operations": "Operations: <value/>",
+        "time": "Est. Time: <value/>",
+        "distance": "Distance: <value/>"
+      },
+      "previewPlaceholder": "Click \"Calculate Toolpaths\" to generate G-code",
+      "previewAria": "G-code output preview",
+      "copy": "Copy to clipboard",
+      "cancelAria": "Cancel and close modal",
+      "calculate": {
+        "label": "Calculate Toolpaths",
+        "help": "Process the selected operations and generate the G-code preview based on the current order and settings."
+      },
+      "calculateAria": "Generate G-code preview",
+      "export": "Export Files",
+      "exportAria": "Export selected files",
+      "reasons": {
+        "commentsOff": "Comments are off",
+        "gcodeOnly": "G-code only",
+        "nothingToCombine": "Nothing to combine",
+        "singleFileOn": "Single file is on",
+        "noDrill": "No drill selected",
+        "oneBit": "One bit only",
+        "oneFile": "Only one file",
+        "notOnPost": "Not on this post",
+        "oneToolPerFile": "One tool per file",
+        "singleFileOnly": "Single file only",
+        "oneToolInFile": "One tool in file"
+      },
+      "summary": {
+        "none": "No operations selected",
+        "files": {
+          "one": "{count} file - {kinds}",
+          "other": "{count} files - {kinds}"
+        },
+        "kind": "{count} {format}",
+        "zip": "{name} - {kinds}"
+      },
+      "toolNotice": {
+        "shared": "T{number} is called once for {sizes}",
+        "title": "Some tool numbers are shared by different sizes",
+        "text": "Fine if that is one physical tool - EasyCAM compares sizes, not tool library names. If they are different cutters, give each its own Tool Number in the Tool section of the geometry stage.",
+        "size": "⌀{diameter:mm} ({label})"
+      },
+      "stencilSeparate": "Exported as a separate file - stencil stock is a different setup."
+    },
+    "drillTooling": {
+      "title": "Drill Tooling",
+      "configure": "Configure Drill Tooling…",
+      "empty": "No drill features detected. Load a drill file and generate the drill strategy first.",
+      "subtitle": {
+        "one": "{file} - {count} diameter",
+        "other": "{file} - {count} diameters"
+      },
+      "holes": {
+        "one": "{count} hole",
+        "other": "{count} holes"
+      },
+      "slots": {
+        "one": "{count} slot",
+        "other": "{count} slots"
+      },
+      "columns": {
+        "size": "Size",
+        "features": "Features",
+        "strategy": "Strategy",
+        "tool": "Tool ⌀ (mm)",
+        "toolNumber": "T#",
+        "peck": "Peck",
+        "feed": "Feed",
+        "plunge": "Plunge",
+        "rpm": "RPM"
+      },
+      "help": {
+        "size": "Hole diameter, or slot width. On an Excellon file, hover the size to see its tool code.",
+        "features": "How many holes or slots the row holds. Holes and slots of one size get a row each, so each can take its own strategy and cutter.",
+        "strategy": "Peck plunges at each hole and at both ends of a slot. Mill rings out a feature wider than the cutter; one about as wide is cut in a single pass, a slot along its centreline and a hole as a plunge. Skip leaves the row uncut.",
+        "tool": "Cutter diameter for the row. Empty uses the feature's own size. Changing it discards generated paths.",
+        "toolNumber": "The T number that calls the row's cutter: its pocket or collet. Every row except Skip needs one; rows that share a cutter can share a number.",
+        "peck": "Depth of each peck on a Peck row. With canned cycles it is the Q word of G83 and G73; on a post without them EasyCAM writes the peck loop itself. Empty uses the operation's Peck Depth. 0, or Canned Cycle None, drills in one plunge.",
+        "feed": "Feed for the row's milling moves, in mm/min. Empty uses the operation's Feed Rate.",
+        "plunge": "Plunge rate for the row's pecks and Z entries, in mm/min. Empty uses the operation's Plunge Rate.",
+        "rpm": "Spindle speed for the row's cutter. Empty uses the operation's Spindle Speed."
+      },
+      "excellonCode": "Excellon code: {codes}",
+      "holeSize": "{size:mm} holes",
+      "slotSize": "{size:mm} slots",
+      "strategyAria": "Strategy for {holes}",
+      "toolDiameterAria": "Tool diameter in mm for {holes}",
+      "toolNumberAria": "Tool number for {holes}",
+      "feedRateAria": "Feed rate for {holes}",
+      "plungeRateAria": "Plunge rate for {holes}",
+      "spindleSpeedAria": "Spindle RPM for {holes}",
+      "peckDepthAria": "Peck depth for {holes}",
+      "strategies": {
+        "peck": "Peck",
+        "mill": "Mill",
+        "skip": "Skip"
+      },
+      "presets": {
+        "flatten": "Reset to Defaults",
+        "match": "Auto-match Tool Library"
+      },
+      "notice": {
+        "geometry": "Holes and slots of one size get a row each. Give every row a strategy, a cutter and a T number; a skipped row needs neither. Changing a strategy or cutter discards generated paths; a T number does not.",
+        "strategy": "Peck depth per row. Leave it empty to use the operation's Peck Depth. Strategy, cutter and T number are set at the XY Geometry stage.",
+        "machine": "Feeds and spindle speed per row. Leave a field empty to use the operation's value. Strategy, cutter and T number are set at the XY Geometry stage."
+      },
+      "inherit": "op"
+    },
+    "warning": {
+      "title": "Warning"
+    }
+  },
+  "dialogs": {
+    "deleteGeometry": {
+      "title": "Delete geometry",
+      "items": {
+        "one": "{count} item",
+        "other": "{count} items"
+      },
+      "message": "Delete {items}? This can be undone with Ctrl+Z.",
+      "messageWithOps": {
+        "one": "Delete {items}? This also removes {count} operation. This can be undone with Ctrl+Z.",
+        "other": "Delete {items}? This also removes {count} operations. This can be undone with Ctrl+Z."
+      }
+    },
+    "openCutout": {
+      "probeFailed": "Probe failed.",
+      "joined": {
+        "one": "{joined} of {count} segment joined",
+        "other": "{joined} of {count} segments joined"
+      },
+      "closed": "Path successfully closed using {tolerance:mm} tolerance.",
+      "remaining": {
+        "one": "{count} segment remains disconnected.",
+        "other": "{count} segments remain disconnected."
+      },
+      "increase": "Increase tolerance to bridge larger gaps.",
+      "intro": "The cutout geometry in <strong>{file}</strong> contains disconnected segments.",
+      "partial": {
+        "one": "<strong>{count}</strong> closed loop was extracted successfully, but {segments} could not be joined.",
+        "other": "<strong>{count}</strong> closed loops were extracted successfully, but {segments} could not be joined."
+      },
+      "segmentCount": {
+        "one": "{count} segment",
+        "other": "{count} segments"
+      },
+      "gaps": "<strong>Detected Gaps:</strong> {gaps}",
+      "setTolerance": "Set a tolerance large enough to bridge the maximum gap:",
+      "unknownGaps": "Unknown",
+      "tolerance": "Tolerance:",
+      "test": "Test",
+      "title": "Open Cutout Path Detected",
+      "confirm": "Close path",
+      "cancel": "Keep as-is",
+      "positive": "Enter a positive tolerance value."
+    },
+    "drillRecovery": {
+      "intro": {
+        "one": "The SVG file <strong>{file}</strong> contains {count} compound path that matches known drill shapes.",
+        "other": "The SVG file <strong>{file}</strong> contains {count} compound paths that match known drill shapes."
+      },
+      "circles": "Circle Candidates ({count})",
+      "circlesHint": "Compound paths that form complete circles.",
+      "obrounds": "Obround Candidates ({count})",
+      "obroundsHint": "Compound paths that form stadium/capsule shapes.",
+      "question": "Convert these into valid hole and slot geometry for the drill operation?",
+      "title": "Recoverable Drill Geometry",
+      "confirm": "Convert",
+      "cancel": "Skip"
+    },
+    "deleteOperation": {
+      "title": "Delete operation",
+      "shape": "Remove {name} and its generated paths? This can be undone with Ctrl+Z.",
+      "unnamed": "this operation",
+      "trace": "Remove {name} and everything generated from it? This can't be undone."
+    }
+  },
+  "messages": {
+    "theme": {
+      "loadFailed": "The theme could not be loaded: {error}"
+    },
+    "language": {
+      "loadFailed": "The language could not be loaded: {error}"
+    },
+    "storage": {
+      "settingsNotSaved": "Settings could not be saved: the browser's storage is full or blocked. Changes last until this page is closed."
+    },
+    "drill": {
+      "toolingChanged": "Drill tooling changed after generation - regenerate before exporting.",
+      "recovered": {
+        "one": "Recovered {count} drill shape",
+        "other": "Recovered {count} drill shapes"
+      },
+      "recoverySkipped": "Compound shapes skipped",
+      "multiToolOn": "Multi-tool drilling on - assign a tool per row in Drill Tooling.",
+      "multiToolOff": "Single-tool drilling - the operation tool cuts every hole.",
+      "modeMilling": "Switched to milling mode",
+      "modePecking": "Switched to pecking mode",
+      "completeTooling": "Complete multi-tool drill tooling setup before generating.",
+      "allSkipped": "Every row is set to Skip - nothing would be cut.",
+      "missingDiameter": "Tool diameter missing or 0 for {sizes}.",
+      "missingNumber": "Enter a tool number (T#) for {sizes}.",
+      "squareAsHole": "Square rectangle ({size:mm}) treated as circular hole",
+      "rectangleRejected": "Non-square rectangle ({width} x {height:mm}) rejected - use circles or obrounds for drill holes",
+      "shapeRejected": "{type} shape rejected - drill operation only supports circles and obrounds",
+      "laserMarks": {
+        "one": "Generated {count} laser drill mark",
+        "other": "Generated {count} laser drill marks"
+      },
+      "peckPositions": {
+        "one": "{count} peck position",
+        "other": "{count} peck positions"
+      },
+      "millPaths": {
+        "one": "{count} milling path",
+        "other": "{count} milling paths"
+      },
+      "features": {
+        "one": "{count} feature",
+        "other": "{count} features"
+      },
+      "generated": {
+        "one": "Generated {detail} across {count} tool group",
+        "other": "Generated {detail} across {count} tool groups"
+      },
+      "withWarnings": {
+        "one": "{message} - {count} warning",
+        "other": "{message} - {count} warnings"
+      },
+      "noToolSkipped": {
+        "one": "{feature}: {count} feature skipped - no usable tool assigned",
+        "other": "{feature}: {count} features skipped - no usable tool assigned"
+      }
+    },
+    "quickstart": {
+      "willShow": "Quickstart will show on next visit"
+    },
+    "examples": {
+      "loadFailed": "Could not load that example: {error}",
+      "notFound": "Example not found: {id}",
+      "loading": "Loading example: {name}…",
+      "loaded": "Example '{name}' loaded successfully."
+    },
+    "export": {
+      "nothingToCopy": "No generated G-code to copy.",
+      "copied": "G-code copied to clipboard!",
+      "copyFailed": "Clipboard copy failed. Check browser permissions.",
+      "noneSelected": "No operations selected for export.",
+      "producedNothing": "Export produced no output.",
+      "failed": "Export failed: {error}",
+      "notReady": "Not ready: {files}. Finish each operation's stages first.",
+      "noCncOperations": "No CNC operations selected for calculation",
+      "noGcode": "Calculation returned no G-code",
+      "calculationFailed": "Failed: {error}",
+      "noneReady": "No operations ready for export. Generate each operation up to its output stage first.",
+      "skippedFile": "{file} ({reason})",
+      "nothingExported": "Nothing exported - {files}",
+      "noFiles": "No files generated.",
+      "archive": {
+        "one": "{name} ({count} file)",
+        "other": "{name} ({count} files)"
+      },
+      "fileCount": {
+        "one": "{count} file",
+        "other": "{count} files"
+      },
+      "exportedSkipped": "Exported {written}. Skipped: {skipped}",
+      "exported": "Exported {written}.",
+      "reasonNotReady": "toolpaths not calculated",
+      "reasonNoGcode": "no G-code produced",
+      "operationLabel": "{type}: {name}",
+      "featureLabel": "{operation} - {feature}",
+      "noToolChange": "{post} has no tool change, but a file in this job holds more than one tool. Turn off single-file export, split the drill files, or give those operations one tool number.",
+      "routeIsReplacement": "Machine rotary route is set to axis replacement, which carries arc length on the Y word.",
+      "noRotaryWord": "{post} has no {word} word for a rotary about {axis} - indexed 3+1 cannot be written for it.",
+      "rotaryNeedsMetric": "Rotary (4th-axis) export requires metric units. Switch the G-code units to mm.",
+      "postNotFound": "Post-processor '{post}' not found",
+      "noToolNumber": "No tool number resolved for this job - the program contains no T word.",
+      "spindleCapped": "Spindle speed {rpm} RPM is above {post}'s maximum of {max} RPM; the program runs the spindle at {max} RPM.",
+      "validationFailed": "Validation failed: {errors}",
+      "faultLine": "line {line}: \"{text}\"",
+      "nonNumeric": "Export refused - non-numeric value in the program at {faults}",
+      "droppedWords": {
+        "one": "Export refused - {count} coordinate or feed resolved to a non-finite number and was dropped. Regenerate the affected operations.",
+        "other": "Export refused - {count} coordinates or feeds resolved to a non-finite number and were dropped. Regenerate the affected operations."
+      },
+      "nonFiniteWord": "Command word {word} is {value} - the toolpath carries a non-finite value.",
+      "zeroFeed": "Feed rate is zero on a cutting move.",
+      "belowFloor": "Commanded Z {z:mm} is below machine Z0 ({floor:mm}), which Absolute Z0 cannot reach. Set the stock's Z zero to the bed, or check the rotary axis height.",
+      "absoluteZFrames": "Absolute Z0 cannot put flat and 4th-axis operations in one program yet. Export them as separate files.",
+      "absoluteZWrapped": "Absolute Z0 does not support the axis-replacement 4th-axis route yet. Pick the rotary-word route in Machine Settings.",
+      "absoluteZHeight": "Set the rotary axis height in Machine Settings: Absolute Z0 needs it to place a 4th-axis program.",
+      "feedOverMax": {
+        "one": "Feed rate F{feed} exceeds the machine maximum of F{max}.",
+        "other": "{count} moves exceed the machine maximum feed of F{max}, the first at F{feed}."
+      },
+      "inverseTimeOverMax": {
+        "one": "Inverse-time F{feed} exceeds the post's maximum of F{max}.",
+        "other": "{count} inverse-time moves exceed the post's maximum of F{max}, the first at F{feed}."
+      },
+      "depthOverMax": {
+        "one": "Z {z:mm} goes past the machine's max safe depth ({max:mm}). Check stock thickness and Z-zero.",
+        "other": "{count} moves go past the machine's max safe depth ({max:mm}), the first at Z {z:mm}. Check stock thickness and Z-zero."
+      },
+      "winpcFeedUnit": "A feed unit of mm/s cannot be combined with inch output. Set the feed unit to mm/min, or switch the G-code units to mm.",
+      "laserProfileMissing": "Laser profile '{id}' is not registered",
+      "reasonNoGeometry": "no generated geometry",
+      "reasonNoData": "renderer returned no data",
+      "pngUnavailable": "PNG export needs OffscreenCanvas or a DOM canvas; neither is available in this browser. Export SVG instead.",
+      "pngTooLarge": "Could not allocate a {width} x {height} canvas. Lower the export DPI.",
+      "pngEmpty": "PNG encoding returned no data."
+    },
+    "view": {
+      "no3dContainer": "3D viewport container missing from page",
+      "view3dActive": "3D view active. F2 returns to 2D.",
+      "view3dFailed": "3D preview failed: {error}",
+      "only3d": "This scene only contains 3D geometry - there is nothing to show in 2D.",
+      "verboseOn": "Verbose debug on",
+      "verboseOff": "Verbose debug off",
+      "zoneFocused": "{zone} focused",
+      "canvasEmpty": "Nothing on the canvas to export",
+      "canvasExported": "Canvas exported successfully",
+      "canvasFailed": "Canvas export failed: {error}",
+      "gpuLost": "3D view lost its GPU device ({error}). Reloading the page may or may not restore it.",
+      "enableFirst": "Enable '{option}' first",
+      "uiInitFailed": "Initialization error: {error}",
+      "fusionFailed": "Fusion failed: {error}"
+    },
+    "files": {
+      "loadFailed": "Failed to load {file}: {error}",
+      "unsupportedType": "Unsupported file type: .{ext}",
+      "readFailed": "Failed to read {file}: {error}",
+      "stlParseError": "STL parse error: {errors}",
+      "parseError": "Parse error: {errors}",
+      "stlLoaded": "Loaded {file}: {triangles} triangles, {height:mm} model height",
+      "stlLoadedMeshes": "Loaded {file}: {triangles} triangles in {count} meshes, {height:mm} model height",
+      "plotterError": "Plotter error: {error}",
+      "svgImported": {
+        "one": "Imported {file}: {count} shape",
+        "other": "Imported {file}: {count} shapes"
+      },
+      "readFailedShort": "Failed to read file",
+      "readFailedNamed": "Failed to read {file}",
+      "loadedPrimitives": {
+        "one": "Loaded {file}: {count} primitive",
+        "other": "Loaded {file}: {count} primitives"
+      },
+      "processingError": "Error processing {file}: {error}",
+      "dropSkipped": {
+        "one": "Skipped {count} file this app cannot load.",
+        "other": "Skipped {count} files this app cannot load."
+      },
+      "dropWithSkipped": "{message} {skipped}",
+      "warningCount": {
+        "one": "{count} warning",
+        "other": "{count} warnings"
+      },
+      "dropNothing": "No loadable files.",
+      "dropFailed": {
+        "one": "Loaded {count} file - {failed} could not be loaded, see the log.",
+        "other": "Loaded {count} files - {failed} could not be loaded, see the log."
+      },
+      "dropWarnings": {
+        "one": "Loaded {count} file with {warnings}. See log.",
+        "other": "Loaded {count} files with {warnings}. See log."
+      },
+      "dropLoaded": {
+        "one": "Loaded {count} file.",
+        "other": "Loaded {count} files."
+      },
+      "dropSuccess": {
+        "one": "Successfully loaded {count} file.",
+        "other": "Successfully loaded {count} files."
+      },
+      "fileWarning": "{file}: {warning}",
+      "drillsGuessed": {
+        "one": "Loaded {file}: {count} drill (Guessed Format!)",
+        "other": "Loaded {file}: {count} drills (Guessed Format!)"
+      },
+      "unknownOperationType": "Unknown operation type: {type}",
+      "invalidType": "Invalid file type for {type}. Expected: {extensions}"
+    },
+    "machine": {
+      "postSwitched": "Switched to {post}. Recalculate toolpaths to apply changes."
+    },
+    "origin": {
+      "saved": "Origin saved at current position",
+      "reset": "Reset to saved origin"
+    },
+    "reorder": {
+      "placed": "Item placed",
+      "grabbed": "Item grabbed. Use Up/Down to move, Space to place.",
+      "cancelled": "Reorder canceled"
+    },
+    "history": {
+      "undone": "Undo: {action}",
+      "redone": "Redo: {action}"
+    },
+    "scene": {
+      "lockedByParent": "Locked by parent - unlock the parent first",
+      "skippedLocked": {
+        "one": "{count} item skipped (locked by parent)",
+        "other": "{count} items skipped (locked by parent)"
+      },
+      "groupNeedsTwo": "Select 2 or more items to group",
+      "grouped": {
+        "one": "Grouped {count} item",
+        "other": "Grouped {count} items"
+      },
+      "nothingToUngroup": "No groups in selection to ungroup",
+      "ungrouped": {
+        "one": "Ungrouped {count} group",
+        "other": "Ungrouped {count} groups"
+      },
+      "tooManyMeshes": "{count} meshes selected - each model needs its own operation.",
+      "locked": "Item is locked"
+    },
+    "operations": {
+      "sourceChanged": "Source geometry changed. Regenerate offsets.",
+      "toolChanged": "Tool '{tool}' changed in the tool library - regenerate before exporting.",
+      "toolsChanged": {
+        "one": "{count} operation uses a tool the library changed - regenerate it before exporting.",
+        "other": "{count} operations use a tool the library changed - regenerate them before exporting."
+      },
+      "categorySelected": "{category} category",
+      "generationFailed": "Generation failed: {error}",
+      "removed": "Operation removed",
+      "paramChanged": "'{param}' changed after generation - regenerate before exporting.",
+      "machineChanged": "Machine changed to {machine} - regenerate before exporting.",
+      "notFound": "Operation {id} not found",
+      "noHandler": "No handler for '{type}': {error}",
+      "needToolNumber": "Enter a tool number (the T word your controller receives) before generating. If your machine has no tool changer, 1 is correct.",
+      "generateFirst": "Generate geometry first",
+      "previewFailed": "Preview generation failed (check tool diameter)",
+      "previewGenerated": "Preview generated",
+      "depthWarning": "Cut reaches Z {z:mm}, past the machine's max safe depth ({max:mm}). Check stock thickness and Z-zero.",
+      "invalidCleared": "Invalid geometry cleared. Ready to regenerate.",
+      "stageFailed": "{stage} failed: {error}",
+      "staleParams": "Parameters changed after generation - regenerate before exporting.",
+      "postChangedIndexed": "Post-processor changed to {post}. Indexed 3+1 needs a rotary word in degrees - regenerate to re-check it.",
+      "transformChanged": "Workspace transform changed - recalculate toolpaths before export.",
+      "superseded": "Generation superseded by a newer request",
+      "cancelled": "Generation cancelled - the operation was left ungenerated.",
+      "fieldGenerated": {
+        "one": "Generated {count} {kind} path [{passes}]",
+        "other": "Generated {count} {kind} paths [{passes}]"
+      },
+      "fieldKinds": {
+        "relief": "relief",
+        "rotary": "rotary",
+        "indexed": "indexed"
+      },
+      "passRoles": {
+        "roughing": "roughing",
+        "finishing": "finishing"
+      },
+      "noPaths": "No paths generated",
+      "noGeometry": "No geometry generated - tool may be too large for features",
+      "laserPaths": {
+        "one": "Generated {count} laser path [{strategy}]",
+        "other": "Generated {count} laser paths [{strategy}]"
+      },
+      "offsets": {
+        "one": "Generated {count} offset",
+        "other": "Generated {count} offsets"
+      },
+      "noEngrave": "No engrave paths found or generated",
+      "engraveGenerated": {
+        "one": "Engrave path generated ({count} path)",
+        "other": "Engrave path generated ({count} paths)"
+      },
+      "pocketOpenPaths": {
+        "one": "{count} open path detected. Pocket cutting requires closed shapes. Close paths in your SVG editor (the automated tool may not be implemented yet).",
+        "other": "{count} open paths detected. Pocket cutting requires closed shapes. Close paths in your SVG editor (the automated tool may not be implemented yet)."
+      },
+      "noPocket": "No pocket paths generated - tool may be too large for the shape",
+      "pocketGenerated": {
+        "one": "Pocket cleared: {paths} across {count} pass",
+        "other": "Pocket cleared: {paths} across {count} passes"
+      },
+      "pathCount": {
+        "one": "{count} path",
+        "other": "{count} paths"
+      },
+      "profileOpenPaths": {
+        "one": "{count} open path detected. Profile cutting requires closed shapes.",
+        "other": "{count} open paths detected. Profile cutting requires closed shapes."
+      },
+      "noProfile": "No profile path generated - tool may be too large for the shape",
+      "profileGenerated": "Profile path generated ({side} cut)",
+      "noRelief": "No relief paths generated - model may be flat or below resolution",
+      "noReliefSource": "No relief source - import an STL model for this operation",
+      "noRotary": "No rotary paths generated - model may be round stock already or below resolution",
+      "noRotarySource": "No rotary source - import an STL model for this operation",
+      "noIndexed": "No indexed paths generated - model may be flat, below resolution, or entirely outside the face windows",
+      "noIndexedSource": "No indexed source - import an STL model for this operation"
+    },
+    "stock": {
+      "noOriginTarget": "Nothing to place the origin on",
+      "nothingToFit": "Nothing to fit stock to"
+    },
+    "cutout": {
+      "closed": "Cutout paths automatically closed.",
+      "cannotClose": "Cannot close - test with a higher tolerance first.",
+      "orphansDiscarded": "Orphan segments discarded. Board outlines preserved.",
+      "leftOpen": "Cutout left as open path.",
+      "openSegments": {
+        "one": "{count} segment does not form closed loops. Gaps: {gaps}",
+        "other": "{count} segments do not form closed loops. Gaps: {gaps}"
+      },
+      "generated": "Cutout path generated"
+    },
+    "board": {
+      "rotationSet": "Board rotation set to {angle:°}",
+      "rotationReset": "Board rotation reset (position unchanged)",
+      "mirrorXOn": "Horizontal mirror enabled",
+      "mirrorXOff": "Horizontal mirror disabled",
+      "mirrorYOn": "Vertical mirror enabled",
+      "mirrorYOff": "Vertical mirror disabled",
+      "originCenter": "Preview: Origin at board center (not saved)",
+      "cannotCenter": "Cannot center - no board bounds yet",
+      "originBottomLeft": "Preview: Origin at board bottom-left (not saved)",
+      "cannotBottomLeft": "Cannot set bottom-left - no board bounds yet"
+    },
+    "toolpaths": {
+      "needFeeds": "Set {feeds} above zero before calculating toolpaths. Feeds seed from the selected tool - pick one, or type a value.",
+      "noMotion": "Toolpath calculation produced no motion",
+      "calculated": {
+        "one": "{count} toolpath - ~{time}, {distance:mm} (this operation alone)",
+        "other": "{count} toolpaths - ~{time}, {distance:mm} (this operation alone)"
+      },
+      "failed": "Toolpath calculation failed: {error}",
+      "noContext": "Could not build a toolpath context for this operation",
+      "droppedRotary": {
+        "one": "{op} - {count} rotary plan skipped: the selected post cannot emit this operation's rotary route.",
+        "other": "{op} - {count} rotary plans skipped: the selected post cannot emit this operation's rotary route."
+      },
+      "droppedIndexed": "{op} - indexed 3+1 plans skipped: the selected post declares no A/B rotary word, or the machine's rotary route is set to axis replacement, which cannot position a rotary axis. Choose a compatible post and set {param} to {route}.",
+      "operationNote": "{op} - {note}",
+      "slotDropped": "Centerline slot dropped - set {missing} on the operation and regenerate.",
+      "slotTooShort": "Centerline slot skipped - the generated path has fewer than two points.",
+      "slotNoExit": "Centerline slot skipped - no exit point resolved from its contour.",
+      "tabsSkipped": "Tabs skipped on contours too short to hold them."
+    },
+    "parser": {
+      "invalidDecimal": "Invalid decimal coordinate: {value}",
+      "invalidFormatted": "Invalid formatted coordinate: {value}",
+      "fatal": "Fatal: {error}",
+      "excellon": {
+        "formatGuessed": "No explicit format found. Defaulting to {format} ({units}). If holes/slots are misaligned, the file might use a different format.",
+        "metric": "Metric",
+        "inch": "Inch",
+        "unknownFmat": "Line {line}: Unknown FMAT {code}",
+        "invalidTool": "Line {line}: Invalid tool syntax \"{text}\"",
+        "invalidDiameter": "Line {line}: Invalid diameter \"{value}\"",
+        "toolUndefined": "Line {line}: Tool {tool} undefined",
+        "m16Orphan": "Line {line}: M16 found without active slot or tool.",
+        "noToolSelected": "Line {line}: Coordinate command without selected tool, ignoring.",
+        "slotCoordinates": "Line {line}: Error parsing slot coordinates - {error}",
+        "malformedG85": "Line {line}: Malformed G85 slot command: \"{text}\"",
+        "slotNoTool": "Line {line}: No tool selected for slot operation.",
+        "noTools": "Holes found but no tools defined"
+      },
+      "atLine": "Line {line}: {error}",
+      "largeBoard": "Large board: {width} x {height:mm}",
+      "nonFiniteBounds": "Non-finite geometry bounds - source produced NaN/Infinite coordinates (check transforms/units).",
+      "parseError": "Parse error: {error}",
+      "gerber": {
+        "invalidAperture": "Line {line}: Invalid aperture definition: {block}",
+        "undefinedMacroIn": "Line {line}: Undefined macro '{macro}' in aperture {code}",
+        "unparsedAperture": "Line {line}: Could not parse aperture definition: {block}",
+        "macroEmpty": "Macro {macro} has no valid primitives",
+        "unclosedRegion": "File ended with unclosed region",
+        "regionTooSmall": {
+          "one": "Region with only {count} point discarded",
+          "other": "Region with only {count} points discarded"
+        },
+        "regionDeduped": "Region collapsed to {count} points after deduplication (from {from})",
+        "regionDespiked": "Region collapsed to {count} points after spike removal (from {from})",
+        "regionSimplified": "Region collapsed to {count} points after RDP simplification",
+        "drawNoAperture": "Draw operation without aperture at ({x}, {y})",
+        "undefinedAperture": "Undefined aperture {aperture}",
+        "flashNoAperture": "Flash operation without aperture at ({x}, {y})",
+        "undefinedMacro": "Undefined macro: {macro}",
+        "macroNoGeometry": "Macro {macro} produced no geometry",
+        "macroConvertFailed": "Could not convert macro {macro} to geometry",
+        "unsupportedFlash": "Unsupported flash shape: {shape}"
+      },
+      "invalidData": "Invalid parser data format",
+      "stl": {
+        "noTriangles": "No triangles found in STL",
+        "trailingBytes": {
+          "one": "STL has {count} trailing byte (ignored)",
+          "other": "STL has {count} trailing bytes (ignored)"
+        },
+        "partialFacet": "ASCII STL vertex count not divisible by 3 - truncating partial facet"
+      },
+      "svg": {
+        "invalid": "Invalid SVG file",
+        "invalidDetail": "Invalid SVG file: {detail}",
+        "parseError": "SVG Parse error: {error}",
+        "nonUniformScale": "SVG has non-uniform viewBox scaling. Geometry may be distorted.",
+        "viewBoxUnits": "SVG has no explicit dimensions. Assuming viewBox units are mm.",
+        "assumed96dpi": "SVG has no dimensions or viewBox. Assuming standard 96 DPI scale.",
+        "textElements": {
+          "one": "Found {count} text element. Convert text to paths in your editor for proper rendering.",
+          "other": "Found {count} text elements. Convert text to paths in your editor for proper rendering."
+        },
+        "fillRule": {
+          "one": "Found fill-rule attribute on {count} element. Overlapping geometries may render differently than expected.",
+          "other": "Found fill-rule attribute on {count} elements. Overlapping geometries may render differently than expected."
+        },
+        "stylesheets": "SVG contains embedded stylesheets. Class-based styles are not fully supported.",
+        "useElements": {
+          "one": "Found {count} 'use' element. Symbol cloning is not yet supported.",
+          "other": "Found {count} 'use' elements. Symbol cloning is not yet supported."
+        },
+        "clipPaths": "SVG contains clip paths or masks which are not supported."
+      },
+      "noParser": "No parser registered for {file}",
+      "errors": "{errors}",
+      "failed": "Parse failed"
+    },
+    "rotary": {
+      "radial": {
+        "depthPastModel": "Carve depth {depth:mm} passes the model's own minimum radius ({minRadius:mm}): everything below {floor:mm} becomes a constant-radius rod. Set the depth to 0 (auto) to follow the model instead.",
+        "uncovered": "{percent:%} of the cylindrical grid is uncovered - those regions hold the surrounding radius rather than the model. Check the rotation axis, the model orientation, and that the mesh is closed.",
+        "stubUnderTool": "Drive stub radius {stub:mm} is under the tool's reach {tool:mm} - the stub is formed as the tool's offset of the core cylinder (safe, but wider than set).",
+        "nearCenterline": "Auto carve depth reaches near the centerline (floor radius {floor:mm} of blank radius {radius:mm}) - set an explicit rotary depth: generation slows sharply near the axis, and the mesh may not be round about it."
+      },
+      "indexed": {
+        "blankDerived": "{param} not set - derived {width:mm} across flats from the model's own face-normal support. The physical blank must be at least this wide, and Z0 is its face top.",
+        "modelTruncated": "Model reaches {reach:mm} from the axis on the {angle:°} face, past the blank apothem ({apothem:mm}) - that material is TRUNCATED to the face plane. Set {param} to at least {width:mm}.",
+        "stubUnderTool": "Drive stub radius {stub:mm} is under the tool radius {tool:mm} - the stub is formed as the tool's offset of the core cylinder (safe, but wider than set).",
+        "depthClamped": "{param} clamped to {depth:mm} below the face plane.",
+        "depthWindowShort": "Depth window {window:mm} stops {short:mm} short of the severance depth - every surface past machine Z {z} is TRUNCATED to a flat plane. Leave {param} at 0 (auto) unless you are deliberately limiting engagement.",
+        "noRoutes": "{post} declares no 4th-axis routes - G-code export will drop this operation.",
+        "needsAWord": "Indexed 3+1 needs the {route} route (absolute degrees on {word}); {post} declares only {routes} - export will drop this operation.",
+        "needsWord": "A rotary axis of {axis} needs the '{word}' word; {post} declares [{words}] - export will drop this operation.",
+        "fluteShort": "Flute {flute:mm} cannot reach the rotation axis ({depth:mm} below the face plane). The holder envelope limits the tool per-cell; expect uncut material near the centerline.",
+        "axialMismatch": "Faces see different axial model extents (low end varies {low:mm}, high end {high:mm}) - end walls will not line up around the part. Check the rotation axis and model orientation."
+      }
+    },
+    "vcarve": {
+      "openPaths": {
+        "one": "V-Carve requires closed paths - {count} open path in selection",
+        "other": "V-Carve requires closed paths - {count} open paths in selection"
+      },
+      "none": "No V-Carve paths generated - shapes may be degenerate or too small",
+      "skippedShapes": {
+        "one": "{message} - {count} shape could not be carved, see the log",
+        "other": "{message} - {count} shapes could not be carved, see the log"
+      },
+      "failedShape": "{shape}: {error}",
+      "failedHint": "Self-intersections, slivers and near-duplicate points are the usual causes and can be fixed in the drawing. If a shape looks clean, please report it as an issue with the file attached.",
+      "generated": {
+        "one": "Generated {count} V-Carve path",
+        "other": "Generated {count} V-Carve paths"
+      },
+      "floors": {
+        "depthLimit": {
+          "one": "{message} - {count} flat region outline bottomed out at the depth limit",
+          "other": "{message} - {count} flat region outlines bottomed out at the depth limit"
+        },
+        "bitReach": {
+          "one": "{message} - {count} flat region outline bottomed out at the bit's reach",
+          "other": "{message} - {count} flat region outlines bottomed out at the bit's reach"
+        }
+      },
+      "floorsRidges": {
+        "depthLimit": {
+          "one": "{message} - {count} flat region outline bottomed out at the depth limit (wider than bit coverage: central ridges will remain until flat clearing is implemented)",
+          "other": "{message} - {count} flat region outlines bottomed out at the depth limit (wider than bit coverage: central ridges will remain until flat clearing is implemented)"
+        },
+        "bitReach": {
+          "one": "{message} - {count} flat region outline bottomed out at the bit's reach (wider than bit coverage: central ridges will remain until flat clearing is implemented)",
+          "other": "{message} - {count} flat region outlines bottomed out at the bit's reach (wider than bit coverage: central ridges will remain until flat clearing is implemented)"
+        }
+      }
+    },
+    "stencil": {
+      "regHolesSkipped": "Registration holes skipped - no board bounds available.",
+      "cornersSquare": {
+        "one": "{count} aperture too small for a {radius:mm} corner radius - left square.",
+        "other": "{count} apertures too small for a {radius:mm} corner radius - left square."
+      },
+      "padsExcluded": {
+        "one": "Excluded {count} stencil pad because it overlapped with through-holes.",
+        "other": "Excluded {count} stencil pads because they overlapped with through-holes."
+      },
+      "cornerBelowCutter": "Corner radius {radius:mm} is below the cutter radius {cutter:mm} - apertures will come out with {cutter:mm} corners.",
+      "needsTool": "CNC stencil milling requires a valid tool diameter. Select a tool in the Geometry stage.",
+      "none": "No apertures generated (all filtered out)",
+      "noneSkipped": "No apertures generated ({skipped} skipped)",
+      "generated": {
+        "one": "Generated {count} stencil aperture",
+        "other": "Generated {count} stencil apertures"
+      },
+      "generatedSkipped": {
+        "one": "Generated {count} stencil aperture ({skipped} skipped)",
+        "other": "Generated {count} stencil apertures ({skipped} skipped)"
+      },
+      "skippedPads": {
+        "one": "{count} overlapping pad",
+        "other": "{count} overlapping pads"
+      }
+    },
+    "mesh": {
+      "degenerateAxial": "Mesh has degenerate axial extent",
+      "degenerateAxis": "Mesh is degenerate about the rotation axis",
+      "ambiguousWinding": "Mesh winding is ambiguous (near-zero signed volume) - hull culling may be unreliable on this model.",
+      "outsideBlank": "{percent:%} of the model surface sits outside the blank radius ({radius:mm}) and was flattened to the blank surface - that material will not be machined. Raise {param} or set it to 0 (auto).",
+      "degenerateXY": "Mesh has degenerate XY extent",
+      "depthFlattened": "{percent:%} of the grid is deeper than the {depth:mm} depth window and was flattened to a plane at {z:mm}. Raise the depth or set it to 0 (auto).",
+      "noCoverage": "No model coverage on the sliced grid - nothing to machine. Check the rotation axis, the model orientation, and that the mesh is closed.",
+      "noLength": "The chuck/tail end offsets leave no machinable length (window [{from}..{to}] of {total} stations). A negative offset trims inward from that end - reduce it, or set it to 0. Nothing was generated."
+    }
+  },
+  "history": {
+    "deleteItems": "Delete {items}",
+    "ungroupMany": {
+      "one": "Ungroup {count} group",
+      "other": "Ungroup {count} groups"
+    },
+    "action": "Action",
+    "composite": "Composite",
+    "move": {
+      "one": "Move {count} item",
+      "other": "Move {count} items"
+    },
+    "deleteShapes": {
+      "one": "Delete {count} shape",
+      "other": "Delete {count} shapes"
+    },
+    "group": {
+      "one": "Group {count} item",
+      "other": "Group {count} items"
+    },
+    "ungroup": "Ungroup",
+    "removeOperations": {
+      "one": "Remove {count} operation",
+      "other": "Remove {count} operations"
+    },
+    "show": {
+      "one": "Show {count} item",
+      "other": "Show {count} items"
+    },
+    "hide": {
+      "one": "Hide {count} item",
+      "other": "Hide {count} items"
+    },
+    "lock": {
+      "one": "Lock {count} item",
+      "other": "Lock {count} items"
+    },
+    "unlock": {
+      "one": "Unlock {count} item",
+      "other": "Unlock {count} items"
+    },
+    "editTransform": "Edit transform"
+  },
+  "form": {
+    "noCompatibleTools": "No compatible tools",
+    "toolOptionTapered": "{name} ({diameter:mm} cut diameter)",
+    "valueInUnit": "{label} in {unit}",
+    "notAvailable": "Not available yet",
+    "lockedBy": "Set by {setup}",
+    "incompatible": "{label} (incompatible)"
+  },
+  "validation": {
+    "mustBeNumber": "{field} must be a number",
+    "min": "{field} must be at least {min}",
+    "max": "{field} must be no more than {max}"
+  },
+  "ops": {
+    "isolation": {
+      "label": "Isolation Routing",
+      "short": "Isolation"
+    },
+    "drill": {
+      "label": "Drilling",
+      "short": "Drill",
+      "generate": "Generate Drill Strategy",
+      "generateLaser": "Generate Drill Marks"
+    },
+    "clearing": {
+      "label": "Copper Clearing",
+      "short": "Clearing"
+    },
+    "cutout": {
+      "label": "Board Cutout",
+      "short": "Cutout",
+      "generate": "Generate Cutout Path",
+      "generateLaser": "Generate Laser Cut Path"
+    },
+    "stencil": {
+      "label": "Solder Stencil",
+      "short": "Stencil",
+      "generate": "Generate Stencil"
+    },
+    "profile": {
+      "label": "Profile Cut",
+      "short": "Profile",
+      "generate": "Generate Profile Path"
+    },
+    "pocket": {
+      "label": "Pocket Clear",
+      "short": "Pocket",
+      "generate": "Generate Pocket Paths"
+    },
+    "vcarve": {
+      "label": "V-Carve",
+      "short": "V-Carve",
+      "generate": "Generate V-Carve Paths"
+    },
+    "relief": {
+      "label": "Relief / 2.5D Carve",
+      "short": "Relief",
+      "generate": "Generate Relief Paths"
+    },
+    "rotary": {
+      "label": "Rotary / 4th Axis",
+      "short": "Rotary",
+      "generate": "Generate Rotary Paths"
+    },
+    "engrave": {
+      "label": "Engrave",
+      "short": "Engrave",
+      "generate": "Generate Engrave Path"
+    },
+    "pattern": {
+      "label": "Pattern",
+      "short": "Pattern"
+    },
+    "unassigned": {
+      "label": "Unassigned Shapes",
+      "short": "Unassigned Shapes"
+    }
+  },
+  "artifacts": {
+    "offsets": {
+      "label": "Offsets",
+      "label3d": "3D Paths"
+    },
+    "preview": {
+      "label": "Preview"
+    },
+    "toolpath": {
+      "label": "Toolpaths"
+    }
+  },
+  "stages": {
+    "geometry": {
+      "label": "XY Geometry"
+    },
+    "strategy": {
+      "label": "Z Strategy"
+    },
+    "machine": {
+      "label": "Feeds & Toolpaths"
+    },
+    "output": {
+      "label": "Output"
+    }
+  },
+  "categories": {
+    "post": "Post-Processor",
+    "stock": "Stock",
+    "heights": "Heights & Feeds",
+    "rotary": "4th Axis",
+    "tool": "Tool Selection",
+    "blank": "Blank & Axis",
+    "bounds": "Model Bounds",
+    "holding": "Workholding & Ends",
+    "offset": "Cut Settings",
+    "depth": "Depth & Passes",
+    "passes": "Passes & Stepover",
+    "roughing": "Roughing",
+    "finishing": "Finishing",
+    "tabs": "Holding Tabs",
+    "drill": "Drill Strategy",
+    "pattern": "Pattern Layout",
+    "quality": "Resolution & Finish",
+    "feeds": "Feeds & Speeds",
+    "toolpath": "Toolpath Options",
+    "general": "General Settings",
+    "laser": "Laser Output",
+    "stencil": "Stencil Settings",
+    "laser_geometry": "Isolation",
+    "laser_strategy": "Clearing Strategy",
+    "laser_cutout": "Cut Settings",
+    "strategy": "Cutting Strategy",
+    "cutout": "Cutout Settings",
+    "machine": "Machine Configuration",
+    "laser_export": "Export Settings"
+  },
+  "params": {
+    "applyOrigin": {
+      "label": "Apply Origin",
+      "help": "Saves the current previewed offset as the new permanent origin (0,0) for the project."
+    },
+    "applyRotation": {
+      "label": "Apply Rotation",
+      "help": "Applies the specified rotation to all geometry."
+    },
+    "arcReconstruction": {
+      "label": "Arc Reconstruction",
+      "help": "Attempt to rebuild arcs from line segments in fused geometry. Requires Fusion Mode."
+    },
+    "boardBounds": {
+      "label": "Board Bounds",
+      "help": "Show a box representing the total size of all loaded files."
+    },
+    "boardRotation": {
+      "label": "Board Rotation",
+      "help": "Apply a rotation (in degrees) to all files around itself."
+    },
+    "boardSize": {
+      "label": "Board Size",
+      "help": "The calculated total dimensions of all loaded files."
+    },
+    "bottomLeft": {
+      "label": "Bottom-Left",
+      "help": "Preview the origin at the bottom-left corner of the board's bounding box."
+    },
+    "bwMode": {
+      "label": "Black & White",
+      "help": "Render the canvas in black and white, ignoring layer colors."
+    },
+    "cannedCycle": {
+      "label": "Canned Cycle",
+      "help": "Pre-programmed drill cycle. G83 (peck drilling) retracts periodically to clear chips.",
+      "options": {
+        "none": "None (G0 + G1)",
+        "G81": "G81 - Simple Drill",
+        "G82": "G82 - Dwell",
+        "G83": "G83 - Peck (Full Retract)",
+        "G73": "G73 - Peck (Chip Break)"
+      }
+    },
+    "center": {
+      "label": "Center",
+      "help": "Preview the origin at the center of the board's bounding box."
+    },
+    "combineOffsets": {
+      "label": "Combine Offset Paths",
+      "help": "Merge all offset passes into a single geometry. Reduces G-code complexity but loses individual pass control."
+    },
+    "cutDepth": {
+      "label": "Cut Depth",
+      "help": "Final target depth for all cuts, relative to the material surface (Z=0). Should be a negative value (e.g., -0.05mm)."
+    },
+    "cutSide": {
+      "label": "Cut Side",
+      "help": "Where the tool sits relative to the polygon outline. Outside clears material around the shape. Inside clears within. On Path centers the tool on the line.",
+      "options": {
+        "outside": "Outside",
+        "inside": "Inside",
+        "on": "On Path (Centerline)"
+      }
+    },
+    "cutouts": {
+      "label": "Cutouts"
+    },
+    "debugArcs": {
+      "label": "Debug Arcs",
+      "help": "Show all successfully reconstructed arcs/circles"
+    },
+    "debugPoints": {
+      "label": "Debug Points",
+      "help": "Show all individual points in all geometry."
+    },
+    "depthPerPass": {
+      "label": "Depth per Pass",
+      "help": "Incremental depth of each pass when using multi-depth cutting. Smaller = gentler on tool."
+    },
+    "detectNesting": {
+      "label": "Detect Nesting",
+      "help": "When enabled, shapes fully contained inside other shapes are treated as holes and subtracted from the outer boundary during offset generation."
+    },
+    "drillMultiTool": {
+      "label": "Multi-Tool Drilling",
+      "help": "Assigns a strategy, a cutter and a tool number per row of the drill table. Each hole size and each slot size gets its own row."
+    },
+    "drillStepOver": {
+      "label": "Step Over",
+      "help": "Percentage of the tool diameter to overlap on each concentric milling ring inside oversize holes."
+    },
+    "drillMultiDepth": {
+      "label": "Multi-depth Milling",
+      "help": "Mill oversize holes in several Z levels instead of one full-depth pass. Easier on small cutters."
+    },
+    "drillDepthPerPass": {
+      "label": "Depth per Pass",
+      "help": "Material removed per Z level while milling an oversize hole."
+    },
+    "drillEntryType": {
+      "label": "Entry Method",
+      "help": "How the cutter enters an oversize hole. Helix spirals down and loads the tool gently; Plunge drops straight in and needs a center-cutting bit.",
+      "options": {
+        "helix": "Helix (Spiral entry)",
+        "plunge": "Plunge (Vertical)"
+      }
+    },
+    "drills": {
+      "label": "Drills"
+    },
+    "dwellTime": {
+      "label": "Dwell Time",
+      "help": "Pause duration at bottom of hole (seconds). Allows chips to clear and reduces burrs."
+    },
+    "startCode": {
+      "label": "Start G-code",
+      "help": "Your own start block for this post-processor, added where its program starts. Each post-processor keeps its own, starting from its setup's. {{toolNumber}} becomes the first tool's number."
+    },
+    "endCode": {
+      "label": "End G-code",
+      "help": "Your own end block for this post-processor, added where its program ends. Each post-processor keeps its own, starting from its setup's. {{safeZ}} and {{travelZ}} become those heights, never below where the program ends."
+    },
+    "entryType": {
+      "label": "Entry Type",
+      "help": "How the tool enters the material. Plunge: straight down. Ramp: diagonal. Helix: spiral down.",
+      "options": {
+        "plunge": "Plunge (Vertical)"
+      }
+    },
+    "feedRate": {
+      "label": "Feed Rate",
+      "help": "Speed at which the tool moves while cutting (mm/min or in/min)."
+    },
+    "finishStepover": {
+      "help": "Stepover percentage for the finishing pass. Lower values give a better surface finish.",
+      "label": "Finishing Step Over"
+    },
+    "finishingPass": {
+      "help": "Adds a final light pass at full depth with reduced stepover for a smoother pocket floor.",
+      "label": "Finishing Pass"
+    },
+    "fusionMode": {
+      "label": "Fusion Mode",
+      "help": "Merge all overlapping isolation/clearing geometry. Required for Arc Reconstruction."
+    },
+    "units": {
+      "label": "G-code Units",
+      "help": "Sets the units for the exported G-code file (G21 for mm, G20 for inches).",
+      "options": {
+        "mm": "Millimeters (G21)",
+        "inch": "Inches (G20)"
+      }
+    },
+    "grid": {
+      "label": "Grid",
+      "help": "Toggle the visibility of the canvas grid."
+    },
+    "indexDwell": {
+      "help": "Pause after each index rotation, before the tool re-enters the material, so a belt-driven rotary can settle. Starts at the post-processor's value; servo or geared rotaries generally need none.",
+      "label": "Index Settle Dwell"
+    },
+    "rotaryAxisHeight": {
+      "label": "Rotary Axis Height",
+      "help": "How far the rotation centerline sits above machine Z0. Every Z of a 4th-axis program is measured from that line, so this lifts it into the machine's frame. A 4th-axis export with Absolute Z0 is refused while it is empty.",
+      "placeholder": "Not set"
+    },
+    "indexedAxisOvercut": {
+      "label": "Axis Over-Cut",
+      "help": "How far past the rotation axis each face may cut. Opposing faces that stop exactly on the axis are tangent, not overlapping, so backlash or a touch-off error leaves a spine on the centerline. Leave empty for one tool radius; 0 stops exactly on the axis. This deepens the waste only - it never cuts into the minimum-radius drive stub, so you can set both.",
+      "placeholder": "Auto"
+    },
+    "indexedBlankWidth": {
+      "label": "Blank Width (Across Flats)",
+      "help": "Distance across the flats of the raw blank. Leave empty to derive it from the model. Anything on the model that sticks out past the blank cannot be reached and is flattened, so raise this if the part is larger than you declared.",
+      "placeholder": "Auto"
+    },
+    "indexedCollisionGuard": {
+      "label": "Collision Guard",
+      "help": "Limits tip depth so the shank and holder cannot touch the surface. Needs cuttingLength, shankDiameter, holderDiameter and holderStickout on the tool record; skipped silently without them."
+    },
+    "indexedCrossFinish": {
+      "label": "Cross Finishing Pass",
+      "help": "Adds a second finishing pass at 90 degrees to the first. Roughly doubles finishing time and noticeably improves the surface on curved faces."
+    },
+    "indexedDepth": {
+      "label": "Carve Depth",
+      "help": "How deep each face may cut below the blank face plane. Leave empty to reach just past the rotation axis, which is as deep as one face can usefully go - anything further belongs to the opposing face. Set a value only to stop shallower than that.",
+      "placeholder": "Auto"
+    },
+    "indexedFaceCount": {
+      "label": "Faces",
+      "help": "How many flat faces to mill around the part. More faces approximate a round surface more closely but multiply machining time. Four suits a square blank, six or eight a pre-turned round one.",
+      "options": {
+        "2": "2 (front / back)",
+        "3": "3 (triangular prism)",
+        "4": "4 (square blank)",
+        "6": "6 (hex blank)",
+        "8": "8 (octagonal blank)"
+      }
+    },
+    "indexedRasterAxis": {
+      "label": "Raster Direction",
+      "help": "Direction the finishing lines run on each face. Along the rotary axis gives long uninterrupted passes. Across the face suits parts whose detail runs around the part rather than along it.",
+      "options": {
+        "axial": "Along the rotary axis",
+        "cross": "Across the face"
+      }
+    },
+    "indexedRoughStepdown": {
+      "label": "Roughing Stepdown",
+      "help": "How much depth each roughing layer removes on a face. Smaller is gentler on the tool and takes longer. Around a third of the tool diameter is a safe starting point."
+    },
+    "indexedStartAngle": {
+      "label": "Start Angle",
+      "help": "Rotates the whole set of faces. Use it to line the first face up with a feature on the model, or to put the parting line somewhere you do not mind seeing it."
+    },
+    "laserClearStrategy": {
+      "label": "Clearing Strategy",
+      "help": "How the laser fills areas that need copper removal.\n\n• Filled Polygon: Exports solid shapes - your laser software handles the fill pattern. SVG only.\n• Offset Paths: Concentric paths shrinking inward. Most reliable for streak prevention.\n• Parallel Hatch: Straight lines at a fixed angle. Fast but single-direction.\n• Hatch: Perpendicular sets of lines. More passes shift the angle between each other.",
+      "options": {
+        "filled": "Filled Polygon - Laser software controls fill",
+        "offset": "Offset Paths - Concentric, streak-proof",
+        "hatch": "Hatch Fill - Directional line coverage"
+      }
+    },
+    "laserClearingPadding": {
+      "label": "Clearing Padding",
+      "help": "Extra margin ablated around a copper region, beyond its own outline. Gives the beam room at the edges of a pour."
+    },
+    "laserHatchPasses": {
+      "label": "Hatch Passes",
+      "help": "How many hatch passes to run. Each additional pass is rotated from the base angle, so coverage evens out instead of streaking along one direction."
+    },
+    "colorPerPass": {
+      "help": "Automatically assigns a different color to each cutting pass. Useful for software that allows settings order to colors.",
+      "label": "Unique Color Per Isolation/Clearing Pass"
+    },
+    "laserCutSide": {
+      "label": "Cut Side",
+      "help": "Where the laser kerf falls relative to the board outline.\n\n• Outside: Laser cuts outside the line (board stays full size).\n• Inside: Laser cuts inside the line (board shrinks by kerf).\n• On Line: Laser follows the exact line (board shrinks by half the kerf on each side).",
+      "options": {
+        "outside": "Outside (Kerf outward)",
+        "inside": "Inside (Kerf inward)",
+        "on": "On Line (No compensation)"
+      }
+    },
+    "laserExportPadding": {
+      "label": "Export Margin Padding",
+      "help": "Physical margin in mm added around the exported geometry. Gives the laser software breathing room for alignment."
+    },
+    "exportDPI": {
+      "label": "Export DPI",
+      "help": "Resolution of the exported PNG image. Higher DPI gives finer detail but larger file size. 1000 DPI is suitable for most PCB work. Match this to your laser software's engraving resolution setting."
+    },
+    "exportFormat": {
+      "label": "Export Format",
+      "help": "SVG exports vector paths that laser software (LightBurn, RDWorks) interprets with its own power/speed settings per color layer. PNG exports a raster image at the specified DPI - useful for direct image engraving modes.",
+      "options": {
+        "svg": "SVG - Vector",
+        "png": "PNG - Raster Image"
+      }
+    },
+    "laserHatchAngle": {
+      "label": "Hatch Angle",
+      "help": "Angle of the hatch lines in degrees. For parallel hatch, lines run at this angle. For cross-hatch, the second set runs perpendicular (angle + 90°). 45° is a good default - it crosses both horizontal and vertical traces."
+    },
+    "heatManagement": {
+      "label": "Heat Management",
+      "help": "Reorders passes so consecutive cuts are not adjacent, giving the material time to cool. Off emits paths in geometric order.",
+      "options": {
+        "off": "Off",
+        "standard": "Standard"
+      }
+    },
+    "laserIsolationWidth": {
+      "label": "Isolation Width",
+      "help": "Total width of copper to ablate around traces, measured from the trace edge outward. The number of laser passes is automatically calculated from this value, the spot size, and the step-over percentage."
+    },
+    "laserLinesPerCm": {
+      "help": "Number of laser passes per centimetre. Higher values produce denser coverage.",
+      "label": "Lines per cm"
+    },
+    "laserLinesPerInch": {
+      "help": "Number of laser passes per inch. Higher values produce denser coverage.",
+      "label": "Lines per Inch"
+    },
+    "language": {
+      "label": "Language"
+    },
+    "theme": {
+      "label": "Theme",
+      "options": {
+        "dark": "Dark",
+        "light": "Light",
+        "hc-dark": "High Contrast Dark",
+        "hc-light": "High Contrast Light"
+      }
+    },
+    "activeProfile": {
+      "label": "Laser Software",
+      "help": "The program you will open the exported file in. It decides how layers are grouped, whether colors encode passes, and which palette is used.",
+      "options": {
+        "generic": "Generic"
+      }
+    },
+    "reverseCutOrder": {
+      "label": "Reverse Cut Order",
+      "help": "Emit layers last-to-first. Needed where the importer processes the file bottom-up, so the intended first cut ends up first."
+    },
+    "laserSpacingMode": {
+      "help": "Choose how to define the distance between consecutive laser passes. Step Over uses a percentage of spot size. Lines/cm and LPI set the density directly.",
+      "label": "Pass Spacing Mode",
+      "options": {
+        "stepover": "Step Over %",
+        "lpcm": "Lines per cm",
+        "lpi": "Lines per inch"
+      }
+    },
+    "laserSpotSize": {
+      "label": "Laser Spot Size",
+      "help": "Read-only reminder of the spot size set in Machine Settings, where it is changed. Offset and hatch strategies space their passes from it."
+    },
+    "spotSize": {
+      "label": "Laser Spot Size",
+      "help": "The effective cut width of your laser beam. Manufacturer should list it in the specification sheet. Typical values: UV laser 0.02-0.08mm, Fiber laser 0.03-0.15mm."
+    },
+    "layerColors": {
+      "label": "Layer Colors",
+      "help": "Color assigned to each operation type in the exported file. Most laser software maps color to a cut setting."
+    },
+    "lineNumbers": {
+      "label": "Line Numbers (N)",
+      "help": "Prefix G-code blocks with line numbers (N10, N20…). Shown only when the post-processor's control accepts them."
+    },
+    "lineNumberStep": {
+      "label": "Line Number Step",
+      "help": "Increment gap between consecutive line numbers (N words). A step of 10 outputs N10, N20, N30… leaving space to insert manual blocks at the machine controller."
+    },
+    "laserStepOver": {
+      "label": "Step Over",
+      "help": "Percentage of the spot diameter that adjacent paths overlap. Lower values (more overlap) give better copper removal but increase processing time. 50% is a good starting point; reduce to 30% if streaks appear."
+    },
+    "svgGrouping": {
+      "label": "SVG Grouping",
+      "help": "How paths are grouped in the file. Your laser software decides what it can read: some import layers, some groups, some only color.",
+      "options": {
+        "none": "None",
+        "layer": "Layer",
+        "group": "Group",
+        "color": "Color"
+      }
+    },
+    "millHoles": {
+      "label": "Mill Holes",
+      "help": "If checked, generates circular milling paths inside any drill holes larger than the tool. If unchecked, generates a simple peck/drill at the center."
+    },
+    "mirrorGeometry": {
+      "help": "Invert file geometry. Useful with bottom-layer isolation.",
+      "label": "Mirror Geometry"
+    },
+    "multiDepth": {
+      "label": "Multi-depth Cutting",
+      "help": "Enable multiple passes at different depths for deep cuts. Reduces tool stress."
+    },
+    "offsets": {
+      "label": "Offsets",
+      "help": "Show/hide the calculated offset geometry. This is automatically hidden when a Preview is generated."
+    },
+    "originOffset": {
+      "label": "Origin Offset",
+      "help": "Set a new X/Y origin. Click 'Apply Origin' to save this position as the new (0,0)."
+    },
+    "pads": {
+      "label": "Pads"
+    },
+    "passes": {
+      "label": "Number of Passes",
+      "help": "Number of offset passes to create. More passes clear more copper but take longer."
+    },
+    "thickness": {
+      "label": "Stock Thickness",
+      "help": "The total thickness of your stock material. Used for cutout depth calculations."
+    },
+    "thicknessCopper": {
+      "label": "Copper Thickness",
+      "help": "Copper foil thickness, typically 0.035mm for 1oz. Used for isolation depth suggestions."
+    },
+    "width": {
+      "label": "Width",
+      "help": "Stock width along X."
+    },
+    "length": {
+      "label": "Length",
+      "help": "Stock length along Y."
+    },
+    "margin": {
+      "label": "Fit Margin",
+      "help": "Clearance added around the geometry when using Fit to Object."
+    },
+    "material": {
+      "label": "Material",
+      "help": "Stock material. Used for feed and speed suggestions; it does not change any generated coordinate.",
+      "options": {
+        "fr": "FR",
+        "plywood": "Plywood",
+        "mdf": "MDF",
+        "hardwood": "Hardwood",
+        "softwood": "Softwood",
+        "acrylic": "Acrylic",
+        "aluminum": "Aluminum (soft)",
+        "foam": "Foam / Modeling Board",
+        "custom": "Custom"
+      }
+    },
+    "zeroReference": {
+      "label": "Z Zero Reference",
+      "help": "Where Z0 sits. 'Material Surface' means you zero on top of the stock; 'Machine Bed' means you zero on the spoilboard and depths are measured from there.",
+      "options": {
+        "material": "Material Surface (Top)",
+        "bed": "Machine Bed (Spoilboard)"
+      }
+    },
+    "coolant": {
+      "label": "Coolant",
+      "help": "Coolant the program switches on at its start and off at its end: mist or flood, in the post's own codes (M7/M8 and M9 on most posts). None leaves coolant to the operator.",
+      "options": {
+        "none": "None",
+        "mist": "Mist",
+        "flood": "Flood"
+      }
+    },
+    "vacuum": {
+      "label": "Vacuum",
+      "help": "Switches the vacuum or dust extraction on at the start of the program and off at its end, in the post's own codes (M10/M11 on most posts, M331/M332 on Makera, an auxiliary output on WinPC-NC)."
+    },
+    "peckDepth": {
+      "label": "Peck Depth",
+      "help": "Depth of each peck before the bit retracts to clear chips. With canned cycles it is the Q word of G83 and G73; on a post without them EasyCAM writes the peck loop itself. 0, or Canned Cycle None, drills in one plunge. A Drill Tooling row can set its own."
+    },
+    "plungeRate": {
+      "label": "Plunge Rate",
+      "help": "Speed at which the tool descends into material (mm/min or in/min). Usually slower than feed rate."
+    },
+    "pocketStrategy": {
+      "help": "How the pocket interior is cleared. Concentric Offsets shrinks inward in passes. Raster sweeps back and forth in straight lines.",
+      "label": "Pocket Strategy",
+      "options": {
+        "offset": "Concentric Offsets",
+        "raster": "Raster"
+      }
+    },
+    "postProcessor": {
+      "label": "Post-Processor",
+      "help": "Selects the setup for your CNC controller: the G-code it writes and the values these settings start from. A setup can also lock some of them."
+    },
+    "preprocessed": {
+      "label": "Preprocessed",
+      "help": "Shows the geometry *after* fusion but *before* arc reconstruction. Requires Fusion Mode."
+    },
+    "previews": {
+      "label": "Previews",
+      "help": "Show/hide the toolpath previews, which represent the actual path of the tool."
+    },
+    "rapidFeed": {
+      "label": "Rapid Feed",
+      "help": "The feed rate (mm/min) for G0 rapid movements (travel and safe Z moves)."
+    },
+    "rasterAngle": {
+      "help": "Angle of the sweep lines for raster pocketing. 0° is horizontal, 90° vertical, 45° diagonal.",
+      "label": "Raster Angle"
+    },
+    "rasterBidirectional": {
+      "help": "When checked the tool cuts in both directions. When unchecked it lifts and returns after each line for climb-only cutting.",
+      "label": "Bidirectional Raster"
+    },
+    "optimizeToolpath": {
+      "label": "Optimize Toolpaths",
+      "help": "Reorder and simplify the finished toolpath to cut travel time. Turn it off to keep the paths in exactly the order they were generated."
+    },
+    "regions": {
+      "label": "Regions"
+    },
+    "reliefBoundaryMm": {
+      "label": "Boundary Extension",
+      "help": "How far past the silhouette the boundary is formed. Used by Roll Over and Extend."
+    },
+    "reliefBoundaryMode": {
+      "label": "Silhouette Boundary",
+      "help": "What happens at the model's silhouette. Stop leaves the surrounding stock. Roll Over forms a wall down past the edge. Extend keeps cutting a set distance beyond it.",
+      "options": {
+        "stop": "Stop at Model Edge",
+        "rollover": "Roll Over Edge (form boundary wall)",
+        "extend": "Extend Beyond Edge (+mm)"
+      }
+    },
+    "reliefCellSize": {
+      "label": "Grid Cell Size",
+      "help": "Sampling grid pitch in mm. Leave empty to derive it from the model size and the resolution cap below.",
+      "placeholder": "Auto"
+    },
+    "reliefCornerRadius": {
+      "label": "Corner Radius",
+      "help": "Corner radius of a bull-nose cutter. Ignored for ball and flat tips."
+    },
+    "reliefCrossFinish": {
+      "label": "Cross Finishing Pass",
+      "help": "Adds a second finishing pass at 90 degrees to the first. Roughly doubles finishing time and noticeably improves curved surfaces."
+    },
+    "reliefDepth": {
+      "label": "Carve Depth",
+      "help": "Total carve depth below the surface. Leave empty to use the model's own height.",
+      "placeholder": "Auto"
+    },
+    "reliefDepthMapping": {
+      "label": "Depth Mapping",
+      "help": "Scaled stretches the model's height range to fit the carve depth - use it for artwork. Literal keeps the model's real millimeters - use it for dimensioned parts.",
+      "options": {
+        "scaled": "Scaled to Depth (artistic relief)",
+        "literal": "Literal Model Height (dimensioned part)"
+      }
+    },
+    "reliefFinishStepoverPct": {
+      "label": "Finishing Stepover",
+      "help": "Sideways step between finishing passes, as a percentage of tool diameter. Lower is smoother and slower."
+    },
+    "reliefGridMaxDim": {
+      "label": "Auto Grid Resolution",
+      "help": "Cap on the derived grid's longest side. Higher captures finer detail and costs slicing time and memory."
+    },
+    "reliefInvert": {
+      "label": "Invert (Mold Mode)",
+      "help": "Cuts the negative of the model, so the result is a mold of it."
+    },
+    "reliefMaskUncovered": {
+      "label": "Limit to Model Footprint",
+      "help": "Only cuts where the model actually sits. Leave it off to clear the whole grid down to the floor."
+    },
+    "reliefMinSegmentLength": {
+      "label": "Min Roughing Segment",
+      "help": "Drops roughing segments shorter than this. Removes stutter without changing the cut."
+    },
+    "reliefMode": {
+      "label": "Pass",
+      "help": "Roughing removes bulk in flat layers, finishing rasters the surface. Both runs one after the other with the same tool.",
+      "options": {
+        "roughing": "Roughing",
+        "finishing": "Finishing",
+        "both": "Both (single tool)"
+      }
+    },
+    "reliefRasterAxis": {
+      "label": "Raster Direction",
+      "help": "Direction the passes sweep. Run them across the model's long details rather than along them.",
+      "options": {
+        "x": "Along X",
+        "y": "Along Y"
+      }
+    },
+    "reliefRoughStepdown": {
+      "label": "Roughing Stepdown",
+      "help": "Z depth removed per roughing layer."
+    },
+    "reliefRoughStepoverPct": {
+      "label": "Roughing Stepover",
+      "help": "Sideways step between roughing passes, as a percentage of tool diameter."
+    },
+    "reliefRoughStock": {
+      "label": "Finishing Allowance",
+      "help": "Material left on the surface for the finishing pass to take off."
+    },
+    "reliefSimplifyTolerance": {
+      "label": "Path Simplification",
+      "help": "Maximum deviation allowed when straightening finishing paths. Larger values give smaller G-code."
+    },
+    "reliefSkipFloor": {
+      "label": "Skip Flat Floor",
+      "help": "Skips the flat floor pass. Safe when roughing already clears the floor with the same tool."
+    },
+    "reliefStartDepth": {
+      "label": "Start Depth",
+      "help": "Depth of the surface the relief starts from. Use it to carve inside an existing pocket floor."
+    },
+    "reliefToolShape": {
+      "label": "Tool Tip Shape",
+      "help": "Tip geometry the compensator models. Ball follows curves best, flat is faster on shallow relief, bull nose is a flat with a corner radius.",
+      "options": {
+        "ball": "Ball Nose",
+        "flat": "Flat Endmill",
+        "bull": "Bull Nose (corner radius)"
+      }
+    },
+    "resetRotation": {
+      "label": "Reset Rotation",
+      "help": "Resets the board rotation to 0 without changing the origin position."
+    },
+    "resetUnsaved": {
+      "label": "Reset Unsaved Changes",
+      "help": "Discards any unsaved origin offset changes and reverts to the last saved origin."
+    },
+    "retractHeight": {
+      "label": "Retract Height",
+      "help": "Height to retract to between holes. Should clear board but minimize travel time."
+    },
+    "rolandModel": {
+      "help": "Select your Roland machine. Its steps per mm, feed limits, spindle control and start and end sequences come from the setup's model table; a machine the table lacks needs a custom setup with a model of its own.",
+      "label": "Machine Model",
+      "options": {
+        "custom": "Custom Machine"
+      },
+      "notes": {
+        "mdx15": "Serial interface requires hardware flow control (RTS/CTS). Use an FTDI-based USB-to-serial adapter for reliable handshaking.",
+        "mdx20": "Serial interface requires hardware flow control (RTS/CTS).",
+        "imodela": "Low rigidity - use conservative feed rates for PCB work.",
+        "srm20": "VPanel rejects RML with syntax errors. RML mode has 0.01mm resolution; NC Code mode offers 0.001mm for ultra-fine work.",
+        "egx350": "High spindle speed - excellent for PCB isolation with V-bits.",
+        "custom": "Custom configuration - verify every parameter against your machine manual."
+      }
+    },
+    "rolandZMode": {
+      "help": "3D mode uses the Z command for simultaneous XYZ interpolation (MDX-40A and above). 2.5D mode uses PU/PD which only supports XY cutting at a fixed depth set by !PZ.",
+      "label": "Z Command Mode",
+      "options": {
+        "3d": "3D - Z x,y,z (simultaneous XYZ)",
+        "2.5d": "2.5D - PU/PD (pen up/down only)"
+      }
+    },
+    "rotaryAxis": {
+      "label": "Machine Rotary Axis",
+      "help": "Which machine axis the rotary turns about: X gives an A word, Y a B word. It is how the rotary is mounted, so every 4th-axis operation uses it, and changing it marks them for regeneration. Only words the post-processor declares can be exported.",
+      "options": {
+        "x": "A - along workspace X",
+        "y": "B - along workspace Y"
+      }
+    },
+    "rotaryChuckSide": {
+      "label": "Chuck Side",
+      "help": "Which end of the rotary axis the chuck holds. Each operation's chuck-end boundary settings apply at that end, and its tail-end ones at the other.",
+      "options": {
+        "low": "Low end (toward -X / -Y)",
+        "high": "High end (toward +X / +Y)"
+      }
+    },
+    "rotaryGrid": {
+      "label": "Grid in 4th-Axis View",
+      "help": "Draws the ground grid in the 3D view's 4th-axis scene at the program's Z0: the rotation centerline, with Absolute Z0 the bed (the rotary axis height below the centerline), and on the axis-replacement route the top of the blank. Display only."
+    },
+    "rotaryWorkholding": {
+      "label": "Chuck and Tailstock",
+      "help": "Draws a simplified chuck in the 3D view's 4th-axis scene at the end of the part the chuck holds, and a tailstock at the other end when the operation holds the part between centers. Display only."
+    },
+    "rotaryBlankDiameter": {
+      "label": "Blank Diameter",
+      "help": "Outside diameter of the raw stock. Leave empty to fit the blank to the model automatically. Setting it smaller than the model flattens everything outside it, so only reduce it if the stock really is smaller.",
+      "placeholder": "Auto"
+    },
+    "rotaryCellSize": {
+      "label": "Grid Cell Size",
+      "help": "Size of one sampling cell on the model surface. Leave empty to derive it from the resolution setting below. Setting it manually overrides that and can make generation very slow on large parts.",
+      "placeholder": "Auto"
+    },
+    "rotaryChuckEndMm": {
+      "label": "Chuck-End Offset",
+      "help": "Moves where the chuck end of the model is treated as ending, along the axis. Negative stops short of the real edge - use it for a slanted base or a tangent slope your tool cannot enter cleanly. Positive machines further past it, turning the waste down to the minimum radius as it goes. Too large a negative value leaves nothing to machine and you will get a warning. On Roll Over and Taper this is the lip depth or cone length instead, and is always positive."
+    },
+    "rotaryChuckEndMode": {
+      "label": "Chuck-End Boundary",
+      "help": "What happens where the model ends at the chuck. Stop at geometry is the default and the reliable choice: the waste is turned down to the minimum radius and the tool stops at the part. Roll Over leaves a small lip around the edge, but only works on an end that is flat and close to square against the axis - a slanted, domed or off-center end will show a scalloped ring, and you will get a warning. Taper cones down to the drive stub instead of stepping.",
+      "options": {
+        "stop": "Stop at geometry (turned to the core)",
+        "rollover": "Roll Over - lip (needs a flat end)",
+        "taper": "Taper - cone down to the drive stub"
+      }
+    },
+    "rotaryCornerRadius": {
+      "label": "Corner Radius",
+      "help": "Corner radius of a bull nose tool. Only used when the tip shape is Bull Nose. Must be less than half the tool diameter."
+    },
+    "rotaryDepth": {
+      "label": "Carve Depth",
+      "help": "How deep to cut below the blank surface, measured as radius. Leave empty to follow the model down to its own thinnest point. Auto depth near the rotation axis makes generation very slow, so set an explicit value on tall models.",
+      "placeholder": "Auto"
+    },
+    "rotaryFinishPattern": {
+      "label": "Finishing Pattern",
+      "help": "Spiral is one continuous helix with a single entry and no witness lines, and is the best default. Along the axis suits parts with axial features. Around cuts closed rings and suits parts with rotational detail.",
+      "options": {
+        "spiral": "Spiral (continuous helix)",
+        "along": "Along the axis",
+        "around": "Around (rings)"
+      }
+    },
+    "rotaryFinishStepoverPct": {
+      "label": "Finishing Stepover",
+      "help": "Distance between finishing passes, as a percentage of tool diameter. 10% gives a fine finish. Larger values are faster but leave visible scallops."
+    },
+    "rotaryGridMaxDim": {
+      "label": "Auto Grid Resolution",
+      "help": "Sampling resolution along the longest dimension of the model, used when cell size is automatic. Higher captures finer detail and takes longer. 1024 suits most work."
+    },
+    "rotaryHoldingMode": {
+      "label": "Workholding",
+      "help": "Between Centers assumes a tailstock supports the far end, so material past that end is protected. Chuck Only assumes the part is cantilevered and the far end is open air.",
+      "options": {
+        "between_centers": "Between Centers (tailstock supported)",
+        "chuck_only": "Chuck Only (cantilevered)"
+      }
+    },
+    "rotaryKinematics": {
+      "label": "Rotary Kinematics",
+      "help": "Radial turns the part continuously under the tool for smooth round surfaces. Indexed 3+1 rotates to a fixed angle, mills that face flat, then rotates again. Indexed needs a post with an A or B word; radial can also run on a machine with the rotary wired to the Y driver.",
+      "options": {
+        "radial": "Radial (continuous surfacing)",
+        "indexed": "Indexed 3+1 (flat faces at fixed angles)"
+      }
+    },
+    "rotaryMinRadius": {
+      "label": "Minimum Radius",
+      "help": "Radius of the drive stub the tool never cuts into: what a chuck grips and a tailstock center bears on. It is also the radius a Taper end cones down to. On Indexed 3+1 it applies as a cylinder about the centerline, so a value here is a hard floor on how deep any face can go near the axis - the default 2mm keeps a 2mm core no face will cut through. Set it to 0 for a free end you want to part right through."
+    },
+    "rotaryMode": {
+      "label": "Pass",
+      "help": "Which passes to generate. Roughing removes bulk in constant-radius layers. Finishing follows the surface. Both runs them in order with a single tool.",
+      "options": {
+        "roughing": "Roughing",
+        "finishing": "Finishing",
+        "both": "Both (single tool)"
+      }
+    },
+    "rotaryRoughAxis": {
+      "label": "Roughing Direction",
+      "help": "Direction the roughing scanlines run. Along the axis suits long slender parts. Around the circumference suits short stubby ones and keeps the tool engaged more evenly.",
+      "options": {
+        "x": "Along the axis",
+        "y": "Around the circumference"
+      }
+    },
+    "rotaryRoughStepdown": {
+      "label": "Roughing Stepdown",
+      "help": "How much radius each roughing layer removes. Smaller is gentler on the tool and takes longer. Around a third of the tool diameter is a safe starting point."
+    },
+    "rotaryRoughStepoverPct": {
+      "label": "Roughing Stepover",
+      "help": "Distance between roughing scanlines, as a percentage of tool diameter. 45% is a good default for roughing."
+    },
+    "rotaryRoughStock": {
+      "label": "Finishing Stock",
+      "help": "Material left on the surface by roughing for the finishing pass to remove. 0.3mm is a good default. Too little and roughing marks show through, too much and finishing works hard."
+    },
+    "rotaryRoute": {
+      "help": "How the 4th axis reaches the machine. 'Rotary word' sends A or B and drops Y - the CAM does the wrapping - in degrees, or in millimeters of arc for a rotary calibrated in linear units. 'Axis replacement' keeps Y carrying millimeters of arc at the reference radius, for a rotary wired to the Y driver with steps/mm calibrated. Only routes your post-processor declares are offered.",
+      "label": "4th-Axis Route",
+      "options": {
+        "a-word": "Rotary word (A/B in degrees)",
+        "a-linear": "Rotary word (A/B in arc mm)",
+        "wrapped-linear": "Axis replacement (Y carries arc length)"
+      }
+    },
+    "rotaryStockShape": {
+      "label": "Stock Cross-Section",
+      "help": "Cross-section of the raw blank. Round starts cutting at the blank diameter. Square starts at the corner radius and turns the stock round on the way down, which adds roughing time but saves you pre-turning it.",
+      "options": {
+        "round": "Round (blank diameter)",
+        "square": "Square (side = blank diameter)"
+      }
+    },
+    "rotaryTailEndMm": {
+      "label": "Tail-End Offset",
+      "help": "Moves where the tailstock end of the model is treated as ending, along the axis. Negative stops short of the real edge - use it for a slanted top or a tangent slope your tool cannot enter cleanly. Positive machines further past it, turning the waste down to the minimum radius as it goes. Too large a negative value leaves nothing to machine and you will get a warning. On Roll Over and Taper this is the lip depth or cone length instead, and is always positive."
+    },
+    "rotaryTailEndMode": {
+      "label": "Tail-End Boundary",
+      "help": "What happens where the model ends at the tailstock. Stop at geometry is the default and the reliable choice: the waste is turned down to the minimum radius and the tool stops at the part. Roll Over leaves a small lip around the edge, but only works on an end that is flat and close to square against the axis - a slanted, domed or off-center end will show a scalloped ring, and you will get a warning. Taper cones down to the drive stub instead of stepping.",
+      "options": {
+        "stop": "Stop at geometry (turned to the core)",
+        "rollover": "Roll Over - lip (needs a flat end)",
+        "taper": "Taper - cone down to the drive stub"
+      }
+    },
+    "rotaryToolShape": {
+      "label": "Tool Tip Shape",
+      "help": "Shape of the cutting tip. Ball nose gives the smoothest curved surfaces. Flat leaves scallops on curves but cuts flats cleanly. Bull nose is a flat endmill with a rounded corner.",
+      "options": {
+        "ball": "Ball Nose",
+        "flat": "Flat Endmill",
+        "bull": "Bull Nose (corner radius)"
+      }
+    },
+    "rulers": {
+      "label": "Rulers",
+      "help": "Show/hide the rulers around the canvas."
+    },
+    "safeZ": {
+      "label": "Safe Z",
+      "help": "Maximum safe height for rapid moves and tool changes (G0). Must clear all clamps and fixtures."
+    },
+    "spindleDwell": {
+      "help": "Time in seconds to wait. Essential for high inertia spindles that need extra time to come up to speed.",
+      "label": "Spindle Dwell"
+    },
+    "spindleSpeed": {
+      "label": "Spindle Speed",
+      "help": "Rotation speed of the spindle (RPM). Higher speeds for smaller tools."
+    },
+    "spotDepth": {
+      "help": "Depth of the spot drill pilot hole.",
+      "label": "Spot Depth"
+    },
+    "spotDrill": {
+      "help": "Plunge a shallow pilot hole at each location before the main drilling pass. Improves accuracy on curved or uneven surfaces.",
+      "label": "Spot Drill"
+    },
+    "stencilAddRegHoles": {
+      "help": "Generates 4 circular alignment holes outside the board boundaries to help pin the stencil in place during manual application.",
+      "label": "Registration Holes"
+    },
+    "stencilExcludeDrillPads": {
+      "help": "Automatically removes stencil apertures that sit directly over through-holes to prevent solder paste from falling into the holes.",
+      "label": "Exclude Drill Pads"
+    },
+    "stencilExportPadding": {
+      "help": "Physical margin (in mm) added around the stencil geometry in the exported SVG. Provides breathing room for alignment on vinyl cutters and laser plotters.",
+      "label": "Export Margin Padding"
+    },
+    "stencilIgnoreRegions": {
+      "help": "If checked, ignores large copper pours and traces, only generating apertures for actual component pads (flashes).",
+      "label": "Ignore Regions"
+    },
+    "stencilOffset": {
+      "help": "Shrinks (negative) or expands (positive) the stencil apertures. -0.05mm is a common default to prevent solder bridging.",
+      "label": "Aperture Offset"
+    },
+    "stencilMachine": {
+      "label": "Stencil Output",
+      "help": "What the stencil is cut on. Router mills the apertures and exports G-code; Knife cuts on the line with a cutter offset and exports a vector file. Changing this changes which parameters and stages the operation has.",
+      "options": {
+        "router": "CNC Milling (G-code)",
+        "knife": "Vinyl / CO2 Laser (SVG)"
+      }
+    },
+    "stencilCornerRadius": {
+      "label": "Aperture Corner Radius",
+      "help": "Rounds each aperture corner so a drag knife or vinyl cutter can follow it. A radius smaller than the cutter compensation comes out square, because a round cutter cannot cut a corner tighter than itself."
+    },
+    "stencilRegDiameter": {
+      "help": "The physical diameter of the registration pins/dowels you plan to use.",
+      "label": "Registration Hole Diameter"
+    },
+    "stencilRegMargin": {
+      "help": "How far outside the calculated board boundary to place the registration holes.",
+      "label": "Registration Margin"
+    },
+    "stepOver": {
+      "label": "Step Over",
+      "help": "Percentage of the tool diameter to overlap on each pass. 50% is a good default."
+    },
+    "tabHeight": {
+      "label": "Tab Height",
+      "help": "The thickness of the tab. A value of -0.5mm on a -1.8mm cut will leave a 0.5mm thick tab."
+    },
+    "tabWidth": {
+      "label": "Tab Width",
+      "help": "The length of each holding tab in mm."
+    },
+    "tabs": {
+      "label": "Number of Tabs",
+      "help": "Number of small tabs to leave uncut, holding the board in place."
+    },
+    "tool": {
+      "label": "Tool",
+      "help": "Select a tool from your library. The tool's diameter will be used for calculations."
+    },
+    "toolDiameter": {
+      "label": "Tool Diameter",
+      "help": "The tool's cutting diameter - the widest circle it cuts. On copper isolation and engraving this is seeded with the V-bit's effective width at required depth, because that is what the offset has to use."
+    },
+    "toolLengthCompMode": {
+      "help": "Where the controller gets the new tool's Z length after a change. 'Controller tool table' assumes you have measured each tool into the control's offset table. 'H from T': the control takes the offset register from the T word. 'Measured at change time' means a controller macro probes the tool and owns Z, so no G43 is emitted. 'None' emits nothing and you re-zero Z on the new bit yourself.",
+      "label": "Tool Length Offset",
+      "options": {
+        "none": "None",
+        "table": "Controller tool table (G43 Hn)",
+        "table-implicit": "Controller tool table, H from T (Tn M06 G43)",
+        "probe": "Measured at change time (controller macro)"
+      }
+    },
+    "absoluteZ": {
+      "label": "Absolute Z0",
+      "help": "Z0 is fixed on the machine - the bed - instead of touched off on the stock. Nothing may run below it, so set the stock's Z zero to the bed. 4th-axis programs are lifted by the rotary axis height. Programs that mix flat and 4th-axis operations, and the axis-replacement route, are refused for now."
+    },
+    "toolNumber": {
+      "label": "Tool Number",
+      "help": "The magazine slot, carousel pocket or collet this operation's tool sits in - the T word your controller will receive. If your machine has no tool changer, leaving 1 on every operation is safe."
+    },
+    "traces": {
+      "label": "Traces"
+    },
+    "travelZ": {
+      "label": "Travel Z",
+      "help": "Height above the board (Z=0) where the tool travels between cutting paths."
+    },
+    "vbitAngle": {
+      "label": "V-Bit Angle",
+      "help": "The included angle of the V-bit. Common values are 60, 90, and 120 degrees. Determines cut width at a given depth."
+    },
+    "vbitTipRadius": {
+      "label": "Tip Radius",
+      "help": "Radius at the very tip of the bit. 0 is a perfect point; a real bit usually has a small tip radius or flat."
+    },
+    "vcarveCornerAngle": {
+      "label": "Corner Threshold",
+      "help": "Separation angle below which a medial branch counts as construction and is discarded. Raise it to drop more detail on curved outlines."
+    },
+    "vcarveSampleSpacing": {
+      "label": "Boundary Sample Spacing",
+      "help": "Step used to resample outlines before the medial axis is built. Lower it for very small text; it must be below the thinnest stroke width."
+    },
+    "vcarveNoiseThreshold": {
+      "label": "Noise Threshold",
+      "help": "Discards medial branches whose clearance changes by less than this. 0 disables it."
+    },
+    "vcarveMaxDepth": {
+      "help": "Maximum depth for V-carve cuts. Set to 0 for unconstrained natural depth (no flat floor). Set > 0 to clamp depth and generate flat floor loops for wide areas.",
+      "label": "Max Carve Depth"
+    },
+    "vcarveMinChainLength": {
+      "label": "Min Path Length",
+      "help": "Drops carve chains shorter than this. Removes specks left by noisy outlines."
+    },
+    "vcarveStartDepth": {
+      "help": "Starting depth offset. Use to engrave below an existing pocket floor.",
+      "label": "Start Depth"
+    },
+    "verboseDebug": {
+      "label": "Verbose Debug",
+      "help": "Show extended 'debug' messages in the status log and browser console. Requires a page reload to see startup messages."
+    },
+    "wireframe": {
+      "label": "Wireframe",
+      "help": "Render all geometry as thin outlines instead of filled shapes."
+    },
+    "makeraToolChangeMode": {
+      "label": "Tool Change Mode",
+      "options": {
+        "atc": "Automatic (ATC)",
+        "manual": "Manual (MTC)"
+      }
+    },
+    "fanucProgramNumber": {
+      "label": "Program Number (O)"
+    },
+    "fanucProgramName": {
+      "label": "Program Name (comment on O-line)"
+    },
+    "fanucWorkOffset": {
+      "label": "Work Offset",
+      "options": {
+        "G54": "G54",
+        "G55": "G55",
+        "G56": "G56",
+        "G57": "G57",
+        "G58": "G58",
+        "G59": "G59"
+      }
+    },
+    "fanucRotaryUnwind": {
+      "label": "Rotary Position at Program End",
+      "options": {
+        "none": "Leave where it stops (no motion)",
+        "g92": "Zero in place (G92) - no motion",
+        "g28": "Home the rotary (G28) - unwinds fully"
+      }
+    },
+    "winpcProgramName": {
+      "label": "Program Name (% line)"
+    },
+    "winpcFeedUnit": {
+      "label": "Feed Unit",
+      "options": {
+        "mmmin": "mm/min",
+        "mms": "mm/s"
+      }
+    },
+    "winpcAuxOutput": {
+      "label": "Vacuum / Aux Output",
+      "options": {
+        "none": "Not wired",
+        "70": "Output 100 (M70 / M-70)",
+        "71": "Output 101 (M71 / M-71)",
+        "72": "Output 102 (M72 / M-72)",
+        "73": "Output 103 (M73 / M-73)"
+      }
+    },
+    "patternType": {
+      "label": "Pattern Type",
+      "options": {
+        "grid": "Rectangular Grid",
+        "hex": "Hexagonal",
+        "radial": "Radial Array",
+        "linear": "Linear Array"
+      }
+    },
+    "patternRows": {
+      "label": "Rows"
+    },
+    "patternCols": {
+      "label": "Columns"
+    },
+    "patternSpacingX": {
+      "label": "Spacing X"
+    },
+    "patternSpacingY": {
+      "label": "Spacing Y"
+    },
+    "patternCount": {
+      "label": "Count"
+    },
+    "patternRadius": {
+      "label": "Radius"
+    },
+    "patternStartAngle": {
+      "label": "Start Angle"
+    },
+    "patternEndAngle": {
+      "label": "End Angle"
+    },
+    "patternRotateInstances": {
+      "label": "Rotate Instances to Face Outward"
+    },
+    "patternLinearAngle": {
+      "label": "Array Angle"
+    },
+    "patternMirror": {
+      "label": "Mirror",
+      "options": {
+        "none": "None",
+        "horizontal": "Horizontal",
+        "vertical": "Vertical",
+        "both": "Both Axes"
+      }
+    }
+  },
+  "units": {
+    "%": "%",
+    "°": "°",
+    "cells": "cells",
+    "DPI": "DPI",
+    "lines/cm": "lines/cm",
+    "lines/inch": "lines/inch",
+    "mm": "mm",
+    "mm/min": "mm/min",
+    "mm/s": "mm/s",
+    "RPM": "RPM",
+    "s": "s",
+    "steps/mm": "steps/mm",
+    "x": "x"
+  },
+  "quantities": {
+    "%": "{value}%",
+    "°": "{value}°",
+    "mm": "{value}mm",
+    "μm": "{value}μm"
+  },
+  "keys": {
+    "ctrl": "Ctrl",
+    "shift": "Shift",
+    "delete": "Delete",
+    "escape": "Esc",
+    "home": "Home"
+  },
+  "tools": {
+    "names": {
+      "flat": "{diameter:mm} Flat End Mill",
+      "ball": "{diameter:mm} Ball Nose End Mill",
+      "bull": "{diameter:mm} Bull Nose End Mill (R{cornerRadius:mm})",
+      "corn": "{diameter:mm} Corn Teeth Cutter",
+      "drill": "{diameter:mm} Drill",
+      "vbit": "{angle:°} V-Bit {tipDiameter:mm} Tip",
+      "taperedBall": "{tipDiameter:mm} Tapered Ball ({halfAngle:°}/side)",
+      "withHolder": "{name} + {holderDiameter:mm} Holder"
+    },
+    "validation": {
+      "notLibrary": "Not a tool library: there is no \"tools\" list",
+      "missingId": "id is missing",
+      "duplicateId": "id is already used by another tool",
+      "unknownType": "Unknown type '{type}' (expected {types})",
+      "name": "name must be a non-empty string when present",
+      "missingGeometry": "geometry is missing",
+      "positive": "{field} must be a positive number",
+      "cornerRadius": "geometry.cornerRadius is larger than the tool radius",
+      "vbitAngle": "geometry.angle must be below 180",
+      "halfAngle": "geometry.halfAngle must be below 90",
+      "tipWider": "geometry.tipDiameter is wider than geometry.diameter",
+      "effectiveWider": "geometry.effectiveDiameter is wider than geometry.diameter",
+      "holderPair": "geometry.holderDiameter and geometry.holderStickout go together",
+      "holderNeeds": "A holder needs geometry.shankDiameter and geometry.cuttingLength",
+      "missingCutting": "cutting is missing",
+      "operations": "operations must be a list",
+      "toolNumber": "toolNumber must be a positive integer",
+      "toolNumberTaken": "toolNumber {number} is already used by '{id}'"
+    }
+  },
+  "devices": {
+    "maturity": {
+      "less-experimental": {
+        "label": "{name} (Less Experimental)",
+        "note": "Tested but not 100% confidence yet. Check the output before its first run."
+      },
+      "experimental": {
+        "label": "{name} (Experimental)",
+        "note": "Somewhat tested on a couple machines with good feedback. Double check the output before running it."
+      },
+      "very-experimental": {
+        "label": "{name} (Very Experimental)",
+        "note": "Barely tested on a limited number of setups. Expect problems and check the output before running it."
+      },
+      "radioactive": {
+        "label": "{name} (Radioactive)",
+        "note": "Little to no testing. Dry-run the output first and proceed with Extreme Caution."
+      },
+      "custom": {
+        "label": "{name} (Custom)",
+        "note": "Loaded from a custom file. Check its output before the first run."
+      }
+    },
+    "inUse": {
+      "device": "{kind}: {name}",
+      "customDevice": "{kind}: {name}, from {file}",
+      "library": "{kind}: built-in",
+      "customLibrary": "{kind}: from {file}"
+    }
+  },
+  "examples": {
+    "exampleSMD1": "Example 1 - SMD",
+    "exampleThroughHole1": "Example 2 - Through-Hole",
+    "line": "Line Test",
+    "calibration": "100mm Step/mm Square",
+    "mesa": "Flatpack Coffee Table",
+    "vcarve-sign": "V-carve - Leaf Heart",
+    "relief-tile": "Flat relief - Setúbal Peninsula",
+    "rotary-pawn": "Round relief - Viking By Printical (mod)"
+  },
+  "output": {
+    "gcode": {
+      "comments": {
+        "header": "G-code generated by {app}",
+        "date": "Date: {date}",
+        "processor": "Processor: {processor}",
+        "processorCustom": "Processor: {processor} (custom file)",
+        "separator": "---",
+        "operationCount": "Operations: {count}",
+        "operationEntry": "- {type}: {file}",
+        "initialTool": "Initial tool: {name}",
+        "toolChange": "Tool change: {name}",
+        "toolDiameter": "Diameter: {diameter:mm}",
+        "toolChangePause": "Tool change pause - press cycle start",
+        "toolLengthComp": "Tool length compensation",
+        "toolLengthCancel": "Cancel tool length offset",
+        "retractSafeZ": "Retract to Safe Z",
+        "parkClearance": "Park at clearance position",
+        "spindleStart": "Spindle Start",
+        "spindleStop": "Spindle Stop",
+        "spindleDwell": "Wait for spindle",
+        "coolantFlood": "Flood coolant on",
+        "coolantMist": "Mist coolant on",
+        "coolantOff": "Coolant off",
+        "vacuumOn": "Vacuum on",
+        "vacuumOff": "Vacuum off",
+        "inverseTimeOn": "Inverse time feed mode",
+        "inverseTimeOff": "Units per minute feed mode",
+        "makera": {
+          "autoToolChange": "Auto tool change",
+          "mtcClearance": "Move to tool change clearance",
+          "mtcRelease": "Paused. Press Play to release collet.",
+          "mtcInsert": "Paused. Insert tool and press Play to close.",
+          "mtcCalibState": "Set memory state for calibration",
+          "mtcCalibRun": "Execute Tool Length Calibration"
+        },
+        "fanuc": {
+          "rotaryUnwind": "Home rotary axis",
+          "rotaryZero": "Zero rotary in place"
+        },
+        "winpcnc": {
+          "zConvention": "Z convention: Z+ up, negative Z into the stock"
+        },
+        "rotaryIndexed": "4th axis (indexed 3+1): {word} in absolute degrees - face positions [{faces}]",
+        "rotaryIndexedZero": "Z zero: ROTARY CENTERLINE - Z is the tool-tip radius from the axis; touch off a face top and lower Z0 by the apothem (face top at Z{apothem}). Y zero: ROTARY CENTERLINE",
+        "rotaryUnitsArc": "mm of arc",
+        "rotaryUnitsDegrees": "degrees",
+        "rotaryWrapped": "4th axis: {word} in {units}, accumulated (no rewind)",
+        "rotaryWrappedZero": "Z zero: ROTARY CENTERLINE - Z is tool radius; blank surface at Z{radius}",
+        "rotaryAbsoluteZero": "Z zero: MACHINE Z0 (absolute) - rotation centerline at Z{height}",
+        "verbose": {
+          "tool": "Tool T{number}: {name}, {diameter:mm}",
+          "toolUnnamed": "Tool T{number}: {diameter:mm}",
+          "feeds": "Feed {feed} mm/min, plunge {plunge} mm/min, spindle {spindle} RPM",
+          "depth": "Depth {depth:mm}, {step:mm} per pass",
+          "depthOnce": "Depth {depth:mm} in one pass",
+          "stepOver": "Stepover {stepOver:%}",
+          "deepest": "Deepest Z {z:mm}",
+          "drillRow": "Holes {size:mm}: T{number}, {diameter:mm}",
+          "slotRow": "Slots {size:mm}: T{number}, {diameter:mm}",
+          "roughStepover": "Roughing stepover {stepOver:mm}",
+          "finishStepover": "Finishing stepover {stepOver:mm}"
+        }
+      }
+    },
+    "svg": {
+      "header": "{app} SVG Export",
+      "date": "Date: {date}",
+      "operationCount": "Operations: {count}",
+      "operationEntry": "- {type}: {file}"
+    },
+    "canvas": {
+      "header": "{app} Canvas Export | {date}",
+      "view": "Mode: {mode} | Geometry: {geometry}",
+      "wireframe": "Wireframe",
+      "solid": "Solid",
+      "fused": "Fused",
+      "source": "Source"
+    }
+  },
+  "customFiles": {
+    "kinds": {
+      "theme": "Theme",
+      "language": "Language",
+      "setup": "Post-processor setup",
+      "laserProfile": "Laser profile",
+      "toolLibrary": "Tool library"
+    },
+    "types": {
+      "string": "text",
+      "number": "a number",
+      "integer": "a whole number",
+      "boolean": "true or false",
+      "object": "an object",
+      "array": "a list",
+      "null": "null"
+    },
+    "report": {
+      "title": "Custom files",
+      "summary": "Custom files: {added} added, {refused} refused.",
+      "added": "{file}: {items} added.",
+      "item": "{kind} {name}",
+      "itemReplacing": "{kind} {name} (replacing {previous})",
+      "refused": "{file} was not added:",
+      "importFailed": "Custom files could not be checked: {error}",
+      "where": {
+        "theme": "Listed in the theme picker on the welcome screen. It is kept while chosen: if another theme is in use at the next start, it is removed from this browser.",
+        "language": "Listed in the language picker on the welcome screen. It is kept while chosen: if another language is in use at the next start, it is removed from this browser.",
+        "setup": "Listed under Machine Settings > Post-Processor.",
+        "laserProfile": "Listed under Machine Settings > Laser Software.",
+        "toolLibrary": "In use now, in place of the built-in tools. Named under Machine Settings > Post-Processor."
+      }
+    },
+    "remove": {
+      "tip": "{device} - click to remove this custom file",
+      "title": "Remove custom file",
+      "message": "Stop using {file}? It is removed from this browser and a built-in one takes its place. The file on your computer is not touched.",
+      "done": "{file} removed - a built-in one is in use now.",
+      "failed": "{file} could not be removed: {error}"
+    },
+    "restore": {
+      "noRules": "Stored custom files were not loaded: the file rules are missing.",
+      "superseded": "{kind} {id}, stored in this browser, was removed: a built-in now uses that id.",
+      "refused": {
+        "one": "{kind} {id}, stored in this browser, was removed: {reason}",
+        "other": "{kind} {id}, stored in this browser, was removed: {reason} ({count} problems)"
+      },
+      "failed": "{kind} {id}, stored in this browser, was not loaded and is kept for the next start: {reason}",
+      "fallback": "{kind} {id} is not available; using {fallback} for this session."
+    },
+    "problems": {
+      "tooLarge": "The file is {size} KiB; custom files can be up to {max} KiB.",
+      "json": "Not a valid JSON file: {error}",
+      "kindMissing": "The file does not say what it holds: meta.kind is missing (expected one of {kinds}).",
+      "kind": "meta.kind '{kind}' is not a kind of file this app reads (expected one of {kinds}).",
+      "logic": "{path} ('{value}') is not a post-processor logic this app has ({expected}).",
+      "builtIn": "{kind} '{id}' already ships with the app; give the custom one another id.",
+      "labelTaken": "{path}: '{label}' is already the name of setup {id}. Give this one a name of its own.",
+      "registerFailed": "The file could not be put in use: {error}",
+      "checkFailed": "The file could not be checked: {error}",
+      "noTools": "No tool in the library passed the checks.",
+      "tools": "Not a tool library this app reads: {reason}",
+      "const": "{path} must be {expected}.",
+      "enum": "{path} must be one of {expected}.",
+      "type": "{path} must be {expected}.",
+      "minLength": "{path} is too short: at least {limit} characters.",
+      "maxLength": "{path} is too long: at most {limit} characters.",
+      "pattern": {
+        "default": "{path} ('{value}') does not have the expected form.",
+        "id": "{path} ('{value}') must be 2 to 32 lowercase letters, digits or dashes, starting with a letter.",
+        "hex": "{path} ('{value}') must be a 6-digit hex colour such as #1a2b3c.",
+        "gcode": "{path} may hold printable ASCII and line breaks only.",
+        "fileExtension": "{path} ('{value}') must be a dot and up to 5 letters or digits, such as .nc.",
+        "mWord": "{path} ('{value}') must be an M word such as M3."
+      },
+      "placeholder": "{path} uses {name}, which nothing fills here (it can use {expected}).",
+      "minimum": "{path} must be at least {limit}.",
+      "maximum": "{path} must be at most {limit}.",
+      "exclusiveMinimum": "{path} must be greater than {limit}.",
+      "minItems": "{path} needs at least {limit} entries.",
+      "maxItems": "{path} can have at most {limit} entries.",
+      "uniqueItems": "{path} lists the same entry twice.",
+      "minProperties": "{path} needs at least {limit} entries.",
+      "required": "{path} is missing.",
+      "unknown": "{path} is not a key this kind of file has.",
+      "unused": "{path}: this setup does not use that setting, so it cannot set or lock it.",
+      "byName": {
+        "unknown": "{path} is not one of the parameters {expected}.",
+        "duplicate": "{path} declares {name} a second time."
+      },
+      "format": {
+        "color": "{path} ('{value}') is not a CSS colour.",
+        "cssValue": "{path} may not load anything: no url(), image-set(), image(), element(), @import or expression().",
+        "declaredProperty": "{path}: '{value}' is not a token css/base.css declares.",
+        "locale": "{path} ('{value}') is not a language tag; use one such as pt-BR or de-x-test.",
+        "localeForm": "{path} ('{value}') must be written {canonical}.",
+        "shippedLocale": "{path}: a '{value}' pack ships with the app. To try changes to it, use a private tag such as {value}-x-test.",
+        "listedLocale": "{path}: no language pack '{value}' is available."
+      },
+      "reference": {
+        "unavailable": "The shipped theme to compare against could not be loaded: {error}",
+        "missing": {
+          "one": "{path} lacks {count} colour the shipped themes declare: {keys}",
+          "other": "{path} lacks {count} colours the shipped themes declare: {keys}"
+        },
+        "extra": {
+          "one": "{path} declares {count} colour the shipped themes do not: {keys}",
+          "other": "{path} declares {count} colours the shipped themes do not: {keys}"
+        },
+        "hex": "{path} ('{value}') must be a 6-digit hex colour, as in the shipped themes.",
+        "colorFunction": "{path} ('{value}') must be an rgb() or hsl() colour, as in the shipped themes."
+      },
+      "language": {
+        "plural": "{path} must be text, or plural forms (zero, one, two, few, many, other) with other among them.",
+        "notText": "{path} must be text.",
+        "pluralNoCount": "{path} cannot take plural forms: the English text is not given a count.",
+        "tokens": "{path} must keep the English placeholders {expected} and add none.",
+        "slots": "{path} must keep the English tags {expected}.",
+        "empty": "{path} is empty: leave the key out and the English text shows."
+      }
+    },
+    "notes": {
+      "toolLeftOut": "Tool {id} left out: {reason}",
+      "notStored": "The browser would not store the file ({error}): it is in use until this page closes.",
+      "missingKeys": {
+        "one": "{count} key of en.json is missing and shows in English: {keys}",
+        "other": "{count} keys of en.json are missing and show in English: {keys}"
+      },
+      "extraKeys": {
+        "one": "{count} key is not in en.json and is ignored: {keys}",
+        "other": "{count} keys are not in en.json and are ignored: {keys}"
+      },
+      "pluralForms": {
+        "one": "{count} plural lacks forms this language uses ({forms}) and shows other there: {keys}",
+        "other": "{count} plurals lack forms this language uses ({forms}) and show other there: {keys}"
+      }
+    },
+    "rules": {
+      "toolChangeSwap": "{path}: supportsToolChange needs useM6 or pauseAfterToolChange, or a tool change would write no swap at all.",
+      "useM6NeedsToolChange": "{path}: useM6 acts only with supportsToolChange. For an M6 on the first tool alone, use initialToolUsesM6.",
+      "pauseNeedsToolChange": "{path}: pauseAfterToolChange acts only with supportsToolChange.",
+      "lengthCompNeedsSwap": "{path}: tool length modes other than none need supportsToolChange and useM6. The first tool gets its G43 through the M6 swap, and probe relies on the control's M6 macro.",
+      "rotaryWords": "{path}: the a-word and a-linear routes need at least one entry in rotary.axisWords.",
+      "rotaryRouteDefault": "{path}: a setup that declares rotary routes needs defaults.rotaryRoute, one of them.",
+      "lineNumberRange": "{path}: defaults.lineNumberStep must be below flags.lineNumberMax.",
+      "lumpingNeedsPalette": "{path}: paletteLumping needs a palette.",
+      "defaultInOptions": "{path}: default must be one of the options."
+    }
+  },
+  "apps": {
+    "easytrace5000": {
+      "app": {
+        "title": "{app} - Browser CAM for PCB Milling and Laser",
+        "toolbar": { "title": "{app} - PCB CAM Workspace" },
+        "sidebars": { "left": "Operations" }
+      },
+      "modals": {
+        "welcome": {
+          "tagline": "CAM for PCB fabrication, by CNC milling or laser.",
+          "sibling": "Also in the EasyCAM5000 suite: <link/>, for general CNC routing.",
+          "pipelines": {
+            "cnc": {
+              "title": "CNC Milling",
+              "text": "Isolation routing, copper clearing, drilling and cutouts.",
+              "action": "Start with CNC"
+            },
+            "laser": {
+              "title": "Laser Processing",
+              "text": "Vector or raster files for ablation, stencils and cutouts.",
+              "action": "Start with Laser"
+            }
+          }
+        },
+        "quickstart": {
+          "subtitle": "Load PCB manufacturing files",
+          "dropIntro": "Or drop files into each operation type:",
+          "hint": "Note: You can also drag files onto the workspace canvas or use the sidebar + buttons. Because Protel extensions are also recognized they are assigned their correct operation automatically on drag'n'drop."
+        }
+      }
+    },
+    "easyshape5000": {
+      "app": {
+          "title": "{app} - Browser CAM for CNC Routers",
+          "toolbar": { "title": "{app} - CNC Router CAM Workspace" },
+          "sidebars": { "left": "Scene & Operations" }
+      },
+      "modals": {
+        "welcome": {
+          "tagline": "CAM for CNC routing, from 2.5D profiles to 3D relief.",
+          "sibling": "Also in the EasyCAM5000 suite: <link/>, for PCB fabrication.",
+          "pipelines": {
+            "cnc": {
+              "title": "2D Workspace",
+              "text": "2.5D profiles, pockets, drilling and engraving.",
+              "action": "Start 2D"
+            },
+            "3d": {
+              "title": "3D Workspace",
+              "text": "Same plus V-carving and relief maps, flat or rotary",
+              "action": "Start 3D"
+            }
+          }
+        },
+        "quickstart": {
+          "subtitle": "Load vector or mesh design files",
+          "dropIntro": "Drop your design file below to begin:",
+          "hint": "Note: You can also drag files directly onto the workspace canvas. Open <strong>Stock Setup</strong> in the right sidebar to configure your material size."
+        }
+      }
+    }
+  }
+}

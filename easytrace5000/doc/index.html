@@ -1,490 +1,492 @@
 <!DOCTYPE html>
 <html lang="en" data-theme="dark">
 <head>
-    <meta charset="UTF-8">
-    <!--!
-        @file        easytrace5000/doc/index.html
-        @description EasyTrace5000 Documentation
-        @author      Eltryus - Ricardo Marques
-        @copyright   2025-2026 Eltryus - Ricardo Marques
-        @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
+  <meta charset="UTF-8">
+  <!--!
+  @file        easytrace5000/doc/index.html
+  @description EasyTrace5000 Documentation
+  @author      Eltryus - Ricardo Marques
+  @copyright   2025-2026 Eltryus - Ricardo Marques
+  @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
 
-        SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
-        SPDX-License-Identifier: AGPL-3.0-or-later
-    -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>EasyTrace5000 Doc - PCB CAM Guides and Reference</title>
+  SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
+  SPDX-License-Identifier: AGPL-3.0-or-later
+  -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>EasyTrace5000 Doc - PCB CAM Guides and Reference</title>
 
-    <meta name="description" content="EasyTrace5000 documentation: PCB isolation routing, drilling with per-diameter tooling, copper clearing, board cutout, solder stencils and laser output.">
-    <meta name="author" content="Eltryus">
-    <meta name="robots" content="index, follow">
-    <meta name="theme-color" content="#1a1a1a">
+  <meta name="description" content="EasyTrace5000 documentation: PCB isolation routing, drilling with per-diameter tooling, copper clearing, board cutout, solder stencils and laser output.">
+  <meta name="author" content="Eltryus">
+  <meta name="robots" content="index, follow">
+  <meta name="theme-color" content="#1a1a1a">
 
-    <link rel="canonical" href="https://cam.eltryus.design/easytrace5000/doc/">
+  <link rel="canonical" href="https://cam.eltryus.design/easytrace5000/doc/">
 
-    <meta property="og:type" content="website">
-    <meta property="og:url" content="https://cam.eltryus.design/easytrace5000/doc/">
-    <meta property="og:title" content="EasyTrace5000 Doc - PCB CAM Guides and Reference">
-    <meta property="og:description" content="EasyTrace5000 documentation: PCB isolation routing, drilling with per-diameter tooling, copper clearing, board cutout, solder stencils and laser output.">
-    <meta property="og:image" content="https://cam.eltryus.design/images/social-trace.jpg">
-    <meta property="og:image:width" content="1200">
-    <meta property="og:image:height" content="630">
-    <meta property="og:site_name" content="EasyCAM5000">
-    <meta property="og:locale" content="en_US">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://cam.eltryus.design/easytrace5000/doc/">
+  <meta property="og:title" content="EasyTrace5000 Doc - PCB CAM Guides and Reference">
+  <meta property="og:description" content="EasyTrace5000 documentation: PCB isolation routing, drilling with per-diameter tooling, copper clearing, board cutout, solder stencils and laser output.">
+  <meta property="og:image" content="https://cam.eltryus.design/images/social-trace.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:site_name" content="EasyCAM5000">
+  <meta property="og:locale" content="en_US">
 
-    <link rel="icon" type="image/png" href="../../images/favicon/favicon-96x96.png" sizes="96x96">
-    <link rel="icon" type="image/svg+xml" href="../../images/favicon/favicon.svg">
-    <link rel="shortcut icon" href="../../images/favicon/favicon.ico">
-    <link rel="apple-touch-icon" sizes="180x180" href="../../images/favicon/apple-touch-icon.png">
-    <link rel="manifest" href="../../images/favicon/site.webmanifest">
+  <link rel="icon" type="image/png" href="../../images/favicon/favicon-96x96.png" sizes="96x96">
+  <link rel="icon" type="image/svg+xml" href="../../images/favicon/favicon.svg">
+  <link rel="shortcut icon" href="../../images/favicon/favicon.ico">
+  <link rel="apple-touch-icon" sizes="180x180" href="../../images/favicon/apple-touch-icon.png">
+  <link rel="manifest" href="../../images/favicon/site.webmanifest">
 
-    <link rel="preload" as="image" href="../../images/EasyTrace5000_workspace.webp" type="image/webp" fetchpriority="high">
+  <link rel="preload" as="image" href="../../images/EasyTrace5000_workspace.webp" type="image/webp" fetchpriority="high">
 
-    <link rel="stylesheet" href="../../css/base.css">
-    <link rel="stylesheet" href="../../css/components.css">
-    <link rel="stylesheet" href="../../css/theme.css">
-    <link rel="stylesheet" href="../../css/doc.css">
+  <link rel="stylesheet" href="../../css/base.css">
+  <link rel="stylesheet" href="../../css/components.css">
+  <link rel="stylesheet" href="../../css/theme.css">
+  <link rel="stylesheet" href="../../css/doc.css">
 
-    <script type="application/ld+json">
-    {
-        "@context": "https://schema.org",
-        "@graph": [
-            {
-                "@type": "Organization",
-                "@id": "https://www.eltryus.design/#organization",
-                "name": "Eltryus",
-                "url": "https://www.eltryus.design/"
-            },
-            {
-                "@type": "WebSite",
-                "@id": "https://cam.eltryus.design/#website",
-                "name": "EasyCAM5000",
-                "alternateName": "Eltryus EasyCAM5000 Suite",
-                "url": "https://cam.eltryus.design/",
-                "inLanguage": "en",
-                "publisher": { "@id": "https://www.eltryus.design/#organization" }
-            },
-            {
-                "@type": "WebApplication",
-                "@id": "https://cam.eltryus.design/easytrace5000/#app",
-                "name": "EasyTrace5000",
-                "url": "https://cam.eltryus.design/easytrace5000/"
-            },
-            {
-                "@type": "CollectionPage",
-                "@id": "https://cam.eltryus.design/easytrace5000/doc/#docs",
-                "name": "EasyTrace5000 Documentation",
-                "headline": "EasyTrace5000 Documentation",
-                "description": "Guides and technical reference for EasyTrace5000 PCB CAM workflows, including isolation routing, peck/mill drilling, copper clearing, and laser output.",
-                "url": "https://cam.eltryus.design/easytrace5000/doc/",
-                "inLanguage": "en",
-                "isPartOf": { "@id": "https://cam.eltryus.design/#website" },
-                "about": { "@id": "https://cam.eltryus.design/easytrace5000/#app" },
-                "breadcrumb": { "@id": "https://cam.eltryus.design/easytrace5000/doc/#breadcrumb" },
-                "primaryImageOfPage": "https://cam.eltryus.design/images/social-trace.jpg",
-                "author": { "@id": "https://www.eltryus.design/#organization" },
-                "publisher": { "@id": "https://www.eltryus.design/#organization" },
-                "datePublished": "2025-01-16",
-                "dateModified": "2026-08-24",
-                "hasPart": [
-                    { "@id": "https://cam.eltryus.design/easytrace5000/doc/cnc#article" },
-                    { "@id": "https://cam.eltryus.design/easytrace5000/doc/laser#article" },
-                    { "@id": "https://cam.eltryus.design/easytrace5000/doc/operations#article" },
-                    { "@id": "https://cam.eltryus.design/easytrace5000/doc/parameters#article" },
-                    { "@id": "https://cam.eltryus.design/easytrace5000/doc/accessibility#article" }
-                ]
-            },
-            {
-                "@type": "TechArticle",
-                "@id": "https://cam.eltryus.design/easytrace5000/doc/cnc#article",
-                "headline": "EasyTrace5000 CNC Milling Guide",
-                "url": "https://cam.eltryus.design/easytrace5000/doc/cnc"
-            },
-            {
-                "@type": "TechArticle",
-                "@id": "https://cam.eltryus.design/easytrace5000/doc/laser#article",
-                "headline": "EasyTrace5000 Laser Processing Guide",
-                "url": "https://cam.eltryus.design/easytrace5000/doc/laser"
-            },
-            {
-                "@type": "TechArticle",
-                "@id": "https://cam.eltryus.design/easytrace5000/doc/operations#article",
-                "headline": "EasyTrace5000 Operation Guide",
-                "url": "https://cam.eltryus.design/easytrace5000/doc/operations"
-            },
-            {
-                "@type": "TechArticle",
-                "@id": "https://cam.eltryus.design/easytrace5000/doc/parameters#article",
-                "headline": "EasyTrace5000 Parameter Guide",
-                "url": "https://cam.eltryus.design/easytrace5000/doc/parameters"
-            },
-            {
-                "@type": "TechArticle",
-                "@id": "https://cam.eltryus.design/easytrace5000/doc/accessibility#article",
-                "headline": "EasyTrace5000 Accessibility Guide",
-                "url": "https://cam.eltryus.design/easytrace5000/doc/accessibility"
-            },
-            {
-                "@type": "BreadcrumbList",
-                "@id": "https://cam.eltryus.design/easytrace5000/doc/#breadcrumb",
-                "itemListElement": [
-                    { "@type": "ListItem", "position": 1, "name": "EasyCAM5000", "item": "https://cam.eltryus.design/" },
-                    { "@type": "ListItem", "position": 2, "name": "EasyTrace5000", "item": "https://cam.eltryus.design/easytrace5000/" },
-                    { "@type": "ListItem", "position": 3, "name": "Docs", "item": "https://cam.eltryus.design/easytrace5000/doc/" }
-                ]
-            }
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": "https://www.eltryus.design/#organization",
+        "name": "Eltryus",
+        "url": "https://www.eltryus.design/"
+      },
+      {
+        "@type": "WebSite",
+        "@id": "https://cam.eltryus.design/#website",
+        "name": "EasyCAM5000",
+        "alternateName": "Eltryus EasyCAM5000 Suite",
+        "url": "https://cam.eltryus.design/",
+        "inLanguage": "en",
+        "publisher": { "@id": "https://www.eltryus.design/#organization" }
+      },
+      {
+        "@type": "WebApplication",
+        "@id": "https://cam.eltryus.design/easytrace5000/#app",
+        "name": "EasyTrace5000",
+        "url": "https://cam.eltryus.design/easytrace5000/"
+      },
+      {
+        "@type": "CollectionPage",
+        "@id": "https://cam.eltryus.design/easytrace5000/doc/#docs",
+        "name": "EasyTrace5000 Documentation",
+        "headline": "EasyTrace5000 Documentation",
+        "description": "Guides and technical reference for EasyTrace5000 PCB CAM workflows, including isolation routing, peck/mill drilling, copper clearing, and laser output.",
+        "url": "https://cam.eltryus.design/easytrace5000/doc/",
+        "inLanguage": "en",
+        "isPartOf": { "@id": "https://cam.eltryus.design/#website" },
+        "about": { "@id": "https://cam.eltryus.design/easytrace5000/#app" },
+        "breadcrumb": { "@id": "https://cam.eltryus.design/easytrace5000/doc/#breadcrumb" },
+        "primaryImageOfPage": "https://cam.eltryus.design/images/social-trace.jpg",
+        "author": { "@id": "https://www.eltryus.design/#organization" },
+        "publisher": { "@id": "https://www.eltryus.design/#organization" },
+        "datePublished": "2025-01-16",
+        "dateModified": "2026-11-10",
+        "hasPart": [
+          { "@id": "https://cam.eltryus.design/easytrace5000/doc/cnc#article" },
+          { "@id": "https://cam.eltryus.design/easytrace5000/doc/laser#article" },
+          { "@id": "https://cam.eltryus.design/easytrace5000/doc/operations#article" },
+          { "@id": "https://cam.eltryus.design/easytrace5000/doc/parameters#article" },
+          { "@id": "https://cam.eltryus.design/easytrace5000/doc/accessibility#article" }
         ]
-    }
-    </script>
+      },
+      {
+        "@type": "TechArticle",
+        "@id": "https://cam.eltryus.design/easytrace5000/doc/cnc#article",
+        "headline": "EasyTrace5000 CNC Milling Guide",
+        "url": "https://cam.eltryus.design/easytrace5000/doc/cnc"
+      },
+      {
+        "@type": "TechArticle",
+        "@id": "https://cam.eltryus.design/easytrace5000/doc/laser#article",
+        "headline": "EasyTrace5000 Laser Processing Guide",
+        "url": "https://cam.eltryus.design/easytrace5000/doc/laser"
+      },
+      {
+        "@type": "TechArticle",
+        "@id": "https://cam.eltryus.design/easytrace5000/doc/operations#article",
+        "headline": "EasyTrace5000 Operation Guide",
+        "url": "https://cam.eltryus.design/easytrace5000/doc/operations"
+      },
+      {
+        "@type": "TechArticle",
+        "@id": "https://cam.eltryus.design/easytrace5000/doc/parameters#article",
+        "headline": "EasyTrace5000 Parameter Guide",
+        "url": "https://cam.eltryus.design/easytrace5000/doc/parameters"
+      },
+      {
+        "@type": "TechArticle",
+        "@id": "https://cam.eltryus.design/easytrace5000/doc/accessibility#article",
+        "headline": "EasyTrace5000 Accessibility Guide",
+        "url": "https://cam.eltryus.design/easytrace5000/doc/accessibility"
+      },
+      {
+        "@type": "BreadcrumbList",
+        "@id": "https://cam.eltryus.design/easytrace5000/doc/#breadcrumb",
+        "itemListElement": [
+          { "@type": "ListItem", "position": 1, "name": "EasyCAM5000", "item": "https://cam.eltryus.design/" },
+          { "@type": "ListItem", "position": 2, "name": "EasyTrace5000", "item": "https://cam.eltryus.design/easytrace5000/" },
+          { "@type": "ListItem", "position": 3, "name": "Docs", "item": "https://cam.eltryus.design/easytrace5000/doc/" }
+        ]
+      }
+    ]
+  }
+  </script>
 </head>
 <body>
-    <a href="#doc-content" class="skip-link">Skip to Main Content</a>
+  <a href="#doc-content" class="skip-link">Skip to Main Content</a>
 
-    <header class="doc-header">
-        <div class="doc-brand"><a href="/" aria-label="EasyCAM5000 Homepage">EasyCAM5000</a></div>
+  <header class="doc-header">
+    <div class="doc-brand"><a href="/" aria-label="EasyCAM5000 Homepage">EasyCAM5000</a></div>
 
-        <nav class="doc-breadcrumb" aria-label="Breadcrumb">
+    <nav class="doc-breadcrumb" aria-label="Breadcrumb">
+      <ol>
+        <li><a href="/easytrace5000/" draggable="false">EasyTrace5000</a></li>
+        <li><span aria-current="page">Docs</span></li>
+      </ol>
+    </nav>
+
+    <button class="doc-menu-toggle" aria-label="Toggle Navigation Menu" aria-expanded="false">
+      <svg class="icon-menu cam-icon" width="24" height="24" aria-hidden="true"><use href="#icon-menu"></use></svg>
+      <svg class="icon-close cam-icon" width="24" height="24" aria-hidden="true"><use href="#icon-close"></use></svg>
+    </button>
+
+    <nav class="doc-nav" aria-label="Main Navigation">
+      <a href="cnc" draggable="false">CNC Guide</a>
+      <a href="laser" draggable="false">Laser Guide</a>
+      <a href="operations" draggable="false">Operations</a>
+      <a href="parameters" draggable="false">Parameters</a>
+      <a href="accessibility" draggable="false">Accessibility</a>
+      <span class="separator" aria-hidden="true"></span>
+      <a href="/easytrace5000/" draggable="false">Launch App</a>
+      <a href="https://github.com/RicardoJCMarques/EasyCAM5000" target="_blank" draggable="false" aria-label="GitHub Repository (opens in a new tab)">GitHub</a>
+
+      <button id="theme-toggle" class="btn btn--icon" title="Toggle Theme" aria-label="Toggle Theme">
+        <svg class="cam-icon" width="16" height="16"><use href="#icon-sun"></use></svg>
+      </button>
+    </nav>
+  </header>
+
+  <div class="doc-wrapper">
+    <main id="doc-content" class="doc-main doc-main--wide">
+      <div class="callout callout--warning">
+        <p>Development goes fast, documentation may be outdated. Proceed with some caution.</p>
+      </div>
+
+      <section class="hero">
+        <h1>EasyTrace5000 Documentation</h1>
+        <p class="tagline">Gerber, Excellon and SVG into isolation-routing G-code, laser-ready vectors and rasters, or drag-knife paste stencils</p>
+
+        <figure>
+          <img src="../../images/EasyTrace5000_workspace.webp" width="1152" height="648" alt="EasyTrace5000 workspace showing a loaded Gerber file with generated isolation toolpaths">
+          <figcaption>The EasyTrace5000 workspace with loaded PCB geometry</figcaption>
+        </figure>
+
+        <div class="hero-actions">
+          <a href="../" class="btn btn--primary" draggable="false">Launch Application</a>
+          <a href="cnc" class="btn btn--secondary" draggable="false">CNC Milling Guide</a>
+        </div>
+      </section>
+
+      <section id="introduction">
+        <h2>What is EasyTrace5000?</h2>
+        <p>EasyTrace5000 is an open-source, browser-based CAM tool for PCB prototyping. It reads the files your EDA software already exports - Gerber RS-274X copper layers, Excellon drill files, SVG outlines - and produces what your machine needs: G-code for a CNC router, colour-coded SVG or high-DPI PNG for a laser, or a vector cut file for a vinyl cutter/drag knife.</p>
+        <p>Everything runs locally in your browser. No installation, no cloud uploads, no accounts. Your files stay on your machine.</p>
+        <div class="callout callout--info">
+          <h3>You choose the machine once</h3>
+          <p>The welcome screen asks which pipeline you run: <strong>CNC</strong>, <strong>UV laser</strong>, or <strong>Fiber laser + CNC</strong>, where the laser ablates the copper while the router drills and cuts the board out - same project, same source files, one export.</p>
+        </div>
+      </section>
+
+      <section id="pipelines">
+        <h2>Pick a Guide</h2>
+        <div class="pipeline-grid">
+
+          <a href="cnc" class="pipeline-card pipeline-card--stable" draggable="false" aria-label="Read the CNC Milling Guide">
+            <h3>
+              <svg class="cam-icon" width="24" height="24" aria-hidden="true"><use href="#icon-cnc"></use></svg>
+              CNC Milling
+              <span class="doc-badge doc-badge--stable">Stable</span>
+            </h3>
+            <p>Multi-pass copper isolation, copper clearing, drilling with a per-diameter tool table, board cutout with holding tabs, and milled stencils. Ten post-processors, automatic tool changes, and a 3D toolpath view before you export.</p>
+            <span class="btn btn--primary btn--block" aria-hidden="true">Read the CNC Guide &rarr;</span>
+          </a>
+
+          <a href="laser" class="pipeline-card pipeline-card--dev" draggable="false" aria-label="Read the Laser Processing Guide">
+            <h3>
+              <svg class="cam-icon" width="24" height="24" aria-hidden="true"><use href="#icon-laser"></use></svg>
+              Laser Processing
+              <span class="doc-badge doc-badge--dev">Beta</span>
+            </h3>
+            <p>Kerf-compensated vectors and high-DPI rasters for copper ablation, photoresist exposure and paste stencils. Concentric, filled and hatch clearing, with colour-coded layers for LightBurn or EZCAD.</p>
+            <span class="btn btn--primary btn--block" aria-hidden="true">Read the Laser Guide &rarr;</span>
+          </a>
+        </div>
+      </section>
+
+      <section id="operations">
+        <h2>What You Can Make</h2>
+        <p>Five operations cover a board from copper to finished outline, plus its paste stencil. Each one takes a source file, a handful of parameters, and produces its own layer you can inspect before moving on.</p>
+
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Operation</th>
+              <th scope="col">What it does</th>
+              <th scope="col">CNC router</th>
+              <th scope="col">Laser</th>
+              <th scope="col">Vinyl/Drag knife</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Copper Isolation</strong></td>
+              <td>Cuts a clearance channel around traces and pads so they end up separated</td>
+              <td>&#10003;</td><td>&#10003;</td><td></td>
+            </tr>
+            <tr>
+              <td><strong>Copper Clearing</strong></td>
+              <td>Removes whole copper areas rather than just isolating them</td>
+              <td>&#10003;</td><td>&#10003;</td><td></td>
+            </tr>
+            <tr>
+              <td><strong>Drill</strong></td>
+              <td>Holes and slots, with a strategy chosen per hole from its size</td>
+              <td>&#10003;</td><td>&#10003;</td><td></td>
+            </tr>
+            <tr>
+              <td><strong>Board Cutout</strong></td>
+              <td>Cuts the board free, with holding tabs so it does not shift</td>
+              <td>&#10003;</td><td>&#10003;</td><td></td>
+            </tr>
+            <tr>
+              <td><strong>Stencil</strong></td>
+              <td>Solder-paste apertures from your pad geometry</td>
+              <td>&#10003;</td><td>&#10003;</td><td>&#10003;</td>
+            </tr>
+          </tbody>
+        </table>
+        <p>Full descriptions and the parameters each one uses are on the <a href="operations" draggable="false">Operation Guide</a> and the <a href="parameters" draggable="false">Parameter Guide</a>.</p>
+      </section>
+
+      <section id="supported-formats">
+        <h2>Supported File Formats</h2>
+        <div class="feature-grid">
+          <div class="feature-card">
+            <h3>Gerber (RS-274X)</h3>
+            <p>Copper, soldermask, paste and board outline layers. Accepts <code>.gbr</code> <code>.ger</code> <code>.gtl</code> <code>.gbl</code> <code>.gbx</code> <code>.gts</code> <code>.gbs</code> <code>.gtp</code> <code>.gbp</code> <code>.gko</code> <code>.gml</code> <code>.gm1</code>, including macros, copper pours and flashed pad shapes.</p>
+          </div>
+          <div class="feature-card">
+            <h3>Excellon</h3>
+            <p>Drill files with hole positions, sizes and slot definitions. Accepts <code>.drl</code> <code>.xln</code> <code>.txt</code> <code>.tap</code> <code>.drill</code> <code>.exc</code>. Leading and trailing zero formats are both handled.</p>
+          </div>
+          <div class="feature-card">
+            <h3>SVG</h3>
+            <p>Full path support including arcs and Bézier curves, for custom outlines or hand-drawn artwork. Circles and obrounds can be promoted to drill geometry on import, so an SVG board can be drilled without an Excellon file.</p>
+          </div>
+        </div>
+        <p>Developed and tested against KiCad and EasyEDA output. Exporting Gerber with Protel file extensions lets drag-and-drop assign each file to the operation that expects it.</p>
+      </section>
+
+      <section id="quick-start">
+        <h2>Quick Start</h2>
+        <p>Both routes start the same way. The difference is how much you have to tell the machine.</p>
+
+        <div class="workflow-split">
+          <div class="workflow-column workflow-column--cnc">
+            <h3><svg class="cam-icon" width="24" height="24" aria-hidden="true"><use href="#icon-cnc"></use></svg> CNC Milling</h3>
             <ol>
-                <li><a href="/easytrace5000/" draggable="false">EasyTrace5000</a></li>
-                <li><span aria-current="page">Docs</span></li>
+              <li><strong>Load</strong> your Gerber and Excellon files into the workspace.</li>
+              <li><strong>Position</strong> the board: origin, rotation, mirroring.</li>
+              <li><strong>Configure the machine:</strong> post-processor, clearance heights, speeds.</li>
+              <li><strong>Offsets:</strong> set the tool, its tool number and passes, then <em>Generate Offsets</em>.</li>
+              <li><strong>Preview:</strong> set depth and entry, then <em>Generate Preview</em>.</li>
+              <li><strong>Toolpaths:</strong> set feeds, then <em>Calculate Toolpaths</em>. The canvas switches to 3D.</li>
+              <li><strong>Export:</strong> order your operations and download the G-code.</li>
             </ol>
-        </nav>
+            <p>Full walkthrough in the <a href="cnc" draggable="false">CNC guide</a>.</p>
+          </div>
+          <div class="workflow-column workflow-column--laser">
+            <h3><svg class="cam-icon" width="24" height="24" aria-hidden="true"><use href="#icon-laser"></use></svg> Laser Processing</h3>
+            <ol>
+              <li><strong>Load</strong> your Gerber or SVG files into the workspace.</li>
+              <li><strong>Position</strong> the board: origin, rotation, mirroring.</li>
+              <li><strong>Configure the machine:</strong> laser software, spot size, SVG or PNG output.</li>
+              <li><strong>Generate:</strong> pick a clearing strategy, then <em>Generate Laser Geometry</em>.</li>
+              <li><strong>Export:</strong> open the Export Manager and download. Layer colours come from the laser software's settings.</li>
+            </ol>
+            <p>There is no depth to set and no toolpath step - what you generate is what you export. Full walkthrough in the <a href="laser" draggable="false">Laser guide</a>.</p>
+          </div>
+        </div>
+      </section>
 
-        <button class="doc-menu-toggle" aria-label="Toggle Navigation Menu" aria-expanded="false">
-            <svg class="icon-menu cam-icon" width="24" height="24" aria-hidden="true"><use href="#icon-menu"></use></svg>
-            <svg class="icon-close cam-icon" width="24" height="24" aria-hidden="true"><use href="#icon-close"></use></svg>
-        </button>
+      <section id="accessibility">
+        <h2>Controls &amp; Accessibility</h2>
+        <p>Everything in EasyTrace5000 is done with buttons, menus and the tree - the shortcuts below are there once you know your way around, and for anyone who cannot use a pointer. The app is built to be fully keyboard-operable and targets WCAG 2.1 Level AA. <kbd>F6</kbd> cycles between the four workspace zones so you never have to tab through a whole sidebar, modals trap focus and release it correctly, and status updates are announced through live regions. The <a href="accessibility" draggable="false">Accessibility Guide</a> has the complete list and the current per-guideline status.</p>
 
-        <nav class="doc-nav" aria-label="Main Navigation">
-            <a href="cnc" draggable="false">CNC Guide</a>
-            <a href="laser" draggable="false">Laser Guide</a>
-            <a href="operations" draggable="false">Operations</a>
-            <a href="parameters" draggable="false">Parameters</a>
-            <a href="accessibility" draggable="false">Accessibility</a>
-            <span class="separator" aria-hidden="true"></span>
-            <a href="/easytrace5000/" draggable="false">Launch App</a>
-            <a href="https://github.com/RicardoJCMarques/EasyCAM5000" target="_blank" draggable="false" aria-label="GitHub Repository (opens in a new tab)">GitHub</a>
+        <div class="feature-grid">
+          <div class="feature-card">
+            <h3>Getting around</h3>
+            <ul class="key-list">
+              <li><kbd>F6</kbd> Cycle focus zones</li>
+              <li><kbd data-i18n="keys.shift">Shift</kbd>+<kbd>F6</kbd> Cycle backwards</li>
+              <li><kbd>1</kbd>-<kbd>5</kbd> Cycle operations</li>
+              <li><kbd>F1</kbd> Help &amp; shortcuts</li>
+              <li><kbd data-i18n="keys.escape">Esc</kbd> Close / deselect</li>
+            </ul>
+          </div>
+          <div class="feature-card">
+            <h3>View</h3>
+            <ul class="key-list">
+              <li><kbd>F</kbd> / <kbd>=</kbd> / <kbd data-i18n="keys.home">Home</kbd> Fit to view</li>
+              <li><kbd>+</kbd> / <kbd>-</kbd> Zoom in / out</li>
+              <li>Arrows Pan (<kbd data-i18n="keys.shift">Shift</kbd> for faster)</li>
+              <li><kbd>F2</kbd> Toggle 2D / 3D</li>
+            </ul>
+          </div>
+          <div class="feature-card">
+            <h3>Display</h3>
+            <ul class="key-list">
+              <li><kbd>W</kbd> Wireframe</li>
+              <li><kbd>G</kbd> Grid</li>
+              <li><kbd>V</kbd> Toggle layer visibility</li>
+            </ul>
+          </div>
+          <div class="feature-card">
+            <h3>Origin</h3>
+            <ul class="key-list">
+              <li><kbd>B</kbd> Preview bottom-left</li>
+              <li><kbd>C</kbd> Preview centre</li>
+              <li><kbd>O</kbd> Save current origin</li>
+            </ul>
+          </div>
+          <div class="feature-card">
+            <h3>Operations tree</h3>
+            <ul class="key-list">
+              <li><kbd>&uarr;</kbd> / <kbd>&darr;</kbd> Move</li>
+              <li><kbd>&rarr;</kbd> / <kbd>&larr;</kbd> Expand / collapse</li>
+              <li><kbd>Enter</kbd> / <kbd>Space</kbd> Select</li>
+              <li><kbd data-i18n="keys.delete">Delete</kbd> Remove</li>
+            </ul>
+          </div>
+          <div class="feature-card">
+            <h3>Reordering the export</h3>
+            <ul class="key-list">
+              <li><kbd>Space</kbd> Grab an item</li>
+              <li><kbd>&uarr;</kbd> / <kbd>&darr;</kbd> Move it</li>
+              <li><kbd>Space</kbd> Drop it</li>
+              <li><kbd data-i18n="keys.escape">Esc</kbd> Cancel the grab</li>
+            </ul>
+          </div>
+        </div>
+      </section>
 
-            <button id="theme-toggle" class="btn btn--icon" title="Toggle Theme" aria-label="Toggle Theme">
-                <svg class="cam-icon" width="16" height="16"><use href="#icon-sun"></use></svg>
-            </button>
-        </nav>
-    </header>
+      <section id="other-app">
+        <h2>Doing Something Other Than PCBs?</h2>
+        <p><a href="/easyshape5000/doc/" draggable="false">EasyShape5000</a> is the router side of the suite: SVG and STL on a scene graph you can move, group and transform, with profile, pocket, drill and engrave plus V-carving, 3D relief and 4th-axis rotary. Same file support, same post-processors, a different interface and a different operation set.</p>
+      </section>
 
-    <div class="doc-wrapper">
-        <main id="doc-content" class="doc-main doc-main--wide">
+      <section id="sponsors" class="sponsors-section">
+        <h2>Project Sponsors</h2>
+        <p>EasyTrace5000 is open-source software supported by community sponsors.</p>
 
-            <div class="callout callout--warning">
-                <p>Development goes fast, documentation may be outdated. Proceed with some caution.</p>
+        <div class="sponsor-grid">
+          <a href="https://fablabbenfica.pt/fabacademyLisboa/" class="sponsor-slot sponsor-slot--filled" target="_blank" rel="noopener noreferrer" title="Fab Academy @ Fab Lab Benfica" draggable="false" aria-label="Visit Fab Lab Benfica's Fab Academy Page.">
+            <img src="../../images/sponsors/sponsor-FabAcademy@FabLabBenfica.webp" alt="Sponsor - Fab Academy @ Fab Lab Benfica" width="378" height="180" loading="lazy" decoding="async">
+          </a>
+
+          <a href="/#support" class="sponsor-slot sponsor-slot--empty" title="Become a Sponsor" draggable="false" aria-label="Available Sponsor Slot 2. Click to open support and sponsorship options.">
+            <div class="slot-content" aria-hidden="true">
+              <svg class="cam-icon" width="18" height="18" aria-hidden="true"><use href="#icon-add"></use></svg>
+              <span>Your Logo</span>
             </div>
+          </a>
 
-            <section class="hero">
-                <h1>EasyTrace5000 Documentation</h1>
-                <p class="tagline">Gerber, Excellon and SVG into isolation-routing G-code, laser-ready vectors and rasters, or drag-knife paste stencils</p>
+          <a href="/#support" class="sponsor-slot sponsor-slot--empty" title="Become a Sponsor" draggable="false" aria-label="Available Sponsor Slot 3. Click to open support and sponsorship options.">
+            <div class="slot-content" aria-hidden="true">
+              <svg class="cam-icon" width="18" height="18" aria-hidden="true"><use href="#icon-add"></use></svg>
+              <span>Your Logo</span>
+            </div>
+          </a>
+        </div>
 
-                <figure>
-                    <img src="../../images/EasyTrace5000_workspace.webp" width="1152" height="648" alt="EasyTrace5000 workspace showing a loaded Gerber file with generated isolation toolpaths">
-                    <figcaption>The EasyTrace5000 workspace with loaded PCB geometry</figcaption>
-                </figure>
+        <p><a href="/#support" draggable="false" aria-label="Learn more about becoming a sponsor">Become a sponsor &rarr;</a></p>
+        <p class="sponsor-note">Your logo displayed here and in documentation</p>
+      </section>
+    </main>
 
-                <div class="hero-actions">
-                    <a href="../" class="btn btn--primary" draggable="false">Launch Application</a>
-                    <a href="cnc" class="btn btn--secondary" draggable="false">CNC Milling Guide</a>
-                </div>
-            </section>
+    <!-- Footer -->
+    <footer class="doc-footer" aria-label="Footer">
+      <p>
+        <a href="#doc-content" draggable="false">Back to Top</a> |
+        <a href="https://github.com/RicardoJCMarques/EasyCAM5000" target="_blank" draggable="false">GitHub</a> |
+        <a href="/#support" draggable="false">Support Development</a> |
+        <a href="../../LICENSE" target="_blank" draggable="false">AGPLv3 Licensed</a> |
+        <a href="https://www.eltryus.design/" draggable="false">by ELTRYUS</a>
+      </p>
+    </footer>
+  </div>
 
-            <section id="introduction">
-                <h2>What is EasyTrace5000?</h2>
-                <p>EasyTrace5000 is an open-source, browser-based CAM tool for PCB prototyping. It reads the files your EDA software already exports - Gerber RS-274X copper layers, Excellon drill files, SVG outlines - and produces what your machine needs: G-code for a CNC router, colour-coded SVG or high-DPI PNG for a laser, or a vector cut file for a vinyl cutter/drag knife.</p>
-                <p>Everything runs locally in your browser. No installation, no cloud uploads, no accounts. Your files stay on your machine.</p>
-                <div class="callout callout--info">
-                    <h3>You choose the machine per operation</h3>
-                    <p>There is no global mode to switch into. Every operation has its own machine setting, so one board can have its copper ablated by a laser while its holes and outline are milled on a router - same project, same source files, one export.</p>
-                </div>
-            </section>
-
-            <section id="pipelines">
-                <h2>Pick a Guide</h2>
-                <div class="pipeline-grid">
-
-                    <a href="cnc" class="pipeline-card pipeline-card--active" draggable="false" aria-label="Read the CNC Milling Guide">
-                        <h3>
-                            <svg class="cam-icon" width="24" height="24" aria-hidden="true"><use href="#icon-cnc"></use></svg>
-                            CNC Milling
-                            <span class="doc-badge doc-badge--stable">Stable</span>
-                        </h3>
-                        <p>Multi-pass copper isolation, copper clearing, drilling with a per-diameter tool table, board cutout with holding tabs, and milled stencils. Ten post-processors, automatic tool changes, and a 3D toolpath view before you export.</p>
-                        <span class="btn btn--primary btn--block" aria-hidden="true">Read the CNC Guide &rarr;</span>
-                    </a>
-
-                    <a href="laser" class="pipeline-card pipeline-card--dev" draggable="false" aria-label="Read the Laser Processing Guide">
-                        <h3>
-                            <svg class="cam-icon" width="24" height="24" aria-hidden="true"><use href="#icon-laser"></use></svg>
-                            Laser Processing
-                            <span class="doc-badge doc-badge--dev">Beta</span>
-                        </h3>
-                        <p>Kerf-compensated vectors and high-DPI rasters for copper ablation, photoresist exposure and paste stencils. Concentric, filled and hatch clearing, with colour-coded layers for LightBurn or EZCAD.</p>
-                        <span class="btn btn--primary btn--block" aria-hidden="true">Read the Laser Guide &rarr;</span>
-                    </a>
-
-                </div>
-            </section>
-
-            <section id="operations">
-                <h2>What You Can Make</h2>
-                <p>Five operations cover a board from copper to finished outline, plus its paste stencil. Each one takes a source file, a handful of parameters, and produces its own layer you can inspect before moving on.</p>
-
-                <table>
-                    <thead>
-                        <tr>
-                            <th scope="col">Operation</th>
-                            <th scope="col">What it does</th>
-                            <th scope="col">CNC router</th>
-                            <th scope="col">Laser</th>
-                            <th scope="col">Vinyl/Drag knife</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><strong>Copper Isolation</strong></td>
-                            <td>Cuts a clearance channel around traces and pads so they end up separated</td>
-                            <td>&#10003;</td><td>&#10003;</td><td></td>
-                        </tr>
-                        <tr>
-                            <td><strong>Copper Clearing</strong></td>
-                            <td>Removes whole copper areas rather than just isolating them</td>
-                            <td>&#10003;</td><td>&#10003;</td><td></td>
-                        </tr>
-                        <tr>
-                            <td><strong>Drill</strong></td>
-                            <td>Holes and slots, with a strategy chosen per hole from its size</td>
-                            <td>&#10003;</td><td>&#10003;</td><td></td>
-                        </tr>
-                        <tr>
-                            <td><strong>Board Cutout</strong></td>
-                            <td>Cuts the board free, with holding tabs so it does not shift</td>
-                            <td>&#10003;</td><td>&#10003;</td><td></td>
-                        </tr>
-                        <tr>
-                            <td><strong>Stencil</strong></td>
-                            <td>Solder-paste apertures from your pad geometry</td>
-                            <td>&#10003;</td><td>&#10003;</td><td>&#10003;</td>
-                        </tr>
-                    </tbody>
-                </table>
-
-                <p>Full descriptions and the parameters each one uses are on the <a href="operations" draggable="false">Operation Guide</a> and the <a href="parameters" draggable="false">Parameter Guide</a>.</p>
-            </section>
-
-            <section id="supported-formats">
-                <h2>Supported File Formats</h2>
-                <div class="feature-grid">
-                    <div class="feature-card">
-                        <h3>Gerber (RS-274X)</h3>
-                        <p>Copper layers, soldermask and board outlines. Accepts <code>.gbr</code> <code>.ger</code> <code>.gtl</code> <code>.gbl</code> <code>.gts</code> <code>.gbs</code> <code>.gbx</code> <code>.gko</code> <code>.gml</code> <code>.gm1</code>, including macros, copper pours and flashed pad shapes.</p>
-                    </div>
-                    <div class="feature-card">
-                        <h3>Excellon</h3>
-                        <p>Drill files with hole positions, sizes and slot definitions. Accepts <code>.drl</code> <code>.xln</code> <code>.txt</code> <code>.tap</code> <code>.drill</code> <code>.exc</code>. Leading and trailing zero formats are both handled.</p>
-                    </div>
-                    <div class="feature-card">
-                        <h3>SVG</h3>
-                        <p>Full path support including arcs and Bézier curves, for custom outlines or hand-drawn artwork. Circles and obrounds can be promoted to drill geometry on import, so an SVG board can be drilled without an Excellon file.</p>
-                    </div>
-                </div>
-                <p>Developed and tested against KiCad and EasyEDA output. Exporting Gerber with Protel file extensions lets drag-and-drop assign each file to the operation that expects it.</p>
-            </section>
-
-            <section id="quick-start">
-                <h2>Quick Start</h2>
-                <p>Both routes start the same way. The difference is how much you have to tell the machine.</p>
-
-                <div class="workflow-split">
-                    <div class="workflow-column workflow-column--cnc">
-                        <h3><svg class="cam-icon" width="24" height="24" aria-hidden="true"><use href="#icon-cnc"></use></svg> CNC Milling</h3>
-                        <ol>
-                            <li><strong>Load</strong> your Gerber and Excellon files into the workspace.</li>
-                            <li><strong>Position</strong> the board: origin, rotation, mirroring.</li>
-                            <li><strong>Configure the machine:</strong> post-processor, clearance heights, speeds.</li>
-                            <li><strong>Offsets:</strong> set tool and passes, then <em>Generate Offsets</em>.</li>
-                            <li><strong>Preview:</strong> set depth and entry, then <em>Generate Preview</em>.</li>
-                            <li><strong>Toolpaths:</strong> set feeds and tool number, then <em>Generate Toolpaths</em>. The canvas switches to 3D.</li>
-                            <li><strong>Export:</strong> order your operations and download the G-code.</li>
-                        </ol>
-                        <p>Full walkthrough in the <a href="cnc" draggable="false">CNC guide</a>.</p>
-                    </div>
-                    <div class="workflow-column workflow-column--laser">
-                        <h3><svg class="cam-icon" width="24" height="24" aria-hidden="true"><use href="#icon-laser"></use></svg> Laser Processing</h3>
-                        <ol>
-                            <li><strong>Load</strong> your Gerber or SVG files into the workspace.</li>
-                            <li><strong>Position</strong> the board: origin, rotation, mirroring.</li>
-                            <li><strong>Configure the machine:</strong> laser spot size, SVG or PNG output.</li>
-                            <li><strong>Generate:</strong> pick a clearing strategy and generate.</li>
-                            <li><strong>Export:</strong> assign layer colours and download.</li>
-                        </ol>
-                        <p>There is no depth to set and no toolpath step - what you generate is what you export. Full walkthrough in the <a href="laser" draggable="false">Laser guide</a>.</p>
-                    </div>
-                </div>
-            </section>
-
-            <section id="accessibility">
-                <h2>Controls &amp; Accessibility</h2>
-                <p>Everything in EasyTrace5000 is done with buttons, menus and the tree - the shortcuts below are there once you know your way around, and for anyone who cannot use a pointer. The app is built to be fully keyboard-operable and targets WCAG 2.1 Level AA. <kbd>F6</kbd> cycles between the four workspace zones so you never have to tab through a whole sidebar, modals trap focus and release it correctly, and status updates are announced through live regions. The <a href="accessibility" draggable="false">Accessibility Guide</a> has the complete list and the current per-guideline status.</p>
-
-                <div class="feature-grid">
-                    <div class="feature-card">
-                        <h3>Getting around</h3>
-                        <ul class="key-list">
-                            <li><kbd>F6</kbd> Cycle focus zones</li>
-                            <li><kbd>Shift</kbd>+<kbd>F6</kbd> Cycle backwards</li>
-                            <li><kbd>1</kbd>-<kbd>5</kbd> Cycle operations</li>
-                            <li><kbd>F1</kbd> Help &amp; shortcuts</li>
-                            <li><kbd>Esc</kbd> Close / deselect</li>
-                        </ul>
-                    </div>
-                    <div class="feature-card">
-                        <h3>View</h3>
-                        <ul class="key-list">
-                            <li><kbd>F</kbd> / <kbd>=</kbd> / <kbd>Home</kbd> Fit to view</li>
-                            <li><kbd>+</kbd> / <kbd>-</kbd> Zoom in / out</li>
-                            <li>Arrows Pan (<kbd>Shift</kbd> for faster)</li>
-                            <li><kbd>F2</kbd> Toggle 2D / 3D</li>
-                        </ul>
-                    </div>
-                    <div class="feature-card">
-                        <h3>Display</h3>
-                        <ul class="key-list">
-                            <li><kbd>W</kbd> Wireframe</li>
-                            <li><kbd>G</kbd> Grid</li>
-                            <li><kbd>V</kbd> Toggle layer visibility</li>
-                        </ul>
-                    </div>
-                    <div class="feature-card">
-                        <h3>Origin</h3>
-                        <ul class="key-list">
-                            <li><kbd>B</kbd> Preview bottom-left</li>
-                            <li><kbd>C</kbd> Preview centre</li>
-                            <li><kbd>O</kbd> Save current origin</li>
-                        </ul>
-                    </div>
-                    <div class="feature-card">
-                        <h3>Operations tree</h3>
-                        <ul class="key-list">
-                            <li><kbd>&uarr;</kbd> / <kbd>&darr;</kbd> Move</li>
-                            <li><kbd>&rarr;</kbd> / <kbd>&larr;</kbd> Expand / collapse</li>
-                            <li><kbd>Enter</kbd> / <kbd>Space</kbd> Select</li>
-                            <li><kbd>Delete</kbd> Remove</li>
-                        </ul>
-                    </div>
-                    <div class="feature-card">
-                        <h3>Reordering the export</h3>
-                        <ul class="key-list">
-                            <li><kbd>Space</kbd> Grab an item</li>
-                            <li><kbd>&uarr;</kbd> / <kbd>&darr;</kbd> Move it</li>
-                            <li><kbd>Space</kbd> Drop it</li>
-                            <li><kbd>Esc</kbd> Cancel the grab</li>
-                        </ul>
-                    </div>
-                </div>
-            </section>
-
-            <section id="other-app">
-                <h2>Doing Something Other Than PCBs?</h2>
-                <p><a href="/easyshape5000/doc/" draggable="false">EasyShape5000</a> is the router side of the suite: SVG and STL on a scene graph you can move, group and transform, with profile, pocket, drill and engrave plus V-carving, 3D relief and 4th-axis rotary. Same file support, same post-processors, a different interface and a different operation set.</p>
-            </section>
-
-            <section id="sponsors" class="sponsors-section">
-                <h2>Project Sponsors</h2>
-                <p>EasyTrace5000 is open-source software supported by community sponsors.</p>
-
-                <div class="sponsor-grid">
-                    <a href="https://fablabbenfica.pt/fabacademyLisboa/" class="sponsor-slot sponsor-slot--filled" target="_blank" rel="noopener noreferrer" title="Fab Academy @ Fab Lab Benfica" draggable="false" aria-label="Visit Fab Lab Benfica's Fab Academy Page.">
-                        <img src="../../images/sponsors/sponsor-FabAcademy@FabLabBenfica.webp" alt="Sponsor - Fab Academy @ Fab Lab Benfica" width="378" height="180" loading="lazy" decoding="async">
-                    </a>
-
-                    <a href="/#support" class="sponsor-slot sponsor-slot--empty" title="Become a Sponsor" draggable="false" aria-label="Available Sponsor Slot 2. Click to open support and sponsorship options.">
-                        <div class="slot-content" aria-hidden="true">
-                            <svg class="cam-icon" width="18" height="18" aria-hidden="true"><use href="#icon-add"></use></svg>
-                            <span>Your Logo</span>
-                        </div>
-                    </a>
-
-                    <a href="/#support" class="sponsor-slot sponsor-slot--empty" title="Become a Sponsor" draggable="false" aria-label="Available Sponsor Slot 3. Click to open support and sponsorship options.">
-                        <div class="slot-content" aria-hidden="true">
-                            <svg class="cam-icon" width="18" height="18" aria-hidden="true"><use href="#icon-add"></use></svg>
-                            <span>Your Logo</span>
-                        </div>
-                    </a>
-                </div>
-
-                <p><a href="/#support" draggable="false" aria-label="Learn more about becoming a sponsor">Become a sponsor &rarr;</a></p>
-                <p class="sponsor-note">Your logo displayed here and in documentation</p>
-            </section>
-
-        </main>
-        <!-- Footer -->
-        <footer class="doc-footer" aria-label="Footer">
-            <p>
-                <a href="#doc-content" draggable="false">Back to Top</a> |
-                <a href="https://github.com/RicardoJCMarques/EasyCAM5000" target="_blank" draggable="false">GitHub</a> |
-                <a href="/#support" draggable="false">Support Development</a> |
-                <a href="../../LICENSE" target="_blank" draggable="false">AGPLv3 Licensed</a> |
-                <a href="https://www.eltryus.design/" draggable="false">by ELTRYUS</a>
-            </p>
-        </footer>
-    </div>
-</body>
-
-<!-- Scripts -->
-<script defer src="../../themes/theme-loader.js"></script>
-<script defer src="../../images/figures.js"></script>
-<script>
+  <!-- Scripts -->
+  <script defer src="../../themes/theme-loader.js"></script>
+  <script defer src="../../images/figures.js"></script>
+  <script>
     document.addEventListener('DOMContentLoaded', () => {
-        // Load the SVG Sprite
-        fetch('../../images/icons/sprite.svg')
-            .then(response => {
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                return response.text();
-            })
-            .then(svgText => {
-                const div = document.createElement('div');
-                div.innerHTML = svgText;
-                const svg = div.querySelector('svg');
-                if (svg) {
-                    svg.setAttribute('aria-hidden', 'true');
-                    svg.style.cssText = 'position: absolute; width: 0; height: 0; visibility: hidden;';
-                    document.body.insertBefore(svg, document.body.firstChild);
-                }
-            })
-            .catch(err => console.warn('Failed to load icon sprite:', err));
-
-        // Theme toggle
-        const themeBtn = document.getElementById('theme-toggle');
-        if (themeBtn && window.ThemeLoader) {
-            const useEl = themeBtn.querySelector('use');
-            const initialTheme = document.documentElement.getAttribute('data-theme') || 'dark';
-
-            if (useEl) useEl.setAttribute('href', initialTheme === 'dark' ? '#icon-sun' : '#icon-moon');
-
-            themeBtn.addEventListener('click', async () => {
-                const theme = await window.ThemeLoader.toggleTheme();
-                if (useEl) useEl.setAttribute('href', theme === 'dark' ? '#icon-sun' : '#icon-moon');
-            });
-        }
-
-        // Mobile menu toggle
-        const menuBtn = document.querySelector('.doc-menu-toggle');
-        const nav = document.querySelector('.doc-nav');
-        if (menuBtn && nav) {
-            const useEl = menuBtn.querySelector('use');
-            menuBtn.addEventListener('click', () => {
-                const isExpanded = menuBtn.getAttribute('aria-expanded') === 'true';
-                menuBtn.setAttribute('aria-expanded', !isExpanded);
-                nav.classList.toggle('is-open');
-
-                if (useEl) useEl.setAttribute('href', !isExpanded ? '#icon-close' : '#icon-menu');
-            });
-        }
+      // Load the SVG Sprite
+      fetch('../../images/icons/sprite.svg')
+        .then(response => {
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          return response.text();
+        })
+        .then(svgText => {
+          const div = document.createElement('div');
+          div.innerHTML = svgText;
+          const svg = div.querySelector('svg');
+          if (svg) {
+            svg.setAttribute('aria-hidden', 'true');
+            svg.style.cssText = 'position: absolute; width: 0; height: 0; visibility: hidden;';
+            document.body.insertBefore(svg, document.body.firstChild);
+          }
+        })
+        .catch(err => console.warn('Failed to load icon sprite:', err));
+      // Theme toggle. Every theme but the default is a file, slow to
+      // arrive off localhost: the button waits for it, and the icon
+      // follows each change, including a saved theme that lands after
+      // this runs.
+      const themeBtn = document.getElementById('theme-toggle');
+      if (themeBtn && window.ThemeLoader) {
+        const useEl = themeBtn.querySelector('use');
+        const syncIcon = () => useEl?.setAttribute('href', document.documentElement.getAttribute('data-theme-base') === 'light' ? '#icon-moon' : '#icon-sun');
+        window.addEventListener('themechange', syncIcon);
+        syncIcon();
+        themeBtn.addEventListener('click', async () => {
+          themeBtn.disabled = true;
+          try {
+            await window.ThemeLoader.toggleTheme();
+          } catch (error) {
+            console.error('Theme toggle failed:', error);
+          } finally {
+            themeBtn.disabled = false;
+          }
+        });
+      }
+      // Mobile menu toggle
+      const menuBtn = document.querySelector('.doc-menu-toggle');
+      const nav = document.querySelector('.doc-nav');
+      if (menuBtn && nav) {
+        const useEl = menuBtn.querySelector('use');
+        menuBtn.addEventListener('click', () => {
+          const isExpanded = menuBtn.getAttribute('aria-expanded') === 'true';
+          menuBtn.setAttribute('aria-expanded', !isExpanded);
+          nav.classList.toggle('is-open');
+          if (useEl) useEl.setAttribute('href', !isExpanded ? '#icon-close' : '#icon-menu');
+        });
+      }
     });
-</script>
+  </script>
+</body>
 </html>

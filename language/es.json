@@ -1,0 +1,2984 @@
+{
+  "_projectInfo": {
+    "file": "language/es.json",
+    "description": "Spanish strings for the EasyCAM5000 Suite.",
+    "author": "Eltryus - Ricardo Marques",
+    "see": "https://github.com/RicardoJCMarques/EasyCAM5000",
+    "license": "AGPL-3.0-or-later",
+    "copyright": "Copyright (C) 2025-2026 Eltryus - Ricardo Marques"
+  },
+  "meta": {
+    "kind": "language",
+    "locale": "es",
+    "name": "Español",
+    "dir": "ltr",
+    "fallback": null
+  },
+  "common": {
+    "ok": "Aceptar",
+    "cancel": "Cancelar",
+    "close": "Cerrar",
+    "delete": "Eliminar",
+    "apply": "Aplicar",
+    "reset": "Restablecer",
+    "back": "Volver",
+    "done": "Hecho",
+    "load": "Cargar",
+    "loading": "Cargando…",
+    "toggleVisibility": "Alternar visibilidad",
+    "mirrorX": "Horizontal",
+    "mirrorY": "Vertical",
+    "hide": "Ocultar",
+    "show": "Mostrar",
+    "lock": "Bloquear",
+    "unlock": "Desbloquear",
+    "holesOfSize": "⌀{diameter:mm} x {count}",
+    "slotsOfSize": "{width} x {length:mm} x {count}",
+    "millimeters": "{value:mm}",
+    "micrometers": "{value:μm}",
+    "meters": "{value}m"
+  },
+  "app": {
+    "skipToCanvas": "Saltar al área gráfica",
+    "viewportBar": {
+      "dismiss": "Descartar aviso",
+      "message": "Pantalla demasiado estrecha: gira el dispositivo o usa una pantalla mayor."
+    },
+    "loading": {
+      "progress": "Progreso de carga de la aplicación"
+    },
+    "toolbar": {
+      "label": "Barra de herramientas principal",
+      "actions": "Acciones",
+      "openFiles": "Importar archivos…",
+      "exportManager": "Exportar archivos…",
+      "exportCanvas": "Exportar SVG del lienzo",
+      "undo": "Deshacer",
+      "undoTip": "Deshacer (Ctrl+Z)",
+      "redo": "Rehacer",
+      "redoTip": "Rehacer (Ctrl+Shift+Z)",
+      "toggle3d": "Alternar vista 2D/3D",
+      "toggle3dTip": "Alternar vista 2D/3D (F2)",
+      "fit": "Ajustar a la vista",
+      "fitTip": "Ajustar a la vista (F)",
+      "zoomIn": "Acercar",
+      "zoomInTip": "Acercar (+)",
+      "zoomOut": "Alejar",
+      "zoomOutTip": "Alejar (-)",
+      "help": "Ayuda",
+      "helpTip": "Ayuda (F1)",
+      "theme": "Cambiar tema",
+      "toggle3dLocked": "Solo 3D: esta escena no contiene geometría 2D",
+      "undoAction": "Deshacer: {action}",
+      "redoAction": "Rehacer: {action}"
+    },
+    "canvas": {
+      "label": "Lienzo",
+      "view2d": "Lienzo de renderizado 2D",
+      "view3d": "Visor 3D. Las teclas de flecha orbitan, Shift y flechas desplazan, más y menos hacen zoom, Inicio ajusta."
+    },
+    "sidebars": {
+      "right": "Ajustes"
+    },
+    "footer": {
+      "zoom": "Zoom: <value/>",
+      "versionTip": "Versión",
+      "versionAria": "Registro de cambios (se abre en una nueva pestaña)",
+      "home": "Inicio",
+      "homeTip": "Volver a la página principal",
+      "licenseTip": "Ver licencia",
+      "licenseAria": "Ver licencia AGPLv3 (se abre en una nueva pestaña)",
+      "doc": "Doc",
+      "docTip": "Documentación",
+      "docAria": "Documentación (se abre en una nueva pestaña)",
+      "help": "Ayuda",
+      "helpAria": "Abre la ventana de ayuda",
+      "issues": "Informar de un problema",
+      "issuesTip": "Incidencias en GitHub",
+      "issuesAria": "Informar de un problema en GitHub Issues (se abre en una nueva pestaña)",
+      "repoTip": "Repositorio",
+      "repoAria": "Repositorio de GitHub (se abre en una nueva pestaña)",
+      "support": "Apoyar el desarrollo",
+      "supportTip": "Apoyar el proyecto",
+      "supportAria": "Abre la ventana de apoyo al proyecto",
+      "developer": "por ELTRYUS",
+      "developerAria": "Eltryus, desarrollador de EasyCAM5000"
+    }
+  },
+  "status": {
+    "ready": "Listo - Añade archivos para comenzar",
+    "readyStats": "Listo: {operations}, {primitives}",
+    "operationCount": {
+      "one": "{count} operación",
+      "other": "{count} operaciones"
+    },
+    "primitiveCount": {
+      "one": "{count} primitiva",
+      "other": "{count} primitivas"
+    },
+    "withNotes": {
+      "one": "{message} - {count} aviso, ver registro",
+      "other": "{message} - {count} avisos, ver registro"
+    },
+    "working": "Procesando",
+    "initFailed": "Error de inicialización: {error}",
+    "wasmFailed": "Aviso: error en WASM",
+    "expandLog": "Haz clic para expandir el registro",
+    "toggleLog": "Alternar registro de estado",
+    "progress": "Progreso de la operación",
+    "logHintViz": "Activa mensajes detallados de depuración en el panel de visualización."
+  },
+  "progress": {
+    "overlay": "{label}…",
+    "overlayPercent": "{label}… {percent:%}",
+    "generating": "Generando",
+    "preview": "Generando vista previa",
+    "toolpaths": "Calculando trayectorias",
+    "cancelling": "Cancelando",
+    "loadingFile": "Cargando {file}",
+    "exporting": "Exportando archivos",
+    "exportingPaced": "Exportando archivos: dosificando descargas para WebKit",
+    "slicingModel": "Seccionando modelo",
+    "medialSkeleton": "Construyendo esqueleto medial",
+    "drillHoles": {
+      "one": "Taladrar {done}/{count} orificio",
+      "other": "Taladrar {done}/{count} orificios"
+    },
+    "jobs": "Trabajos {done}/{total} completados - {stage}",
+    "offsetPass": "{op} pasada {pass}",
+    "offsetPassOf": "{op} pasada {pass}/{total}",
+    "vcarveShapes": {
+      "one": "Grabado en V {done}/{count} forma",
+      "other": "Grabado en V {done}/{count} formas"
+    },
+    "vcarveFloors": "Preparando fondos {done}/{total}",
+    "slicingMesh": "Seccionando malla",
+    "compensating": "Compensando",
+    "upsampling": "Sobremuestreando",
+    "emitRoughing": "Emitiendo desbaste",
+    "emitFinishing": "Emitiendo acabado",
+    "emitSpiral": "Emitiendo espiral",
+    "vcarveContours": "Grabado en V: contornos",
+    "vcarveMedial": "Grabado en V: eje medial",
+    "vcarveChains": "Grabado en V: emitiendo cadenas"
+  },
+  "panels": {
+    "operations": {
+      "title": "Operaciones",
+      "add": {
+        "isolation": "Haz clic para añadir archivo de aislamiento",
+        "drill": "Haz clic para añadir archivo de taladrado",
+        "clearing": "Haz clic para añadir archivo de vaciado de cobre",
+        "cutout": "Haz clic para añadir archivo de recorte",
+        "stencil": "Haz clic para añadir archivo de plantilla (stencil)"
+      },
+      "unsaved": "Cambios sin guardar",
+      "deleteGeometry": "Eliminar geometría",
+      "empty": "Selecciona geometría y genera equidistancias (offsets) para crear una operación.",
+      "deleteAria": "Eliminar {name}",
+      "visibilityAria": "Alternar visibilidad de {name}",
+      "nodes": {
+        "laserPaths": "Trayectorias láser",
+        "offsets": {
+          "one": "Equidistancias ({count} pasada)",
+          "other": "Equidistancias ({count} pasadas)"
+        },
+        "pass": "Pasada {number}",
+        "invalid": "No válido"
+      },
+      "treeAria": "Operaciones",
+      "invalidatedNote": "(invalidado, vuelve a generar antes de exportar)",
+      "stageVisibilityAria": "Alternar visibilidad de {stage}",
+      "shapeCount": {
+        "one": "{count} forma",
+        "other": "{count} formas"
+      },
+      "hideGenerated": "Ocultar geometría generada",
+      "showGenerated": "Mostrar geometría generada",
+      "generatedVisibilityAria": "Alternar visibilidad de geometría generada"
+    },
+    "scene": {
+      "title": "Objetos importados",
+      "add": "Añadir geometría",
+      "addTip": "Añadir geometría (SVG / STL)",
+      "group": "Agrupar (Ctrl+G)",
+      "ungroup": "Desagrupar (Ctrl+Shift+G)",
+      "lock": "Alternar bloqueo",
+      "delete": "Eliminar selección",
+      "emptyTitle": "Aún no hay trayectorias",
+      "emptyText": "Importa un SVG o STL para poblar el árbol de la escena.",
+      "meshName": "{name} (malla)",
+      "lockedByParent": "Bloqueado por el elemento superior",
+      "containsLocked": "Contiene elementos bloqueados",
+      "treeAria": "Árbol de la escena",
+      "unnamedGroup": "Grupo",
+      "rowAction": "{action}: {name}",
+      "deleteGroup": "Eliminar grupo",
+      "deleteGroupAria": "Eliminar grupo: {name}",
+      "unnamedShape": "Forma",
+      "remove": "Quitar",
+      "removeAria": "Quitar {name}",
+      "untitled": "Sin título",
+      "compoundShape": "Forma compuesta",
+      "shapeName": "{type} {number}",
+      "groupedShape": "{group} · {type}",
+      "types": {
+        "path": "Trazado",
+        "circle": "Círculo",
+        "rectangle": "Rectángulo",
+        "obround": "Oblongo",
+        "arc": "Arco",
+        "elliptical_arc": "Arco elíptico",
+        "bezier": "Curva Bézier"
+      }
+    },
+    "placement": {
+      "title": "Posicionamiento de la placa",
+      "notLoaded": "No cargada",
+      "xOffset": "Valor X en milímetros",
+      "yOffset": "Valor Y en milímetros",
+      "rotation": "Rotación de la placa en grados"
+    },
+    "stock": {
+      "title": "Configuración del bruto",
+      "originOffset": "Desplazamiento del origen del bruto",
+      "xOffset": "Desplazamiento en X del origen del bruto en mm",
+      "yOffset": "Desplazamiento en Y del origen del bruto en mm",
+      "fit": "Ajustar al objeto",
+      "fitTip": "Ajusta el material en bruto al tamaño de la forma. Los objetos 3D también definen el grosor."
+    },
+    "transform": {
+      "title": "Transformación de forma",
+      "alignBottomLeft": "Inf-Izq",
+      "alignChuck": "Plato",
+      "offset": "Desplazamiento",
+      "offsetOnAxis": "Desplazamiento en eje",
+      "rotation": "Rotación",
+      "scale": "Escala",
+      "mirror": "Reflejar",
+      "size": "Tamaño: {width} x {height:mm}",
+      "size3d": "Tamaño: {width} x {depth} x {height:mm}"
+    },
+    "machine": {
+      "title": "Ajustes de máquina"
+    },
+    "inspector": {
+      "title": "Ajustes de la operación",
+      "empty": "← Selecciona una geometría de archivo en la lista de OPERACIONES para ver más.",
+      "noDesignTitle": "No hay diseño cargado",
+      "noDesignText": "Importa un archivo SVG para empezar a asignar cortes.",
+      "noSelectionTitle": "Nada seleccionado",
+      "noSelectionText": "Selecciona un trazado para crear una operación.",
+      "mixedSelection": "No se pueden combinar formas vectoriales 2D y modelos de malla 3D",
+      "needsVector": "{operation} requiere geometría vectorial 2D (SVG)",
+      "needsMesh": "{operation} requiere geometría de malla 3D (STL)",
+      "incompatibleTitle": "Selección incompatible",
+      "incompatibleText": "No se pueden combinar formas vectoriales 2D y modelos de malla 3D en una sola operación.",
+      "operationTitle": "{type} - {file}",
+      "operationTypeAria": "Tipo de operación"
+    },
+    "viz": {
+      "open": "Ajustes de visualización",
+      "title": "Visualización",
+      "display": "Presentación",
+      "layers": "Capas",
+      "advanced": "Avanzado",
+      "log": "Registro",
+      "geometry": "Geometría",
+      "toolpaths": "Trayectorias",
+      "generatedPaths": "Trayectorias generadas",
+      "toolPreviews": "Vistas previas de herramienta"
+    },
+    "invalidation": {
+      "title": "Geometría invalidada",
+      "redo": "Eliminar geometría no válida y rehacer"
+    },
+    "warnings": {
+      "header": {
+        "one": "{count} aviso",
+        "other": "{count} avisos"
+      }
+    },
+    "operation": {
+      "actions": {
+        "generate": "Generar",
+        "laserPaths": "Generar trayectorias láser",
+        "offsets": "Generar equidistancias",
+        "preview": "Generar vista previa",
+        "toolpaths": "Calcular trayectorias",
+        "exportManager": "Gestor de exportación",
+        "withTools": {
+          "one": "{action} ({count} herramienta)",
+          "other": "{action} ({count} herramientas)"
+        },
+        "comingSoon": "Próximamente",
+        "regenerateOffsets": "Regenerar equidistancias",
+        "exportGcode": "Exportar código G",
+        "generateArtifact": "Generar {artifact}"
+      },
+      "output": {
+        "title": "Salida",
+        "summary": {
+          "one": "<strong>{count} trayectoria</strong>, ~{time}, {distance:mm}",
+          "other": "<strong>{count} trayectorias</strong>, ~{time}, {distance:mm}"
+        },
+        "none": "No se han calculado trayectorias.",
+        "note": "Los archivos, el orden y los cambios de herramienta se configuran en el Gestor de exportación."
+      },
+      "drillCard": {
+        "peck": "{count} taladrados con picoteo",
+        "mill": "{count} fresados",
+        "skip": "{count} omitidos",
+        "rows": {
+          "one": "<strong>{count} fila:</strong> {parts}",
+          "other": "<strong>{count} filas:</strong> {parts}"
+        },
+        "noSizes": "Aún no se han detectado diámetros de orificio.",
+        "tools": "Herramientas: {tools}",
+        "noTools": "Aún no se han asignado números de herramienta.",
+        "configureTip": "Asigna una estrategia, una herramienta y un número T por fila. Los orificios y ranuras de un mismo tamaño ocupan una fila cada uno.",
+        "configureDisabledTip": "Aún no se han detectado diámetros de orificio; genera una vez para crear la tabla."
+      },
+      "noDrillOps": "No hay operaciones de taladrado cargadas. Añade primero un archivo de taladrado.",
+      "summary": {
+        "title": "Geometría de origen",
+        "primitives": "<strong>Primitivas:</strong> {count}",
+        "types": {
+          "path": {
+            "one": "{count} trazado",
+            "other": "{count} trazados"
+          },
+          "circle": {
+            "one": "{count} círculo",
+            "other": "{count} círculos"
+          },
+          "rectangle": {
+            "one": "{count} rectángulo",
+            "other": "{count} rectángulos"
+          },
+          "obround": {
+            "one": "{count} oblongo",
+            "other": "{count} oblongos"
+          },
+          "arc": {
+            "one": "{count} arco",
+            "other": "{count} arcos"
+          },
+          "elliptical_arc": {
+            "one": "{count} arco elíptico",
+            "other": "{count} arcos elípticos"
+          },
+          "bezier": {
+            "one": "{count} curva",
+            "other": "{count} curvas"
+          }
+        },
+        "holes": "<strong>Orificios:</strong> {holes}",
+        "slots": "<strong>Ranuras:</strong> {slots}",
+        "rejected": {
+          "one": "<strong>Rechazada:</strong> {count} forma no compatible",
+          "other": "<strong>Rechazadas:</strong> {count} formas no compatibles"
+        },
+        "roles": {
+          "drill_hole": {
+            "one": "{count} orificio",
+            "other": "{count} orificios"
+          },
+          "drill_slot": {
+            "one": "{count} ranura",
+            "other": "{count} ranuras"
+          },
+          "drill_milling_path": {
+            "one": "{count} trayectoria de fresado",
+            "other": "{count} trayectorias de fresado"
+          },
+          "unclassified": {
+            "one": "{count} elemento sin clasificar",
+            "other": "{count} elementos sin clasificar"
+          }
+        },
+        "features": "<strong>Elementos:</strong> {features}",
+        "output": "<strong>Salida generada:</strong>",
+        "apertures": "Aperturas: {count}",
+        "skippedOverlapping": "Omitidos (superpuestos): {count}",
+        "paths": "<strong>Trayectorias generadas:</strong> {count}",
+        "achievedWidth": "<strong>Ancho obtenido:</strong> {actual:mm} (objetivo: {target:mm})",
+        "clearingDepth": "<strong>Profundidad de vaciado:</strong> {actual:mm}",
+        "noPaths": "0 trayectorias generadas. El diámetro de herramienta o la equidistancia pueden ser demasiado grandes."
+      },
+      "exportSummary": {
+        "stencilTitle": "Resumen de exportación de plantilla (stencil)",
+        "laserTitle": "Resumen de exportación láser",
+        "operation": "<strong>Operación:</strong> {type}",
+        "strategy": "<strong>Estrategia:</strong> {strategy}",
+        "passes": "<strong>Pasadas:</strong> {count}",
+        "paths": "<strong>Número de trayectorias:</strong> {count}",
+        "skippedPads": "<strong>Pads superpuestos omitidos:</strong> {count}"
+      }
+    }
+  },
+  "modals": {
+    "narrow": {
+      "title": "Esta herramienta recomienda/requiere una pantalla más ancha.",
+      "text": "Si es posible, gira el dispositivo o cambia a una pantalla más grande."
+    },
+    "welcome": {
+      "title": "Bienvenido a {app}",
+      "subtitle": "Selecciona un flujo de trabajo",
+      "status": {
+        "ready": "Listo",
+        "beta": "Beta"
+      },
+      "prefs": {
+        "label": "Preferencias"
+      },
+      "devices": {
+        "label": "Salida de máquina"
+      },
+      "sponsors": {
+        "title": "Patrocinadores del proyecto",
+        "fabAcademyAria": "Visitar la página de Fab Academy de Fab Lab Benfica.",
+        "fabAcademyAlt": "Patrocinador - Fab Academy @ Fab Lab Benfica",
+        "slotAria": "Espacio de patrocinio disponible",
+        "yourLogo": "Tu logotipo",
+        "cta": "Descubre cómo convertirte en patrocinador",
+        "ctaAria": "Abre la ventana de apoyo al proyecto"
+      }
+    },
+    "laserConfig": {
+      "title": "Seleccionar tipo de láser",
+      "intro": "Selecciona tu tipo de láser. Se utilizan los mismos archivos de PCB; solo cambia el formato de salida.",
+      "types": {
+        "uv": {
+          "title": "Láser UV",
+          "badge": "Probado",
+          "text": "Todas las operaciones láser: aislamiento de cobre, vaciado, taladrado y recorte de la placa.",
+          "action": "Seleccionar UV"
+        },
+        "fiber": {
+          "title": "Láser de fibra",
+          "badge": "Parcialmente probado",
+          "text": "Láser para aislamiento y vaciado. Código G CNC para taladrado y recorte de la placa.",
+          "action": "Usar fibra+CNC"
+        }
+      },
+      "diodeNote": "<strong>Láseres de diodo / Láseres con código G:</strong> Si tu láser utiliza código G estándar (p. ej., GRBL-LPC, Marlin), utiliza el flujo CNC con un posprocesador compatible con láser. El flujo láser genera archivos vectoriales/ráster para software de láser independiente (LightBurn, RDWorks, LaserGRBL)."
+    },
+    "quickstart": {
+      "title": "Iniciar un proyecto",
+      "example": "Cargar ejemplo:",
+      "loadAria": "Cargar el proyecto de ejemplo seleccionado",
+      "zones": {
+        "isolation": "Cargar archivo de fresado de aislamiento. Haz clic o arrastra el archivo aquí.",
+        "drill": "Cargar archivo de taladrado. Haz clic o arrastra el archivo aquí.",
+        "clearing": "Cargar archivo de vaciado de cobre. Haz clic o arrastra el archivo aquí.",
+        "cutout": "Cargar archivo de recorte de placa. Haz clic o arrastra el archivo aquí.",
+        "unassigned": "Cargar archivo vectorial o de malla. Haz clic o arrastra el archivo aquí."
+      },
+      "designFile": "Archivo de diseño",
+      "zoneHint": "Haz clic o arrastra",
+      "process": "Procesar archivos",
+      "processAria": "Procesar archivos cargados y abrir el espacio de trabajo",
+      "backAria": "Volver a la ventana de bienvenida",
+      "dontShow": "No volver a mostrar esto",
+      "startEmpty": "Empezar en blanco",
+      "startEmptyAria": "Cerrar ventana y comenzar con el espacio de trabajo vacío",
+      "loading": "Cargando…"
+    },
+    "support": {
+      "title": "Apoyar {app}",
+      "intro": "Este proyecto es gratuito y de código abierto. Tu apoyo ayuda a compensar el tiempo de desarrollo, los costes de alojamiento y el hardware de pruebas.",
+      "sponsor": {
+        "title": "Hazte patrocinador",
+        "text": "Obtén visibilidad con tu logotipo en la pantalla de bienvenida, en la documentación y en el repositorio. Busco activamente colaboraciones de hardware.",
+        "copyHint": "Haz clic para copiar el correo electrónico",
+        "copyAria": "Copiar dirección de correo del patrocinador al portapapeles",
+        "copied": "¡Copiado al portapapeles!"
+      },
+      "donate": {
+        "title": "Apoyar el proyecto",
+        "text": "Las aportaciones individuales financian directamente la infraestructura del proyecto y el tiempo de desarrollo. Cualquier ayuda es bienvenida.",
+        "kofi": "Apoyar en Ko-fi",
+        "kofiAria": "Apoyar en Ko-fi (se abre en una nueva pestaña)"
+      }
+    },
+    "help": {
+      "title": "Flujo de trabajo y atajos de teclado",
+      "workflow": {
+        "title": "Flujo de trabajo",
+        "loadSources": {
+          "title": "Cargar archivos de origen",
+          "text": "Añade archivos Gerber, Excellon o SVG a las categorías de operación"
+        },
+        "placeBoard": {
+          "title": "Definir posición de placa",
+          "text": "Configura origen, rotación y ajustes de máquina"
+        },
+        "generate": {
+          "title": "Generar geometría",
+          "text": "Selecciona un archivo, ajusta los parámetros de herramienta y haz clic en \"Generar equidistancias\""
+        },
+        "previewExport": {
+          "title": "Vista previa y exportar",
+          "text": "Genera la vista previa y usa el Gestor de operaciones para exportar código G"
+        },
+        "importFiles": {
+          "title": "Importar archivos",
+          "text": "Carga tu diseño desde Illustrator, Inkscape o Affinity Designer"
+        },
+        "assignOperations": {
+          "title": "Asignar operaciones",
+          "text": "Selecciona trazados y asigna Contorno, Cajera, Taladrado o Grabado"
+        },
+        "setParameters": {
+          "title": "Definir parámetros",
+          "text": "Configura herramienta, profundidad, avances y estrategia para cada operación"
+        },
+        "exportGcode": {
+          "title": "Exportar código G",
+          "text": "Genera y descarga archivos listos para la máquina"
+        }
+      },
+      "shortcuts": {
+        "title": "Atajos de teclado",
+        "general": "General",
+        "view": "Controles de vista",
+        "origin": "Controles de origen",
+        "display": "Alternar visualización",
+        "operations": "Selección de operaciones",
+        "global": "Atajos globales",
+        "toggle3d": "Cambiar entre renderizado 2D y 3D",
+        "undo": "Deshacer",
+        "redo": "Rehacer",
+        "selectAll": "Seleccionar todo",
+        "group": "Agrupar selección",
+        "deleteSelection": "Eliminar selección",
+        "deselect": "Deseleccionar / Cerrar ventana",
+        "importSvg": "Importar archivos",
+        "zoomIn": "Acercar zoom",
+        "zoomOut": "Alejar zoom",
+        "zoomInOut": "Acercar / alejar zoom",
+        "fit": "Ajustar a la vista",
+        "pan": "Desplazar lienzo (pan)",
+        "shiftArrows": "<kbd/> + Flechas",
+        "panFast": "Desplazar más rápido",
+        "originBottomLeft": "Origen en la esquina inferior izquierda",
+        "originCenter": "Origen en el centro",
+        "originSave": "Guardar origen actual",
+        "toggleGrid": "Alternar cuadrícula",
+        "toggleWireframe": "Alternar modo alambre",
+        "cycleOperations": "Alternar operaciones cargadas de un tipo: 1 Aislamiento, 2 Taladrado, 3 Vaciado, 4 Plantilla, 5 Recorte",
+        "focusZones": "Recorrer zonas de enfoque",
+        "removeOperation": "Quitar operación seleccionada",
+        "toggleVisibility": "Alternar visibilidad de capa",
+        "showHelp": "Mostrar esta ayuda"
+      },
+      "a11y": {
+        "title": "Navegación accesible",
+        "zones": "Zonas de enfoque",
+        "zonesIntro": "La interfaz está dividida en zonas. Pulsa <kbd/> para alternar el foco entre ellas:",
+        "toolbar": "<strong>Barra de herramientas:</strong> Acciones superiores y modos de visualización",
+        "tree": "<strong>Árbol de operaciones:</strong> Barra lateral izquierda (navegación de archivos)",
+        "properties": "<strong>Propiedades:</strong> Barra lateral derecha (ajustes)",
+        "skipNote": "Nota: Utiliza el <strong>Enlace directo</strong> (Tab al cargar) para saltar al lienzo."
+      },
+      "tips": {
+        "title": "Consejos rápidos",
+        "firefox": "Firefox parece tener la ejecución de código JS/WASM más rápida",
+        "dragDetect": "Arrastra archivos directamente al lienzo para detectar automáticamente el tipo de operación",
+        "protel": "Las extensiones Protel facilitan la asignación automática de los archivos arrastrados",
+        "eyeIcon": "Usa el icono del ojo en el árbol para alternar la visibilidad de las capas",
+        "mouse": "La rueda del ratón amplía/reduce; clic central o clic derecho arrastra para desplazar",
+        "vizPanel": "Revisa el panel de Visualización (abajo a la izquierda) para ver opciones de depuración"
+      },
+      "feedback": {
+        "title": "Problemas y sugerencias",
+        "text": "¿Tienes problemas con algo? Busca incidencias abiertas o abre una nueva en el <link>rastreador de incidencias de GitHub</link>.",
+        "linkAria": "Rastreador de incidencias de GitHub (se abre en una nueva pestaña)"
+      },
+      "docs": "Documentación completa",
+      "docsAria": "Leer documentación completa (se abre en una nueva pestaña)",
+      "gotIt": "Entendido"
+    },
+    "exporter": {
+      "title": "Gestor de operaciones y exportación",
+      "operationsTitle": "Seleccionar operaciones a procesar",
+      "orderHint": "Marca para incluir. Arrastra para definir el orden dentro de los archivos combinados.",
+      "order": {
+        "label": "Orden de procesamiento",
+        "help": "Marca una operación para exportarla. Las operaciones combinadas en un archivo se mecanizan de arriba abajo; arrastra para reordenarlas."
+      },
+      "outputTitle": "Archivos de salida",
+      "filename": {
+        "label": "Nombre base",
+        "help": "Cada archivo exportado empieza con este nombre, seguido de la operación que contiene; el archivo ZIP también lo usa. Si se deja vacío, toma el nombre de la primera operación de la lista."
+      },
+      "singleFile": {
+        "label": "Exportar como archivo único",
+        "help": "Combina operaciones que se ejecutan en la misma máquina en un solo archivo, mecanizadas en el orden de la lista. Requiere dos o más operaciones del mismo tipo; las plantillas siempre se exportan por separado."
+      },
+      "splitDrills": {
+        "label": "Dividir archivos de taladrado por broca",
+        "help": "Genera un archivo por cada broca para máquinas sin cambio automático de herramienta. Los orificios mecanizados con la misma broca se mantienen en un archivo, por lo que solo aparece cuando se usan varias brocas."
+      },
+      "zip": {
+        "label": "Empaquetar archivos en un único .zip",
+        "help": "Descarga todos los archivos en un único archivo comprimido con el nombre base. Desactivado: cada archivo se descarga por separado."
+      },
+      "includeComments": {
+        "label": "Incluir comentarios de operación",
+        "help": "Añade notas legibles a cada archivo: un comentario por operación en el código G o un bloque de cabecera en SVG. No disponible si el posprocesador no admite comentarios."
+      },
+      "verboseComments": {
+        "label": "Comentarios detallados",
+        "help": "Añade la herramienta, avances, profundidades y Z más profunda de cada operación a la cabecera del código G, para que un archivo antiguo se entienda sin el proyecto. Los comentarios de código G van siempre en inglés."
+      },
+      "cncTitle": "Opciones de salida CNC",
+      "postProcessor": "Usando posprocesador: <post/>.",
+      "toolLibrary": "Herramientas de la biblioteca personalizada <file/>.",
+      "toolChanges": {
+        "label": "Insertar comandos de cambio de herramienta",
+        "help": "Emite T y M6, además de comandos de compensación de longitud de herramienta, donde el archivo cambia de herramienta. Requiere un archivo con más de un número de herramienta (exportación de archivo único o números T asignados) y un posprocesador compatible."
+      },
+      "groupByTool": {
+        "label": "Agrupar operaciones por herramienta",
+        "help": "Reordena el archivo combinado para que las operaciones que comparten herramienta se ejecuten seguidas, anulando el orden de la lista. Requiere exportación en un solo archivo y más de un número de herramienta."
+      },
+      "optimize": {
+        "label": "Optimizar orden de trayectorias (trabajo completo)",
+        "help": "Reordena las trayectorias para acortar los desplazamientos en vacío. Desactívalo para conservar el orden generado al investigar un movimiento inesperado."
+      },
+      "laserTitle": "Opciones de exportación láser",
+      "laserPadding": "Margen físico alrededor de los límites de la placa exportada en mm",
+      "laserProfile": "Usando perfil: <profile/>.",
+      "settingsHint": "Cambiar en Ajustes de máquina (barra lateral derecha).",
+      "stencilTitle": "Opciones de exportación de plantilla (stencil)",
+      "stencilPadding": "Margen alrededor de los límites de la plantilla en mm",
+      "previewTitle": "Vista previa de código G",
+      "previewing": "Previsualizando:",
+      "stats": {
+        "lines": "Líneas: <value/>",
+        "operations": "Operaciones: <value/>",
+        "time": "Tiempo est.: <value/>",
+        "distance": "Distancia: <value/>"
+      },
+      "previewPlaceholder": "Haz clic en \"Calcular trayectorias\" para generar el código G",
+      "previewAria": "Vista previa de salida de código G",
+      "copy": "Copiar al portapapeles",
+      "cancelAria": "Cancelar y cerrar ventana",
+      "calculate": {
+        "label": "Calcular trayectorias",
+        "help": "Procesa las operaciones seleccionadas y genera la vista previa de código G según el orden y ajustes actuales."
+      },
+      "calculateAria": "Generar vista previa de código G",
+      "export": "Exportar archivos",
+      "exportAria": "Exportar archivos seleccionados",
+      "reasons": {
+        "commentsOff": "Comentarios desactivados",
+        "gcodeOnly": "Solo código G",
+        "nothingToCombine": "Nada que combinar",
+        "singleFileOn": "Archivo único activado",
+        "noDrill": "Sin taladrado seleccionado",
+        "oneBit": "Solo una broca",
+        "oneFile": "Solo un archivo",
+        "notOnPost": "No compatible con este posprocesador",
+        "oneToolPerFile": "Una herramienta por archivo",
+        "singleFileOnly": "Solo archivo único",
+        "oneToolInFile": "Una herramienta en el archivo"
+      },
+      "summary": {
+        "none": "No hay operaciones seleccionadas",
+        "files": {
+          "one": "{count} archivo - {kinds}",
+          "other": "{count} archivos - {kinds}"
+        },
+        "kind": "{count} {format}",
+        "zip": "{name} - {kinds}"
+      },
+      "toolNotice": {
+        "shared": "T{number} se llama una vez para {sizes}",
+        "title": "Algunos números de herramienta se comparten entre distintos diámetros",
+        "text": "Es correcto si se trata de una misma herramienta física: EasyCAM compara tamaños, no nombres de biblioteca. Si son herramientas distintas, asigna a cada una su propio Número de herramienta en la sección Herramienta de la etapa de geometría.",
+        "size": "⌀{diameter:mm} ({label})"
+      },
+      "stencilSeparate": "Exportado como archivo independiente: el material de la plantilla requiere otra preparación."
+    },
+    "drillTooling": {
+      "title": "Herramientas de taladrado",
+      "configure": "Configurar herramientas de taladrado…",
+      "empty": "No se detectaron elementos de taladrado. Carga un archivo de taladrado y genera primero la estrategia.",
+      "subtitle": {
+        "one": "{file} - {count} diámetro",
+        "other": "{file} - {count} diámetros"
+      },
+      "holes": {
+        "one": "{count} orificio",
+        "other": "{count} orificios"
+      },
+      "slots": {
+        "one": "{count} ranura",
+        "other": "{count} ranuras"
+      },
+      "columns": {
+        "size": "Diámetro",
+        "features": "Elementos",
+        "strategy": "Estrategia",
+        "tool": "Herramienta ⌀ (mm)",
+        "toolNumber": "T#",
+        "peck": "Picoteo (Peck)",
+        "feed": "Avance",
+        "plunge": "Bajada",
+        "rpm": "RPM"
+      },
+      "help": {
+        "size": "Diámetro del orificio o anchura de la ranura. En archivos Excellon, pasa el cursor sobre la medida para ver su código de herramienta.",
+        "features": "Cuántos orificios o ranuras contiene la fila. Orificios y ranuras de una misma medida reciben una fila independiente para aplicar su propia estrategia y herramienta.",
+        "strategy": "Picoteo penetra en cada orificio y en ambos extremos de una ranura. Fresar desbasta en círculos elementos más anchos que la herramienta; los de anchura similar se cortan en una sola pasada (ranuras por su línea central y orificios mediante bajada vertical). Omitir deja la fila sin mecanizar.",
+        "tool": "Diámetro de corte para la fila. Vacío toma la medida del propio elemento. Modificarlo descarta las trayectorias generadas.",
+        "toolNumber": "Número T que llama a la herramienta: ranura del almacén o pinza. Necesario en todas las filas salvo Omitir; filas que comparten fresa pueden compartir número.",
+        "peck": "Profundidad de cada pasada de picoteo. Con ciclos fijos define la palabra Q de G83 y G73; en posprocesadores sin ciclos fijos EasyCAM genera el bucle de picoteo. Vacío toma la profundidad de picoteo de la operación. 0 o ciclo fijo Ninguno taladra de una sola bajada.",
+        "feed": "Velocidad de avance en fresado para la fila (mm/min). Vacío toma la velocidad de avance de la operación.",
+        "plunge": "Velocidad de bajada en picoteo y entradas en Z (mm/min). Vacío toma la velocidad de bajada de la operación.",
+        "rpm": "Velocidad de giro del cabezal para la herramienta. Vacío toma las RPM de la operación."
+      },
+      "excellonCode": "Código Excellon: {codes}",
+      "holeSize": "Orificios de {size:mm}",
+      "slotSize": "Ranuras de {size:mm}",
+      "strategyAria": "Estrategia para {holes}",
+      "toolDiameterAria": "Diámetro de herramienta en mm para {holes}",
+      "toolNumberAria": "Número de herramienta para {holes}",
+      "feedRateAria": "Velocidad de avance para {holes}",
+      "plungeRateAria": "Velocidad de bajada para {holes}",
+      "spindleSpeedAria": "RPM del cabezal para {holes}",
+      "peckDepthAria": "Profundidad de picoteo para {holes}",
+      "strategies": {
+        "peck": "Picoteo",
+        "mill": "Fresar",
+        "skip": "Omitir"
+      },
+      "presets": {
+        "flatten": "Restablecer valores predeterminados",
+        "match": "Emparejar autom. con biblioteca"
+      },
+      "notice": {
+        "geometry": "Orificios y ranuras de un mismo tamaño ocupan una fila cada uno. Asigna a cada fila estrategia, herramienta y número T; una fila omitida no requiere ninguno. Cambiar de estrategia o herramienta descarta las trayectorias; cambiar el número T no.",
+        "strategy": "Profundidad de picoteo por fila. Deja vacío para tomar la de la operación. Estrategia, herramienta y número T se definen en la etapa de geometría XY.",
+        "machine": "Avances y velocidad de cabezal por fila. Deja un campo vacío para tomar el valor de la operación. Estrategia, herramienta y número T se definen en la etapa de geometría XY."
+      },
+      "inherit": "op"
+    },
+    "warning": {
+      "title": "Aviso"
+    }
+  },
+  "dialogs": {
+    "deleteGeometry": {
+      "title": "Eliminar geometría",
+      "items": {
+        "one": "{count} elemento",
+        "other": "{count} elementos"
+      },
+      "message": "¿Eliminar {items}? Se puede deshacer con Ctrl+Z.",
+      "messageWithOps": {
+        "one": "¿Eliminar {items}? Esto también elimina {count} operación. Se puede deshacer con Ctrl+Z.",
+        "other": "¿Eliminar {items}? Esto también elimina {count} operaciones. Se puede deshacer con Ctrl+Z."
+      }
+    },
+    "openCutout": {
+      "probeFailed": "Error en la comprobación.",
+      "joined": {
+        "one": "{joined} de {count} segmento unido",
+        "other": "{joined} de {count} segmentos unidos"
+      },
+      "closed": "Trazado cerrado correctamente con una tolerancia de {tolerance:mm}.",
+      "remaining": {
+        "one": "{count} segmento sigue desconectado.",
+        "other": "{count} segmentos siguen desconectados."
+      },
+      "increase": "Aumenta la tolerancia para unir discontinuidades mayores.",
+      "intro": "La geometría de recorte en <strong>{file}</strong> contiene segmentos desconectados.",
+      "partial": {
+        "one": "Se extrajo correctamente <strong>{count}</strong> bucle cerrado, pero {segments} no se pudieron unir.",
+        "other": "Se extrajeron correctamente <strong>{count}</strong> bucles cerrados, pero {segments} no se pudieron unir."
+      },
+      "segmentCount": {
+        "one": "{count} segmento",
+        "other": "{count} segmentos"
+      },
+      "gaps": "<strong>Discontinuidades detectadas:</strong> {gaps}",
+      "setTolerance": "Define una tolerancia suficiente para cubrir la separación máxima:",
+      "unknownGaps": "Desconocido",
+      "tolerance": "Tolerancia:",
+      "test": "Probar",
+      "title": "Trazado de recorte abierto detectado",
+      "confirm": "Cerrar trazado",
+      "cancel": "Mantener como está",
+      "positive": "Introduce un valor de tolerancia positivo."
+    },
+    "drillRecovery": {
+      "intro": {
+        "one": "El archivo SVG <strong>{file}</strong> contiene {count} trazado compuesto compatible con formas de taladrado conocidas.",
+        "other": "El archivo SVG <strong>{file}</strong> contiene {count} trazados compuestos compatibles con formas de taladrado conocidas."
+      },
+      "circles": "Candidatos a círculo ({count})",
+      "circlesHint": "Trazados compuestos que forman círculos completos.",
+      "obrounds": "Candidatos a oblongo ({count})",
+      "obroundsHint": "Trazados compuestos que forman figuras oblongas/estadio.",
+      "question": "¿Convertir estas figuras en geometría válida de orificios y ranuras para la operación de taladrado?",
+      "title": "Geometría de taladrado recuperable",
+      "confirm": "Convertir",
+      "cancel": "Omitir"
+    },
+    "deleteOperation": {
+      "title": "Eliminar operación",
+      "shape": "¿Eliminar {name} y sus trayectorias generadas? Se puede deshacer con Ctrl+Z.",
+      "unnamed": "esta operación",
+      "trace": "¿Eliminar {name} y todo lo generado a partir de ella? Esta acción no se puede deshacer."
+    }
+  },
+  "messages": {
+    "theme": {
+      "loadFailed": "No se pudo cargar el tema: {error}"
+    },
+    "language": {
+      "loadFailed": "No se pudo cargar el idioma: {error}"
+    },
+    "storage": {
+      "settingsNotSaved": "No se pudieron guardar los ajustes: el almacenamiento del navegador está lleno o bloqueado. Los cambios durarán hasta cerrar esta página."
+    },
+    "drill": {
+      "toolingChanged": "Las herramientas de taladrado cambiaron tras la generación; vuelve a generar antes de exportar.",
+      "recovered": {
+        "one": "Se recuperó {count} forma de taladrado",
+        "other": "Se recuperaron {count} formas de taladrado"
+      },
+      "recoverySkipped": "Formas compuestas omitidas",
+      "multiToolOn": "Taladrado multiherramienta activado: asigna una herramienta por fila en Herramientas de taladrado.",
+      "multiToolOff": "Taladrado con una sola herramienta: la herramienta de la operación mecaniza todos los orificios.",
+      "modeMilling": "Cambiado a modo fresado",
+      "modePecking": "Cambiado a modo picoteo",
+      "completeTooling": "Completa la configuración de herramientas de taladrado antes de generar.",
+      "allSkipped": "Todas las filas están configuradas como Omitir; no se mecanizaría nada.",
+      "missingDiameter": "Falta el diámetro de herramienta o es 0 para {sizes}.",
+      "missingNumber": "Introduce un número de herramienta (T#) para {sizes}.",
+      "squareAsHole": "Rectángulo cuadrado ({size:mm}) tratado como orificio circular",
+      "rectangleRejected": "Rectángulo no cuadrado ({width} x {height:mm}) rechazado; utiliza círculos u oblongos para orificios",
+      "shapeRejected": "Forma {type} rechazada: la operación de taladrado solo admite círculos y oblongos",
+      "laserMarks": {
+        "one": "Se generó {count} marca láser de taladrado",
+        "other": "Se generaron {count} marcas láser de taladrado"
+      },
+      "peckPositions": {
+        "one": "{count} posición de picoteo",
+        "other": "{count} posiciones de picoteo"
+      },
+      "millPaths": {
+        "one": "{count} trayectoria de fresado",
+        "other": "{count} trayectorias de fresado"
+      },
+      "features": {
+        "one": "{count} elemento",
+        "other": "{count} elementos"
+      },
+      "generated": {
+        "one": "Generado {detail} en {count} grupo de herramientas",
+        "other": "Generado {detail} en {count} grupos de herramientas"
+      },
+      "withWarnings": {
+        "one": "{message} - {count} aviso",
+        "other": "{message} - {count} avisos"
+      },
+      "noToolSkipped": {
+        "one": "{feature}: {count} elemento omitido; sin herramienta válida asignada",
+        "other": "{feature}: {count} elementos omitidos; sin herramienta válida asignada"
+      }
+    },
+    "quickstart": {
+      "willShow": "El inicio rápido se mostrará en la próxima visita"
+    },
+    "examples": {
+      "loadFailed": "No se pudo cargar ese ejemplo: {error}",
+      "notFound": "Ejemplo no encontrado: {id}",
+      "loading": "Cargando ejemplo: {name}…",
+      "loaded": "Ejemplo '{name}' cargado correctamente."
+    },
+    "export": {
+      "nothingToCopy": "No hay código G generado para copiar.",
+      "copied": "¡Código G copiado al portapapeles!",
+      "copyFailed": "Error al copiar al portapapeles. Comprueba los permisos del navegador.",
+      "noneSelected": "No hay operaciones seleccionadas para exportar.",
+      "producedNothing": "La exportación no produjo resultados.",
+      "failed": "Error de exportación: {error}",
+      "notReady": "No preparado: {files}. Completa primero las etapas de cada operación.",
+      "noCncOperations": "No hay operaciones CNC seleccionadas para el cálculo",
+      "noGcode": "El cálculo no devolvió código G",
+      "calculationFailed": "Error: {error}",
+      "noneReady": "No hay operaciones listas para exportar. Genera cada operación hasta su etapa de salida.",
+      "skippedFile": "{file} ({reason})",
+      "nothingExported": "No se exportó nada - {files}",
+      "noFiles": "No se generaron archivos.",
+      "archive": {
+        "one": "{name} ({count} archivo)",
+        "other": "{name} ({count} archivos)"
+      },
+      "fileCount": {
+        "one": "{count} archivo",
+        "other": "{count} archivos"
+      },
+      "exportedSkipped": "Exportado: {written}. Omitido: {skipped}",
+      "exported": "Exportado: {written}.",
+      "reasonNotReady": "trayectorias no calculadas",
+      "reasonNoGcode": "no se generó código G",
+      "operationLabel": "{type}: {name}",
+      "featureLabel": "{operation} - {feature}",
+      "noToolChange": "{post} no admite cambio de herramienta, pero un archivo de este trabajo contiene más de una herramienta. Desactiva la exportación a archivo único, divide los archivos de taladrado o asigna un solo número de herramienta a esas operaciones.",
+      "routeIsReplacement": "La ruta rotatoria de la máquina está configurada como sustitución de eje, que traslada la longitud de arco a la palabra Y.",
+      "noRotaryWord": "{post} no dispone de palabra {word} para un eje rotatorio alrededor de {axis}; no se puede generar indexado 3+1.",
+      "rotaryNeedsMetric": "La exportación rotatoria (4.º eje) requiere unidades métricas. Cambia las unidades de código G a mm.",
+      "postNotFound": "Posprocesador '{post}' no encontrado",
+      "noToolNumber": "No se determinó ningún número de herramienta para este trabajo; el programa no contiene palabras T.",
+      "spindleCapped": "La velocidad de cabezal de {rpm} RPM supera el máximo de {max} RPM de {post}; el programa limitará el cabezal a {max} RPM.",
+      "validationFailed": "Error de validación: {errors}",
+      "faultLine": "línea {line}: \"{text}\"",
+      "nonNumeric": "Exportación rechazada: valor no numérico en el programa en {faults}",
+      "droppedWords": {
+        "one": "Exportación rechazada: {count} coordenada o avance se evaluó como número no finito y se descartó. Regenera las operaciones afectadas.",
+        "other": "Exportación rechazada: {count} coordenadas o avances se evaluaron como números no finitos y se descartaron. Regenera las operaciones afectadas."
+      },
+      "nonFiniteWord": "La palabra de comando {word} es {value}; la trayectoria contiene un valor no finito.",
+      "zeroFeed": "La velocidad de avance es cero en un movimiento de corte.",
+      "belowFloor": "El valor Z comandado ({z:mm}) está por debajo de Z0 de la máquina ({floor:mm}), inalcanzable con Z0 absoluto. Ajusta el Z cero del bruto a la mesa o revisa la altura del eje rotatorio.",
+      "absoluteZFrames": "Z0 absoluto no admite aún combinar operaciones planas y de 4.º eje en un solo programa. Expórtalas como archivos separados.",
+      "absoluteZWrapped": "Z0 absoluto no admite aún la ruta de 4.º eje por sustitución de eje. Selecciona la ruta por palabra rotatoria en Ajustes de máquina.",
+      "absoluteZHeight": "Configura la altura del eje rotatorio en Ajustes de máquina: Z0 absoluto la necesita para situar programas de 4.º eje.",
+      "feedOverMax": {
+        "one": "La velocidad de avance F{feed} supera el máximo de la máquina de F{max}.",
+        "other": "{count} movimientos superan la velocidad de avance máxima de la máquina de F{max}, el primero en F{feed}."
+      },
+      "inverseTimeOverMax": {
+        "one": "El avance en tiempo inverso F{feed} supera el máximo del posprocesador de F{max}.",
+        "other": "{count} movimientos en tiempo inverso superan el máximo del posprocesador de F{max}, el primero en F{feed}."
+      },
+      "depthOverMax": {
+        "one": "Z {z:mm} supera la profundidad máxima segura de la máquina ({max:mm}). Comprueba el grosor del bruto y el cero de Z.",
+        "other": "{count} movimientos superan la profundidad máxima segura de la máquina ({max:mm}), el primero en Z {z:mm}. Comprueba el grosor del bruto y el cero de Z."
+      },
+      "winpcFeedUnit": "Una unidad de avance en mm/s no se puede combinar con salida en pulgadas. Ajusta la unidad de avance a mm/min o cambia las unidades de código G a mm.",
+      "laserProfileMissing": "El perfil láser '{id}' no está registrado",
+      "reasonNoGeometry": "sin geometría generada",
+      "reasonNoData": "el renderizador no devolvió datos",
+      "pngUnavailable": "La exportación PNG requiere OffscreenCanvas o un lienzo DOM; ninguno está disponible en este navegador. Exporta en SVG.",
+      "pngTooLarge": "No se pudo asignar un lienzo de {width} x {height}. Reduce los PPP de exportación.",
+      "pngEmpty": "La codificación PNG no devolvió datos."
+    },
+    "view": {
+      "no3dContainer": "Falta el contenedor del visor 3D en la página",
+      "view3dActive": "Vista 3D activa. F2 vuelve a 2D.",
+      "view3dFailed": "Error en la vista previa 3D: {error}",
+      "only3d": "Esta escena solo contiene geometría 3D; no hay nada que mostrar en 2D.",
+      "verboseOn": "Depuración detallada activada",
+      "verboseOff": "Depuración detallada desactivada",
+      "zoneFocused": "{zone} enfocada",
+      "canvasEmpty": "No hay nada en el lienzo para exportar",
+      "canvasExported": "Lienzo exportado correctamente",
+      "canvasFailed": "Error al exportar el lienzo: {error}",
+      "gpuLost": "La vista 3D perdió su dispositivo GPU ({error}). Recargar la página podría restaurarlo.",
+      "enableFirst": "Activa primero '{option}'",
+      "uiInitFailed": "Error de inicialización: {error}",
+      "fusionFailed": "Error en la fusión: {error}"
+    },
+    "files": {
+      "loadFailed": "Error al cargar {file}: {error}",
+      "unsupportedType": "Tipo de archivo no compatible: .{ext}",
+      "readFailed": "Error al leer {file}: {error}",
+      "stlParseError": "Error al analizar STL: {errors}",
+      "parseError": "Error de análisis: {errors}",
+      "stlLoaded": "Cargado {file}: {triangles} triángulos, altura del modelo: {height:mm}",
+      "stlLoadedMeshes": "Cargado {file}: {triangles} triángulos en {count} mallas, altura del modelo: {height:mm}",
+      "plotterError": "Error del trazador: {error}",
+      "svgImported": {
+        "one": "Importado {file}: {count} forma",
+        "other": "Importado {file}: {count} formas"
+      },
+      "readFailedShort": "Error al leer el archivo",
+      "readFailedNamed": "Error al leer {file}",
+      "loadedPrimitives": {
+        "one": "Cargado {file}: {count} primitiva",
+        "other": "Cargado {file}: {count} primitivas"
+      },
+      "processingError": "Error al procesar {file}: {error}",
+      "dropSkipped": {
+        "one": "Omitido {count} archivo que esta aplicación no puede cargar.",
+        "other": "Omitidos {count} archivos que esta aplicación no puede cargar."
+      },
+      "dropWithSkipped": "{message} {skipped}",
+      "warningCount": {
+        "one": "{count} aviso",
+        "other": "{count} avisos"
+      },
+      "dropNothing": "No hay archivos cargables.",
+      "dropFailed": {
+        "one": "Cargado {count} archivo - {failed} no se pudo cargar, ver registro.",
+        "other": "Cargados {count} archivos - {failed} no se pudieron cargar, ver registro."
+      },
+      "dropWarnings": {
+        "one": "Cargado {count} archivo con {warnings}. Ver registro.",
+        "other": "Cargados {count} archivos con {warnings}. Ver registro."
+      },
+      "dropLoaded": {
+        "one": "Cargado {count} archivo.",
+        "other": "Cargados {count} archivos."
+      },
+      "dropSuccess": {
+        "one": "{count} archivo cargado correctamente.",
+        "other": "{count} archivos cargados correctamente."
+      },
+      "fileWarning": "{file}: {warning}",
+      "drillsGuessed": {
+        "one": "Cargado {file}: {count} taladro (¡formato deducido!)",
+        "other": "Cargado {file}: {count} taladros (¡formato deducido!)"
+      },
+      "unknownOperationType": "Tipo de operación desconocido: {type}",
+      "invalidType": "Tipo de archivo no válido para {type}. Esperado: {extensions}"
+    },
+    "machine": {
+      "postSwitched": "Cambiado a {post}. Recalcula las trayectorias para aplicar los cambios."
+    },
+    "origin": {
+      "saved": "Origen guardado en la posición actual",
+      "reset": "Restablecido al origen guardado"
+    },
+    "reorder": {
+      "placed": "Elemento colocado",
+      "grabbed": "Elemento tomado. Usa Arriba/Abajo para mover, Espacio para colocar.",
+      "cancelled": "Reordenación cancelada"
+    },
+    "history": {
+      "undone": "Deshecho: {action}",
+      "redone": "Rehecho: {action}"
+    },
+    "scene": {
+      "lockedByParent": "Bloqueado por el elemento superior; desbloquéalo primero",
+      "skippedLocked": {
+        "one": "Omitido {count} elemento (bloqueado por el superior)",
+        "other": "Omitidos {count} elementos (bloqueados por el superior)"
+      },
+      "groupNeedsTwo": "Selecciona 2 o más elementos para agrupar",
+      "grouped": {
+        "one": "Agrupado {count} elemento",
+        "other": "Agrupados {count} elementos"
+      },
+      "nothingToUngroup": "No hay grupos en la selección para desagrupar",
+      "ungrouped": {
+        "one": "Desagrupado {count} grupo",
+        "other": "Desagrupados {count} grupos"
+      },
+      "tooManyMeshes": "{count} mallas seleccionadas: cada modelo necesita su propia operación.",
+      "locked": "El elemento está bloqueado"
+    },
+    "operations": {
+      "sourceChanged": "La geometría de origen ha cambiado. Regenera las equidistancias.",
+      "toolChanged": "La herramienta '{tool}' cambió en la biblioteca; regenera antes de exportar.",
+      "toolsChanged": {
+        "one": "{count} operación usa una herramienta modificada en la biblioteca; regenera antes de exportar.",
+        "other": "{count} operaciones usan herramientas modificadas en la biblioteca; regenera antes de exportar."
+      },
+      "categorySelected": "Categoría {category}",
+      "generationFailed": "Error en la generación: {error}",
+      "removed": "Operación eliminada",
+      "paramChanged": "'{param}' cambió tras la generación; vuelve a generar antes de exportar.",
+      "machineChanged": "Máquina cambiada a {machine}; vuelve a generar antes de exportar.",
+      "notFound": "Operación {id} no encontrada",
+      "noHandler": "Sin controlador para '{type}': {error}",
+      "needToolNumber": "Introduce un número de herramienta (la palabra T que recibe el control) antes de generar. Si la máquina no tiene cambiador, 1 es adecuado.",
+      "generateFirst": "Genera la geometría primero",
+      "previewFailed": "Error al generar la vista previa (comprueba el diámetro de herramienta)",
+      "previewGenerated": "Vista previa generada",
+      "depthWarning": "El corte alcanza Z {z:mm}, superando la profundidad máxima segura ({max:mm}). Comprueba el grosor del bruto y el cero de Z.",
+      "invalidCleared": "Geometría no válida eliminada. Listo para regenerar.",
+      "stageFailed": "Fallo en {stage}: {error}",
+      "staleParams": "Los parámetros cambiaron tras la generación; vuelve a generar antes de exportar.",
+      "postChangedIndexed": "Posprocesador cambiado a {post}. El modo indexado 3+1 necesita una palabra rotatoria en grados; regenera para comprobarlo.",
+      "transformChanged": "La transformación del espacio de trabajo ha cambiado; recalcula las trayectorias antes de exportar.",
+      "superseded": "Generación reemplazada por una solicitud más reciente",
+      "cancelled": "Generación cancelada: la operación no se generó.",
+      "fieldGenerated": {
+        "one": "Generada {count} trayectoria de {kind} [{passes}]",
+        "other": "Generadas {count} trayectorias de {kind} [{passes}]"
+      },
+      "fieldKinds": {
+        "relief": "relieve",
+        "rotary": "rotatorio",
+        "indexed": "indexado"
+      },
+      "passRoles": {
+        "roughing": "desbaste",
+        "finishing": "acabado"
+      },
+      "noPaths": "No se generaron trayectorias",
+      "noGeometry": "No se generó geometría: la herramienta puede ser demasiado grande para los detalles",
+      "laserPaths": {
+        "one": "Generada {count} trayectoria láser [{strategy}]",
+        "other": "Generadas {count} trayectorias láser [{strategy}]"
+      },
+      "offsets": {
+        "one": "Generada {count} equidistancia",
+        "other": "Generadas {count} equidistancias"
+      },
+      "noEngrave": "No se encontraron ni generaron trayectorias de grabado",
+      "engraveGenerated": {
+        "one": "Trayectoria de grabado generada ({count} trayectoria)",
+        "other": "Trayectorias de grabado generadas ({count} trayectorias)"
+      },
+      "pocketOpenPaths": {
+        "one": "Detectado {count} trazado abierto. El mecanizado de cajeras requiere formas cerradas. Cierra los trazados en tu editor SVG (la herramienta automática puede no estar disponible aún).",
+        "other": "Detectados {count} trazados abiertos. El mecanizado de cajeras requiere formas cerradas. Cierra los trazados en tu editor SVG (la herramienta automática puede no estar disponible aún)."
+      },
+      "noPocket": "No se generaron trayectorias de cajera: la herramienta puede ser demasiado grande para la forma",
+      "pocketGenerated": {
+        "one": "Cajera vaciada: {paths} en {count} pasada",
+        "other": "Cajera vaciada: {paths} en {count} pasadas"
+      },
+      "pathCount": {
+        "one": "{count} trayectoria",
+        "other": "{count} trayectorias"
+      },
+      "profileOpenPaths": {
+        "one": "Detectado {count} trazado abierto. El contorneado requiere formas cerradas.",
+        "other": "Detectados {count} trazados abiertos. El contorneado requiere formas cerradas."
+      },
+      "noProfile": "No se generó trayectoria de contorno: la herramienta puede ser demasiado grande para la forma",
+      "profileGenerated": "Trayectoria de contorno generada (corte {side})",
+      "noRelief": "No se generaron trayectorias de relieve: el modelo puede ser plano o estar por debajo de la resolución",
+      "noReliefSource": "Sin origen de relieve: importa un modelo STL para esta operación",
+      "noRotary": "No se generaron trayectorias rotatorias: el modelo puede ser cilíndrico o estar por debajo de la resolución",
+      "noRotarySource": "Sin origen rotatorio: importa un modelo STL para esta operación",
+      "noIndexed": "No se generaron trayectorias indexadas: el modelo puede ser plano, estar bajo la resolución o quedar fuera de las caras",
+      "noIndexedSource": "Sin origen indexado: importa un modelo STL para esta operación"
+    },
+    "stock": {
+      "noOriginTarget": "No hay nada sobre lo que situar el origen",
+      "nothingToFit": "No hay nada a lo que ajustar el bruto"
+    },
+    "cutout": {
+      "closed": "Trayectorias de recorte cerradas automáticamente.",
+      "cannotClose": "No se puede cerrar: prueba primero con una tolerancia mayor.",
+      "orphansDiscarded": "Segmentos huérfanos descartados. Contornos de placa conservados.",
+      "leftOpen": "Recorte conservado como trazado abierto.",
+      "openSegments": {
+        "one": "{count} segmento no forma bucles cerrados. Huecos: {gaps}",
+        "other": "{count} segmentos no forman bucles cerrados. Huecos: {gaps}"
+      },
+      "generated": "Trayectoria de recorte generada"
+    },
+    "board": {
+      "rotationSet": "Rotación de placa ajustada a {angle:°}",
+      "rotationReset": "Rotación de placa restablecida (posición sin cambios)",
+      "mirrorXOn": "Reflejo horizontal activado",
+      "mirrorXOff": "Reflejo horizontal desactivado",
+      "mirrorYOn": "Reflejo vertical activado",
+      "mirrorYOff": "Reflejo vertical desactivado",
+      "originCenter": "Vista previa: origen en el centro de la placa (no guardado)",
+      "cannotCenter": "No se puede centrar: aún no hay límites de placa",
+      "originBottomLeft": "Vista previa: origen en la esquina inferior izquierda (no guardado)",
+      "cannotBottomLeft": "No se puede situar en inferior izquierda: aún no hay límites de placa"
+    },
+    "toolpaths": {
+      "needFeeds": "Define un valor de {feeds} superior a cero antes de calcular trayectorias. Los avances se toman de la herramienta seleccionada; elige una o introduce un valor.",
+      "noMotion": "El cálculo de trayectorias no produjo movimientos",
+      "calculated": {
+        "one": "{count} trayectoria - ~{time}, {distance:mm} (solo esta operación)",
+        "other": "{count} trayectorias - ~{time}, {distance:mm} (solo esta operación)"
+      },
+      "failed": "Fallo al calcular trayectorias: {error}",
+      "noContext": "No se pudo crear un contexto de trayectoria para esta operación",
+      "droppedRotary": {
+        "one": "{op}: {count} plan rotatorio omitido; el posprocesador seleccionado no admite la ruta rotatoria de esta operación.",
+        "other": "{op}: {count} planes rotatorios omitidos; el posprocesador seleccionado no admite la ruta rotatoria de esta operación."
+      },
+      "droppedIndexed": "{op}: planes indexados 3+1 omitidos; el posprocesador seleccionado no declara palabras rotatorias A/B o la ruta rotatoria está en sustitución de eje, que no posiciona un eje rotatorio. Elige un posprocesador compatible y define {param} como {route}.",
+      "operationNote": "{op}: {note}",
+      "slotDropped": "Ranura central descartada: falta {missing} en la operación; defínelo y regenera.",
+      "slotTooShort": "Ranura central omitida: la trayectoria generada tiene menos de dos puntos.",
+      "slotNoExit": "Ranura central omitida: no se pudo resolver un punto de salida desde su contorno.",
+      "tabsSkipped": "Pestañas omitidas en contornos demasiado cortos para alojarlas."
+    },
+    "parser": {
+      "invalidDecimal": "Coordenada decimal no válida: {value}",
+      "invalidFormatted": "Coordenada con formato no válida: {value}",
+      "fatal": "Error fatal: {error}",
+      "excellon": {
+        "formatGuessed": "No se encontró formato explícito. Se asume por defecto {format} ({units}). Si los orificios/ranuras no coinciden, el archivo podría usar otro formato.",
+        "metric": "Métrico",
+        "inch": "Pulgadas",
+        "unknownFmat": "Línea {line}: FMAT desconocido {code}",
+        "invalidTool": "Línea {line}: Sintaxis de herramienta no válida \"{text}\"",
+        "invalidDiameter": "Línea {line}: Diámetro no válido \"{value}\"",
+        "toolUndefined": "Línea {line}: Herramienta {tool} no definida",
+        "m16Orphan": "Línea {line}: M16 encontrado sin ranura ni herramienta activa.",
+        "noToolSelected": "Línea {line}: Comando de coordenadas sin herramienta seleccionada; ignorando.",
+        "slotCoordinates": "Línea {line}: Error al analizar coordenadas de ranura: {error}",
+        "malformedG85": "Línea {line}: Comando de ranura G85 mal formado: \"{text}\"",
+        "slotNoTool": "Línea {line}: No hay herramienta seleccionada para la ranura.",
+        "noTools": "Se encontraron orificios pero no hay herramientas definidas"
+      },
+      "atLine": "Línea {line}: {error}",
+      "largeBoard": "Placa grande: {width} x {height:mm}",
+      "nonFiniteBounds": "Límites geométricos no finitos: el origen produjo coordenadas NaN/Infinito (comprueba transformaciones/unidades).",
+      "parseError": "Error de análisis: {error}",
+      "gerber": {
+        "invalidAperture": "Línea {line}: Definición de apertura no válida: {block}",
+        "undefinedMacroIn": "Línea {line}: Macro '{macro}' no definida en apertura {code}",
+        "unparsedAperture": "Línea {line}: No se pudo analizar la definición de apertura: {block}",
+        "macroEmpty": "La macro {macro} no tiene primitivas válidas",
+        "unclosedRegion": "El archivo terminó con una región sin cerrar",
+        "regionTooSmall": {
+          "one": "Región con solo {count} punto descartada",
+          "other": "Región con solo {count} puntos descartada"
+        },
+        "regionDeduped": "Región reducida a {count} puntos tras eliminar duplicados (desde {from})",
+        "regionDespiked": "Región reducida a {count} puntos tras eliminar picos (desde {from})",
+        "regionSimplified": "Región reducida a {count} puntos tras simplificación RDP",
+        "drawNoAperture": "Operación de trazo sin apertura en ({x}, {y})",
+        "undefinedAperture": "Apertura indefinida {aperture}",
+        "flashNoAperture": "Operación de destello sin apertura en ({x}, {y})",
+        "undefinedMacro": "Macro indefinida: {macro}",
+        "macroNoGeometry": "La macro {macro} no produjo geometría",
+        "macroConvertFailed": "No se pudo convertir la macro {macro} en geometría",
+        "unsupportedFlash": "Forma de destello no compatible: {shape}"
+      },
+      "invalidData": "Formato de datos de analizador no válido",
+      "stl": {
+        "noTriangles": "No se encontraron triángulos en el STL",
+        "trailingBytes": {
+          "one": "El STL tiene {count} byte final sobrante (ignorado)",
+          "other": "El STL tiene {count} bytes finales sobrantes (ignorados)"
+        },
+        "partialFacet": "Recuento de vértices en STL ASCII no divisible por 3; truncando faceta parcial"
+      },
+      "svg": {
+        "invalid": "Archivo SVG no válido",
+        "invalidDetail": "Archivo SVG no válido: {detail}",
+        "parseError": "Error de análisis SVG: {error}",
+        "nonUniformScale": "El SVG tiene escalado de viewBox no uniforme. La geometría podría distorsionarse.",
+        "viewBoxUnits": "El SVG no tiene dimensiones explícitas. Se asume que las unidades de viewBox son mm.",
+        "assumed96dpi": "El SVG no tiene dimensiones ni viewBox. Se asume una escala estándar de 96 PPP.",
+        "textElements": {
+          "one": "Se encontró {count} elemento de texto. Convierte el texto en trazados en tu editor para representarlo correctamente.",
+          "other": "Se encontraron {count} elementos de texto. Convierte el texto en trazados en tu editor para representarlo correctamente."
+        },
+        "fillRule": {
+          "one": "Se encontró el atributo fill-rule en {count} elemento. Las geometrías superpuestas pueden renderizarse de forma imprevista.",
+          "other": "Se encontró el atributo fill-rule en {count} elementos. Las geometrías superpuestas pueden renderizarse de forma imprevista."
+        },
+        "stylesheets": "El SVG contiene hojas de estilo incrustadas. Los estilos basados en clases no son totalmente compatibles.",
+        "useElements": {
+          "one": "Se encontró {count} elemento 'use'. La clonación de símbolos aún no es compatible.",
+          "other": "Se encontraron {count} elementos 'use'. La clonación de símbolos aún no es compatible."
+        },
+        "clipPaths": "El SVG contiene trazados de recorte o máscaras no compatibles."
+      },
+      "noParser": "No hay analizador registrado para {file}",
+      "errors": "{errors}",
+      "failed": "Fallo de análisis"
+    },
+    "rotary": {
+      "radial": {
+        "depthPastModel": "La profundidad de corte {depth:mm} supera el radio mínimo del modelo ({minRadius:mm}): todo lo que quede por debajo de {floor:mm} se convertirá en un cilindro constante. Pon la profundidad en 0 (auto) para seguir el modelo.",
+        "uncovered": "El {percent:%} de la cuadrícula cilíndrica está al descubierto; esas zonas mantendrán el radio circundante en vez del modelo. Comprueba el eje de giro, la orientación y que la malla esté cerrada.",
+        "stubUnderTool": "El radio de la espiga de arrastre ({stub:mm}) es menor que el alcance de la fresa ({tool:mm}); la espiga se creará con el decalaje de la herramienta respecto al cilindro central (seguro, pero más ancho de lo indicado).",
+        "nearCenterline": "La profundidad de corte automática llega cerca del centro (radio base {floor:mm} para un bruto de radio {radius:mm}); define una profundidad rotatoria explícita: el cálculo se ralentiza mucho cerca del eje y la malla puede no ser redonda alrededor de él."
+      },
+      "indexed": {
+        "blankDerived": "{param} no configurado: deducido {width:mm} entre caras a partir del soporte normal del modelo. El bruto debe medir al menos este ancho y Z0 es la cara superior.",
+        "modelTruncated": "El modelo alcanza {reach:mm} desde el eje en la cara de {angle:°}, superando la apotema del bruto ({apothem:mm}); ese material se TRUNCA al plano de la cara. Ajusta {param} a al menos {width:mm}.",
+        "stubUnderTool": "El radio de la espiga de arrastre ({stub:mm}) es inferior al radio de la herramienta ({tool:mm}); la espiga se crea con la equidistancia de la herramienta respecto al cilindro central (seguro, pero más ancho de lo indicado).",
+        "depthClamped": "{param} limitado a {depth:mm} bajo el plano de la cara.",
+        "depthWindowShort": "La ventana de profundidad ({window:mm}) se detiene {short:mm} antes de la profundidad de corte; toda superficie más allá de Z {z} de la máquina se TRUNCA a un plano liso. Deja {param} en 0 (auto) salvo que desees limitar la pasada expresamente.",
+        "noRoutes": "{post} no declara rutas de 4.º eje; la exportación de código G omitirá esta operación.",
+        "needsAWord": "El modo indexado 3+1 requiere la ruta {route} (grados absolutos en {word}); {post} solo declara {routes}; la exportación omitirá esta operación.",
+        "needsWord": "Un eje rotatorio de {axis} necesita la palabra '{word}'; {post} declara [{words}]; la exportación omitirá esta operación.",
+        "fluteShort": "La longitud de corte ({flute:mm}) no alcanza el eje de giro ({depth:mm} bajo el plano de la cara). El contorno del portaherramientas limita la herramienta por celda; quedará material sin cortar cerca de la línea central.",
+        "axialMismatch": "Las caras presentan extensiones axiales distintas (el extremo inferior varía {low:mm}, el extremo superior {high:mm}); las paredes frontales no coincidirán alrededor de la pieza. Revisa el eje de giro y la orientación del modelo."
+      }
+    },
+    "vcarve": {
+      "openPaths": {
+        "one": "El grabado en V requiere trazados cerrados: {count} trazado abierto en la selección",
+        "other": "El grabado en V requiere trazados cerrados: {count} trazados abiertos en la selección"
+      },
+      "none": "No se generaron trayectorias de grabado en V: las formas pueden ser degeneradas o demasiado pequeñas",
+      "skippedShapes": {
+        "one": "{message} - {count} forma no se pudo grabar, ver registro",
+        "other": "{message} - {count} formas no se pudieron grabar, ver registro"
+      },
+      "failedShape": "{shape}: {error}",
+      "failedHint": "Autointersecciones, esquirlas y vértices casi duplicados son las causas comunes y pueden corregirse en el dibujo. Si la forma parece correcta, abre una incidencia adjuntando el archivo.",
+      "generated": {
+        "one": "Generada {count} trayectoria de grabado en V",
+        "other": "Generadas {count} trayectorias de grabado en V"
+      },
+      "floors": {
+        "depthLimit": {
+          "one": "{message} - {count} contorno de fondo plano hizo tope en el límite de profundidad",
+          "other": "{message} - {count} contornos de fondo plano hicieron tope en el límite de profundidad"
+        },
+        "bitReach": {
+          "one": "{message} - {count} contorno de fondo plano hizo tope en el alcance de la fresa",
+          "other": "{message} - {count} contornos de fondo plano hicieron tope en el alcance de la fresa"
+        }
+      },
+      "floorsRidges": {
+        "depthLimit": {
+          "one": "{message} - {count} contorno de fondo plano hizo tope en el límite de profundidad (más ancho que la cobertura de la fresa: quedarán crestas centrales hasta que se implemente el vaciado plano)",
+          "other": "{message} - {count} contornos de fondo plano hicieron tope en el límite de profundidad (más ancho que la cobertura de la fresa: quedarán crestas centrales hasta que se implemente el vaciado plano)"
+        },
+        "bitReach": {
+          "one": "{message} - {count} contorno de fondo plano hizo tope en el alcance de la fresa (más ancho que la cobertura de la fresa: quedarán crestas centrales hasta que se implemente el vaciado plano)",
+          "other": "{message} - {count} contornos de fondo plano hicieron tope en el alcance de la fresa (más ancho que la cobertura de la fresa: quedarán crestas centrales hasta que se implemente el vaciado plano)"
+        }
+      }
+    },
+    "stencil": {
+      "regHolesSkipped": "Orificios de registro omitidos: no hay límites de placa disponibles.",
+      "cornersSquare": {
+        "one": "{count} apertura demasiado pequeña para un radio de esquina de {radius:mm}; se mantiene cuadrada.",
+        "other": "{count} aperturas demasiado pequeñas para un radio de esquina de {radius:mm}; se mantienen cuadradas."
+      },
+      "padsExcluded": {
+        "one": "Se excluyó {count} pad de plantilla por superponerse con orificios pasantes.",
+        "other": "Se excluyeron {count} pads de plantilla por superponerse con orificios pasantes."
+      },
+      "cornerBelowCutter": "El radio de esquina ({radius:mm}) es menor que el radio de corte ({cutter:mm}); las aperturas se obtendrán con esquinas de {cutter:mm}.",
+      "needsTool": "El fresado CNC de plantillas requiere un diámetro de herramienta válido. Selecciona una herramienta en la etapa de Geometría.",
+      "none": "No se generaron aperturas (todas filtradas)",
+      "noneSkipped": "No se generaron aperturas ({skipped} omitidas)",
+      "generated": {
+        "one": "Generada {count} apertura de plantilla",
+        "other": "Generadas {count} aperturas de plantilla"
+      },
+      "generatedSkipped": {
+        "one": "Generada {count} apertura de plantilla ({skipped} omitidas)",
+        "other": "Generadas {count} aperturas de plantilla ({skipped} omitidas)"
+      },
+      "skippedPads": {
+        "one": "{count} pad superpuesto",
+        "other": "{count} pads superpuestos"
+      }
+    },
+    "mesh": {
+      "degenerateAxial": "La malla tiene una extensión axial degenerada",
+      "degenerateAxis": "La malla es degenerada alrededor del eje de giro",
+      "ambiguousWinding": "La orientación de la malla es ambigua (volumen con signo próximo a cero); la eliminación de caras ocultas puede fallar en este modelo.",
+      "outsideBlank": "El {percent:%} de la superficie del modelo queda fuera del radio del bruto ({radius:mm}) y se aplanó a su superficie; ese material no se mecanizará. Aumenta {param} o déjalo en 0 (auto).",
+      "degenerateXY": "La malla tiene una extensión XY degenerada",
+      "depthFlattened": "El {percent:%} de la cuadrícula es más profundo que la ventana de profundidad de {depth:mm} y se aplanó a un plano en {z:mm}. Aumenta la profundidad o déjala en 0 (auto).",
+      "noCoverage": "Sin cobertura de modelo en la cuadrícula seccionada: no hay nada que mecanizar. Comprueba el eje de giro, la orientación y que la malla esté cerrada.",
+      "noLength": "Los decalajes de los extremos del plato/contrapunto no dejan longitud mecanizable (ventana [{from}..{to}] de {total} estaciones). Un decalaje negativo recorta hacia dentro; redúcelo o ponlo a 0. No se generó nada."
+    }
+  },
+  "history": {
+    "deleteItems": "Eliminar {items}",
+    "ungroupMany": {
+      "one": "Desagrupar {count} grupo",
+      "other": "Desagrupar {count} grupos"
+    },
+    "action": "Acción",
+    "composite": "Compuesto",
+    "move": {
+      "one": "Mover {count} elemento",
+      "other": "Mover {count} elementos"
+    },
+    "deleteShapes": {
+      "one": "Eliminar {count} forma",
+      "other": "Eliminar {count} formas"
+    },
+    "group": {
+      "one": "Agrupar {count} elemento",
+      "other": "Agrupar {count} elementos"
+    },
+    "ungroup": "Desagrupar",
+    "removeOperations": {
+      "one": "Quitar {count} operación",
+      "other": "Quitar {count} operaciones"
+    },
+    "show": {
+      "one": "Mostrar {count} elemento",
+      "other": "Mostrar {count} elementos"
+    },
+    "hide": {
+      "one": "Ocultar {count} elemento",
+      "other": "Ocultar {count} elementos"
+    },
+    "lock": {
+      "one": "Bloquear {count} elemento",
+      "other": "Bloquear {count} elementos"
+    },
+    "unlock": {
+      "one": "Desbloquear {count} elemento",
+      "other": "Desbloquear {count} elementos"
+    },
+    "editTransform": "Editar transformación"
+  },
+  "form": {
+    "noCompatibleTools": "No hay herramientas compatibles",
+    "toolOptionTapered": "{name} ({diameter:mm} de diámetro de corte)",
+    "valueInUnit": "{label} en {unit}",
+    "notAvailable": "Aún no disponible",
+    "lockedBy": "Definido por {setup}",
+    "incompatible": "{label} (incompatible)"
+  },
+  "validation": {
+    "mustBeNumber": "{field} debe ser un número",
+    "min": "{field} debe ser al menos {min}",
+    "max": "{field} no debe ser superior a {max}"
+  },
+  "ops": {
+    "isolation": {
+      "label": "Fresado de aislamiento",
+      "short": "Aislamiento"
+    },
+    "drill": {
+      "label": "Taladrado",
+      "short": "Taladro",
+      "generate": "Generar estrategia de taladrado",
+      "generateLaser": "Generar marcas de taladrado"
+    },
+    "clearing": {
+      "label": "Vaciado de cobre",
+      "short": "Vaciado"
+    },
+    "cutout": {
+      "label": "Recorte de placa",
+      "short": "Recorte",
+      "generate": "Generar trayectoria de recorte",
+      "generateLaser": "Generar trayectoria de corte láser"
+    },
+    "stencil": {
+      "label": "Plantilla de soldadura (Exp.)",
+      "short": "Plantilla",
+      "generate": "Generar plantilla"
+    },
+    "profile": {
+      "label": "Mecanizado de contorno",
+      "short": "Contorno",
+      "generate": "Generar trayectoria de contorno"
+    },
+    "pocket": {
+      "label": "Vaciado de cajera",
+      "short": "Cajera",
+      "generate": "Generar trayectorias de cajera"
+    },
+    "vcarve": {
+      "label": "Grabado en V",
+      "short": "Grabado en V",
+      "generate": "Generar trayectorias de grabado en V"
+    },
+    "relief": {
+      "label": "Relieve / Talla 2.5D",
+      "short": "Relieve",
+      "generate": "Generar trayectorias de relieve"
+    },
+    "rotary": {
+      "label": "Rotatorio / 4.º eje",
+      "short": "Rotatorio",
+      "generate": "Generar trayectorias rotatorias"
+    },
+    "engrave": {
+      "label": "Grabado",
+      "short": "Grabado",
+      "generate": "Generar trayectoria de grabado"
+    },
+    "pattern": {
+      "label": "Patrón",
+      "short": "Patrón"
+    },
+    "unassigned": {
+      "label": "Formas no asignadas",
+      "short": "Formas no asignadas"
+    }
+  },
+  "artifacts": {
+    "offsets": {
+      "label": "Equidistancias",
+      "label3d": "Trayectorias 3D"
+    },
+    "preview": {
+      "label": "Vista previa"
+    },
+    "toolpath": {
+      "label": "Trayectorias"
+    }
+  },
+  "stages": {
+    "geometry": {
+      "label": "Geometría XY"
+    },
+    "strategy": {
+      "label": "Estrategia Z"
+    },
+    "machine": {
+      "label": "Avances y trayectorias"
+    },
+    "output": {
+      "label": "Salida"
+    }
+  },
+  "categories": {
+    "post": "Posprocesador",
+    "stock": "Material en bruto",
+    "heights": "Alturas y avances",
+    "rotary": "4.º eje",
+    "tool": "Selección de herramienta",
+    "blank": "Bruto y eje",
+    "bounds": "Límites del modelo",
+    "holding": "Sujeción y extremos",
+    "offset": "Ajustes de corte",
+    "depth": "Profundidad y pasadas",
+    "passes": "Pasadas y paso lateral",
+    "roughing": "Desbaste",
+    "finishing": "Acabado",
+    "tabs": "Pestañas de sujeción",
+    "drill": "Estrategia de taladrado",
+    "pattern": "Disposición del patrón",
+    "quality": "Resolución y acabado",
+    "feeds": "Avances y velocidades",
+    "toolpath": "Opciones de trayectoria",
+    "general": "Ajustes generales",
+    "laser": "Salida láser",
+    "stencil": "Ajustes de plantilla",
+    "laser_geometry": "Aislamiento",
+    "laser_strategy": "Estrategia de vaciado",
+    "laser_cutout": "Ajustes de corte",
+    "strategy": "Estrategia de corte",
+    "cutout": "Ajustes de recorte",
+    "machine": "Configuración de máquina",
+    "laser_export": "Ajustes de exportación"
+  },
+  "params": {
+    "applyOrigin": {
+      "label": "Aplicar origen",
+      "help": "Guarda el desplazamiento previsualizado como el nuevo origen permanente (0,0) del proyecto."
+    },
+    "applyRotation": {
+      "label": "Aplicar rotación",
+      "help": "Aplica la rotación especificada a toda la geometría."
+    },
+    "arcReconstruction": {
+      "label": "Reconstrucción de arcos",
+      "help": "Intenta reconstruir arcos a partir de segmentos de línea en geometrías fusionadas. Requiere Modo fusión."
+    },
+    "boardBounds": {
+      "label": "Límites de la placa",
+      "help": "Muestra un cuadro que representa el tamaño total de todos los archivos cargados."
+    },
+    "boardRotation": {
+      "label": "Rotación de la placa",
+      "help": "Aplica una rotación (en grados) a todos los archivos respecto a sí mismos."
+    },
+    "boardSize": {
+      "label": "Dimensiones de la placa",
+      "help": "Dimensiones totales calculadas de todos los archivos cargados."
+    },
+    "bottomLeft": {
+      "label": "Inferior izquierda",
+      "help": "Previsualiza el origen en la esquina inferior izquierda del cuadro delimitador de la placa."
+    },
+    "bwMode": {
+      "label": "Blanco y negro",
+      "help": "Renderiza el lienzo en blanco y negro, ignorando los colores de las capas."
+    },
+    "cannedCycle": {
+      "label": "Ciclo fijo",
+      "help": "Ciclo de taladrado preprogramado. G83 (picoteo) retrae periódicamente para evacuar virutas.",
+      "options": {
+        "none": "Ninguno (G0 + G1)",
+        "G81": "G81 - Taladrado simple",
+        "G82": "G82 - Taladrado con temporización (Dwell)",
+        "G83": "G83 - Picoteo (retracción total)",
+        "G73": "G73 - Picoteo (rotura de viruta)"
+      }
+    },
+    "center": {
+      "label": "Centro",
+      "help": "Previsualiza el origen en el centro del cuadro delimitador de la placa."
+    },
+    "combineOffsets": {
+      "label": "Combinar trayectorias equidistantes",
+      "help": "Fusiona todas las pasadas equidistantes en una sola geometría. Reduce la complejidad del código G pero elimina el control individual de cada pasada."
+    },
+    "cutDepth": {
+      "label": "Profundidad de corte",
+      "help": "Profundidad final objetivo para todos los cortes, relativa a la superficie del material (Z=0). Debe ser un valor negativo (p. ej., -0.05mm)."
+    },
+    "cutSide": {
+      "label": "Lado de corte",
+      "help": "Dónde se sitúa la herramienta respecto al contorno del polígono. 'Exterior' elimina material alrededor. 'Interior' vacía por dentro. 'En línea' centra la herramienta sobre el trazado.",
+      "options": {
+        "outside": "Exterior",
+        "inside": "Interior",
+        "on": "En línea (eje central)"
+      }
+    },
+    "cutouts": {
+      "label": "Recortes"
+    },
+    "debugArcs": {
+      "label": "Depurar arcos",
+      "help": "Muestra todos los arcos/círculos reconstruidos con éxito"
+    },
+    "debugPoints": {
+      "label": "Depurar puntos",
+      "help": "Muestra todos los puntos individuales en toda la geometría."
+    },
+    "depthPerPass": {
+      "label": "Profundidad por pasada",
+      "help": "Profundidad incremental de cada pasada al cortar en varios niveles. Menor = mayor vida útil de la herramienta."
+    },
+    "detectNesting": {
+      "label": "Detectar anidamiento",
+      "help": "Al activarse, las formas totalmente contenidas dentro de otras se tratan como orificios y se restan del límite exterior al generar equidistancias."
+    },
+    "drillMultiTool": {
+      "label": "Taladrado multiherramienta",
+      "help": "Asigna una estrategia, una herramienta y un número de herramienta por fila de la tabla de taladrado. Cada diámetro de orificio y ranura recibe su propia fila."
+    },
+    "drillStepOver": {
+      "label": "Paso lateral",
+      "help": "Porcentaje de solapamiento del diámetro de la herramienta en cada pasada concéntrica al fresar orificios de gran tamaño."
+    },
+    "drillMultiDepth": {
+      "label": "Fresado en varios niveles Z",
+      "help": "Fresa orificios grandes en varios niveles Z en lugar de una sola pasada a profundidad total. Reduce el esfuerzo en herramientas pequeñas."
+    },
+    "drillDepthPerPass": {
+      "label": "Profundidad por pasada",
+      "help": "Material eliminado por nivel Z al fresar un orificio grande."
+    },
+    "drillEntryType": {
+      "label": "Método de entrada",
+      "help": "Forma en que la fresa penetra en un orificio grande. Hélice baja en espiral y reparte el esfuerzo; Bajada directa entra en vertical y requiere una herramienta con corte al centro.",
+      "options": {
+        "helix": "Hélice (entrada en espiral)",
+        "plunge": "Bajada vertical (inmersión)"
+      }
+    },
+    "drills": {
+      "label": "Taladros"
+    },
+    "dwellTime": {
+      "label": "Tiempo de espera (Dwell)",
+      "help": "Duración de la pausa en el fondo del orificio (segundos). Facilita la evacuación de virutas y reduce rebabas."
+    },
+    "startCode": {
+      "label": "Código G inicial",
+      "help": "Tu propio bloque de inicio para este posprocesador, añadido al arrancar el programa. Cada posprocesador mantiene el suyo, partiendo del de su configuración. {{toolNumber}} toma el número de la primera herramienta."
+    },
+    "endCode": {
+      "label": "Código G final",
+      "help": "Tu propio bloque final para este posprocesador, añadido al terminar el programa. Cada posprocesador mantiene el suyo, partiendo del de su configuración. {{safeZ}} y {{travelZ}} adoptan esas alturas, nunca por debajo del final del programa."
+    },
+    "entryType": {
+      "label": "Tipo de entrada",
+      "help": "Cómo entra la herramienta en el material. Bajada directa: vertical. Rampa: diagonal. Hélice: espiral descendente.",
+      "options": {
+        "plunge": "Bajada vertical (inmersión)"
+      }
+    },
+    "feedRate": {
+      "label": "Velocidad de avance",
+      "help": "Velocidad a la que avanza la herramienta durante el corte (mm/min o in/min)."
+    },
+    "finishStepover": {
+      "label": "Paso lateral de acabado",
+      "help": "Porcentaje de paso lateral para la pasada de acabado. Valores más bajos proporcionan mejor acabado superficial."
+    },
+    "finishingPass": {
+      "label": "Pasada de acabado",
+      "help": "Añade una pasada final suave a profundidad total con paso lateral reducido para un fondo de cajera más uniforme."
+    },
+    "fusionMode": {
+      "label": "Modo fusión",
+      "help": "Fusiona toda la geometría de aislamiento/vaciado superpuesta. Requerido para la reconstrucción de arcos."
+    },
+    "units": {
+      "label": "Unidades de código G",
+      "help": "Establece las unidades del archivo de código G exportado (G21 para mm, G20 para pulgadas).",
+      "options": {
+        "mm": "Milímetros (G21)",
+        "inch": "Pulgadas (G20)"
+      }
+    },
+    "grid": {
+      "label": "Cuadrícula",
+      "help": "Alterna la visibilidad de la cuadrícula en el lienzo."
+    },
+    "indexDwell": {
+      "label": "Pausa de estabilización de giro",
+      "help": "Pausa tras cada rotación de indexado, antes de que la herramienta penetre de nuevo en el material, para que un 4.º eje accionado por correa se asiente. Comienza en el valor del posprocesador; los ejes por servomotor o engranajes no suelen necesitarla."
+    },
+    "rotaryAxisHeight": {
+      "label": "Altura del eje rotatorio",
+      "help": "Distancia a la que se sitúa la línea central de rotación respecto a Z0 de la máquina. Todas las cotas Z de un programa de 4.º eje se miden desde esa línea, por lo que este valor la eleva al sistema de coordenadas de la máquina. La exportación de 4.º eje con Z0 absoluto se deniega si está vacío.",
+      "placeholder": "No configurada"
+    },
+    "indexedAxisOvercut": {
+      "label": "Sobrecorte del eje",
+      "help": "Distancia que cada cara puede rebasar respecto al eje de giro. Las caras opuestas que terminan justo en el eje son tangentes y no se solapan, por lo que una holgura o fallo de toma de origen dejaría una cresta central. Deja vacío para usar automáticamente un radio de herramienta; 0 para detenerse exactamente en el eje. Solo profundiza el excedente, nunca penetra en la espiga de radio mínimo.",
+      "placeholder": "Auto"
+    },
+    "indexedBlankWidth": {
+      "label": "Ancho del bruto (entre caras)",
+      "help": "Distancia entre caras planas del bruto original. Deja vacío para deducirla del modelo. Todo detalle del modelo que sobresalga del bruto no podrá alcanzarse y se aplanará; aumenta este valor si la pieza es mayor de lo indicado.",
+      "placeholder": "Auto"
+    },
+    "indexedCollisionGuard": {
+      "label": "Protección contra colisiones",
+      "help": "Limita la profundidad para que el vástago y el portaherramientas no toquen la pieza. Requiere cuttingLength, shankDiameter, holderDiameter y holderStickout en la herramienta; se omite si faltan."
+    },
+    "indexedCrossFinish": {
+      "label": "Pasada de acabado cruzada",
+      "help": "Añade una segunda pasada de acabado a 90 grados respecto a la primera. Duplica aprox. el tiempo de acabado y mejora notablemente la superficie en caras curvas."
+    },
+    "indexedDepth": {
+      "label": "Profundidad de corte",
+      "help": "Profundidad máxima que cada cara puede cortar bajo el plano de la superficie del bruto. Deja vacío para alcanzar justo el eje de giro (el límite útil de una cara; cortes más profundos corresponden a la cara opuesta). Define un valor solo para limitar el corte a menor profundidad.",
+      "placeholder": "Auto"
+    },
+    "indexedFaceCount": {
+      "label": "Caras",
+      "help": "Número de caras planas a fresar alrededor de la pieza. Más caras aproximan mejor una superficie redonda pero multiplican el tiempo de mecanizado. 4 es ideal para un bruto cuadrado; 6 u 8 para uno cilíndrico pretorneado.",
+      "options": {
+        "2": "2 (frontal / trasera)",
+        "3": "3 (prisma triangular)",
+        "4": "4 (bruto cuadrado)",
+        "6": "6 (bruto hexagonal)",
+        "8": "8 (bruto octogonal)"
+      }
+    },
+    "indexedRasterAxis": {
+      "label": "Dirección del barrido",
+      "help": "Dirección de las pasadas de acabado en cada cara. A lo largo del eje rotatorio genera pasadas largas y continuas. Transversal es óptimo si los detalles de la pieza rodean el perímetro.",
+      "options": {
+        "axial": "A lo largo del eje rotatorio",
+        "cross": "Transversal a la cara"
+      }
+    },
+    "indexedRoughStepdown": {
+      "label": "Paso vertical de desbaste",
+      "help": "Profundidad que elimina cada capa de desbaste en una cara. Valores menores reducen el esfuerzo de la herramienta y alargan el tiempo. Un tercio del diámetro es un punto de partida seguro."
+    },
+    "indexedStartAngle": {
+      "label": "Ángulo inicial",
+      "help": "Gira todo el conjunto de caras. Úsalo para alinear la primera cara con un detalle del modelo o para situar la línea de unión en una zona poco visible."
+    },
+    "laserClearStrategy": {
+      "label": "Estrategia de vaciado",
+      "help": "Cómo rellena el láser las zonas donde se debe eliminar el cobre.\n\n• Polígono relleno: Exporta figuras sólidas; el software láser gestiona el relleno. Solo SVG.\n• Trayectorias equidistantes: Contornos concéntricos hacia dentro. El método más fiable para evitar marcas.\n• Rayado paralelo: Líneas rectas a un ángulo fijo. Rápido, pero unidireccional.\n• Rayado cruzado: Conjuntos perpendiculares de líneas. Más pasadas varían el ángulo entre sí.",
+      "options": {
+        "filled": "Polígono relleno - El software láser controla el relleno",
+        "offset": "Trayectorias equidistantes - Concéntrico, sin marcas",
+        "hatch": "Relleno rayado - Cobertura direccional por líneas"
+      }
+    },
+    "laserClearingPadding": {
+      "label": "Margen de vaciado",
+      "help": "Margen extra aplicado alrededor de una zona de cobre, más allá de su contorno. Concede espacio al haz en los bordes de un plano."
+    },
+    "laserHatchPasses": {
+      "label": "Pasadas de rayado",
+      "help": "Número de pasadas de rayado a realizar. Cada pasada extra rota su ángulo respecto al base, homogenizando el acabado en lugar de dejar surcos en una sola dirección."
+    },
+    "colorPerPass": {
+      "label": "Color único por pasada de aislamiento/vaciado",
+      "help": "Asigna automáticamente un color distinto a cada pasada de corte. Muy útil para programas que permiten asociar parámetros por color."
+    },
+    "laserCutSide": {
+      "label": "Lado de corte",
+      "help": "Dónde cae el ancho del haz (kerf) respecto al contorno de la placa.\n\n• Exterior: El láser corta por fuera de la línea (la placa conserva su medida nominal).\n• Interior: El láser corta por dentro de la línea (la placa se reduce por el ancho de corte).\n• En línea: El láser sigue el centro de la línea (la placa se reduce la mitad del corte en cada lado).",
+      "options": {
+        "outside": "Exterior (corte hacia fuera)",
+        "inside": "Interior (corte hacia dentro)",
+        "on": "En línea (sin compensación)"
+      }
+    },
+    "laserExportPadding": {
+      "label": "Margen de exportación",
+      "help": "Margen físico en mm añadido alrededor de la geometría exportada. Da holgura al software de corte láser para la alineación."
+    },
+    "exportDPI": {
+      "label": "PPP de exportación",
+      "help": "Resolución de la imagen PNG exportada. Más PPP brinda mayor definición pero aumenta el tamaño del archivo. 1000 PPP es óptimo para la mayoría de PCB. Hazlo coincidir con los PPP de grabado de tu software láser."
+    },
+    "exportFormat": {
+      "label": "Formato de exportación",
+      "help": "SVG exporta vectores que programas como LightBurn o RDWorks interpretan con sus ajustes de potencia/velocidad por capa de color. PNG exporta una imagen ráster a los PPP indicados, adecuada para modos de grabado directo de imagen.",
+      "options": {
+        "svg": "SVG - Vectorial",
+        "png": "PNG - Imagen ráster"
+      }
+    },
+    "laserHatchAngle": {
+      "label": "Ángulo de rayado",
+      "help": "Ángulo de las líneas de rayado en grados. En rayado paralelo, las líneas siguen este ángulo. En rayado cruzado, el segundo grupo discurre a 90° (ángulo + 90°). 45° es una buena opción predeterminada, ya que cruza pistas tanto horizontales como verticales."
+    },
+    "heatManagement": {
+      "label": "Activar gestión térmica",
+      "help": "Reordena las pasadas para que los cortes sucesivos no sean adyacentes, dando tiempo a enfriarse al material. Desactivado emite las trayectorias en orden geométrico.",
+      "options": {
+        "off": "Desactivado",
+        "standard": "Estándar"
+      }
+    },
+    "laserIsolationWidth": {
+      "label": "Ancho de aislamiento",
+      "help": "Ancho total de cobre a eliminar alrededor de las pistas, medido desde el borde hacia fuera. El número de pasadas láser se calcula automáticamente a partir de este valor, del tamaño del punto focal y del porcentaje de paso lateral."
+    },
+    "laserLinesPerCm": {
+      "label": "Líneas por cm",
+      "help": "Número de pasadas láser por centímetro. Valores más altos generan una cobertura más densa."
+    },
+    "laserLinesPerInch": {
+      "label": "Líneas por pulgada",
+      "help": "Número de pasadas láser por pulgada. Valores más altos generan una cobertura más densa."
+    },
+    "language": {
+      "label": "Idioma"
+    },
+    "theme": {
+      "label": "Tema",
+      "options": {
+        "dark": "Oscuro",
+        "light": "Claro",
+        "hc-dark": "Oscuro (alto contraste)",
+        "hc-light": "Claro (alto contraste)"
+      }
+    },
+    "activeProfile": {
+      "label": "Software láser",
+      "help": "El programa en el que abrirás el archivo exportado. Determina cómo se agrupan las capas, si los colores codifican pasadas y qué paleta se emplea.",
+      "options": {
+        "generic": "Genérico"
+      }
+    },
+    "reverseCutOrder": {
+      "label": "Invertir orden de corte",
+      "help": "Emite las capas de la última a la primera. Necesario cuando el importador procesa el archivo de abajo hacia arriba, para que el primer corte deseado sea el primero en realizarse."
+    },
+    "laserSpacingMode": {
+      "label": "Modo de espaciado de pasadas",
+      "help": "Elige cómo definir la separación entre pasadas láser consecutivas. Paso lateral utiliza un porcentaje del tamaño del punto focal. Líneas/cm y LPI definen la densidad directamente.",
+      "options": {
+        "stepover": "Paso lateral %",
+        "lpcm": "Líneas por cm",
+        "lpi": "Líneas por pulgada"
+      }
+    },
+    "laserSpotSize": {
+      "label": "Tamaño del punto láser",
+      "help": "Recordatorio de solo lectura del tamaño de punto definido en Ajustes de máquina. Las estrategias equidistantes y de rayado calculan sus separaciones con este valor."
+    },
+    "spotSize": {
+      "label": "Tamaño del punto láser",
+      "help": "El ancho de corte efectivo de tu haz láser. El fabricante suele indicarlo en las especificaciones. Valores típicos: láser UV 0.02-0.08mm, láser de fibra 0.03-0.15mm."
+    },
+    "layerColors": {
+      "label": "Colores de capas",
+      "help": "Color asignado a cada tipo de operación en el archivo exportado. La mayoría de programas de láser asocian parámetros de corte al color."
+    },
+    "lineNumbers": {
+      "label": "Números de línea (N)",
+      "help": "Prefixa los bloques de código G con números de línea (N10, N20…). Se muestra solo si el control del posprocesador los admite."
+    },
+    "lineNumberStep": {
+      "label": "Incremento de número de línea",
+      "help": "Salto entre números de línea consecutivos (palabras N). Un paso de 10 genera N10, N20, N30…, dejando espacio para intercalar bloques manuales en el control."
+    },
+    "laserStepOver": {
+      "label": "Paso lateral",
+      "help": "Porcentaje de solapamiento del haz entre pasadas contiguas. Valores menores (más solape) mejoran la retirada de cobre pero tardan más. 50% es un buen punto de partida; baja al 30% si quedan marcas."
+    },
+    "svgGrouping": {
+      "label": "Agrupación SVG",
+      "help": "Cómo se estructuran las trayectorias en el archivo. Depende de lo que admita tu software láser: algunos importan capas, otros grupos y otros solo reconocen colores.",
+      "options": {
+        "none": "Ninguna",
+        "layer": "Capa",
+        "group": "Grupo",
+        "color": "Color"
+      }
+    },
+    "millHoles": {
+      "label": "Fresar orificios",
+      "help": "Si se marca, genera trayectorias circulares de fresado en los orificios mayores que la herramienta. Si se desmarca, genera un taladrado simple o con picoteo en el centro."
+    },
+    "mirrorGeometry": {
+      "label": "Reflejar geometría",
+      "help": "Invierte la geometría del archivo horizontalmente. Imprescindible para mecanizar la capa inferior (bottom)."
+    },
+    "multiDepth": {
+      "label": "Corte en varios niveles Z",
+      "help": "Permite realizar varias pasadas a distintas profundidades en cortes profundos. Reduce el esfuerzo y desgaste de la herramienta."
+    },
+    "offsets": {
+      "label": "Equidistancias",
+      "help": "Muestra u oculta la geometría de equidistancias calculada. Se oculta automáticamente al generar una vista previa."
+    },
+    "originOffset": {
+      "label": "Desplazamiento del origen",
+      "help": "Establece un nuevo origen X/Y. Haz clic en 'Aplicar origen' para guardar esta posición como nuevo (0,0)."
+    },
+    "pads": {
+      "label": "Pads / Isletas"
+    },
+    "passes": {
+      "label": "Número de pasadas",
+      "help": "Número de pasadas equidistantes a crear. Más pasadas retiran más cobre pero llevan más tiempo."
+    },
+    "thickness": {
+      "label": "Grosor del bruto",
+      "help": "El grosor total del material en bruto. Se utiliza para calcular la profundidad del recorte exterior."
+    },
+    "thicknessCopper": {
+      "label": "Grosor del cobre",
+      "help": "Grosor de la lámina de cobre, típicamente 0.035mm para 1oz (35µm). Se usa para sugerir la profundidad de aislamiento."
+    },
+    "width": {
+      "label": "Anchura",
+      "help": "Anchura del bruto a lo largo del eje X."
+    },
+    "length": {
+      "label": "Longitud",
+      "help": "Longitud del bruto a lo largo del eje Y."
+    },
+    "margin": {
+      "label": "Margen de ajuste",
+      "help": "Margen perimetral añadido alrededor de la geometría al utilizar Ajustar al objeto."
+    },
+    "material": {
+      "label": "Material",
+      "help": "Material del bruto. Se usa para sugerir avances y velocidades; no altera las coordenadas generadas.",
+      "options": {
+        "fr": "FR4 / Fibra de vidrio",
+        "plywood": "Madera contrachapada",
+        "mdf": "MDF",
+        "hardwood": "Madera dura",
+        "softwood": "Madera blanda",
+        "acrylic": "Acrílico / Metacrilato",
+        "aluminum": "Aluminio (blando)",
+        "foam": "Espuma / Tablero de modelado",
+        "custom": "Personalizado"
+      }
+    },
+    "zeroReference": {
+      "label": "Referencia de Z cero",
+      "help": "Dónde se sitúa Z0. 'Superficie del material' sitúa el cero arriba; 'Mesa de la máquina' lo fija en la mesa de sacrificio y las profundidades se miden desde ahí.",
+      "options": {
+        "material": "Superficie del material (arriba)",
+        "bed": "Mesa de la máquina (sacrificio)"
+      }
+    },
+    "coolant": {
+      "label": "Refrigerante",
+      "help": "Refrigerante activado al inicio y desactivado al final del programa: niebla o chorro, con los códigos del posprocesador (M7/M8 y M9). 'Ninguno' lo deja a criterio del operador.",
+      "options": {
+        "none": "Ninguno",
+        "mist": "Niebla (Mist)",
+        "flood": "Chorro (Flood)"
+      }
+    },
+    "vacuum": {
+      "label": "Aspiración",
+      "help": "Enciende el sistema de aspiración de polvo al inicio y lo apaga al final con los códigos correspondientes (M10/M11 en la mayoría, M331/M332 en Makera, salida auxiliar en WinPC-NC)."
+    },
+    "peckDepth": {
+      "label": "Profundidad de picoteo",
+      "help": "Profundidad de cada pasada antes de retraer la broca para evacuar virutas. Con ciclos fijos es la palabra Q de G83 y G73; en posprocesadores sin ellos EasyCAM genera el bucle directamente. 0 o ciclo fijo Ninguno taladra en una sola bajada. Una fila de Herramientas de taladrado puede fijar su propio valor."
+    },
+    "plungeRate": {
+      "label": "Velocidad de bajada",
+      "help": "Velocidad a la que la herramienta desciende en el material (mm/min o in/min). Suele ser menor que el avance de corte."
+    },
+    "pocketStrategy": {
+      "label": "Estrategia de cajera",
+      "help": "Cómo se vacía el interior de la cajera. Equidistancias concéntricas se contrae hacia el interior por pasadas. Barrido (Raster) barre hacia adelante y atrás en líneas rectas.",
+      "options": {
+        "offset": "Equidistancias concéntricas",
+        "raster": "Barrido (Raster)"
+      }
+    },
+    "postProcessor": {
+      "label": "Posprocesador",
+      "help": "Selecciona la configuración para tu control CNC: el código G que genera y los valores iniciales de estos ajustes. Una configuración también puede bloquear algunos valores."
+    },
+    "preprocessed": {
+      "label": "Preprocesado",
+      "help": "Muestra la geometría *después* de la fusión pero *antes* de la reconstrucción de arcos. Requiere Modo fusión."
+    },
+    "previews": {
+      "label": "Vistas previas",
+      "help": "Muestra u oculta las vistas previas de trayectoria, que representan el recorrido real de la herramienta."
+    },
+    "rapidFeed": {
+      "label": "Avance rápido",
+      "help": "Velocidad de avance (mm/min) para movimientos rápidos G0 (desplazamientos en vacío y retirada a Z seguro)."
+    },
+    "rasterAngle": {
+      "label": "Ángulo de barrido",
+      "help": "Ángulo de las líneas de barrido para cajeras. 0° es horizontal, 90° vertical, 45° diagonal."
+    },
+    "rasterBidirectional": {
+      "label": "Barrido bidireccional",
+      "help": "Si está marcado, corta en ambos sentidos. Desmarcado levanta y regresa al inicio de cada línea para corte en concordancia exclusivamente."
+    },
+    "optimizeToolpath": {
+      "label": "Optimizar trayectorias",
+      "help": "Reordena y simplifica la trayectoria acabada para reducir los desplazamientos en vacío. Desactívalo para conservar el orden exacto de generación."
+    },
+    "regions": {
+      "label": "Regiones"
+    },
+    "reliefBoundaryMm": {
+      "label": "Extensión del contorno",
+      "help": "Distancia más allá de la silueta a la que se extiende el límite. Lo utilizan 'Rebasar borde' y 'Extender'."
+    },
+    "reliefBoundaryMode": {
+      "label": "Límite de silueta",
+      "help": "Qué ocurre en el contorno del modelo. 'Parar' conserva el material alrededor. 'Rebasar borde' desciende creando una pared tras la arista. 'Extender' sigue mecanizando una distancia concreta más allá.",
+      "options": {
+        "stop": "Parar en el borde del modelo",
+        "rollover": "Rebasar borde (crea pared límite)",
+        "extend": "Extender más allá del borde (+mm)"
+      }
+    },
+    "reliefCellSize": {
+      "label": "Tamaño de celda de cuadrícula",
+      "help": "Paso de la cuadrícula de muestreo en mm. Deja vacío para deducirlo del tamaño del modelo y del límite de resolución de abajo.",
+      "placeholder": "Auto"
+    },
+    "reliefCornerRadius": {
+      "label": "Radio de esquina",
+      "help": "Radio de esquina de una fresa tórica. Se ignora con fresas esféricas o planas."
+    },
+    "reliefCrossFinish": {
+      "label": "Pasada de acabado cruzada",
+      "help": "Añade una segunda pasada de acabado a 90 grados respecto a la primera. Duplica aprox. el tiempo de acabado y mejora notablemente superficies curvas."
+    },
+    "reliefDepth": {
+      "label": "Profundidad de talla",
+      "help": "Profundidad total de la talla bajo la superficie. Deja vacío para usar la propia altura del modelo.",
+      "placeholder": "Auto"
+    },
+    "reliefDepthMapping": {
+      "label": "Mapeo de profundidad",
+      "help": "'Escalado' ajusta el rango de alturas del modelo a la profundidad de corte (ideal para arte). 'Literal' respeta las cotas reales en mm del modelo (para piezas mecánicas).",
+      "options": {
+        "scaled": "Escalado a la profundidad (relieve artístico)",
+        "literal": "Altura literal del modelo (pieza dimensionada)"
+      }
+    },
+    "reliefFinishStepoverPct": {
+      "label": "Paso lateral de acabado",
+      "help": "Desplazamiento lateral entre pasadas de acabado en porcentaje del diámetro de la fresa. Valores menores dan un acabado más suave pero tardan más."
+    },
+    "reliefGridMaxDim": {
+      "label": "Resolución automática de cuadrícula",
+      "help": "Límite del lado más largo de la cuadrícula generada. Valores más altos capturan detalles más finos a costa de mayor tiempo de cálculo y memoria."
+    },
+    "reliefInvert": {
+      "label": "Invertir (modo molde)",
+      "help": "Mecaniza el negativo del modelo para obtener un molde directo de la pieza."
+    },
+    "reliefMaskUncovered": {
+      "label": "Limitar a la silueta del modelo",
+      "help": "Mecaniza únicamente donde se asienta el modelo. Déjalo desactivado para vaciar toda la cuadrícula hasta el fondo."
+    },
+    "reliefMinSegmentLength": {
+      "label": "Longitud mínima de segmento de desbaste",
+      "help": "Descarta tramos de desbaste más cortos que esta medida. Elimina vibraciones de la máquina sin alterar la pieza."
+    },
+    "reliefMode": {
+      "label": "Pasada",
+      "help": "El desbaste retira el grueso del material en planos horizontales; el acabado repasa la superficie tridimensional. 'Ambos' ejecuta uno tras otro con la misma fresa.",
+      "options": {
+        "roughing": "Desbaste",
+        "finishing": "Acabado",
+        "both": "Ambos (una sola herramienta)"
+      }
+    },
+    "reliefRasterAxis": {
+      "label": "Dirección de barrido",
+      "help": "Dirección en que barren las pasadas. Conviene orientarlas de forma transversal a los detalles alargados del modelo.",
+      "options": {
+        "x": "A lo largo de X",
+        "y": "A lo largo de Y"
+      }
+    },
+    "reliefRoughStepdown": {
+      "label": "Paso vertical de desbaste",
+      "help": "Profundidad en Z eliminada por cada pasada de desbaste."
+    },
+    "reliefRoughStepoverPct": {
+      "label": "Paso lateral de desbaste",
+      "help": "Separación entre pasadas de desbaste en porcentaje del diámetro de la fresa."
+    },
+    "reliefRoughStock": {
+      "label": "Crecimiento para acabado",
+      "help": "Material sobrante que el desbaste deja en la superficie para que lo elimine la pasada de acabado."
+    },
+    "reliefSimplifyTolerance": {
+      "label": "Simplificación de trayectorias",
+      "help": "Desviación máxima tolerada al alisar las trayectorias de acabado. Valores más altos reducen el tamaño del código G."
+    },
+    "reliefSkipFloor": {
+      "label": "Omitir fondo plano",
+      "help": "Omite la pasada del fondo plano. Recomendado si el desbaste ya ha limpiado el fondo con la misma herramienta."
+    },
+    "reliefStartDepth": {
+      "label": "Profundidad inicial",
+      "help": "Profundidad de la superficie desde la que comienza el relieve. Úsala para grabar en el fondo de una cajera existente."
+    },
+    "reliefToolShape": {
+      "label": "Punta de la herramienta",
+      "help": "Geometría de la punta que modela la compensación. Esférica adapta mejor curvas; plana es más rápida en relieves suaves; tórica es plana con radio de esquina.",
+      "options": {
+        "ball": "Punta esférica (Ball Nose)",
+        "flat": "Fresa plana",
+        "bull": "Tórica (con radio de esquina)"
+      }
+    },
+    "resetRotation": {
+      "label": "Restablecer rotación",
+      "help": "Devuelve la rotación de la placa a 0 sin variar la posición del origen."
+    },
+    "resetUnsaved": {
+      "label": "Descartar cambios no guardados",
+      "help": "Descarta cualquier cambio no guardado en el origen y vuelve al último origen memorizado."
+    },
+    "retractHeight": {
+      "label": "Altura de retracción",
+      "help": "Altura a la que se retrae la broca entre orificios. Debe librar la placa minimizando el tiempo en vacío."
+    },
+    "rolandModel": {
+      "label": "Modelo de máquina",
+      "help": "Selecciona tu máquina Roland. Sus pasos por mm, límites de avance, control de cabezal y secuencias de inicio y fin provienen de la tabla de modelos de la configuración; una máquina que no figure requiere una configuración personalizada.",
+      "options": {
+        "custom": "Máquina personalizada"
+      },
+      "notes": {
+        "mdx15": "La interfaz serie requiere control de flujo por hardware (RTS/CTS). Usa un adaptador USB a serie con chip FTDI para una comunicación fiable.",
+        "mdx20": "La interfaz serie requiere control de flujo por hardware (RTS/CTS).",
+        "imodela": "Baja rigidez: usa velocidades de avance conservadoras para PCB.",
+        "srm20": "VPanel rechaza RML con errores de sintaxis. El modo RML ofrece 0.01mm de resolución; el modo NC Code ofrece 0.001mm para trabajos ultrafinos.",
+        "egx350": "Cabezal de altas RPM: excelente para aislamiento de PCB con fresas en V.",
+        "custom": "Configuración personalizada: verifica cada parámetro con el manual de tu máquina."
+      }
+    },
+    "rolandZMode": {
+      "label": "Modo de comando Z",
+      "help": "El modo 3D usa el comando Z para interpolación XYZ simultánea (MDX-40A y superiores). El modo 2.5D usa PU/PD, que solo admite corte en XY a una profundidad fija fijada por !PZ.",
+      "options": {
+        "3d": "3D - Z x,y,z (XYZ simultáneo)",
+        "2.5d": "2.5D - PU/PD (solo subir/bajar herramienta)"
+      }
+    },
+    "rotaryAxis": {
+      "label": "Eje rotatorio de máquina",
+      "help": "Eje de la máquina alrededor del cual gira la pieza: X genera palabra A; Y genera palabra B. Corresponde al montaje físico del 4.º eje y lo emplean todas las operaciones rotatorias; cambiarlo exige regenerarlas. Solo se pueden exportar las palabras declaradas por el posprocesador.",
+      "options": {
+        "x": "A - a lo largo de X del espacio de trabajo",
+        "y": "B - a lo largo de Y del espacio de trabajo"
+      }
+    },
+    "rotaryChuckSide": {
+      "label": "Lado del plato",
+      "help": "Qué extremo del eje rotatorio sujeta el plato. Los ajustes de límite de extremo del plato de cada operación se aplican en ese extremo, y los del contrapunto en el opuesto.",
+      "options": {
+        "low": "Extremo inferior (hacia -X / -Y)",
+        "high": "Extremo superior (hacia +X / +Y)"
+      }
+    },
+    "rotaryGrid": {
+      "label": "Cuadrícula en vista de 4.º eje",
+      "help": "Dibuja la cuadrícula de suelo en la escena de 4.º eje de la vista 3D en el Z0 del programa: la línea central de rotación, con Z0 absoluto en la mesa (la altura del eje rotatorio por debajo del centro) y en la ruta de sustitución de eje en la parte superior del bruto. Solo visualización."
+    },
+    "rotaryWorkholding": {
+      "label": "Plato y contrapunto",
+      "help": "Dibuja un plato simplificado en la escena de 4.º eje de la vista 3D en el extremo que sujeta la pieza, y un contrapunto en el extremo opuesto cuando la operación sujeta la pieza entre puntos. Solo visualización."
+    },
+    "rotaryBlankDiameter": {
+      "label": "Diámetro del bruto",
+      "help": "Diámetro exterior del cilindro bruto. Deja vacío para adaptarlo automáticamente al modelo. Si indicas un valor menor, se aplanará todo lo que sobresalga; redúcelo solo si el material es realmente menor.",
+      "placeholder": "Auto"
+    },
+    "rotaryCellSize": {
+      "label": "Tamaño de celda de cuadrícula",
+      "help": "Tamaño de cada punto de muestreo en la superficie del modelo. Deja vacío para deducirlo de la resolución indicada abajo. Fijarlo a mano anula el cálculo automático y puede ralentizar mucho la generación en piezas grandes.",
+      "placeholder": "Auto"
+    },
+    "rotaryChuckEndMm": {
+      "label": "Decalaje extremo del plato",
+      "help": "Mueve el punto en el que se considera que termina el modelo por el lado del plato. Un valor negativo frena antes del borde real (útil en conos o caídas tangentes que la fresa no puede atacar limpia). Uno positivo mecaniza más allá, cilindrando el sobrante hasta el radio mínimo. Un valor negativo excesivo no deja nada que mecanizar y lanzará un aviso. En 'Rebasar borde' y 'Cono' indica la profundidad del reborde o la longitud del cono (siempre positivo)."
+    },
+    "rotaryChuckEndMode": {
+      "label": "Límite en extremo del plato",
+      "help": "Qué ocurre donde el modelo termina en el lado del plato. 'Parar en la geometría' es la opción estándar y segura: el sobrante se rebaja al radio mínimo y la fresa se detiene junto a la pieza. 'Rebasar borde' deja un reborde, pero solo funciona en extremos planos perpendiculares al eje (si está inclinado o descentrado mostrará escalones y un aviso). 'Cono' genera una transición cónica hacia la espiga en lugar de un escalón brusco.",
+      "options": {
+        "stop": "Parar en la geometría (rebajado al núcleo)",
+        "rollover": "Rebasar borde (requiere extremo plano)",
+        "taper": "Cono (transición hacia la espiga)"
+      }
+    },
+    "rotaryCornerRadius": {
+      "label": "Radio de esquina",
+      "help": "Radio de esquina de una fresa tórica. Solo se usa si la forma de la punta es Tórica. Debe ser menor que la mitad del diámetro de la fresa."
+    },
+    "rotaryDepth": {
+      "label": "Profundidad de corte",
+      "help": "Profundidad máxima a mecanizar bajo la superficie del bruto, medida en radio. Deja vacío para acompañar el modelo hasta su zona más delgada. La profundidad automática cerca del centro ralentiza bastante el cálculo; conviene fijar un valor en modelos grandes.",
+      "placeholder": "Auto"
+    },
+    "rotaryFinishPattern": {
+      "label": "Patrón de acabado",
+      "help": "'Espiral' es una hélice continua con una sola entrada y sin marcas de parada (la opción más recomendable). 'A lo largo' sigue el eje longitudinal (ideal para piezas con estrías). 'Perimetral' mecaniza anillos concéntricos (adecuado para perfiles de revolución).",
+      "options": {
+        "spiral": "Espiral (hélice continua)",
+        "along": "A lo largo del eje",
+        "around": "Perimetral (anillos)"
+      }
+    },
+    "rotaryFinishStepoverPct": {
+      "label": "Paso lateral de acabado",
+      "help": "Separación entre pasadas de acabado en porcentaje del diámetro de la fresa. Un 10% logra un acabado excelente. Valores más altos mecanizan antes pero dejan marcas de cresta visibles."
+    },
+    "rotaryGridMaxDim": {
+      "label": "Resolución automática de cuadrícula",
+      "help": "Resolución de muestreo en la dimensión más larga del modelo al calcular el tamaño de celda automático. Valores mayores capturan detalles más finos pero tardan más. 1024 es ideal para la mayoría de piezas."
+    },
+    "rotaryHoldingMode": {
+      "label": "Sujeción de la pieza",
+      "help": "'Entre puntos' asume que un contrapunto sostiene el otro extremo, protegiendo el material tras esa cara. 'Solo plato' asume que la pieza va en voladizo y el extremo opuesto queda al aire.",
+      "options": {
+        "between_centers": "Entre puntos (con contrapunto)",
+        "chuck_only": "Solo plato (en voladizo)"
+      }
+    },
+    "rotaryKinematics": {
+      "label": "Cinemática rotatoria",
+      "help": "'Radial' gira la pieza de forma continua bajo la fresa para obtener superficies redondeadas uniformes. 'Indexado 3+1' posiciona a un ángulo fijo, fresa la cara plana y pasa a la siguiente. El modo indexado exige un posprocesador con eje A o B; el radial también puede funcionar si el 4.º eje está conectado a la salida del motor Y.",
+      "options": {
+        "radial": "Radial (superficie continua)",
+        "indexed": "Indexado 3+1 (caras planas a ángulos fijos)"
+      }
+    },
+    "rotaryMinRadius": {
+      "label": "Radio mínimo",
+      "help": "Radio de la espiga de sujeción que la fresa nunca cortará: la zona donde aprietan las garras del plato o apoya el punto. También es el radio al que baja la opción de extremo en cono. En modo Indexado 3+1 actúa como un cilindro de seguridad central que ninguna cara rebasará (el valor de 2mm garantiza un núcleo intacto de 2mm). Fíjalo en 0 si deseas tronzar la pieza libre del todo."
+    },
+    "rotaryMode": {
+      "label": "Pasada",
+      "help": "Qué pasadas generar. El desbaste retira material en capas concéntricas de radio constante. El acabado sigue la superficie del modelo. 'Ambos' ejecuta desbaste y acabado en orden con una única fresa.",
+      "options": {
+        "roughing": "Desbaste",
+        "finishing": "Acabado",
+        "both": "Ambos (una sola herramienta)"
+      }
+    },
+    "rotaryRoughAxis": {
+      "label": "Dirección de desbaste",
+      "help": "Dirección de las pasadas de desbaste. A lo largo del eje va bien para piezas largas y esbeltas. Alrededor del perímetro conviene para piezas cortas y gruesas, repartiendo mejor la carga de corte.",
+      "options": {
+        "x": "A lo largo del eje",
+        "y": "Alrededor del perímetro"
+      }
+    },
+    "rotaryRoughStepdown": {
+      "label": "Paso vertical de desbaste",
+      "help": "Profundidad en radio eliminada por cada capa de desbaste. Valores menores reducen el esfuerzo de corte. Un tercio del diámetro de la fresa es un buen punto de partida."
+    },
+    "rotaryRoughStepoverPct": {
+      "label": "Paso lateral de desbaste",
+      "help": "Separación entre pasadas de desbaste en porcentaje del diámetro de la fresa. Un 45% es una buena pauta estándar."
+    },
+    "rotaryRoughStock": {
+      "label": "Crecimiento para acabado",
+      "help": "Espesor dejado en la superficie durante el desbaste para que lo retire la pasada de acabado. 0.3mm es un buen valor predeterminado. Si dejas muy poco se verán marcas del desbaste; si dejas demasiado, forzarás el acabado."
+    },
+    "rotaryRoute": {
+      "label": "Ruta de 4.º eje",
+      "help": "Cómo interpreta el 4.º eje la máquina. 'Palabra rotatoria' envía grados en A o B omitiendo Y (el CAM efectúa el desarrollo), o en milímetros de arco para ejes calibrados linealmente. 'Sustitución de eje' hace que Y transporte milímetros de arco en el radio de referencia, para motores de 4.º eje conectados a la salida del eje Y con pasos/mm calibrados. Solo se ofrecen las rutas que declare tu posprocesador.",
+      "options": {
+        "a-word": "Palabra rotatoria (A/B en grados)",
+        "a-linear": "Palabra rotatoria (A/B en mm de arco)",
+        "wrapped-linear": "Sustitución de eje (Y transporta arco)"
+      }
+    },
+    "rotaryStockShape": {
+      "label": "Sección del bruto",
+      "help": "Forma de la sección del material en bruto. 'Redondo' comienza a cortar en el diámetro exterior. 'Cuadrado' comienza en las aristas y redondea el tocho en las primeras pasadas (añade tiempo de desbaste pero ahorra tornearlo previamente).",
+      "options": {
+        "round": "Redondo (diámetro del bruto)",
+        "square": "Cuadrado (lado = diámetro del bruto)"
+      }
+    },
+    "rotaryTailEndMm": {
+      "label": "Decalaje extremo del contrapunto",
+      "help": "Mueve el punto en el que se considera que termina el modelo por el lado del contrapunto. Un valor negativo frena antes del borde real (útil en conos o caídas tangentes que la fresa no puede atacar limpia). Uno positivo mecaniza más allá, cilindrando el sobrante hasta el radio mínimo. Un valor negativo excesivo no deja nada que mecanizar y lanzará un aviso. En 'Rebasar borde' y 'Cono' indica la profundidad del reborde o la longitud del cono (siempre positivo)."
+    },
+    "rotaryTailEndMode": {
+      "label": "Límite en extremo del contrapunto",
+      "help": "Qué ocurre donde el modelo termina en el lado del contrapunto. 'Parar en la geometría' es la opción estándar y segura: el sobrante se rebaja al radio mínimo y la fresa se detiene junto a la pieza. 'Rebasar borde' deja un reborde, pero solo funciona en extremos planos perpendiculares al eje (si está inclinado o descentrado mostrará escalones y un aviso). 'Cono' genera una transición cónica hacia la espiga en lugar de un escalón brusco.",
+      "options": {
+        "stop": "Parar en la geometría (rebajado al núcleo)",
+        "rollover": "Rebasar borde (requiere extremo plano)",
+        "taper": "Cono (transición hacia la espiga)"
+      }
+    },
+    "rotaryToolShape": {
+      "label": "Punta de la herramienta",
+      "help": "Forma del extremo de corte. La fresa esférica (Ball Nose) ofrece las superficies curvas más suaves. La plana deja escalones en curvas pero mecaniza caras lisas con rapidez. La tórica es una fresa plana con esquinas redondeadas.",
+      "options": {
+        "ball": "Punta esférica (Ball Nose)",
+        "flat": "Fresa plana",
+        "bull": "Tórica (con radio de esquina)"
+      }
+    },
+    "rulers": {
+      "label": "Reglas",
+      "help": "Muestra u oculta las reglas alrededor del lienzo."
+    },
+    "safeZ": {
+      "label": "Z de seguridad",
+      "help": "Altura segura para movimientos rápidos y cambios de herramienta (G0). Debe librar bridas, mordazas y fijaciones."
+    },
+    "spindleDwell": {
+      "label": "Espera de arranque del cabezal",
+      "help": "Tiempo de espera en segundos para que el cabezal alcance las RPM deseadas. Muy necesario en cabezales de alta inercia."
+    },
+    "spindleSpeed": {
+      "label": "Velocidad de cabezal",
+      "help": "Velocidad de giro del cabezal (RPM). Mayor velocidad para herramientas de menor diámetro."
+    },
+    "spotDepth": {
+      "label": "Profundidad de punteo",
+      "help": "Profundidad del orificio de punteo previo."
+    },
+    "spotDrill": {
+      "label": "Punteado previo",
+      "help": "Realiza un orificio guía poco profundo en cada posición antes del taladrado principal. Evita desvíos en superficies curvas o irregulares."
+    },
+    "stencilAddRegHoles": {
+      "label": "Orificios de registro",
+      "help": "Genera 4 orificios circulares de alineación fuera de la placa para fijar la plantilla con clavijas durante la aplicación manual de pasta."
+    },
+    "stencilExcludeDrillPads": {
+      "label": "Excluir pads con orificio",
+      "help": "Elimina automáticamente las aperturas situadas sobre orificios pasantes para evitar que la pasta de soldadura caiga en ellos."
+    },
+    "stencilExportPadding": {
+      "label": "Margen de exportación",
+      "help": "Margen físico en mm añadido alrededor de la plantilla en el archivo SVG. Facilita la sujeción y alineación en plóteres de vinilo o corte láser."
+    },
+    "stencilIgnoreRegions": {
+      "label": "Ignorar planos de cobre",
+      "help": "Si está marcado, ignora pistas anchas y planos de masa, generando aperturas únicamente para los pads de componentes (flashes)."
+    },
+    "stencilOffset": {
+      "label": "Equidistancia de aperturas",
+      "help": "Reduce (negativo) o agranda (positivo) las aperturas de la plantilla. -0.05mm es habitual para evitar puentes de soldadura."
+    },
+    "stencilMachine": {
+      "label": "Fabricación de plantilla",
+      "help": "Equipo con el que se fabricará la plantilla. La fresadora CNC vacía las aperturas y emite código G; la cuchilla corta en la línea con compensación y emite un archivo vectorial. Modificarlo cambia los parámetros y etapas disponibles.",
+      "options": {
+        "router": "Fresado CNC (código G)",
+        "knife": "Cuchilla vinilo / Láser CO2 (SVG)"
+      }
+    },
+    "stencilCornerRadius": {
+      "label": "Radio de esquina de apertura",
+      "help": "Redondea las esquinas de cada apertura para que una cuchilla de arrastre o plóter pueda seguirlas. Un radio menor que la compensación de corte saldrá cuadrado, ya que una cuchilla redonda no puede cortar una esquina más cerrada que su propio radio."
+    },
+    "stencilRegDiameter": {
+      "label": "Diámetro de orificios de registro",
+      "help": "Diámetro de las clavijas o pasadores de alineación que vayas a utilizar."
+    },
+    "stencilRegMargin": {
+      "label": "Margen de orificios de registro",
+      "help": "Distancia fuera del contorno de la placa a la que se colocarán los orificios de registro."
+    },
+    "stepOver": {
+      "label": "Paso lateral",
+      "help": "Porcentaje de solapamiento del diámetro de la fresa en cada pasada contigua. 50% es un valor habitual."
+    },
+    "tabHeight": {
+      "label": "Altura de pestañas",
+      "help": "Grosor que se deja sin cortar en la pestaña. Un valor de -0.5mm en un corte de -1.8mm dejará una pestaña de 0.5mm."
+    },
+    "tabWidth": {
+      "label": "Longitud de pestañas",
+      "help": "Longitud de cada pestaña de sujeción en mm."
+    },
+    "tabs": {
+      "label": "Número de pestañas",
+      "help": "Cantidad de pequeños puentes que se dejan sin cortar para retener la placa sujeta al panel o bruto."
+    },
+    "tool": {
+      "label": "Herramienta",
+      "help": "Selecciona una herramienta de tu biblioteca. Se utilizará su diámetro para todos los cálculos."
+    },
+    "toolDiameter": {
+      "label": "Diámetro de herramienta",
+      "help": "El diámetro de corte de la herramienta: el círculo máximo que corta. En aislamiento y grabado se precarga con el ancho efectivo de la fresa en V a la profundidad indicada, necesario para calcular el desplazamiento."
+    },
+    "toolLengthCompMode": {
+      "label": "Compensación de longitud",
+      "help": "Origen de la corrección de longitud en Z tras un cambio de herramienta. 'Tabla de herramientas del control' asume una medición previa en la tabla de correctores. 'H deducida de T' toma el registro del número T. 'Medida en el cambio' usa la macro con palpador de la máquina (no emite G43). 'Ninguno' no emite nada y exige poner el cero a mano.",
+      "options": {
+        "none": "Ninguno",
+        "table": "Tabla de herramientas del control (G43 Hn)",
+        "table-implicit": "Tabla del control, H deducida de T (Tn M06 G43)",
+        "probe": "Medida en el cambio (macro del control)"
+      }
+    },
+    "absoluteZ": {
+      "label": "Z0 absoluto",
+      "help": "Z0 es fijo en la máquina (la mesa) en lugar de tomarse en el bruto. Nada puede moverse por debajo, por lo que debes fijar el Z cero del bruto en la mesa. Los programas de 4.º eje se elevan según la altura del eje rotatorio. Los programas que combinan operaciones planas y de 4.º eje, así como la ruta de sustitución de eje, se deniegan por ahora."
+    },
+    "toolNumber": {
+      "label": "Número de herramienta",
+      "help": "Posición en el almacén, carrusel o pinza que ocupa la herramienta de esta operación (la palabra T que recibe el control). Si tu máquina no tiene cambiador, poner 1 en todas es seguro."
+    },
+    "traces": {
+      "label": "Pistas"
+    },
+    "travelZ": {
+      "label": "Z de desplazamiento",
+      "help": "Altura por encima de la placa (Z=0) a la que se traslada la herramienta en vacío entre cortes."
+    },
+    "vbitAngle": {
+      "label": "Ángulo de la fresa en V",
+      "help": "Ángulo de la punta de la fresa en V. Valores habituales son 60°, 90° y 120°. Determina el ancho del grabado según la profundidad."
+    },
+    "vbitTipRadius": {
+      "label": "Radio de la punta",
+      "help": "Radio en el vértice de la fresa. 0 representa una punta afilada perfecta; las fresas reales suelen tener un pequeño plano o radio."
+    },
+    "vcarveCornerAngle": {
+      "label": "Umbral de esquina",
+      "help": "Ángulo por debajo del cual una rama medial se considera constructiva y se descarta. Súbelo para omitir pequeños detalles en curvas."
+    },
+    "vcarveSampleSpacing": {
+      "label": "Paso de muestreo de contorno",
+      "help": "Paso de discretización de contornos antes de extraer el eje medial. Redúcelo para textos muy pequeños; debe ser menor que el trazo más fino."
+    },
+    "vcarveNoiseThreshold": {
+      "label": "Umbral de ruido",
+      "help": "Descarta ramas mediales cuya anchura varíe menos que este valor. 0 lo desactiva."
+    },
+    "vcarveMaxDepth": {
+      "label": "Profundidad máxima de grabado",
+      "help": "Profundidad máxima para grabado en V. Pon 0 para profundidad natural libre (sin fondo plano). Pon un valor > 0 para limitar la cota Z y aplanar el fondo en zonas anchas."
+    },
+    "vcarveMinChainLength": {
+      "label": "Longitud mínima de trayectoria",
+      "help": "Descarta cadenas de grabado más cortas que esta medida. Elimina restos generados por contornos con ruido."
+    },
+    "vcarveStartDepth": {
+      "label": "Profundidad inicial",
+      "help": "Cota Z de inicio del grabado. Úsala para grabar en el fondo de una cajera existente."
+    },
+    "verboseDebug": {
+      "label": "Depuración detallada",
+      "help": "Muestra mensajes de depuración avanzados en el registro y en la consola del navegador. Requiere recargar la página para ver el inicio."
+    },
+    "wireframe": {
+      "label": "Estructura alámbrica",
+      "help": "Renderiza toda la geometría como contornos lineales sin relleno."
+    },
+    "makeraToolChangeMode": {
+      "label": "Modo de cambio de herramienta",
+      "options": {
+        "atc": "Automático (ATC)",
+        "manual": "Manual (MTC)"
+      }
+    },
+    "fanucProgramNumber": {
+      "label": "Número de programa (O)"
+    },
+    "fanucProgramName": {
+      "label": "Nombre de programa (comentario en línea O)"
+    },
+    "fanucWorkOffset": {
+      "label": "Decalaje de origen (Work Offset)",
+      "options": {
+        "G54": "G54",
+        "G55": "G55",
+        "G56": "G56",
+        "G57": "G57",
+        "G58": "G58",
+        "G59": "G59"
+      }
+    },
+    "fanucRotaryUnwind": {
+      "label": "Posición del eje rotatorio al terminar",
+      "options": {
+        "none": "Dejar donde pare (sin movimiento)",
+        "g92": "Poner a cero in situ (G92) - sin movimiento",
+        "g28": "Referenciar eje rotatorio (G28) - desenrolla por completo"
+      }
+    },
+    "winpcProgramName": {
+      "label": "Nombre de programa (línea %)"
+    },
+    "winpcFeedUnit": {
+      "label": "Unidad de avance",
+      "options": {
+        "mmmin": "mm/min",
+        "mms": "mm/s"
+      }
+    },
+    "winpcAuxOutput": {
+      "label": "Aspiración / Salida auxiliar",
+      "options": {
+        "none": "Sin conectar",
+        "70": "Salida 100 (M70 / M-70)",
+        "71": "Salida 101 (M71 / M-71)",
+        "72": "Salida 102 (M72 / M-72)",
+        "73": "Salida 103 (M73 / M-73)"
+      }
+    },
+    "patternType": {
+      "label": "Tipo de patrón",
+      "options": {
+        "grid": "Matriz rectangular",
+        "hex": "Hexagonal",
+        "radial": "Matriz polar / circular",
+        "linear": "Matriz lineal"
+      }
+    },
+    "patternRows": {
+      "label": "Filas"
+    },
+    "patternCols": {
+      "label": "Columnas"
+    },
+    "patternSpacingX": {
+      "label": "Espaciado X"
+    },
+    "patternSpacingY": {
+      "label": "Espaciado Y"
+    },
+    "patternCount": {
+      "label": "Cantidad"
+    },
+    "patternRadius": {
+      "label": "Radio"
+    },
+    "patternStartAngle": {
+      "label": "Ángulo inicial"
+    },
+    "patternEndAngle": {
+      "label": "Ángulo final"
+    },
+    "patternRotateInstances": {
+      "label": "Girar instancias orientadas hacia fuera"
+    },
+    "patternLinearAngle": {
+      "label": "Ángulo de la matriz"
+    },
+    "patternMirror": {
+      "label": "Reflejar",
+      "options": {
+        "none": "Ninguno",
+        "horizontal": "Horizontal",
+        "vertical": "Vertical",
+        "both": "Ambos ejes"
+      }
+    }
+  },
+  "units": {
+    "%": "%",
+    "°": "°",
+    "cells": "celdas",
+    "DPI": "PPP",
+    "lines/cm": "líneas/cm",
+    "lines/inch": "líneas/pulgada",
+    "mm": "mm",
+    "mm/min": "mm/min",
+    "mm/s": "mm/s",
+    "RPM": "RPM",
+    "s": "s",
+    "steps/mm": "pasos/mm",
+    "x": "x"
+  },
+  "quantities": {
+    "%": "{value}%",
+    "°": "{value}°",
+    "mm": "{value}mm",
+    "μm": "{value}μm"
+  },
+  "keys": {
+    "ctrl": "Ctrl",
+    "shift": "Mayús",
+    "delete": "Supr",
+    "escape": "Esc",
+    "home": "Inicio"
+  },
+  "tools": {
+    "names": {
+      "flat": "Fresa plana de {diameter:mm}",
+      "ball": "Fresa esférica de {diameter:mm}",
+      "bull": "Fresa tórica de {diameter:mm} (R{cornerRadius:mm})",
+      "corn": "Fresa de dientes de sierra de {diameter:mm}",
+      "drill": "Broca de {diameter:mm}",
+      "vbit": "Fresa en V de {angle:°} con punta de {tipDiameter:mm}",
+      "taperedBall": "Fresa cónica esférica de {tipDiameter:mm} ({halfAngle:°}/lado)",
+      "withHolder": "{name} + Portaherramientas de {holderDiameter:mm}"
+    },
+    "validation": {
+      "notLibrary": "No es una biblioteca de herramientas: falta la lista \"tools\"",
+      "missingId": "Falta el id",
+      "duplicateId": "El id ya está siendo utilizado por otra herramienta",
+      "unknownType": "Tipo '{type}' desconocido (se esperaba {types})",
+      "name": "name debe ser una cadena no vacía cuando esté presente",
+      "missingGeometry": "Falta geometry",
+      "positive": "{field} debe ser un número positivo",
+      "cornerRadius": "geometry.cornerRadius es mayor que el radio de la herramienta",
+      "vbitAngle": "geometry.angle debe ser menor de 180",
+      "halfAngle": "geometry.halfAngle debe ser menor de 90",
+      "tipWider": "geometry.tipDiameter es mayor que geometry.diameter",
+      "effectiveWider": "geometry.effectiveDiameter es mayor que geometry.diameter",
+      "holderPair": "geometry.holderDiameter y geometry.holderStickout deben definirse juntos",
+      "holderNeeds": "Un portaherramientas necesita geometry.shankDiameter y geometry.cuttingLength",
+      "missingCutting": "Falta cutting",
+      "operations": "operations debe ser una lista",
+      "toolNumber": "toolNumber debe ser un entero positivo",
+      "toolNumberTaken": "El toolNumber {number} ya está asignado a '{id}'"
+    }
+  },
+  "devices": {
+    "maturity": {
+      "less-experimental": {
+        "label": "{name} (Poco experimental)",
+        "note": "Probado pero aún sin un 100% de confianza. Comprueba el resultado antes de la primera ejecución."
+      },
+      "experimental": {
+        "label": "{name} (Experimental)",
+        "note": "Bastante probado en varias máquinas con buenos resultados. Revisa con cuidado el resultado antes de ejecutarlo."
+      },
+      "very-experimental": {
+        "label": "{name} (Muy experimental)",
+        "note": "Apenas probado en un número limitado de configuraciones. Espera fallos y comprueba el resultado antes de ejecutarlo."
+      },
+      "radioactive": {
+        "label": "{name} (Radiactivo)",
+        "note": "Casi sin pruebas. Ejecuta en vacío primero y procede con Extrema Precaución."
+      },
+      "custom": {
+        "label": "{name} (Personalizado)",
+        "note": "Cargado desde un archivo personalizado. Comprueba el código generado antes de la primera ejecución."
+      }
+    },
+    "inUse": {
+      "device": "{kind}: {name}",
+      "customDevice": "{kind}: {name}, de {file}",
+      "library": "{kind}: integrada",
+      "customLibrary": "{kind}: de {file}"
+    }
+  },
+  "examples": {
+    "exampleSMD1": "Ejemplo 1 - SMD",
+    "exampleThroughHole1": "Ejemplo 2 - Orificios pasantes (PTH)",
+    "line": "Prueba de líneas",
+    "calibration": "Cuadrado de calibración pasos/mm 100mm",
+    "mesa": "Mesa de centro desmontable",
+    "vcarve-sign": "Grabado en V - Hoja corazón",
+    "relief-tile": "Relieve plano - Península de Setúbal",
+    "rotary-pawn": "Relieve rotatorio - Peón vikingo de Printical (mod)"
+  },
+  "output": {
+    "gcode": {
+      "comments": {
+        "header": "Código G generado por {app}",
+        "date": "Fecha: {date}",
+        "processor": "Procesador: {processor}",
+        "separator": "---",
+        "operationCount": "Operaciones: {count}",
+        "operationEntry": "- {type}: {file}",
+        "initialTool": "Herramienta inicial: {name}",
+        "toolChange": "Cambio de herramienta: {name}",
+        "toolDiameter": "Diámetro: {diameter:mm}",
+        "toolChangePause": "Pausa para cambio de herramienta: pulsa inicio de ciclo (Cycle Start)",
+        "toolLengthComp": "Compensación de longitud de herramienta",
+        "toolLengthCancel": "Cancelar compensación de longitud",
+        "retractSafeZ": "Retraer a Z de seguridad",
+        "parkClearance": "Aparcar en posición de seguridad",
+        "spindleStart": "Arranque de cabezal",
+        "spindleStop": "Parada de cabezal",
+        "spindleDwell": "Esperar estabilización de cabezal",
+        "coolantFlood": "Refrigerante por chorro activado",
+        "coolantMist": "Refrigerante por niebla activado",
+        "coolantOff": "Refrigerante desactivado",
+        "vacuumOn": "Aspiración activada",
+        "vacuumOff": "Aspiración desactivada",
+        "inverseTimeOn": "Modo de avance en tiempo inverso",
+        "inverseTimeOff": "Modo de avance en unidades por minuto",
+        "makera": {
+          "autoToolChange": "Cambio automático de herramienta",
+          "mtcClearance": "Mover a distancia de seguridad de cambio",
+          "mtcRelease": "Pausa. Pulsa Play para abrir la pinza.",
+          "mtcInsert": "Pausa. Coloca la herramienta y pulsa Play para cerrar.",
+          "mtcCalibState": "Fijar estado de memoria para calibración",
+          "mtcCalibRun": "Ejecutar calibración de longitud de herramienta"
+        },
+        "fanuc": {
+          "rotaryUnwind": "Referenciar eje rotatorio",
+          "rotaryZero": "Poner a cero el eje rotatorio in situ"
+        },
+        "winpcnc": {
+          "zConvention": "Convenio Z: Z+ hacia arriba, Z negativo hacia el interior del material"
+        },
+        "rotaryIndexed": "4.º eje (indexado 3+1): {word} en grados absolutos - posiciones de cara [{faces}]",
+        "rotaryIndexedZero": "Cero de Z: LÍNEA CENTRAL DEL ROTATORIO - Z es el radio de la punta de la fresa al centro; toca la cara superior y baja Z0 la apotema (cara en Z{apothem}). Cero de Y: LÍNEA CENTRAL DEL ROTATORIO",
+        "rotaryUnitsArc": "mm de arco",
+        "rotaryUnitsDegrees": "grados",
+        "rotaryWrapped": "4.º eje: {word} en {units}, acumulado (sin desenrollar)",
+        "rotaryWrappedZero": "Cero de Z: LÍNEA CENTRAL DEL ROTATORIO - Z es el radio de la herramienta; superficie del bruto en Z{radius}"
+      }
+    },
+    "svg": {
+      "header": "Exportación SVG de {app}",
+      "date": "Fecha: {date}",
+      "operationCount": "Operaciones: {count}",
+      "operationEntry": "- {type}: {file}"
+    },
+    "canvas": {
+      "header": "Exportación de lienzo {app} | {date}",
+      "view": "Modo: {mode} | Geometría: {geometry}",
+      "wireframe": "Alámbrico",
+      "solid": "Sólido",
+      "fused": "Fusionado",
+      "source": "Origen"
+    }
+  },
+  "customFiles": {
+    "kinds": {
+      "theme": "Tema",
+      "language": "Idioma",
+      "setup": "Configuración de posprocesador",
+      "laserProfile": "Perfil láser",
+      "toolLibrary": "Biblioteca de herramientas"
+    },
+    "types": {
+      "string": "texto",
+      "number": "un número",
+      "integer": "un número entero",
+      "boolean": "verdadero o falso",
+      "object": "un objeto",
+      "array": "una lista",
+      "null": "nulo"
+    },
+    "report": {
+      "title": "Archivos personalizados",
+      "summary": "Archivos personalizados: {added} añadidos, {refused} rechazados.",
+      "added": "{file}: {items} añadidos.",
+      "item": "{kind} {name}",
+      "itemReplacing": "{kind} {name} (sustituyendo a {previous})",
+      "refused": "{file} no se añadió:",
+      "importFailed": "No se pudieron comprobar los archivos personalizados: {error}",
+      "where": {
+        "theme": "En uso ahora, y listado en el selector de temas de la pantalla de bienvenida. Se conserva mientras esté seleccionado: al elegir otro tema, se eliminará en la siguiente carga de página.",
+        "language": "En uso ahora, y listado en el selector de idiomas de la pantalla de bienvenida. Se conserva mientras esté seleccionado: al elegir otro idioma, se eliminará en la siguiente carga de página.",
+        "setup": "Listado en Ajustes de máquina > Posprocesador.",
+        "laserProfile": "Listado en Ajustes de máquina > Software láser.",
+        "toolLibrary": "En uso ahora, en lugar de las herramientas integradas. Nombrado en Ajustes de máquina > Posprocesador."
+      }
+    },
+    "remove": {
+      "tip": "{device} - haz clic para eliminar este archivo personalizado",
+      "title": "Eliminar archivo personalizado",
+      "message": "¿Dejar de usar {file}? Se eliminará de este navegador y uno integrado ocupará su lugar. El archivo en tu ordenador no se modificará.",
+      "done": "{file} eliminado: ahora se utiliza una versión integrada.",
+      "failed": "No se pudo eliminar {file}: {error}"
+    },
+    "restore": {
+      "noRules": "Los archivos personalizados guardados no se cargaron: faltan las reglas de validación.",
+      "superseded": "{kind} {id}, guardado en este navegador, se eliminó: ahora existe un elemento integrado con ese id.",
+      "refused": {
+        "one": "{kind} {id}, guardado en este navegador, se eliminó: {reason}",
+        "other": "{kind} {id}, guardado en este navegador, se eliminó: {reason} ({count} problemas)"
+      },
+      "failed": "{kind} {id}, guardado en este navegador, no se cargó y se conserva para el próximo inicio: {reason}",
+      "fallback": "{kind} {id} no está disponible; usando {fallback} para esta sesión."
+    },
+    "problems": {
+      "tooLarge": "El archivo tiene {size} KiB; los archivos personalizados pueden tener hasta {max} KiB.",
+      "json": "No es un archivo JSON válido: {error}",
+      "kindMissing": "El archivo no especifica su contenido: falta meta.kind (se esperaba uno de {kinds}).",
+      "kind": "meta.kind '{kind}' no es un tipo de archivo compatible con esta aplicación (se esperaba uno de {kinds}).",
+      "logic": "{path} ('{value}') no es una lógica de posprocesador disponible en esta aplicación ({expected}).",
+      "builtIn": "{kind} '{id}' ya viene integrado con la aplicación; asigna otro id al personalizado.",
+      "labelTaken": "{path}: '{label}' ya es el nombre de la configuración {id}. Asigna a esta un nombre exclusivo.",
+      "registerFailed": "No se pudo poner en uso el archivo: {error}",
+      "checkFailed": "No se pudo comprobar el archivo: {error}",
+      "noTools": "Ninguna herramienta de la biblioteca superó las comprobaciones.",
+      "tools": "No es una biblioteca de herramientas compatible: {reason}",
+      "const": "{path} debe ser {expected}.",
+      "enum": "{path} debe ser uno de {expected}.",
+      "type": "{path} debe ser {expected}.",
+      "minLength": "{path} es demasiado corto: mínimo {limit} caracteres.",
+      "maxLength": "{path} es demasiado largo: máximo {limit} caracteres.",
+      "pattern": {
+        "default": "{path} ('{value}') no tiene el formato esperado.",
+        "id": "{path} ('{value}') debe tener de 2 a 32 letras minúsculas, dígitos o guiones, comenzando por una letra.",
+        "hex": "{path} ('{value}') debe ser un color hexadecimal de 6 dígitos como #1a2b3c.",
+        "gcode": "{path} solo puede contener caracteres ASCII imprimibles y saltos de línea.",
+        "fileExtension": "{path} ('{value}') debe ser un punto y hasta 5 letras o dígitos, como .nc.",
+        "mWord": "{path} ('{value}') debe ser una palabra M como M3."
+      },
+      "placeholder": "{path} usa {name}, que no se sustituye aquí (puede usar {expected}).",
+      "minimum": "{path} debe ser al menos {limit}.",
+      "maximum": "{path} debe ser como máximo {limit}.",
+      "exclusiveMinimum": "{path} debe ser mayor que {limit}.",
+      "minItems": "{path} necesita al menos {limit} elementos.",
+      "maxItems": "{path} puede tener como máximo {limit} elementos.",
+      "uniqueItems": "{path} repite la misma entrada dos veces.",
+      "minProperties": "{path} necesita al menos {limit} propiedades.",
+      "required": "Falta {path}.",
+      "unknown": "{path} no es una clave reconocida para este tipo de archivo.",
+      "unused": "{path}: esta configuración no utiliza ese ajuste, por lo que no puede definirlo ni bloquearlo.",
+      "byName": {
+        "unknown": "{path} no es uno de los parámetros {expected}.",
+        "duplicate": "{path} declara {name} por segunda vez."
+      },
+      "format": {
+        "color": "{path} ('{value}') no es un color CSS válido.",
+        "cssValue": "{path} no puede cargar recursos externos: sin url(), image-set(), image(), element(), @import o expression().",
+        "declaredProperty": "{path}: '{value}' no es un identificador declarado en css/base.css.",
+        "locale": "{path} ('{value}') no es una etiqueta de idioma válida; usa una como es-ES o de-x-test.",
+        "localeForm": "{path} ('{value}') debe escribirse como {canonical}.",
+        "shippedLocale": "{path}: la aplicación ya incluye el paquete '{value}'. Para probar cambios, usa una etiqueta privada como {value}-x-test.",
+        "listedLocale": "{path}: '{value}' no es un paquete de idioma integrado en la aplicación."
+      },
+      "reference": {
+        "unavailable": "No se pudo cargar el tema integrado de referencia: {error}",
+        "missing": {
+          "one": "{path} no contiene {count} color presente en los temas integrados: {keys}",
+          "other": "{path} no contiene {count} colores presentes en los temas integrados: {keys}"
+        },
+        "extra": {
+          "one": "{path} declara {count} color no presente en los temas integrados: {keys}",
+          "other": "{path} declara {count} colores no presentes en los temas integrados: {keys}"
+        },
+        "hex": "{path} ('{value}') debe ser un color hexadecimal de 6 dígitos, como en los temas integrados.",
+        "colorFunction": "{path} ('{value}') debe ser un color rgb() o hsl(), como en los temas integrados."
+      },
+      "language": {
+        "plural": "{path} debe ser texto o formas de plural (zero, one, two, few, many, other) que incluyan 'other'.",
+        "notText": "{path} debe ser texto.",
+        "pluralNoCount": "{path} no puede recibir formas de plural: el texto en inglés no recibe un recuento.",
+        "tokens": "{path} debe conservar las variables en inglés {expected} sin añadir ninguna.",
+        "slots": "{path} debe conservar las etiquetas en inglés {expected}.",
+        "empty": "{path} está vacío: omite la clave para mostrar el texto en inglés."
+      }
+    },
+    "notes": {
+      "toolLeftOut": "Herramienta {id} omitida: {reason}",
+      "notStored": "El navegador no pudo guardar el archivo ({error}): estará en uso hasta cerrar esta página.",
+      "missingKeys": {
+        "one": "Falta {count} clave de en.json y se mostrará en inglés: {keys}",
+        "other": "Faltan {count} claves de en.json y se mostrarán en inglés: {keys}"
+      },
+      "extraKeys": {
+        "one": "{count} clave no existe en en.json y se ignorará: {keys}",
+        "other": "{count} claves no existen en en.json y se ignorarán: {keys}"
+      },
+      "pluralForms": {
+        "one": "{count} plural carece de formas utilizadas por este idioma ({forms}) y mostrará 'other': {keys}",
+        "other": "{count} plurales carecen de formas utilizadas por este idioma ({forms}) y mostrarán 'other': {keys}"
+      }
+    },
+    "rules": {
+      "toolChangeSwap": "{path}: supportsToolChange necesita useM6 o pauseAfterToolChange, de lo contrario el cambio de herramienta no emitirá ninguna instrucción.",
+      "useM6NeedsToolChange": "{path}: useM6 solo actúa con supportsToolChange. Para emitir M6 solo en la primera herramienta, usa initialToolUsesM6.",
+      "pauseNeedsToolChange": "{path}: pauseAfterToolChange solo actúa con supportsToolChange.",
+      "lengthCompNeedsSwap": "{path}: los modos de compensación de longitud distintos de 'none' necesitan supportsToolChange y useM6. La primera herramienta obtiene su G43 mediante el cambio M6, y 'probe' depende de la macro M6 del control.",
+      "rotaryWords": "{path}: las rutas a-word y a-linear necesitan al menos una entrada en rotary.axisWords.",
+      "rotaryRouteDefault": "{path}: una configuración que declare rutas rotatorias necesita defaults.rotaryRoute con una de ellas.",
+      "lineNumberRange": "{path}: defaults.lineNumberStep debe ser menor que flags.lineNumberMax.",
+      "lumpingNeedsPalette": "{path}: paletteLumping necesita una paleta.",
+      "defaultInOptions": "{path}: default debe ser una de las opciones."
+    }
+  },
+  "apps": {
+    "easytrace5000": {
+      "app": {
+        "title": "{app} - CAM en navegador para fresado y láser de PCB",
+        "toolbar": {
+          "title": "{app} - Espacio de trabajo CAM para PCB"
+        },
+        "sidebars": {
+          "left": "Operaciones"
+        }
+      },
+      "modals": {
+        "welcome": {
+          "tagline": "CAM para fabricación de PCB, mediante fresado CNC o láser.",
+          "sibling": "También en la suite EasyCAM5000: <link/>, para fresado CNC general.",
+          "pipelines": {
+            "cnc": {
+              "title": "Fresado CNC",
+              "text": "Aislamiento de pistas, vaciado de cobre, taladrado y recortes.",
+              "action": "Empezar con CNC"
+            },
+            "laser": {
+              "title": "Procesamiento láser",
+              "text": "Archivos vectoriales o ráster para ablación, plantillas y recortes.",
+              "action": "Empezar con láser"
+            }
+          }
+        },
+        "quickstart": {
+          "subtitle": "Cargar archivos de fabricación de PCB",
+          "dropIntro": "O arrastra archivos a cada tipo de operación:",
+          "hint": "Nota: También puedes arrastrar archivos directamente al lienzo o usar los botones + de la barra lateral. Como las extensiones Protel se reconocen automáticamente, los archivos se asignan a su operación al soltarlos."
+        }
+      }
+    },
+    "easyshape5000": {
+      "app": {
+        "title": "{app} - CAM en navegador para fresadoras CNC",
+        "toolbar": {
+          "title": "{app} - Espacio de trabajo CAM para fresadoras CNC"
+        },
+        "sidebars": {
+          "left": "Escena y operaciones"
+        }
+      },
+      "modals": {
+        "welcome": {
+          "tagline": "CAM para fresadoras CNC, desde contornos 2.5D hasta relieves 3D.",
+          "sibling": "También en la suite EasyCAM5000: <link/>, para fabricación de PCB.",
+          "pipelines": {
+            "cnc": {
+              "title": "Espacio de trabajo 2D",
+              "text": "Contornos 2.5D, cajeras, taladrado y grabado.",
+              "action": "Empezar 2D"
+            },
+            "3d": {
+              "title": "Espacio de trabajo 3D",
+              "text": "Lo mismo más grabado en V y mapas de relieve, planos o rotatorios",
+              "action": "Empezar 3D"
+            }
+          }
+        },
+        "quickstart": {
+          "subtitle": "Cargar archivos de diseño vectorial o de malla",
+          "dropIntro": "Arrastra tu archivo de diseño abajo para comenzar:",
+          "hint": "Nota: También puedes arrastrar archivos directamente al lienzo. Abre <strong>Configuración del bruto</strong> en la barra lateral derecha para fijar las medidas de tu material."
+        }
+      }
+    }
+  }
+}

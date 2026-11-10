@@ -1,0 +1,67 @@
+{
+  "_projectInfo": {
+    "file": "export/profiles/lightburn.json",
+    "description": "LightBurn laser profile",
+    "author": "Eltryus - Ricardo Marques",
+    "see": "https://github.com/RicardoJCMarques/EasyCAM5000",
+    "license": "AGPL-3.0-or-later",
+    "copyright": "Copyright (C) 2025-2026 Eltryus - Ricardo Marques"
+  },
+  "meta": {
+    "kind": "laserProfile",
+    "app": "EasyTrace5000"
+  },
+  "id": "lightburn",
+  "label": "LightBurn",
+  "maturity": "very-experimental",
+  "palette": null,
+  "paletteLumping": false,
+  "parameters": [
+    {
+      "name": "svgGrouping",
+      "type": "select",
+      "category": "laser",
+      "default": "none",
+      "options": [
+        { "value": "none" },
+        { "value": "layer" },
+        { "value": "group" },
+        { "value": "color" }
+      ]
+    },
+    {
+      "name": "reverseCutOrder",
+      "type": "checkbox",
+      "category": "laser",
+      "default": true
+    },
+    {
+      "name": "heatManagement",
+      "type": "select",
+      "category": "laser",
+      "default": "standard",
+      "options": [
+        { "value": "off" },
+        { "value": "standard" }
+      ]
+    },
+    {
+      "name": "colorPerPass",
+      "type": "checkbox",
+      "category": "laser",
+      "default": true
+    },
+    {
+      "name": "layerColors",
+      "type": "colorgrid",
+      "category": "laser",
+      "default": {
+        "isolation": "#ff0000",
+        "drill": "#0000ff",
+        "clearing": "#00ff00",
+        "cutout": "#000000",
+        "stencil": "#860694"
+      }
+    }
+  ]
+}

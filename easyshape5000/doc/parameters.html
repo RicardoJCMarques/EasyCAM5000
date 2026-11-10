@@ -1,1114 +1,1244 @@
 <!DOCTYPE html>
 <html lang="en" data-theme="dark">
 <head>
-    <meta charset="UTF-8">
-    <!--!
-        @file        easyshape5000/doc/parameters.html
-        @description EasyShape5000 Parameter Guide
-        @author      Eltryus - Ricardo Marques
-        @copyright   2025-2026 Eltryus - Ricardo Marques
-        @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
+  <meta charset="UTF-8">
+  <!--!
+    @file        easyshape5000/doc/parameters.html
+    @description EasyShape5000 Parameter Guide
+    @author      Eltryus - Ricardo Marques
+    @copyright   2025-2026 Eltryus - Ricardo Marques
+    @see         {@link https://github.com/RicardoJCMarques/EasyCAM5000}
 
-        SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
-        SPDX-License-Identifier: AGPL-3.0-or-later
-    -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>EasyShape5000 Doc - Parameter Guide</title>
-    <meta name="description" content="Every EasyShape5000 parameter with ranges and defaults - tool, depth, feeds, plus V-carve, relief and rotary settings, grouped by operation and stage.">
-    <meta name="author" content="Eltryus">
-    <meta name="robots" content="index, follow">
-    <meta name="theme-color" content="#1a1a1a">
+    SPDX-FileCopyrightText: 2025-2026 Eltryus - Ricardo Marques
+    SPDX-License-Identifier: AGPL-3.0-or-later
+  -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>EasyShape5000 Doc - Parameter Guide</title>
+  <meta name="description" content="Every EasyShape5000 parameter with ranges and defaults - tool, depth, feeds, plus V-carve, relief and rotary settings, grouped by operation and stage.">
+  <meta name="author" content="Eltryus">
+  <meta name="robots" content="index, follow">
+  <meta name="theme-color" content="#1a1a1a">
 
-    <link rel="canonical" href="https://cam.eltryus.design/easyshape5000/doc/parameters">
+  <link rel="canonical" href="https://cam.eltryus.design/easyshape5000/doc/parameters">
 
-    <meta property="og:type" content="article">
-    <meta property="og:url" content="https://cam.eltryus.design/easyshape5000/doc/parameters">
-    <meta property="og:title" content="EasyShape5000 Doc - Parameter Guide">
-    <meta property="og:description" content="Every EasyShape5000 parameter with ranges and defaults - tool, depth, feeds, plus V-carve, relief and rotary settings, grouped by operation and stage.">
-    <meta property="og:image" content="https://cam.eltryus.design/images/social-shape.jpg">
-    <meta property="og:image:width" content="1200">
-    <meta property="og:image:height" content="630">
-    <meta property="og:site_name" content="EasyCAM5000">
-    <meta property="og:locale" content="en_US">
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://cam.eltryus.design/easyshape5000/doc/parameters">
+  <meta property="og:title" content="EasyShape5000 Doc - Parameter Guide">
+  <meta property="og:description" content="Every EasyShape5000 parameter with ranges and defaults - tool, depth, feeds, plus V-carve, relief and rotary settings, grouped by operation and stage.">
+  <meta property="og:image" content="https://cam.eltryus.design/images/social-shape.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:site_name" content="EasyCAM5000">
+  <meta property="og:locale" content="en_US">
 
-    <link rel="icon" type="image/png" href="../../images/favicon/favicon-96x96.png" sizes="96x96">
-    <link rel="icon" type="image/svg+xml" href="../../images/favicon/favicon.svg">
-    <link rel="shortcut icon" href="../../images/favicon/favicon.ico">
-    <link rel="apple-touch-icon" sizes="180x180" href="../../images/favicon/apple-touch-icon.png">
-    <link rel="manifest" href="../../images/favicon/site.webmanifest">
+  <link rel="icon" type="image/png" href="../../images/favicon/favicon-96x96.png" sizes="96x96">
+  <link rel="icon" type="image/svg+xml" href="../../images/favicon/favicon.svg">
+  <link rel="shortcut icon" href="../../images/favicon/favicon.ico">
+  <link rel="apple-touch-icon" sizes="180x180" href="../../images/favicon/apple-touch-icon.png">
+  <link rel="manifest" href="../../images/favicon/site.webmanifest">
 
-    <link rel="stylesheet" href="../../css/base.css">
-    <link rel="stylesheet" href="../../css/components.css">
-    <link rel="stylesheet" href="../../css/theme.css">
-    <link rel="stylesheet" href="../../css/doc.css">
+  <link rel="stylesheet" href="../../css/base.css">
+  <link rel="stylesheet" href="../../css/components.css">
+  <link rel="stylesheet" href="../../css/theme.css">
+  <link rel="stylesheet" href="../../css/doc.css">
 
-    <script type="application/ld+json">
-    {
-        "@context": "https://schema.org",
-        "@graph": [
-            {
-                "@type": "Organization",
-                "@id": "https://www.eltryus.design/#organization",
-                "name": "Eltryus",
-                "url": "https://www.eltryus.design/"
-            },
-            {
-                "@type": "WebSite",
-                "@id": "https://cam.eltryus.design/#website",
-                "name": "EasyCAM5000",
-                "alternateName": "Eltryus EasyCAM5000 Suite",
-                "url": "https://cam.eltryus.design/",
-                "inLanguage": "en",
-                "publisher": { "@id": "https://www.eltryus.design/#organization" }
-            },
-            {
-                "@type": "WebApplication",
-                "@id": "https://cam.eltryus.design/easyshape5000/#app",
-                "name": "EasyShape5000",
-                "url": "https://cam.eltryus.design/easyshape5000/"
-            },
-            {
-                "@type": "CollectionPage",
-                "@id": "https://cam.eltryus.design/easyshape5000/doc/#docs",
-                "name": "EasyShape5000 Documentation",
-                "url": "https://cam.eltryus.design/easyshape5000/doc/"
-            },
-            {
-                "@type": "WebPage",
-                "@id": "https://cam.eltryus.design/easyshape5000/doc/parameters#webpage",
-                "url": "https://cam.eltryus.design/easyshape5000/doc/parameters",
-                "name": "EasyShape5000 Doc - Parameter Guide",
-                "inLanguage": "en",
-                "isPartOf": { "@id": "https://cam.eltryus.design/#website" },
-                "about": { "@id": "https://cam.eltryus.design/easyshape5000/#app" },
-                "mainEntity": { "@id": "https://cam.eltryus.design/easyshape5000/doc/parameters#article" },
-                "breadcrumb": { "@id": "https://cam.eltryus.design/easyshape5000/doc/parameters#breadcrumb" },
-                "primaryImageOfPage": "https://cam.eltryus.design/images/social-shape.jpg"
-            },
-            {
-                "@type": "TechArticle",
-                "@id": "https://cam.eltryus.design/easyshape5000/doc/parameters#article",
-                "headline": "EasyShape5000 Parameter Guide",
-                "description": "Every EasyShape5000 parameter: ranges, defaults, and what each one does across operations and machine settings.",
-                "image": "https://cam.eltryus.design/images/social-shape.jpg",
-                "url": "https://cam.eltryus.design/easyshape5000/doc/parameters",
-                "inLanguage": "en",
-                "mainEntityOfPage": { "@id": "https://cam.eltryus.design/easyshape5000/doc/parameters#webpage" },
-                "isPartOf": { "@id": "https://cam.eltryus.design/easyshape5000/doc/#docs" },
-                "about": { "@id": "https://cam.eltryus.design/easyshape5000/#app" },
-                "author": { "@id": "https://www.eltryus.design/#organization" },
-                "publisher": { "@id": "https://www.eltryus.design/#organization" },
-                "datePublished": "2026-06-17",
-                "dateModified": "2026-08-24"
-            },
-            {
-                "@type": "BreadcrumbList",
-                "@id": "https://cam.eltryus.design/easyshape5000/doc/parameters#breadcrumb",
-                "itemListElement": [
-                    { "@type": "ListItem", "position": 1, "name": "EasyCAM5000", "item": "https://cam.eltryus.design/" },
-                    { "@type": "ListItem", "position": 2, "name": "EasyShape5000", "item": "https://cam.eltryus.design/easyshape5000/" },
-                    { "@type": "ListItem", "position": 3, "name": "Docs", "item": "https://cam.eltryus.design/easyshape5000/doc/" },
-                    { "@type": "ListItem", "position": 4, "name": "Parameters", "item": "https://cam.eltryus.design/easyshape5000/doc/parameters" }
-                ]
-            }
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": "https://www.eltryus.design/#organization",
+        "name": "Eltryus",
+        "url": "https://www.eltryus.design/"
+      },
+      {
+        "@type": "WebSite",
+        "@id": "https://cam.eltryus.design/#website",
+        "name": "EasyCAM5000",
+        "alternateName": "Eltryus EasyCAM5000 Suite",
+        "url": "https://cam.eltryus.design/",
+        "inLanguage": "en",
+        "publisher": { "@id": "https://www.eltryus.design/#organization" }
+      },
+      {
+        "@type": "WebApplication",
+        "@id": "https://cam.eltryus.design/easyshape5000/#app",
+        "name": "EasyShape5000",
+        "url": "https://cam.eltryus.design/easyshape5000/"
+      },
+      {
+        "@type": "CollectionPage",
+        "@id": "https://cam.eltryus.design/easyshape5000/doc/#docs",
+        "name": "EasyShape5000 Documentation",
+        "url": "https://cam.eltryus.design/easyshape5000/doc/"
+      },
+      {
+        "@type": "WebPage",
+        "@id": "https://cam.eltryus.design/easyshape5000/doc/parameters#webpage",
+        "url": "https://cam.eltryus.design/easyshape5000/doc/parameters",
+        "name": "EasyShape5000 Doc - Parameter Guide",
+        "inLanguage": "en",
+        "isPartOf": { "@id": "https://cam.eltryus.design/#website" },
+        "about": { "@id": "https://cam.eltryus.design/easyshape5000/#app" },
+        "mainEntity": { "@id": "https://cam.eltryus.design/easyshape5000/doc/parameters#article" },
+        "breadcrumb": { "@id": "https://cam.eltryus.design/easyshape5000/doc/parameters#breadcrumb" },
+        "primaryImageOfPage": "https://cam.eltryus.design/images/social-shape.jpg"
+      },
+      {
+        "@type": "TechArticle",
+        "@id": "https://cam.eltryus.design/easyshape5000/doc/parameters#article",
+        "headline": "EasyShape5000 Parameter Guide",
+        "description": "Every EasyShape5000 parameter: ranges, defaults, and what each one does across operations and machine settings.",
+        "image": "https://cam.eltryus.design/images/social-shape.jpg",
+        "url": "https://cam.eltryus.design/easyshape5000/doc/parameters",
+        "inLanguage": "en",
+        "mainEntityOfPage": { "@id": "https://cam.eltryus.design/easyshape5000/doc/parameters#webpage" },
+        "isPartOf": { "@id": "https://cam.eltryus.design/easyshape5000/doc/#docs" },
+        "about": { "@id": "https://cam.eltryus.design/easyshape5000/#app" },
+        "author": { "@id": "https://www.eltryus.design/#organization" },
+        "publisher": { "@id": "https://www.eltryus.design/#organization" },
+        "datePublished": "2026-06-17",
+        "dateModified": "2026-11-10"
+      },
+      {
+        "@type": "BreadcrumbList",
+        "@id": "https://cam.eltryus.design/easyshape5000/doc/parameters#breadcrumb",
+        "itemListElement": [
+          { "@type": "ListItem", "position": 1, "name": "EasyCAM5000", "item": "https://cam.eltryus.design/" },
+          { "@type": "ListItem", "position": 2, "name": "EasyShape5000", "item": "https://cam.eltryus.design/easyshape5000/" },
+          { "@type": "ListItem", "position": 3, "name": "Docs", "item": "https://cam.eltryus.design/easyshape5000/doc/" },
+          { "@type": "ListItem", "position": 4, "name": "Parameters", "item": "https://cam.eltryus.design/easyshape5000/doc/parameters" }
         ]
-    }
-    </script>
+      }
+    ]
+  }
+  </script>
 </head>
 <body>
-    <a href="#doc-content" class="skip-link">Skip to Main Content</a>
+  <a href="#doc-content" class="skip-link">Skip to Main Content</a>
 
-    <header class="doc-header">
-        <div class="doc-brand"><a href="/" aria-label="EasyCAM5000 Homepage">EasyCAM5000</a></div>
+  <header class="doc-header">
+    <div class="doc-brand"><a href="/" aria-label="EasyCAM5000 Homepage">EasyCAM5000</a></div>
 
-        <nav class="doc-breadcrumb" aria-label="Breadcrumb">
-            <ol>
-                <li><a href="/easyshape5000/" draggable="false">EasyShape5000</a></li>
-                <li><a href="./" draggable="false">Docs</a></li>
-                <li><span aria-current="page">Parameters</span></li>
-            </ol>
-        </nav>
+    <nav class="doc-breadcrumb" aria-label="Breadcrumb">
+      <ol>
+        <li><a href="/easyshape5000/" draggable="false">EasyShape5000</a></li>
+        <li><a href="./" draggable="false">Docs</a></li>
+        <li><span aria-current="page">Parameters</span></li>
+      </ol>
+    </nav>
 
-        <button class="doc-menu-toggle" aria-label="Toggle Navigation Menu" aria-expanded="false">
-            <svg class="icon-menu cam-icon" width="24" height="24" aria-hidden="true"><use href="#icon-menu"></use></svg>
-            <svg class="icon-close cam-icon" width="24" height="24" aria-hidden="true"><use href="#icon-close"></use></svg>
-        </button>
+    <button class="doc-menu-toggle" aria-label="Toggle Navigation Menu" aria-expanded="false">
+      <svg class="icon-menu cam-icon" width="24" height="24" aria-hidden="true"><use href="#icon-menu"></use></svg>
+      <svg class="icon-close cam-icon" width="24" height="24" aria-hidden="true"><use href="#icon-close"></use></svg>
+    </button>
 
-        <nav class="doc-nav" aria-label="Main Navigation">
-            <a href="guide" draggable="false">Workflow Guide</a>
-            <a href="operations" draggable="false">Operations</a>
-            <a href="parameters" class="active" aria-current="page" draggable="false">Parameters</a>
-            <a href="accessibility" draggable="false">Accessibility</a>
-            <span class="separator" aria-hidden="true"></span>
-            <a href="/easyshape5000/" draggable="false">Launch App</a>
-            <a href="https://github.com/RicardoJCMarques/EasyCAM5000" target="_blank" draggable="false" aria-label="GitHub Repository (opens in a new tab)">GitHub</a>
+    <nav class="doc-nav" aria-label="Main Navigation">
+      <a href="guide" draggable="false">Workflow Guide</a>
+      <a href="operations" draggable="false">Operations</a>
+      <a href="parameters" class="active" aria-current="page" draggable="false">Parameters</a>
+      <a href="accessibility" draggable="false">Accessibility</a>
+      <span class="separator" aria-hidden="true"></span>
+      <a href="/easyshape5000/" draggable="false">Launch App</a>
+      <a href="https://github.com/RicardoJCMarques/EasyCAM5000" target="_blank" draggable="false" aria-label="GitHub Repository (opens in a new tab)">GitHub</a>
 
-            <button id="theme-toggle" class="btn btn--icon" title="Toggle Theme" aria-label="Toggle Theme">
-                <svg class="cam-icon" width="16" height="16"><use href="#icon-sun"></use></svg>
-            </button>
-        </nav>
-    </header>
+      <button id="theme-toggle" class="btn btn--icon" title="Toggle Theme" aria-label="Toggle Theme">
+        <svg class="cam-icon" width="16" height="16"><use href="#icon-sun"></use></svg>
+      </button>
+    </nav>
+  </header>
 
-    <div class="doc-wrapper has-sidebar">
-        <nav class="doc-sidebar" id="toc" aria-label="Table of contents">
-            <p class="doc-sidebar-title">Contents <span class="doc-badge doc-badge--stable">Stable</span></p>
-            <ol>
-                <li><a href="#reading-this-page" draggable="false">Reading This Page</a></li>
+  <div class="doc-wrapper has-sidebar">
+    <nav class="doc-sidebar" id="toc" aria-label="Table of contents">
+      <p class="doc-sidebar-title">Contents</p>
+      <ol>
+        <li><a href="#reading-this-page" draggable="false">Reading This Page</a></li>
 <!-- PARAMS-TOC:BEGIN - generated by build-doc-params.js, do not edit -->
-                <li><a href="#stage-geometry" draggable="false">XY Geometry</a></li>
-                <li><a href="#stage-strategy" draggable="false">Z Strategy</a></li>
-                <li><a href="#stage-machine" draggable="false">Feeds &amp; Toolpaths</a></li>
+        <li><a href="#machine-settings" draggable="false">Machine Settings</a></li>
+        <li><a href="#stage-geometry" draggable="false">XY Geometry</a></li>
+        <li><a href="#stage-strategy" draggable="false">Z Strategy</a></li>
+        <li><a href="#stage-machine" draggable="false">Feeds &amp; Toolpaths</a></li>
 <!-- PARAMS-TOC:END -->
-            </ol>
-        </nav>
+      </ol>
+      </nav>
 
-        <main id="doc-content" class="doc-main">
+      <main id="doc-content" class="doc-main">
+        <div class="callout callout--warning">
+          <p>Development goes fast, documentation may be outdated. Proceed with some caution.</p>
+        </div>
 
-            <div class="callout callout--warning">
-                <p>Development goes fast, documentation may be outdated. Proceed with some caution.</p>
-            </div>
+        <section class="hero">
+          <h1>EasyShape5000 Parameter Guide</h1>
+          <p class="tagline">Every field, its range, its default, and what it changes</p>
+        </section>
 
-            <section class="hero">
-                <h1>EasyShape5000 Parameter Guide</h1>
-                <p class="tagline">Every field, its range, its default, and what it changes</p>
-            </section>
+        <section id="reading-this-page">
+          <h2>Reading This Page</h2>
+          <p>Parameters are grouped by the <strong>step</strong> they appear in, then by the section heading they sit under in the panel. That is the order you meet them in the app: XY Geometry before you generate, Z Strategy before the preview, Feeds &amp; Toolpaths before the toolpaths.</p>
 
-            <section id="reading-this-page">
-                <h2>Reading This Page</h2>
-                <p>Parameters are grouped by the <strong>step</strong> they appear in, then by the section heading they sit under in the panel. That is the order you meet them in the app: XY Geometry before you generate, Z Strategy before the preview, Feeds &amp; Toolpaths before the toolpaths.</p>
+          <p>Four columns are worth explaining:</p>
+          <dl>
+            <dt>Values</dt>
+            <dd>The range the field accepts, or the options in the dropdown. Out-of-range entries are rejected by the form rather than clamped silently.</dd>
+            <dt>Default</dt>
+            <dd>What a fresh operation starts with. Tool-derived fields have no default - they are seeded from the tool you pick.</dd>
+            <dt>Applies to</dt>
+            <dd>Which operations show the field. A field you cannot find is usually one that belongs to a different operation type.</dd>
+            <dt>Shown when</dt>
+            <dd>Several fields are conditional and only appear once another setting is on, or set to a particular value. If a parameter is documented here but missing from your panel, this is why.</dd>
+          </dl>
 
-                <p>Four columns are worth explaining:</p>
-                <dl>
-                    <dt>Values</dt>
-                    <dd>The range the field accepts, or the options in the dropdown. Out-of-range entries are rejected by the form rather than clamped silently.</dd>
-                    <dt>Default</dt>
-                    <dd>What a fresh operation starts with. Tool-derived fields have no default - they are seeded from the tool you pick.</dd>
-                    <dt>Applies to</dt>
-                    <dd>Which operations show the field. A field you cannot find is usually one that belongs to a different operation type.</dd>
-                    <dt>Shown when</dt>
-                    <dd>Several fields are conditional and only appear once another setting is on, or set to a particular value. If a parameter is documented here but missing from your panel, this is why.</dd>
-                </dl>
+          <div class="callout callout--info">
+            <h4>The same text is in the app</h4>
+            <p>Every description below is the tooltip text for that field - hover the <strong>?</strong> beside any label to get it in place. This page and the app read from the same string pack, so they cannot drift apart.</p>
+          </div>
 
-                <div class="callout callout--info">
-                    <h4>The same text is in the app</h4>
-                    <p>Every description below is the tooltip text for that field - hover the <strong>?</strong> beside any label to get it in place. This page and the app read from the same string pack, so they cannot drift apart.</p>
-                </div>
+          <p>For what each operation <em>does</em>, see the <a href="operations" draggable="false">Operation Guide</a>. For how the stages fit together, see <a href="guide#how-a-job-works" draggable="false">How a Job Works</a>.</p>
 
-                <p>For what each operation <em>does</em>, see the <a href="operations" draggable="false">Operation Guide</a>. For how the stages fit together, see <a href="guide#how-a-job-works" draggable="false">How a Job Works</a>.</p>
-
-                <div class="callout callout--warning">
-                    <h4>Machine settings are not on this page</h4>
-                    <p>Safe Z, travel Z, stock thickness, Z-zero reference, post-processor, line numbers and tool length compensation are job-wide rather than per-operation. They are covered in the <a href="guide#machine-settings" draggable="false">Workflow Guide</a>.</p>
-                </div>
-            </section>
+          <div class="callout callout--warning">
+            <h4>Machine settings are not on this page</h4>
+            <p>Safe Z, travel Z, stock thickness, Z-zero reference, post-processor, line numbers and tool length compensation are job-wide rather than per-operation. They are covered in the <a href="guide#machine-settings" draggable="false">Workflow Guide</a>.</p>
+          </div>
+        </section>
 
 <!-- PARAMS:BEGIN - generated by build-doc-params.js, do not edit -->
-            <section id="stage-geometry">
-                <h2>XY Geometry</h2>
-                <h3>Tool Selection</h3>
-                <table>
-                    <thead>
-                        <tr><th scope="col">Parameter</th><th scope="col">Values</th><th scope="col">Default</th><th scope="col">Applies to</th><th scope="col">What it does</th></tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><strong>Tool</strong><br><span class="param-condition">Shown when Multi-Tool Drilling is off</span></td>
-                            <td>tool library</td>
-                            <td>&mdash;</td>
-                            <td>Profile Cut, Pocket Clear, Drill Holes, Engrave, V-Carve, Relief / 2.5D Carve, Rotary / 4th Axis</td>
-                            <td>Select a tool from your library. The tool's diameter will be used for calculations.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Tool Number</strong><br><span class="param-condition">Shown when Multi-Tool Drilling is off</span></td>
-                            <td>1 - 99</td>
-                            <td>1</td>
-                            <td>Profile Cut, Pocket Clear, Drill Holes, Engrave, V-Carve, Relief / 2.5D Carve, Rotary / 4th Axis</td>
-                            <td>The magazine slot, carousel pocket or collet this operation's tool sits in - the T word your controller will receive. If your machine has no tool changer, leaving 1 on every operation is safe.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Tool Diameter</strong><br><span class="param-condition">Shown when Multi-Tool Drilling is off</span></td>
-                            <td>0.01 - 25.4 mm</td>
-                            <td>&mdash;</td>
-                            <td>Profile Cut, Pocket Clear, Drill Holes, Engrave, V-Carve, Relief / 2.5D Carve, Rotary / 4th Axis</td>
-                            <td>The tool's cutting diameter - the widest circle it cuts. On copper isolation and engraving this is seeded with the V-bit's effective width at required depth, because that is what the offset has to use.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Multi-Tool Drilling</strong></td>
-                            <td>on / off</td>
-                            <td>off</td>
-                            <td>Drill Holes</td>
-                            <td> When enabled, allows assigning different tools, tool numbers, and strategies to each hole diameter in the drill table.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>V-Bit Angle</strong></td>
-                            <td>10 - 150 °</td>
-                            <td>90</td>
-                            <td>V-Carve</td>
-                            <td>The included angle of the V-bit. Common values are 60, 90, and 120 degrees. Determines cut width at a given depth.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Tip Radius</strong></td>
-                            <td>0 - 5 mm</td>
-                            <td>0</td>
-                            <td>V-Carve</td>
-                            <td>Radius at the very tip of the bit. 0 is a perfect point; a real bit usually has a small tip radius or flat.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Tool Tip Shape</strong></td>
-                            <td>Ball Nose / Flat Endmill / Bull Nose (corner radius)</td>
-                            <td>Ball Nose</td>
-                            <td>Relief / 2.5D Carve</td>
-                            <td>Tip geometry the compensator models. Ball follows curves best, flat is faster on shallow relief, bull nose is a flat with a corner radius.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Corner Radius</strong><br><span class="param-condition">Shown when Tool Tip Shape is Bull Nose (corner radius)</span></td>
-                            <td>0 - 10 mm</td>
-                            <td>0.5</td>
-                            <td>Relief / 2.5D Carve</td>
-                            <td>Corner radius of a bull-nose cutter. Ignored for ball and flat tips.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Tool Tip Shape</strong></td>
-                            <td>Ball Nose / Flat Endmill / Bull Nose (corner radius)</td>
-                            <td>Ball Nose</td>
-                            <td>Rotary / 4th Axis</td>
-                            <td>Shape of the cutting tip. Ball nose gives the smoothest curved surfaces. Flat leaves scallops on curves but cuts flats cleanly. Bull nose is a flat endmill with a rounded corner.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Corner Radius</strong><br><span class="param-condition">Shown when Tool Tip Shape is Bull Nose (corner radius)</span></td>
-                            <td>0 - 10 mm</td>
-                            <td>0.5</td>
-                            <td>Rotary / 4th Axis</td>
-                            <td>Corner radius of a bull nose tool. Only used when the tip shape is Bull Nose. Must be less than half the tool diameter.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Collision Guard</strong><br><span class="param-condition">Shown when Rotary Kinematics is Indexed 3+1 (flat faces at fixed angles)</span></td>
-                            <td>on / off</td>
-                            <td>off</td>
-                            <td>Rotary / 4th Axis</td>
-                            <td>Limits tip depth so the shank and holder cannot touch the surface. Needs cuttingLength, shankDiameter, holderDiameter and holderStickout on the tool record; skipped silently without them.</td>
-                        </tr>
-                    </tbody>
-                </table>
-                <h3>Cut Settings</h3>
-                <table>
-                    <thead>
-                        <tr><th scope="col">Parameter</th><th scope="col">Values</th><th scope="col">Default</th><th scope="col">Applies to</th><th scope="col">What it does</th></tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><strong>Detect Nesting</strong></td>
-                            <td>on / off</td>
-                            <td>off</td>
-                            <td>Profile Cut, Pocket Clear</td>
-                            <td>When enabled, shapes fully contained inside other shapes are treated as holes and subtracted from the outer boundary during offset generation.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Cut Side</strong></td>
-                            <td>Outside / Inside / On Path (Centerline)</td>
-                            <td>Outside</td>
-                            <td>Profile Cut</td>
-                            <td>Where the tool sits relative to the polygon outline. Outside clears material around the shape. Inside clears within. On Path centers the tool on the line.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Pocket Strategy</strong></td>
-                            <td>Concentric Offsets</td>
-                            <td>Concentric Offsets</td>
-                            <td>Pocket Clear</td>
-                            <td>How the pocket interior is cleared. Concentric Offsets shrinks inward in passes. Raster sweeps back and forth in straight lines.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Step Over</strong></td>
-                            <td>1 - 95 %</td>
-                            <td>40</td>
-                            <td>Pocket Clear</td>
-                            <td>Percentage of the tool diameter to overlap on each pass. 50% is a good default.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Raster Angle</strong><br><span class="param-condition">Shown when Pocket Strategy is raster</span></td>
-                            <td>0 - 180 °</td>
-                            <td>45</td>
-                            <td>Pocket Clear</td>
-                            <td>Angle of the sweep lines for raster pocketing. 0° is horizontal, 90° vertical, 45° diagonal.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Bidirectional Raster</strong><br><span class="param-condition">Shown when Pocket Strategy is raster</span></td>
-                            <td>on / off</td>
-                            <td>on</td>
-                            <td>Pocket Clear</td>
-                            <td>When checked the tool cuts in both directions. When unchecked it lifts and returns after each line for climb-only cutting.</td>
-                        </tr>
-                    </tbody>
-                </table>
-                <h3>Drill Strategy</h3>
-                <table>
-                    <thead>
-                        <tr><th scope="col">Parameter</th><th scope="col">Values</th><th scope="col">Default</th><th scope="col">Applies to</th><th scope="col">What it does</th></tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><strong>Mill Holes</strong><br><span class="param-condition">Shown when Multi-Tool Drilling is off</span></td>
-                            <td>on / off</td>
-                            <td>on</td>
-                            <td>Drill Holes</td>
-                            <td>If checked, generates circular milling paths inside any drill holes larger than the tool. If unchecked, generates a simple peck/drill at the center.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Step Over</strong><br><span class="param-condition">Shown when Multi-Tool Drilling is off and Mill Holes is on</span></td>
-                            <td>10 - 90 %</td>
-                            <td>50</td>
-                            <td>Drill Holes</td>
-                            <td>Percentage of the tool diameter to overlap on each concentric milling ring inside oversize holes.</td>
-                        </tr>
-                    </tbody>
-                </table>
-                <h3>Depth &amp; Passes</h3>
-                <table>
-                    <thead>
-                        <tr><th scope="col">Parameter</th><th scope="col">Values</th><th scope="col">Default</th><th scope="col">Applies to</th><th scope="col">What it does</th></tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><strong>Start Depth</strong></td>
-                            <td>0 - 20 mm</td>
-                            <td>0</td>
-                            <td>V-Carve</td>
-                            <td>Starting depth offset. Use to engrave below an existing pocket floor.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Max Carve Depth</strong></td>
-                            <td>0 - 20 mm</td>
-                            <td>0</td>
-                            <td>V-Carve</td>
-                            <td>Maximum depth for V-carve cuts. Set to 0 for unconstrained natural depth (no flat floor). Set &gt; 0 to clamp depth and generate flat floor loops for wide areas.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Depth Mapping</strong></td>
-                            <td>Scaled to Depth (artistic relief) / Literal Model Height (dimensioned part)</td>
-                            <td>Scaled to Depth (artistic relief)</td>
-                            <td>Relief / 2.5D Carve</td>
-                            <td>Scaled stretches the model's height range to fit the carve depth - use it for artwork. Literal keeps the model's real millimetres - use it for dimensioned parts.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Carve Depth</strong></td>
-                            <td>0 - 100 mm</td>
-                            <td>0</td>
-                            <td>Relief / 2.5D Carve</td>
-                            <td>Total carve depth below the surface. 0 uses the model's own height.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Start Depth</strong></td>
-                            <td>0 - 20 mm</td>
-                            <td>0</td>
-                            <td>Relief / 2.5D Carve</td>
-                            <td>Depth of the surface the relief starts from. Use it to carve inside an existing pocket floor.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Invert (Mold Mode)</strong></td>
-                            <td>on / off</td>
-                            <td>off</td>
-                            <td>Relief / 2.5D Carve</td>
-                            <td>Cuts the negative of the model, so the result is a mould of it.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Carve Depth</strong><br><span class="param-condition">Shown when Rotary Kinematics is Radial (continuous surfacing)</span></td>
-                            <td>0 - 150 mm</td>
-                            <td>0</td>
-                            <td>Rotary / 4th Axis</td>
-                            <td>How deep to cut below the blank surface, measured as radius. Leave at 0 to follow the model down to its own thinnest point. Auto depth near the rotation axis makes generation very slow, so set an explicit value on tall models.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Carve Depth</strong><br><span class="param-condition">Shown when Rotary Kinematics is Indexed 3+1 (flat faces at fixed angles)</span></td>
-                            <td>0 - 150 mm</td>
-                            <td>0</td>
-                            <td>Rotary / 4th Axis</td>
-                            <td>How deep each face may cut below the blank face plane. Leave at 0 to reach just past the rotation axis, which is as deep as one face can usefully go - anything further belongs to the opposing face. Set a value only to stop shallower than that.</td>
-                        </tr>
-                    </tbody>
-                </table>
-                <h3>Resolution &amp; Finish</h3>
-                <table>
-                    <thead>
-                        <tr><th scope="col">Parameter</th><th scope="col">Values</th><th scope="col">Default</th><th scope="col">Applies to</th><th scope="col">What it does</th></tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><strong>Min Path Length</strong></td>
-                            <td>0 - 5 mm</td>
-                            <td>0</td>
-                            <td>V-Carve</td>
-                            <td>Drops carve chains shorter than this. Removes specks left by noisy outlines.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Corner Threshold</strong></td>
-                            <td>5 - 90 °</td>
-                            <td>30</td>
-                            <td>V-Carve</td>
-                            <td>Separation angle below which a medial branch counts as construction and is discarded. Raise it to drop more detail on curved outlines.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Boundary Sample Spacing</strong></td>
-                            <td>0.02 - 1 mm</td>
-                            <td>0.15</td>
-                            <td>V-Carve</td>
-                            <td>Step used to resample outlines before the medial axis is built. Lower it for very small text; it must be below the thinnest stroke width.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Noise Threshold</strong></td>
-                            <td>0 - 1 mm</td>
-                            <td>0</td>
-                            <td>V-Carve</td>
-                            <td>Discards medial branches whose clearance changes by less than this. 0 disables it.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Grid Cell Size</strong></td>
-                            <td>0 - 1 mm</td>
-                            <td>0</td>
-                            <td>Relief / 2.5D Carve</td>
-                            <td>Sampling grid pitch in mm. 0 derives it from the model size and the resolution cap below.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Auto Grid Resolution</strong></td>
-                            <td>128 - 4096 cells</td>
-                            <td>1024</td>
-                            <td>Relief / 2.5D Carve</td>
-                            <td>Cap on the derived grid's longest side. Higher captures finer detail and costs slicing time and memory.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Path Simplification</strong><br><span class="param-condition">Shown when Pass is Finishing or Both (single tool)</span></td>
-                            <td>0 - 0.1 mm</td>
-                            <td>0.01</td>
-                            <td>Relief / 2.5D Carve</td>
-                            <td>Maximum deviation allowed when straightening finishing paths. Larger values give smaller G-code.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Min Roughing Segment</strong><br><span class="param-condition">Shown when Pass is Roughing or Both (single tool)</span></td>
-                            <td>0 - 5 mm</td>
-                            <td>0.2</td>
-                            <td>Relief / 2.5D Carve</td>
-                            <td>Drops roughing segments shorter than this. Removes stutter without changing the cut.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Grid Cell Size</strong></td>
-                            <td>0 - 1 mm</td>
-                            <td>0</td>
-                            <td>Rotary / 4th Axis</td>
-                            <td>Size of one sampling cell on the model surface. Leave at 0 to derive it from the resolution setting below. Setting it manually overrides that and can make generation very slow on large parts.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Auto Grid Resolution</strong></td>
-                            <td>128 - 4096 cells</td>
-                            <td>1024</td>
-                            <td>Rotary / 4th Axis</td>
-                            <td>Sampling resolution along the longest dimension of the model, used when cell size is automatic. Higher captures finer detail and takes longer. 1024 suits most work.</td>
-                        </tr>
-                    </tbody>
-                </table>
-                <h3>Model Bounds</h3>
-                <table>
-                    <thead>
-                        <tr><th scope="col">Parameter</th><th scope="col">Values</th><th scope="col">Default</th><th scope="col">Applies to</th><th scope="col">What it does</th></tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><strong>Silhouette Boundary</strong></td>
-                            <td>Stop at Model Edge / Roll Over Edge (form boundary wall) / Extend Beyond Edge (+mm)</td>
-                            <td>Stop at Model Edge</td>
-                            <td>Relief / 2.5D Carve</td>
-                            <td>What happens at the model's silhouette. Stop leaves the surrounding stock. Roll Over forms a wall down past the edge. Extend keeps cutting a set distance beyond it.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Boundary Extension</strong><br><span class="param-condition">Shown when Silhouette Boundary is Roll Over Edge (form boundary wall) or Extend Beyond Edge (+mm)</span></td>
-                            <td>0 - 20 mm</td>
-                            <td>0</td>
-                            <td>Relief / 2.5D Carve</td>
-                            <td>How far past the silhouette the boundary is formed. Used by Roll Over and Extend.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Limit to Model Footprint</strong></td>
-                            <td>on / off</td>
-                            <td>off</td>
-                            <td>Relief / 2.5D Carve</td>
-                            <td>Only cuts where the model actually sits. Leave it off to clear the whole grid down to the floor.</td>
-                        </tr>
-                    </tbody>
-                </table>
-                <h3>Passes &amp; Stepover</h3>
-                <table>
-                    <thead>
-                        <tr><th scope="col">Parameter</th><th scope="col">Values</th><th scope="col">Default</th><th scope="col">Applies to</th><th scope="col">What it does</th></tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><strong>Pass</strong></td>
-                            <td>Roughing / Finishing / Both (single tool)</td>
-                            <td>Finishing</td>
-                            <td>Relief / 2.5D Carve</td>
-                            <td>Roughing removes bulk in flat layers, finishing rasters the surface. Both runs one after the other with the same tool.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Pass</strong></td>
-                            <td>Roughing / Finishing / Both (single tool)</td>
-                            <td>Finishing</td>
-                            <td>Rotary / 4th Axis</td>
-                            <td>Which passes to generate. Roughing removes bulk in constant-radius layers. Finishing follows the surface. Both runs them in order with a single tool.</td>
-                        </tr>
-                    </tbody>
-                </table>
-                <h3>Roughing</h3>
-                <table>
-                    <thead>
-                        <tr><th scope="col">Parameter</th><th scope="col">Values</th><th scope="col">Default</th><th scope="col">Applies to</th><th scope="col">What it does</th></tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><strong>Roughing Stepdown</strong><br><span class="param-condition">Shown when Pass is Roughing or Both (single tool)</span></td>
-                            <td>0.2 - 10 mm</td>
-                            <td>1.5</td>
-                            <td>Relief / 2.5D Carve</td>
-                            <td>Z depth removed per roughing layer.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Roughing Stepover</strong><br><span class="param-condition">Shown when Pass is Roughing or Both (single tool)</span></td>
-                            <td>10 - 90 %</td>
-                            <td>45</td>
-                            <td>Relief / 2.5D Carve</td>
-                            <td>Sideways step between roughing passes, as a percentage of tool diameter.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Finishing Allowance</strong><br><span class="param-condition">Shown when Pass is Roughing or Both (single tool)</span></td>
-                            <td>0 - 2 mm</td>
-                            <td>0.3</td>
-                            <td>Relief / 2.5D Carve</td>
-                            <td>Material left on the surface for the finishing pass to take off.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Roughing Stepdown</strong><br><span class="param-condition">Shown when Rotary Kinematics is Radial (continuous surfacing) and Pass is Roughing or Both (single tool)</span></td>
-                            <td>0.1 - 10 mm</td>
-                            <td>1.5</td>
-                            <td>Rotary / 4th Axis</td>
-                            <td>How much radius each roughing layer removes. Smaller is gentler on the tool and takes longer. Around a third of the tool diameter is a safe starting point.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Roughing Stepdown</strong><br><span class="param-condition">Shown when Rotary Kinematics is Indexed 3+1 (flat faces at fixed angles) and Pass is Roughing or Both (single tool)</span></td>
-                            <td>0.1 - 10 mm</td>
-                            <td>1.5</td>
-                            <td>Rotary / 4th Axis</td>
-                            <td>How much depth each roughing layer removes on a face. Smaller is gentler on the tool and takes longer. Around a third of the tool diameter is a safe starting point.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Roughing Stepover</strong><br><span class="param-condition">Shown when Pass is Roughing or Both (single tool)</span></td>
-                            <td>5 - 90 %</td>
-                            <td>45</td>
-                            <td>Rotary / 4th Axis</td>
-                            <td>Distance between roughing scanlines, as a percentage of tool diameter. 45% is a good default for roughing.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Finishing Stock</strong><br><span class="param-condition">Shown when Pass is Roughing or Both (single tool)</span></td>
-                            <td>0 - 5 mm</td>
-                            <td>0.3</td>
-                            <td>Rotary / 4th Axis</td>
-                            <td>Material left on the surface by roughing for the finishing pass to remove. 0.3mm is a good default. Too little and roughing marks show through, too much and finishing works hard.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Roughing Direction</strong><br><span class="param-condition">Shown when Rotary Kinematics is Radial (continuous surfacing) and Pass is Roughing or Both (single tool)</span></td>
-                            <td>Along the axis / Around the circumference</td>
-                            <td>Along the axis</td>
-                            <td>Rotary / 4th Axis</td>
-                            <td>Direction the roughing scanlines run. Along the axis suits long slender parts. Around the circumference suits short stubby ones and keeps the tool engaged more evenly.</td>
-                        </tr>
-                    </tbody>
-                </table>
-                <h3>Finishing</h3>
-                <table>
-                    <thead>
-                        <tr><th scope="col">Parameter</th><th scope="col">Values</th><th scope="col">Default</th><th scope="col">Applies to</th><th scope="col">What it does</th></tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><strong>Finishing Stepover</strong><br><span class="param-condition">Shown when Pass is Finishing or Both (single tool)</span></td>
-                            <td>2 - 50 %</td>
-                            <td>10</td>
-                            <td>Relief / 2.5D Carve</td>
-                            <td>Sideways step between finishing passes, as a percentage of tool diameter. Lower is smoother and slower.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Raster Direction</strong><br><span class="param-condition">Shown when Pass is Finishing or Both (single tool)</span></td>
-                            <td>Along X / Along Y</td>
-                            <td>Along X</td>
-                            <td>Relief / 2.5D Carve</td>
-                            <td>Direction the passes sweep. Run them across the model's long details rather than along them.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Cross Finishing Pass</strong><br><span class="param-condition">Shown when Pass is Finishing or Both (single tool)</span></td>
-                            <td>on / off</td>
-                            <td>off</td>
-                            <td>Relief / 2.5D Carve</td>
-                            <td>Adds a second finishing pass at 90 degrees to the first. Roughly doubles finishing time and noticeably improves curved surfaces.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Skip Flat Floor</strong><br><span class="param-condition">Shown when Pass is Finishing or Both (single tool)</span></td>
-                            <td>on / off</td>
-                            <td>off</td>
-                            <td>Relief / 2.5D Carve</td>
-                            <td>Skips the flat floor pass. Safe when roughing already clears the floor with the same tool.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Finishing Stepover</strong><br><span class="param-condition">Shown when Pass is Finishing or Both (single tool)</span></td>
-                            <td>1 - 50 %</td>
-                            <td>10</td>
-                            <td>Rotary / 4th Axis</td>
-                            <td>Distance between finishing passes, as a percentage of tool diameter. 10% gives a fine finish. Larger values are faster but leave visible scallops.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Finishing Pattern</strong><br><span class="param-condition">Shown when Rotary Kinematics is Radial (continuous surfacing) and Pass is Finishing or Both (single tool)</span></td>
-                            <td>Spiral (continuous helix) / Along the axis / Around (rings)</td>
-                            <td>Spiral (continuous helix)</td>
-                            <td>Rotary / 4th Axis</td>
-                            <td>Spiral is one continuous helix with a single entry and no witness lines, and is the best default. Along the axis suits parts with axial features. Around cuts closed rings and suits parts with rotational detail.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Raster Direction</strong><br><span class="param-condition">Shown when Rotary Kinematics is Indexed 3+1 (flat faces at fixed angles) and Pass is Finishing or Both (single tool)</span></td>
-                            <td>Along the rotary axis / Across the face</td>
-                            <td>Along the rotary axis</td>
-                            <td>Rotary / 4th Axis</td>
-                            <td>Direction the finishing lines run on each face. Along the rotary axis gives long uninterrupted passes. Across the face suits parts whose detail runs around the part rather than along it.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Cross Finishing Pass</strong><br><span class="param-condition">Shown when Rotary Kinematics is Indexed 3+1 (flat faces at fixed angles) and Pass is Finishing or Both (single tool)</span></td>
-                            <td>on / off</td>
-                            <td>off</td>
-                            <td>Rotary / 4th Axis</td>
-                            <td>Adds a second finishing pass at 90 degrees to the first. Roughly doubles finishing time and noticeably improves the surface on curved faces.</td>
-                        </tr>
-                    </tbody>
-                </table>
-                <h3>Blank &amp; Axis</h3>
-                <table>
-                    <thead>
-                        <tr><th scope="col">Parameter</th><th scope="col">Values</th><th scope="col">Default</th><th scope="col">Applies to</th><th scope="col">What it does</th></tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><strong>Rotary Kinematics</strong></td>
-                            <td>Radial (continuous surfacing) / Indexed 3+1 (flat faces at fixed angles)</td>
-                            <td>Radial (continuous surfacing)</td>
-                            <td>Rotary / 4th Axis</td>
-                            <td>Radial turns the part continuously under the tool for smooth round surfaces. Indexed 3+1 rotates to a fixed angle, mills that face flat, then rotates again. Indexed needs a post with an A or B word; radial can also run on a machine with the rotary wired to the Y driver.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Machine Rotary Axis</strong></td>
-                            <td>A - along workspace X / B - along workspace Y</td>
-                            <td>A - along workspace X</td>
-                            <td>Rotary / 4th Axis</td>
-                            <td>Which machine axis the part rotates about. X gives an A word, Y gives a B word. Must match how the rotary is physically mounted and what your post-processor declares.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Model Orientation</strong></td>
-                            <td>Lying along the rotary axis / Standing upright (Z) - will be laid down</td>
-                            <td>Standing upright (Z) - will be laid down</td>
-                            <td>Rotary / 4th Axis</td>
-                            <td>How the model sits in the scene before it is laid onto the rotary. Choose Upright if the model was designed standing in Z; it will be laid down onto the axis for you. Choose Along if it is already lying along the rotary axis.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Axial Datum</strong></td>
-                            <td>Model start (chuck-side face) / Model centre / Scene coordinates (no datum)</td>
-                            <td>Model start (chuck-side face)</td>
-                            <td>Rotary / 4th Axis</td>
-                            <td>Where zero sits along the rotary axis: the start of the model, its centre, or the scene origin. This is the position your controller's zero has to match.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Axial Offset</strong></td>
-                            <td>-500 - 500 mm</td>
-                            <td>0</td>
-                            <td>Rotary / 4th Axis</td>
-                            <td>Shifts the part along the rotary axis after the datum is applied. Use it to match where the blank actually sits between the chuck and the tailstock.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Axis Offset (Cross 1)</strong></td>
-                            <td>-50 - 50 mm</td>
-                            <td>0</td>
-                            <td>Rotary / 4th Axis</td>
-                            <td>Shifts the rotation axis sideways from the model's own centre, in the first cross direction. Use it when the model was not modelled centred on its axis. Leave at 0 for a centred model.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Axis Offset (Cross 2)</strong></td>
-                            <td>-50 - 50 mm</td>
-                            <td>0</td>
-                            <td>Rotary / 4th Axis</td>
-                            <td>Shifts the rotation axis in the second cross direction (workspace Z). Same purpose as the first offset. Leave at 0 for a centred model.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Stock Cross-Section</strong><br><span class="param-condition">Shown when Rotary Kinematics is Radial (continuous surfacing)</span></td>
-                            <td>Round (blank diameter) / Square (side = blank diameter)</td>
-                            <td>Round (blank diameter)</td>
-                            <td>Rotary / 4th Axis</td>
-                            <td>Cross-section of the raw blank. Round starts cutting at the blank diameter. Square starts at the corner radius and turns the stock round on the way down, which adds roughing time but saves you pre-turning it.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Blank Diameter</strong><br><span class="param-condition">Shown when Rotary Kinematics is Radial (continuous surfacing)</span></td>
-                            <td>0 - 300 mm</td>
-                            <td>0</td>
-                            <td>Rotary / 4th Axis</td>
-                            <td>Outside diameter of the raw stock. Leave at 0 to fit the blank to the model automatically. Setting it smaller than the model flattens everything outside it, so only reduce it if the stock really is smaller.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Faces</strong><br><span class="param-condition">Shown when Rotary Kinematics is Indexed 3+1 (flat faces at fixed angles)</span></td>
-                            <td>2 (front / back) / 3 (triangular prism) / 4 (square blank) / 6 (hex blank) / 8 (octagonal blank)</td>
-                            <td>4 (square blank)</td>
-                            <td>Rotary / 4th Axis</td>
-                            <td>How many flat faces to mill around the part. More faces approximate a round surface more closely but multiply machining time. Four suits a square blank, six or eight a pre-turned round one.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Start Angle</strong><br><span class="param-condition">Shown when Rotary Kinematics is Indexed 3+1 (flat faces at fixed angles)</span></td>
-                            <td>-360 - 360 °</td>
-                            <td>0</td>
-                            <td>Rotary / 4th Axis</td>
-                            <td>Rotates the whole set of faces. Use it to line the first face up with a feature on the model, or to put the parting line somewhere you do not mind seeing it.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Blank Width (Across Flats)</strong><br><span class="param-condition">Shown when Rotary Kinematics is Indexed 3+1 (flat faces at fixed angles)</span></td>
-                            <td>0 - 300 mm</td>
-                            <td>0</td>
-                            <td>Rotary / 4th Axis</td>
-                            <td>Distance across the flats of the raw blank. Leave at 0 to derive it from the model. Anything on the model that sticks out past the blank cannot be reached and is flattened, so raise this if the part is larger than you declared.</td>
-                        </tr>
-                    </tbody>
-                </table>
-                <h3>Workholding &amp; Ends</h3>
-                <table>
-                    <thead>
-                        <tr><th scope="col">Parameter</th><th scope="col">Values</th><th scope="col">Default</th><th scope="col">Applies to</th><th scope="col">What it does</th></tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><strong>Axis Over-Cut</strong><br><span class="param-condition">Shown when Rotary Kinematics is Indexed 3+1 (flat faces at fixed angles)</span></td>
-                            <td>0 - 10 mm</td>
-                            <td>0</td>
-                            <td>Rotary / 4th Axis</td>
-                            <td>How far past the rotation axis each face may cut. Opposing faces that stop exactly on the axis are tangent, not overlapping, so backlash or a touch-off error leaves a spine on the centreline. Leave at 0 for one tool radius automatically. This deepens the waste only - it never cuts into the minimum-radius drive stub, so you can set both.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Minimum Radius</strong></td>
-                            <td>0 - 50 mm</td>
-                            <td>2</td>
-                            <td>Rotary / 4th Axis</td>
-                            <td>Radius of the drive stub the tool never cuts into: what a chuck grips and a tailstock centre bears on. It is also the radius a Taper end cones down to. On Indexed 3+1 it applies as a cylinder about the centreline, so a value here is a hard floor on how deep any face can go near the axis - the default 2mm keeps a 2mm core no face will cut through. Set it to 0 for a free end you want to part right through.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Workholding</strong></td>
-                            <td>Between Centers (tailstock supported) / Chuck Only (cantilevered)</td>
-                            <td>Between Centers (tailstock supported)</td>
-                            <td>Rotary / 4th Axis</td>
-                            <td>Between Centers assumes a tailstock supports the far end, so material past that end is protected. Chuck Only assumes the part is cantilevered and the far end is open air.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Chuck-End Boundary</strong></td>
-                            <td>Stop at geometry (turned to the core) / Roll Over - lip (needs a flat end) / Taper - cone down to the drive stub</td>
-                            <td>Stop at geometry (turned to the core)</td>
-                            <td>Rotary / 4th Axis</td>
-                            <td>What happens where the model ends at the chuck. Stop at geometry is the default and the reliable choice: the waste is turned down to the minimum radius and the tool stops at the part. Roll Over leaves a small lip around the edge, but only works on an end that is flat and close to square against the axis - a slanted, domed or off-centre end will show a scalloped ring, and you will get a warning. Taper cones down to the drive stub instead of stepping.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Chuck-End Offset</strong></td>
-                            <td>-25 - 60 mm</td>
-                            <td>0</td>
-                            <td>Rotary / 4th Axis</td>
-                            <td>Moves where the chuck end of the model is treated as ending, along the axis. Negative stops short of the real edge - use it for a slanted base or a tangent slope your tool cannot enter cleanly. Positive machines further past it, turning the waste down to the minimum radius as it goes. Too large a negative value leaves nothing to machine and you will get a warning. On Roll Over and Taper this is the lip depth or cone length instead, and is always positive.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Tail-End Boundary</strong></td>
-                            <td>Stop at geometry (turned to the core) / Roll Over - lip (needs a flat end) / Taper - cone down to the drive stub</td>
-                            <td>Stop at geometry (turned to the core)</td>
-                            <td>Rotary / 4th Axis</td>
-                            <td>What happens where the model ends at the tailstock. Stop at geometry is the default and the reliable choice: the waste is turned down to the minimum radius and the tool stops at the part. Roll Over leaves a small lip around the edge, but only works on an end that is flat and close to square against the axis - a slanted, domed or off-centre end will show a scalloped ring, and you will get a warning. Taper cones down to the drive stub instead of stepping.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Tail-End Offset</strong></td>
-                            <td>-25 - 60 mm</td>
-                            <td>0</td>
-                            <td>Rotary / 4th Axis</td>
-                            <td>Moves where the tailstock end of the model is treated as ending, along the axis. Negative stops short of the real edge - use it for a slanted top or a tangent slope your tool cannot enter cleanly. Positive machines further past it, turning the waste down to the minimum radius as it goes. Too large a negative value leaves nothing to machine and you will get a warning. On Roll Over and Taper this is the lip depth or cone length instead, and is always positive.</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </section>
+      <section id="machine-settings">
+        <h2>Machine Settings</h2>
+        <p>These apply to every operation. The defaults are the app's: a post-processor's setup can start a field at its own value, or lock it while it is selected. A post-processor's own fields, such as its start and end blocks, appear under it.</p>
+        <h3>Post-Processor</h3>
+        <table>
+          <thead>
+            <tr><th scope="col">Setting</th><th scope="col">Values</th><th scope="col">Default</th><th scope="col">What it does</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Post-Processor</strong><br><span class="param-condition">Machine class: router</span></td>
+              <td>Grbl, Makera (Carvera), grblHAL, UCCNC, Marlin, Mach3, LinuxCNC, Roland (RML), Fanuc, WinPC-NC</td>
+              <td>Grbl</td>
+              <td>Selects the setup for your CNC controller: the G-code it writes and the values these settings start from. A setup can also lock some of them.</td>
+            </tr>
+            <tr>
+              <td><strong>G-code Units</strong><br><span class="param-condition">Shown when the post-processor supports it</span><br><span class="param-condition">Machine class: router</span></td>
+              <td>Millimeters (G21) / Inches (G20)</td>
+              <td>Millimeters (G21)</td>
+              <td>Sets the units for the exported G-code file (G21 for mm, G20 for inches).</td>
+            </tr>
+            <tr>
+              <td><strong>Line Numbers (N)</strong><br><span class="param-condition">Shown when the post-processor supports it</span><br><span class="param-condition">Machine class: router</span></td>
+              <td>on / off</td>
+              <td>off</td>
+              <td>Prefix G-code blocks with line numbers (N10, N20…). Shown only when the post-processor's control accepts them.</td>
+            </tr>
+            <tr>
+              <td><strong>Line Number Step</strong><br><span class="param-condition">Shown when Line Numbers (N) is on</span><br><span class="param-condition">Shown when the post-processor supports it</span><br><span class="param-condition">Machine class: router</span></td>
+              <td>1 - 1000</td>
+              <td>10</td>
+              <td>Increment gap between consecutive line numbers (N words). A step of 10 outputs N10, N20, N30… leaving space to insert manual blocks at the machine controller.</td>
+            </tr>
+            <tr>
+              <td><strong>Tool Length Offset</strong><br><span class="param-condition">Machine class: router</span></td>
+              <td>None / Controller tool table (G43 Hn) / Controller tool table, H from T (Tn M06 G43) / Measured at change time (controller macro) (as the post-processor offers)</td>
+              <td>set by the post-processor</td>
+              <td>Where the controller gets the new tool's Z length after a change. 'Controller tool table' assumes you have measured each tool into the control's offset table. 'H from T': the control takes the offset register from the T word. 'Measured at change time' means a controller macro probes the tool and owns Z, so no G43 is emitted. 'None' emits nothing and you re-zero Z on the new bit yourself.</td>
+            </tr>
+            <tr>
+              <td><strong>Absolute Z0</strong><br><span class="param-condition">Shown when the post-processor supports it</span><br><span class="param-condition">Machine class: router</span></td>
+              <td>on / off</td>
+              <td>off</td>
+              <td>Z0 is fixed on the machine - the bed - instead of touched off on the stock. Nothing may run below it, so set the stock's Z zero to the bed. 4th-axis programs are lifted by the rotary axis height. Programs that mix flat and 4th-axis operations, and the axis-replacement route, are refused for now.</td>
+            </tr>
+          </tbody>
+        </table>
+        <h3>Stock</h3>
+        <table>
+          <thead>
+            <tr><th scope="col">Setting</th><th scope="col">Values</th><th scope="col">Default</th><th scope="col">What it does</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Stock Thickness</strong></td>
+              <td>&ge; 0.1 mm</td>
+              <td>18</td>
+              <td>The total thickness of your stock material. Used for cutout depth calculations.</td>
+            </tr>
+            <tr>
+              <td><strong>Width</strong></td>
+              <td>&ge; 1 mm</td>
+              <td>600</td>
+              <td>Stock width along X.</td>
+            </tr>
+            <tr>
+              <td><strong>Length</strong></td>
+              <td>&ge; 1 mm</td>
+              <td>400</td>
+              <td>Stock length along Y.</td>
+            </tr>
+            <tr>
+              <td><strong>Fit Margin</strong></td>
+              <td>&ge; 0 mm</td>
+              <td>0</td>
+              <td>Clearance added around the geometry when using Fit to Object.</td>
+            </tr>
+            <tr>
+              <td><strong>Material</strong></td>
+              <td>FR / Plywood / MDF / Hardwood / Softwood / Acrylic / Aluminum (soft) / Foam / Modeling Board / Custom</td>
+              <td>Plywood</td>
+              <td>Stock material. Used for feed and speed suggestions; it does not change any generated coordinate.</td>
+            </tr>
+            <tr>
+              <td><strong>Z Zero Reference</strong></td>
+              <td>Material Surface (Top) / Machine Bed (Spoilboard)</td>
+              <td>Machine Bed (Spoilboard)</td>
+              <td>Where Z0 sits. 'Material Surface' means you zero on top of the stock; 'Machine Bed' means you zero on the spoilboard and depths are measured from there.</td>
+            </tr>
+          </tbody>
+        </table>
+        <h3>Heights &amp; Feeds</h3>
+        <table>
+          <thead>
+            <tr><th scope="col">Setting</th><th scope="col">Values</th><th scope="col">Default</th><th scope="col">What it does</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Safe Z</strong><br><span class="param-condition">Machine class: router</span></td>
+              <td>&mdash;</td>
+              <td>25</td>
+              <td>Maximum safe height for rapid moves and tool changes (G0). Must clear all clamps and fixtures.</td>
+            </tr>
+            <tr>
+              <td><strong>Travel Z</strong><br><span class="param-condition">Machine class: router</span></td>
+              <td>&mdash;</td>
+              <td>10</td>
+              <td>Height above the board (Z=0) where the tool travels between cutting paths.</td>
+            </tr>
+            <tr>
+              <td><strong>Rapid Feed</strong><br><span class="param-condition">Machine class: router</span></td>
+              <td>&mdash;</td>
+              <td>2000</td>
+              <td>The feed rate (mm/min) for G0 rapid movements (travel and safe Z moves).</td>
+            </tr>
+            <tr>
+              <td><strong>Coolant</strong><br><span class="param-condition">Shown when the post-processor supports it</span><br><span class="param-condition">Machine class: router</span></td>
+              <td>None / Mist / Flood</td>
+              <td>None</td>
+              <td>Coolant the program switches on at its start and off at its end: mist or flood, in the post's own codes (M7/M8 and M9 on most posts). None leaves coolant to the operator.</td>
+            </tr>
+            <tr>
+              <td><strong>Vacuum</strong><br><span class="param-condition">Shown when the post-processor supports it</span><br><span class="param-condition">Machine class: router</span></td>
+              <td>on / off</td>
+              <td>off</td>
+              <td>Switches the vacuum or dust extraction on at the start of the program and off at its end, in the post's own codes (M10/M11 on most posts, M331/M332 on Makera, an auxiliary output on WinPC-NC).</td>
+            </tr>
+          </tbody>
+        </table>
+        <h3>4th Axis</h3>
+        <table>
+          <thead>
+            <tr><th scope="col">Setting</th><th scope="col">Values</th><th scope="col">Default</th><th scope="col">What it does</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Machine Rotary Axis</strong><br><span class="param-condition">Machine class: router</span></td>
+              <td>A - along workspace X / B - along workspace Y</td>
+              <td>A - along workspace X</td>
+              <td>Which machine axis the rotary turns about: X gives an A word, Y a B word. It is how the rotary is mounted, so every 4th-axis operation uses it, and changing it marks them for regeneration. Only words the post-processor declares can be exported.</td>
+            </tr>
+            <tr>
+              <td><strong>Chuck Side</strong><br><span class="param-condition">Machine class: router</span></td>
+              <td>Low end (toward -X / -Y) / High end (toward +X / +Y)</td>
+              <td>Low end (toward -X / -Y)</td>
+              <td>Which end of the rotary axis the chuck holds. Each operation's chuck-end boundary settings apply at that end, and its tail-end ones at the other.</td>
+            </tr>
+            <tr>
+              <td><strong>4th-Axis Route</strong><br><span class="param-condition">Machine class: router</span></td>
+              <td>Rotary word (A/B in degrees) / Rotary word (A/B in arc mm) / Axis replacement (Y carries arc length) (as the post-processor offers)</td>
+              <td>set by the post-processor</td>
+              <td>How the 4th axis reaches the machine. 'Rotary word' sends A or B and drops Y - the CAM does the wrapping - in degrees, or in millimeters of arc for a rotary calibrated in linear units. 'Axis replacement' keeps Y carrying millimeters of arc at the reference radius, for a rotary wired to the Y driver with steps/mm calibrated. Only routes your post-processor declares are offered.</td>
+            </tr>
+            <tr>
+              <td><strong>Index Settle Dwell</strong><br><span class="param-condition">Machine class: router</span></td>
+              <td>0 - 5 s</td>
+              <td>0</td>
+              <td>Pause after each index rotation, before the tool re-enters the material, so a belt-driven rotary can settle. Starts at the post-processor's value; servo or geared rotaries generally need none.</td>
+            </tr>
+            <tr>
+              <td><strong>Rotary Axis Height</strong><br><span class="param-condition">Shown when Absolute Z0 is on</span><br><span class="param-condition">Shown when the post-processor supports it</span><br><span class="param-condition">Machine class: router</span></td>
+              <td>&ge; 0 mm</td>
+              <td>&mdash;</td>
+              <td>How far the rotation centerline sits above machine Z0. Every Z of a 4th-axis program is measured from that line, so this lifts it into the machine's frame. A 4th-axis export with Absolute Z0 is refused while it is empty.</td>
+            </tr>
+            <tr>
+              <td><strong>Grid in 4th-Axis View</strong><br><span class="param-condition">Machine class: router</span></td>
+              <td>on / off</td>
+              <td>on</td>
+              <td>Draws the ground grid in the 3D view's 4th-axis scene at the program's Z0: the rotation centerline, with Absolute Z0 the bed (the rotary axis height below the centerline), and on the axis-replacement route the top of the blank. Display only.</td>
+            </tr>
+            <tr>
+              <td><strong>Chuck and Tailstock</strong><br><span class="param-condition">Machine class: router</span></td>
+              <td>on / off</td>
+              <td>on</td>
+              <td>Draws a simplified chuck in the 3D view's 4th-axis scene at the end of the part the chuck holds, and a tailstock at the other end when the operation holds the part between centers. Display only.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
 
-            <section id="stage-strategy">
-                <h2>Z Strategy</h2>
-                <h3>Depth &amp; Passes</h3>
-                <table>
-                    <thead>
-                        <tr><th scope="col">Parameter</th><th scope="col">Values</th><th scope="col">Default</th><th scope="col">Applies to</th><th scope="col">What it does</th></tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><strong>Multi-depth Milling</strong><br><span class="param-condition">Shown when Mill Holes is on</span></td>
-                            <td>on / off</td>
-                            <td>on</td>
-                            <td>Drill Holes</td>
-                            <td>Mill oversize holes in several Z levels instead of one full-depth pass. Easier on small cutters.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Depth per Pass</strong><br><span class="param-condition">Shown when Mill Holes is on and Multi-depth Milling is on</span></td>
-                            <td>0.1 - 50 mm</td>
-                            <td>2</td>
-                            <td>Drill Holes</td>
-                            <td>Material removed per Z level while milling an oversize hole.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Entry Method</strong><br><span class="param-condition">Shown when Mill Holes is on</span></td>
-                            <td>Helix (Spiral entry) / Plunge (Vertical)</td>
-                            <td>Helix (Spiral entry)</td>
-                            <td>Drill Holes</td>
-                            <td>How the cutter enters an oversize hole. Helix spirals down and loads the tool gently; Plunge drops straight in and needs a centre-cutting bit.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Cut Depth</strong></td>
-                            <td>0.1 - 100 mm</td>
-                            <td>18</td>
-                            <td>Profile Cut, Pocket Clear, Drill Holes, Engrave</td>
-                            <td>Final target depth for all cuts, relative to the material surface (Z=0). Should be a negative value (e.g., -0.05mm).</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Multi-depth Cutting</strong></td>
-                            <td>on / off</td>
-                            <td>on</td>
-                            <td>Profile Cut, Pocket Clear, Engrave</td>
-                            <td>Enable multiple passes at different depths for deep cuts. Reduces tool stress.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Depth per Pass</strong><br><span class="param-condition">Shown when Multi-depth Cutting is on</span></td>
-                            <td>0.1 - 50 mm</td>
-                            <td>3</td>
-                            <td>Profile Cut, Pocket Clear, Engrave</td>
-                            <td>Incremental depth of each pass when using multi-depth cutting. Smaller = gentler on tool.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Entry Type</strong></td>
-                            <td>Plunge (Vertical)</td>
-                            <td>Plunge (Vertical)</td>
-                            <td>Profile Cut, Pocket Clear</td>
-                            <td>How the tool enters the material. Plunge: straight down. Ramp: diagonal. Helix: spiral down.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Finishing Pass</strong></td>
-                            <td>on / off</td>
-                            <td>off</td>
-                            <td>Pocket Clear</td>
-                            <td>Adds a final light pass at full depth with reduced stepover for a smoother pocket floor.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Finishing Step Over</strong><br><span class="param-condition">Shown when Finishing Pass is on</span></td>
-                            <td>1 - 50 %</td>
-                            <td>10</td>
-                            <td>Pocket Clear</td>
-                            <td>Stepover percentage for the finishing pass. Lower values give a better surface finish.</td>
-                        </tr>
-                    </tbody>
-                </table>
-                <h3>Drill Strategy</h3>
-                <table>
-                    <thead>
-                        <tr><th scope="col">Parameter</th><th scope="col">Values</th><th scope="col">Default</th><th scope="col">Applies to</th><th scope="col">What it does</th></tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><strong>Peck Depth</strong></td>
-                            <td>0 - 50 mm</td>
-                            <td>2</td>
-                            <td>Drill Holes</td>
-                            <td>Depth to drill before retracting when using peck drilling. Smaller = more retracts = cleaner holes.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Dwell Time</strong></td>
-                            <td>0 - 10 s</td>
-                            <td>0</td>
-                            <td>Drill Holes</td>
-                            <td>Pause duration at bottom of hole (seconds). Allows chips to clear and reduces burrs.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Retract Height</strong></td>
-                            <td>0.1 - 20 mm</td>
-                            <td>2</td>
-                            <td>Drill Holes</td>
-                            <td>Height to retract to between holes. Should clear board but minimize travel time.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Canned Cycle</strong></td>
-                            <td>None (G0 + G1) / G81 - Simple Drill / G82 - Dwell / G83 - Peck (Full Retract) / G73 - Peck (Chip Break)</td>
-                            <td>None (G0 + G1)</td>
-                            <td>Drill Holes</td>
-                            <td>Pre-programmed drill cycle. G83 (peck drilling) retracts periodically to clear chips.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Spot Drill</strong></td>
-                            <td>on / off</td>
-                            <td>off</td>
-                            <td>Drill Holes</td>
-                            <td>Plunge a shallow pilot hole at each location before the main drilling pass. Improves accuracy on curved or uneven surfaces.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Spot Depth</strong><br><span class="param-condition">Shown when Spot Drill is on</span></td>
-                            <td>0.1 - 5 mm</td>
-                            <td>1</td>
-                            <td>Drill Holes</td>
-                            <td>Depth of the spot drill pilot hole.</td>
-                        </tr>
-                    </tbody>
-                </table>
-                <h3>Holding Tabs</h3>
-                <table>
-                    <thead>
-                        <tr><th scope="col">Parameter</th><th scope="col">Values</th><th scope="col">Default</th><th scope="col">Applies to</th><th scope="col">What it does</th></tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><strong>Number of Tabs</strong></td>
-                            <td>0 - 20</td>
-                            <td>4</td>
-                            <td>Profile Cut</td>
-                            <td>Number of small tabs to leave uncut, holding the board in place.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Tab Width</strong></td>
-                            <td>1 - 20 mm</td>
-                            <td>6</td>
-                            <td>Profile Cut</td>
-                            <td>The length of each holding tab in mm.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Tab Height</strong></td>
-                            <td>0.5 - 10 mm</td>
-                            <td>3</td>
-                            <td>Profile Cut</td>
-                            <td>The thickness of the tab. A value of -0.5mm on a -1.8mm cut will leave a 0.5mm thick tab.</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </section>
+      <section id="stage-geometry">
+        <h2>XY Geometry</h2>
+        <h3>Tool Selection</h3>
+        <table>
+          <thead>
+            <tr><th scope="col">Parameter</th><th scope="col">Values</th><th scope="col">Default</th><th scope="col">Applies to</th><th scope="col">What it does</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Tool</strong><br><span class="param-condition">Shown when Multi-Tool Drilling is off</span></td>
+              <td>tool library</td>
+              <td>&mdash;</td>
+              <td>Profile Cut, Pocket Clear, Drilling, Engrave, V-Carve, Relief / 2.5D Carve, Rotary / 4th Axis</td>
+              <td>Select a tool from your library. The tool's diameter will be used for calculations.</td>
+            </tr>
+            <tr>
+              <td><strong>Tool Number</strong><br><span class="param-condition">Shown when Multi-Tool Drilling is off</span></td>
+              <td>1 - 99</td>
+              <td>1</td>
+              <td>Profile Cut, Pocket Clear, Drilling, Engrave, V-Carve, Relief / 2.5D Carve, Rotary / 4th Axis</td>
+              <td>The magazine slot, carousel pocket or collet this operation's tool sits in - the T word your controller will receive. If your machine has no tool changer, leaving 1 on every operation is safe.</td>
+            </tr>
+            <tr>
+              <td><strong>Tool Diameter</strong><br><span class="param-condition">Shown when Multi-Tool Drilling is off</span></td>
+              <td>0.01 - 25.4 mm</td>
+              <td>&mdash;</td>
+              <td>Profile Cut, Pocket Clear, Drilling, Engrave, V-Carve, Relief / 2.5D Carve, Rotary / 4th Axis</td>
+              <td>The tool's cutting diameter - the widest circle it cuts. On copper isolation and engraving this is seeded with the V-bit's effective width at required depth, because that is what the offset has to use.</td>
+            </tr>
+            <tr>
+              <td><strong>Multi-Tool Drilling</strong></td>
+              <td>on / off</td>
+              <td>off</td>
+              <td>Drilling</td>
+              <td>Assigns a strategy, a cutter and a tool number per row of the drill table. Each hole size and each slot size gets its own row.</td>
+            </tr>
+            <tr>
+              <td><strong>V-Bit Angle</strong></td>
+              <td>10 - 150 °</td>
+              <td>90</td>
+              <td>V-Carve</td>
+              <td>The included angle of the V-bit. Common values are 60, 90, and 120 degrees. Determines cut width at a given depth.</td>
+            </tr>
+            <tr>
+              <td><strong>Tip Radius</strong></td>
+              <td>0 - 5 mm</td>
+              <td>0</td>
+              <td>V-Carve</td>
+              <td>Radius at the very tip of the bit. 0 is a perfect point; a real bit usually has a small tip radius or flat.</td>
+            </tr>
+            <tr>
+              <td><strong>Tool Tip Shape</strong></td>
+              <td>Ball Nose / Flat Endmill / Bull Nose (corner radius)</td>
+              <td>Ball Nose</td>
+              <td>Relief / 2.5D Carve</td>
+              <td>Tip geometry the compensator models. Ball follows curves best, flat is faster on shallow relief, bull nose is a flat with a corner radius.</td>
+            </tr>
+            <tr>
+              <td><strong>Corner Radius</strong><br><span class="param-condition">Shown when Tool Tip Shape is Bull Nose (corner radius)</span></td>
+              <td>0 - 10 mm</td>
+              <td>0.5</td>
+              <td>Relief / 2.5D Carve</td>
+              <td>Corner radius of a bull-nose cutter. Ignored for ball and flat tips.</td>
+            </tr>
+            <tr>
+              <td><strong>Tool Tip Shape</strong></td>
+              <td>Ball Nose / Flat Endmill / Bull Nose (corner radius)</td>
+              <td>Ball Nose</td>
+              <td>Rotary / 4th Axis</td>
+              <td>Shape of the cutting tip. Ball nose gives the smoothest curved surfaces. Flat leaves scallops on curves but cuts flats cleanly. Bull nose is a flat endmill with a rounded corner.</td>
+            </tr>
+            <tr>
+              <td><strong>Corner Radius</strong><br><span class="param-condition">Shown when Tool Tip Shape is Bull Nose (corner radius)</span></td>
+              <td>0 - 10 mm</td>
+              <td>0.5</td>
+              <td>Rotary / 4th Axis</td>
+              <td>Corner radius of a bull nose tool. Only used when the tip shape is Bull Nose. Must be less than half the tool diameter.</td>
+            </tr>
+            <tr>
+              <td><strong>Collision Guard</strong><br><span class="param-condition">Shown when Rotary Kinematics is Indexed 3+1 (flat faces at fixed angles)</span></td>
+              <td>on / off</td>
+              <td>off</td>
+              <td>Rotary / 4th Axis</td>
+              <td>Limits tip depth so the shank and holder cannot touch the surface. Needs cuttingLength, shankDiameter, holderDiameter and holderStickout on the tool record; skipped silently without them.</td>
+            </tr>
+          </tbody>
+        </table>
+        <h3>Blank &amp; Axis</h3>
+        <table>
+          <thead>
+            <tr><th scope="col">Parameter</th><th scope="col">Values</th><th scope="col">Default</th><th scope="col">Applies to</th><th scope="col">What it does</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Rotary Kinematics</strong></td>
+              <td>Radial (continuous surfacing) / Indexed 3+1 (flat faces at fixed angles)</td>
+              <td>Radial (continuous surfacing)</td>
+              <td>Rotary / 4th Axis</td>
+              <td>Radial turns the part continuously under the tool for smooth round surfaces. Indexed 3+1 rotates to a fixed angle, mills that face flat, then rotates again. Indexed needs a post with an A or B word; radial can also run on a machine with the rotary wired to the Y driver.</td>
+            </tr>
+            <tr>
+              <td><strong>Stock Cross-Section</strong><br><span class="param-condition">Shown when Rotary Kinematics is Radial (continuous surfacing)</span></td>
+              <td>Round (blank diameter) / Square (side = blank diameter)</td>
+              <td>Round (blank diameter)</td>
+              <td>Rotary / 4th Axis</td>
+              <td>Cross-section of the raw blank. Round starts cutting at the blank diameter. Square starts at the corner radius and turns the stock round on the way down, which adds roughing time but saves you pre-turning it.</td>
+            </tr>
+            <tr>
+              <td><strong>Blank Diameter</strong><br><span class="param-condition">Shown when Rotary Kinematics is Radial (continuous surfacing)</span></td>
+              <td>0.5 - 300 mm</td>
+              <td>&mdash;</td>
+              <td>Rotary / 4th Axis</td>
+              <td>Outside diameter of the raw stock. Leave empty to fit the blank to the model automatically. Setting it smaller than the model flattens everything outside it, so only reduce it if the stock really is smaller.</td>
+            </tr>
+            <tr>
+              <td><strong>Faces</strong><br><span class="param-condition">Shown when Rotary Kinematics is Indexed 3+1 (flat faces at fixed angles)</span></td>
+              <td>2 (front / back) / 3 (triangular prism) / 4 (square blank) / 6 (hex blank) / 8 (octagonal blank)</td>
+              <td>4 (square blank)</td>
+              <td>Rotary / 4th Axis</td>
+              <td>How many flat faces to mill around the part. More faces approximate a round surface more closely but multiply machining time. Four suits a square blank, six or eight a pre-turned round one.</td>
+            </tr>
+            <tr>
+              <td><strong>Start Angle</strong><br><span class="param-condition">Shown when Rotary Kinematics is Indexed 3+1 (flat faces at fixed angles)</span></td>
+              <td>-360 - 360 °</td>
+              <td>0</td>
+              <td>Rotary / 4th Axis</td>
+              <td>Rotates the whole set of faces. Use it to line the first face up with a feature on the model, or to put the parting line somewhere you do not mind seeing it.</td>
+            </tr>
+            <tr>
+              <td><strong>Blank Width (Across Flats)</strong><br><span class="param-condition">Shown when Rotary Kinematics is Indexed 3+1 (flat faces at fixed angles)</span></td>
+              <td>0.5 - 300 mm</td>
+              <td>&mdash;</td>
+              <td>Rotary / 4th Axis</td>
+              <td>Distance across the flats of the raw blank. Leave empty to derive it from the model. Anything on the model that sticks out past the blank cannot be reached and is flattened, so raise this if the part is larger than you declared.</td>
+            </tr>
+          </tbody>
+        </table>
+        <h3>Model Bounds</h3>
+        <table>
+          <thead>
+            <tr><th scope="col">Parameter</th><th scope="col">Values</th><th scope="col">Default</th><th scope="col">Applies to</th><th scope="col">What it does</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Silhouette Boundary</strong></td>
+              <td>Stop at Model Edge / Roll Over Edge (form boundary wall) / Extend Beyond Edge (+mm)</td>
+              <td>Stop at Model Edge</td>
+              <td>Relief / 2.5D Carve</td>
+              <td>What happens at the model's silhouette. Stop leaves the surrounding stock. Roll Over forms a wall down past the edge. Extend keeps cutting a set distance beyond it.</td>
+            </tr>
+            <tr>
+              <td><strong>Boundary Extension</strong><br><span class="param-condition">Shown when Silhouette Boundary is Roll Over Edge (form boundary wall) or Extend Beyond Edge (+mm)</span></td>
+              <td>0 - 20 mm</td>
+              <td>0</td>
+              <td>Relief / 2.5D Carve</td>
+              <td>How far past the silhouette the boundary is formed. Used by Roll Over and Extend.</td>
+            </tr>
+            <tr>
+              <td><strong>Limit to Model Footprint</strong></td>
+              <td>on / off</td>
+              <td>off</td>
+              <td>Relief / 2.5D Carve</td>
+              <td>Only cuts where the model actually sits. Leave it off to clear the whole grid down to the floor.</td>
+            </tr>
+          </tbody>
+        </table>
+        <h3>Workholding &amp; Ends</h3>
+        <table>
+          <thead>
+            <tr><th scope="col">Parameter</th><th scope="col">Values</th><th scope="col">Default</th><th scope="col">Applies to</th><th scope="col">What it does</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Axis Over-Cut</strong><br><span class="param-condition">Shown when Rotary Kinematics is Indexed 3+1 (flat faces at fixed angles)</span></td>
+              <td>0 - 10 mm</td>
+              <td>&mdash;</td>
+              <td>Rotary / 4th Axis</td>
+              <td>How far past the rotation axis each face may cut. Opposing faces that stop exactly on the axis are tangent, not overlapping, so backlash or a touch-off error leaves a spine on the centerline. Leave empty for one tool radius; 0 stops exactly on the axis. This deepens the waste only - it never cuts into the minimum-radius drive stub, so you can set both.</td>
+            </tr>
+            <tr>
+              <td><strong>Minimum Radius</strong></td>
+              <td>0 - 50 mm</td>
+              <td>2</td>
+              <td>Rotary / 4th Axis</td>
+              <td>Radius of the drive stub the tool never cuts into: what a chuck grips and a tailstock center bears on. It is also the radius a Taper end cones down to. On Indexed 3+1 it applies as a cylinder about the centerline, so a value here is a hard floor on how deep any face can go near the axis - the default 2mm keeps a 2mm core no face will cut through. Set it to 0 for a free end you want to part right through.</td>
+            </tr>
+            <tr>
+              <td><strong>Workholding</strong></td>
+              <td>Between Centers (tailstock supported) / Chuck Only (cantilevered)</td>
+              <td>Between Centers (tailstock supported)</td>
+              <td>Rotary / 4th Axis</td>
+              <td>Between Centers assumes a tailstock supports the far end, so material past that end is protected. Chuck Only assumes the part is cantilevered and the far end is open air.</td>
+            </tr>
+            <tr>
+              <td><strong>Chuck-End Boundary</strong></td>
+              <td>Stop at geometry (turned to the core) / Roll Over - lip (needs a flat end) / Taper - cone down to the drive stub</td>
+              <td>Stop at geometry (turned to the core)</td>
+              <td>Rotary / 4th Axis</td>
+              <td>What happens where the model ends at the chuck. Stop at geometry is the default and the reliable choice: the waste is turned down to the minimum radius and the tool stops at the part. Roll Over leaves a small lip around the edge, but only works on an end that is flat and close to square against the axis - a slanted, domed or off-center end will show a scalloped ring, and you will get a warning. Taper cones down to the drive stub instead of stepping.</td>
+            </tr>
+            <tr>
+              <td><strong>Chuck-End Offset</strong></td>
+              <td>-25 - 60 mm</td>
+              <td>0</td>
+              <td>Rotary / 4th Axis</td>
+              <td>Moves where the chuck end of the model is treated as ending, along the axis. Negative stops short of the real edge - use it for a slanted base or a tangent slope your tool cannot enter cleanly. Positive machines further past it, turning the waste down to the minimum radius as it goes. Too large a negative value leaves nothing to machine and you will get a warning. On Roll Over and Taper this is the lip depth or cone length instead, and is always positive.</td>
+            </tr>
+            <tr>
+              <td><strong>Tail-End Boundary</strong></td>
+              <td>Stop at geometry (turned to the core) / Roll Over - lip (needs a flat end) / Taper - cone down to the drive stub</td>
+              <td>Stop at geometry (turned to the core)</td>
+              <td>Rotary / 4th Axis</td>
+              <td>What happens where the model ends at the tailstock. Stop at geometry is the default and the reliable choice: the waste is turned down to the minimum radius and the tool stops at the part. Roll Over leaves a small lip around the edge, but only works on an end that is flat and close to square against the axis - a slanted, domed or off-center end will show a scalloped ring, and you will get a warning. Taper cones down to the drive stub instead of stepping.</td>
+            </tr>
+            <tr>
+              <td><strong>Tail-End Offset</strong></td>
+              <td>-25 - 60 mm</td>
+              <td>0</td>
+              <td>Rotary / 4th Axis</td>
+              <td>Moves where the tailstock end of the model is treated as ending, along the axis. Negative stops short of the real edge - use it for a slanted top or a tangent slope your tool cannot enter cleanly. Positive machines further past it, turning the waste down to the minimum radius as it goes. Too large a negative value leaves nothing to machine and you will get a warning. On Roll Over and Taper this is the lip depth or cone length instead, and is always positive.</td>
+            </tr>
+          </tbody>
+        </table>
+        <h3>Cut Settings</h3>
+        <table>
+          <thead>
+            <tr><th scope="col">Parameter</th><th scope="col">Values</th><th scope="col">Default</th><th scope="col">Applies to</th><th scope="col">What it does</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Detect Nesting</strong></td>
+              <td>on / off</td>
+              <td>off</td>
+              <td>Profile Cut, Pocket Clear</td>
+              <td>When enabled, shapes fully contained inside other shapes are treated as holes and subtracted from the outer boundary during offset generation.</td>
+            </tr>
+            <tr>
+              <td><strong>Cut Side</strong></td>
+              <td>Outside / Inside / On Path (Centerline)</td>
+              <td>Outside</td>
+              <td>Profile Cut</td>
+              <td>Where the tool sits relative to the polygon outline. Outside clears material around the shape. Inside clears within. On Path centers the tool on the line.</td>
+            </tr>
+            <tr>
+              <td><strong>Pocket Strategy</strong></td>
+              <td>Concentric Offsets</td>
+              <td>Concentric Offsets</td>
+              <td>Pocket Clear</td>
+              <td>How the pocket interior is cleared. Concentric Offsets shrinks inward in passes. Raster sweeps back and forth in straight lines.</td>
+            </tr>
+            <tr>
+              <td><strong>Step Over</strong></td>
+              <td>1 - 95 %</td>
+              <td>40</td>
+              <td>Pocket Clear</td>
+              <td>Percentage of the tool diameter to overlap on each pass. 50% is a good default.</td>
+            </tr>
+          </tbody>
+        </table>
+        <h3>Depth &amp; Passes</h3>
+        <table>
+          <thead>
+            <tr><th scope="col">Parameter</th><th scope="col">Values</th><th scope="col">Default</th><th scope="col">Applies to</th><th scope="col">What it does</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Start Depth</strong></td>
+              <td>0 - 20 mm</td>
+              <td>0</td>
+              <td>V-Carve</td>
+              <td>Starting depth offset. Use to engrave below an existing pocket floor.</td>
+            </tr>
+            <tr>
+              <td><strong>Max Carve Depth</strong></td>
+              <td>0 - 20 mm</td>
+              <td>0</td>
+              <td>V-Carve</td>
+              <td>Maximum depth for V-carve cuts. Set to 0 for unconstrained natural depth (no flat floor). Set &gt; 0 to clamp depth and generate flat floor loops for wide areas.</td>
+            </tr>
+            <tr>
+              <td><strong>Depth Mapping</strong></td>
+              <td>Scaled to Depth (artistic relief) / Literal Model Height (dimensioned part)</td>
+              <td>Scaled to Depth (artistic relief)</td>
+              <td>Relief / 2.5D Carve</td>
+              <td>Scaled stretches the model's height range to fit the carve depth - use it for artwork. Literal keeps the model's real millimeters - use it for dimensioned parts.</td>
+            </tr>
+            <tr>
+              <td><strong>Carve Depth</strong></td>
+              <td>0.1 - 100 mm</td>
+              <td>&mdash;</td>
+              <td>Relief / 2.5D Carve</td>
+              <td>Total carve depth below the surface. Leave empty to use the model's own height.</td>
+            </tr>
+            <tr>
+              <td><strong>Start Depth</strong></td>
+              <td>0 - 20 mm</td>
+              <td>0</td>
+              <td>Relief / 2.5D Carve</td>
+              <td>Depth of the surface the relief starts from. Use it to carve inside an existing pocket floor.</td>
+            </tr>
+            <tr>
+              <td><strong>Invert (Mold Mode)</strong></td>
+              <td>on / off</td>
+              <td>off</td>
+              <td>Relief / 2.5D Carve</td>
+              <td>Cuts the negative of the model, so the result is a mold of it.</td>
+            </tr>
+            <tr>
+              <td><strong>Carve Depth</strong><br><span class="param-condition">Shown when Rotary Kinematics is Radial (continuous surfacing)</span></td>
+              <td>0.1 - 150 mm</td>
+              <td>&mdash;</td>
+              <td>Rotary / 4th Axis</td>
+              <td>How deep to cut below the blank surface, measured as radius. Leave empty to follow the model down to its own thinnest point. Auto depth near the rotation axis makes generation very slow, so set an explicit value on tall models.</td>
+            </tr>
+            <tr>
+              <td><strong>Carve Depth</strong><br><span class="param-condition">Shown when Rotary Kinematics is Indexed 3+1 (flat faces at fixed angles)</span></td>
+              <td>0.1 - 150 mm</td>
+              <td>&mdash;</td>
+              <td>Rotary / 4th Axis</td>
+              <td>How deep each face may cut below the blank face plane. Leave empty to reach just past the rotation axis, which is as deep as one face can usefully go - anything further belongs to the opposing face. Set a value only to stop shallower than that.</td>
+            </tr>
+          </tbody>
+        </table>
+        <h3>Passes &amp; Stepover</h3>
+        <table>
+          <thead>
+            <tr><th scope="col">Parameter</th><th scope="col">Values</th><th scope="col">Default</th><th scope="col">Applies to</th><th scope="col">What it does</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Pass</strong></td>
+              <td>Roughing / Finishing / Both (single tool)</td>
+              <td>Finishing</td>
+              <td>Relief / 2.5D Carve</td>
+              <td>Roughing removes bulk in flat layers, finishing rasters the surface. Both runs one after the other with the same tool.</td>
+            </tr>
+            <tr>
+              <td><strong>Pass</strong></td>
+              <td>Roughing / Finishing / Both (single tool)</td>
+              <td>Finishing</td>
+              <td>Rotary / 4th Axis</td>
+              <td>Which passes to generate. Roughing removes bulk in constant-radius layers. Finishing follows the surface. Both runs them in order with a single tool.</td>
+            </tr>
+          </tbody>
+        </table>
+        <h3>Roughing</h3>
+        <table>
+          <thead>
+            <tr><th scope="col">Parameter</th><th scope="col">Values</th><th scope="col">Default</th><th scope="col">Applies to</th><th scope="col">What it does</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Roughing Stepdown</strong><br><span class="param-condition">Shown when Pass is Roughing or Both (single tool)</span></td>
+              <td>0.2 - 10 mm</td>
+              <td>1.5</td>
+              <td>Relief / 2.5D Carve</td>
+              <td>Z depth removed per roughing layer.</td>
+            </tr>
+            <tr>
+              <td><strong>Roughing Stepover</strong><br><span class="param-condition">Shown when Pass is Roughing or Both (single tool)</span></td>
+              <td>10 - 90 %</td>
+              <td>45</td>
+              <td>Relief / 2.5D Carve</td>
+              <td>Sideways step between roughing passes, as a percentage of tool diameter.</td>
+            </tr>
+            <tr>
+              <td><strong>Finishing Allowance</strong><br><span class="param-condition">Shown when Pass is Roughing or Both (single tool)</span></td>
+              <td>0 - 2 mm</td>
+              <td>0.3</td>
+              <td>Relief / 2.5D Carve</td>
+              <td>Material left on the surface for the finishing pass to take off.</td>
+            </tr>
+            <tr>
+              <td><strong>Roughing Stepdown</strong><br><span class="param-condition">Shown when Rotary Kinematics is Radial (continuous surfacing) and Pass is Roughing or Both (single tool)</span></td>
+              <td>0.1 - 10 mm</td>
+              <td>1.5</td>
+              <td>Rotary / 4th Axis</td>
+              <td>How much radius each roughing layer removes. Smaller is gentler on the tool and takes longer. Around a third of the tool diameter is a safe starting point.</td>
+            </tr>
+            <tr>
+              <td><strong>Roughing Stepdown</strong><br><span class="param-condition">Shown when Rotary Kinematics is Indexed 3+1 (flat faces at fixed angles) and Pass is Roughing or Both (single tool)</span></td>
+              <td>0.1 - 10 mm</td>
+              <td>1.5</td>
+              <td>Rotary / 4th Axis</td>
+              <td>How much depth each roughing layer removes on a face. Smaller is gentler on the tool and takes longer. Around a third of the tool diameter is a safe starting point.</td>
+            </tr>
+            <tr>
+              <td><strong>Roughing Stepover</strong><br><span class="param-condition">Shown when Pass is Roughing or Both (single tool)</span></td>
+              <td>5 - 90 %</td>
+              <td>45</td>
+              <td>Rotary / 4th Axis</td>
+              <td>Distance between roughing scanlines, as a percentage of tool diameter. 45% is a good default for roughing.</td>
+            </tr>
+            <tr>
+              <td><strong>Finishing Stock</strong><br><span class="param-condition">Shown when Pass is Roughing or Both (single tool)</span></td>
+              <td>0 - 5 mm</td>
+              <td>0.3</td>
+              <td>Rotary / 4th Axis</td>
+              <td>Material left on the surface by roughing for the finishing pass to remove. 0.3mm is a good default. Too little and roughing marks show through, too much and finishing works hard.</td>
+            </tr>
+            <tr>
+              <td><strong>Roughing Direction</strong><br><span class="param-condition">Shown when Rotary Kinematics is Radial (continuous surfacing) and Pass is Roughing or Both (single tool)</span></td>
+              <td>Along the axis / Around the circumference</td>
+              <td>Along the axis</td>
+              <td>Rotary / 4th Axis</td>
+              <td>Direction the roughing scanlines run. Along the axis suits long slender parts. Around the circumference suits short stubby ones and keeps the tool engaged more evenly.</td>
+            </tr>
+          </tbody>
+        </table>
+        <h3>Finishing</h3>
+        <table>
+          <thead>
+            <tr><th scope="col">Parameter</th><th scope="col">Values</th><th scope="col">Default</th><th scope="col">Applies to</th><th scope="col">What it does</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Finishing Stepover</strong><br><span class="param-condition">Shown when Pass is Finishing or Both (single tool)</span></td>
+              <td>2 - 50 %</td>
+              <td>10</td>
+              <td>Relief / 2.5D Carve</td>
+              <td>Sideways step between finishing passes, as a percentage of tool diameter. Lower is smoother and slower.</td>
+            </tr>
+            <tr>
+              <td><strong>Raster Direction</strong><br><span class="param-condition">Shown when Pass is Finishing or Both (single tool)</span></td>
+              <td>Along X / Along Y</td>
+              <td>Along X</td>
+              <td>Relief / 2.5D Carve</td>
+              <td>Direction the passes sweep. Run them across the model's long details rather than along them.</td>
+            </tr>
+            <tr>
+              <td><strong>Cross Finishing Pass</strong><br><span class="param-condition">Shown when Pass is Finishing or Both (single tool)</span></td>
+              <td>on / off</td>
+              <td>off</td>
+              <td>Relief / 2.5D Carve</td>
+              <td>Adds a second finishing pass at 90 degrees to the first. Roughly doubles finishing time and noticeably improves curved surfaces.</td>
+            </tr>
+            <tr>
+              <td><strong>Skip Flat Floor</strong><br><span class="param-condition">Shown when Pass is Finishing or Both (single tool)</span></td>
+              <td>on / off</td>
+              <td>off</td>
+              <td>Relief / 2.5D Carve</td>
+              <td>Skips the flat floor pass. Safe when roughing already clears the floor with the same tool.</td>
+            </tr>
+            <tr>
+              <td><strong>Finishing Stepover</strong><br><span class="param-condition">Shown when Pass is Finishing or Both (single tool)</span></td>
+              <td>1 - 50 %</td>
+              <td>10</td>
+              <td>Rotary / 4th Axis</td>
+              <td>Distance between finishing passes, as a percentage of tool diameter. 10% gives a fine finish. Larger values are faster but leave visible scallops.</td>
+            </tr>
+            <tr>
+              <td><strong>Finishing Pattern</strong><br><span class="param-condition">Shown when Rotary Kinematics is Radial (continuous surfacing) and Pass is Finishing or Both (single tool)</span></td>
+              <td>Spiral (continuous helix) / Along the axis / Around (rings)</td>
+              <td>Spiral (continuous helix)</td>
+              <td>Rotary / 4th Axis</td>
+              <td>Spiral is one continuous helix with a single entry and no witness lines, and is the best default. Along the axis suits parts with axial features. Around cuts closed rings and suits parts with rotational detail.</td>
+            </tr>
+            <tr>
+              <td><strong>Raster Direction</strong><br><span class="param-condition">Shown when Rotary Kinematics is Indexed 3+1 (flat faces at fixed angles) and Pass is Finishing or Both (single tool)</span></td>
+              <td>Along the rotary axis / Across the face</td>
+              <td>Along the rotary axis</td>
+              <td>Rotary / 4th Axis</td>
+              <td>Direction the finishing lines run on each face. Along the rotary axis gives long uninterrupted passes. Across the face suits parts whose detail runs around the part rather than along it.</td>
+            </tr>
+            <tr>
+              <td><strong>Cross Finishing Pass</strong><br><span class="param-condition">Shown when Rotary Kinematics is Indexed 3+1 (flat faces at fixed angles) and Pass is Finishing or Both (single tool)</span></td>
+              <td>on / off</td>
+              <td>off</td>
+              <td>Rotary / 4th Axis</td>
+              <td>Adds a second finishing pass at 90 degrees to the first. Roughly doubles finishing time and noticeably improves the surface on curved faces.</td>
+            </tr>
+          </tbody>
+        </table>
+        <h3>Drill Strategy</h3>
+        <table>
+          <thead>
+            <tr><th scope="col">Parameter</th><th scope="col">Values</th><th scope="col">Default</th><th scope="col">Applies to</th><th scope="col">What it does</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Mill Holes</strong><br><span class="param-condition">Shown when Multi-Tool Drilling is off</span></td>
+              <td>on / off</td>
+              <td>on</td>
+              <td>Drilling</td>
+              <td>If checked, generates circular milling paths inside any drill holes larger than the tool. If unchecked, generates a simple peck/drill at the center.</td>
+            </tr>
+            <tr>
+              <td><strong>Step Over</strong><br><span class="param-condition">Shown when Multi-Tool Drilling is off and Mill Holes is on</span></td>
+              <td>10 - 90 %</td>
+              <td>50</td>
+              <td>Drilling</td>
+              <td>Percentage of the tool diameter to overlap on each concentric milling ring inside oversize holes.</td>
+            </tr>
+          </tbody>
+        </table>
+        <h3>Resolution &amp; Finish</h3>
+        <table>
+          <thead>
+            <tr><th scope="col">Parameter</th><th scope="col">Values</th><th scope="col">Default</th><th scope="col">Applies to</th><th scope="col">What it does</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Min Path Length</strong></td>
+              <td>0 - 5 mm</td>
+              <td>0</td>
+              <td>V-Carve</td>
+              <td>Drops carve chains shorter than this. Removes specks left by noisy outlines.</td>
+            </tr>
+            <tr>
+              <td><strong>Corner Threshold</strong></td>
+              <td>5 - 90 °</td>
+              <td>30</td>
+              <td>V-Carve</td>
+              <td>Separation angle below which a medial branch counts as construction and is discarded. Raise it to drop more detail on curved outlines.</td>
+            </tr>
+            <tr>
+              <td><strong>Boundary Sample Spacing</strong></td>
+              <td>0.02 - 1 mm</td>
+              <td>0.15</td>
+              <td>V-Carve</td>
+              <td>Step used to resample outlines before the medial axis is built. Lower it for very small text; it must be below the thinnest stroke width.</td>
+            </tr>
+            <tr>
+              <td><strong>Noise Threshold</strong></td>
+              <td>0 - 1 mm</td>
+              <td>0</td>
+              <td>V-Carve</td>
+              <td>Discards medial branches whose clearance changes by less than this. 0 disables it.</td>
+            </tr>
+            <tr>
+              <td><strong>Grid Cell Size</strong></td>
+              <td>0.01 - 1 mm</td>
+              <td>&mdash;</td>
+              <td>Relief / 2.5D Carve</td>
+              <td>Sampling grid pitch in mm. Leave empty to derive it from the model size and the resolution cap below.</td>
+            </tr>
+            <tr>
+              <td><strong>Auto Grid Resolution</strong></td>
+              <td>128 - 4096 cells</td>
+              <td>1024</td>
+              <td>Relief / 2.5D Carve</td>
+              <td>Cap on the derived grid's longest side. Higher captures finer detail and costs slicing time and memory.</td>
+            </tr>
+            <tr>
+              <td><strong>Path Simplification</strong><br><span class="param-condition">Shown when Pass is Finishing or Both (single tool)</span></td>
+              <td>0 - 0.1 mm</td>
+              <td>0.01</td>
+              <td>Relief / 2.5D Carve</td>
+              <td>Maximum deviation allowed when straightening finishing paths. Larger values give smaller G-code.</td>
+            </tr>
+            <tr>
+              <td><strong>Min Roughing Segment</strong><br><span class="param-condition">Shown when Pass is Roughing or Both (single tool)</span></td>
+              <td>0 - 5 mm</td>
+              <td>0.2</td>
+              <td>Relief / 2.5D Carve</td>
+              <td>Drops roughing segments shorter than this. Removes stutter without changing the cut.</td>
+            </tr>
+            <tr>
+              <td><strong>Grid Cell Size</strong></td>
+              <td>0.01 - 1 mm</td>
+              <td>&mdash;</td>
+              <td>Rotary / 4th Axis</td>
+              <td>Size of one sampling cell on the model surface. Leave empty to derive it from the resolution setting below. Setting it manually overrides that and can make generation very slow on large parts.</td>
+            </tr>
+            <tr>
+              <td><strong>Auto Grid Resolution</strong></td>
+              <td>128 - 4096 cells</td>
+              <td>1024</td>
+              <td>Rotary / 4th Axis</td>
+              <td>Sampling resolution along the longest dimension of the model, used when cell size is automatic. Higher captures finer detail and takes longer. 1024 suits most work.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
 
-            <section id="stage-machine">
-                <h2>Feeds &amp; Toolpaths</h2>
-                <h3>Feeds &amp; Speeds</h3>
-                <table>
-                    <thead>
-                        <tr><th scope="col">Parameter</th><th scope="col">Values</th><th scope="col">Default</th><th scope="col">Applies to</th><th scope="col">What it does</th></tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><strong>Feed Rate</strong></td>
-                            <td>10 - 10000 mm/min</td>
-                            <td>&mdash;</td>
-                            <td>Profile Cut, Pocket Clear, Drill Holes, Engrave, V-Carve, Relief / 2.5D Carve, Rotary / 4th Axis</td>
-                            <td>Speed at which the tool moves while cutting (mm/min or in/min).</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Plunge Rate</strong></td>
-                            <td>10 - 5000 mm/min</td>
-                            <td>&mdash;</td>
-                            <td>Profile Cut, Pocket Clear, Drill Holes, Engrave, V-Carve, Relief / 2.5D Carve, Rotary / 4th Axis</td>
-                            <td>Speed at which the tool descends into material (mm/min or in/min). Usually slower than feed rate.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Spindle Speed</strong></td>
-                            <td>1000 - 60000 RPM</td>
-                            <td>10000</td>
-                            <td>Profile Cut, Pocket Clear, Drill Holes, Engrave, V-Carve, Relief / 2.5D Carve, Rotary / 4th Axis</td>
-                            <td>Rotation speed of the spindle (RPM). Higher speeds for smaller tools.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Spindle Dwell</strong></td>
-                            <td>0 - 30 s</td>
-                            <td>1</td>
-                            <td>Profile Cut, Pocket Clear, Drill Holes, Engrave, V-Carve, Relief / 2.5D Carve, Rotary / 4th Axis</td>
-                            <td>Time in seconds to wait. Essential for high inertia spindles that need extra time to come up to speed.</td>
-                        </tr>
-                    </tbody>
-                </table>
-                <h3>Toolpath Options</h3>
-                <table>
-                    <thead>
-                        <tr><th scope="col">Parameter</th><th scope="col">Values</th><th scope="col">Default</th><th scope="col">Applies to</th><th scope="col">What it does</th></tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><strong>Optimize Toolpaths</strong><br><span class="param-condition">Machine class: router</span></td>
-                            <td>on / off</td>
-                            <td>on</td>
-                            <td>all operations</td>
-                            <td>Reorder and simplify the finished toolpath to cut travel time. Turn it off to keep the paths in exactly the order they were generated.</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </section>
+      <section id="stage-strategy">
+        <h2>Z Strategy</h2>
+        <h3>Depth &amp; Passes</h3>
+        <table>
+          <thead>
+            <tr><th scope="col">Parameter</th><th scope="col">Values</th><th scope="col">Default</th><th scope="col">Applies to</th><th scope="col">What it does</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Multi-depth Milling</strong><br><span class="param-condition">Shown when Mill Holes is on</span></td>
+              <td>on / off</td>
+              <td>on</td>
+              <td>Drilling</td>
+              <td>Mill oversize holes in several Z levels instead of one full-depth pass. Easier on small cutters.</td>
+            </tr>
+            <tr>
+              <td><strong>Depth per Pass</strong><br><span class="param-condition">Shown when Mill Holes is on and Multi-depth Milling is on</span></td>
+              <td>0.1 - 50 mm</td>
+              <td>2</td>
+              <td>Drilling</td>
+              <td>Material removed per Z level while milling an oversize hole.</td>
+            </tr>
+            <tr>
+              <td><strong>Entry Method</strong><br><span class="param-condition">Shown when Mill Holes is on</span></td>
+              <td>Helix (Spiral entry) / Plunge (Vertical)</td>
+              <td>Helix (Spiral entry)</td>
+              <td>Drilling</td>
+              <td>How the cutter enters an oversize hole. Helix spirals down and loads the tool gently; Plunge drops straight in and needs a center-cutting bit.</td>
+            </tr>
+            <tr>
+              <td><strong>Cut Depth</strong></td>
+              <td>0.1 - 100 mm</td>
+              <td>18</td>
+              <td>Profile Cut, Pocket Clear, Drilling, Engrave</td>
+              <td>Final target depth for all cuts, relative to the material surface (Z=0). Should be a negative value (e.g., -0.05mm).</td>
+            </tr>
+            <tr>
+              <td><strong>Multi-depth Cutting</strong></td>
+              <td>on / off</td>
+              <td>on</td>
+              <td>Profile Cut, Pocket Clear, Engrave</td>
+              <td>Enable multiple passes at different depths for deep cuts. Reduces tool stress.</td>
+            </tr>
+            <tr>
+              <td><strong>Depth per Pass</strong><br><span class="param-condition">Shown when Multi-depth Cutting is on</span></td>
+              <td>0.1 - 50 mm</td>
+              <td>3</td>
+              <td>Profile Cut, Pocket Clear, Engrave</td>
+              <td>Incremental depth of each pass when using multi-depth cutting. Smaller = gentler on tool.</td>
+            </tr>
+            <tr>
+              <td><strong>Entry Type</strong></td>
+              <td>Plunge (Vertical)</td>
+              <td>Plunge (Vertical)</td>
+              <td>Profile Cut, Pocket Clear</td>
+              <td>How the tool enters the material. Plunge: straight down. Ramp: diagonal. Helix: spiral down.</td>
+            </tr>
+            <tr>
+              <td><strong>Finishing Pass</strong></td>
+              <td>on / off</td>
+              <td>off</td>
+              <td>Pocket Clear</td>
+              <td>Adds a final light pass at full depth with reduced stepover for a smoother pocket floor.</td>
+            </tr>
+            <tr>
+              <td><strong>Finishing Step Over</strong><br><span class="param-condition">Shown when Finishing Pass is on</span></td>
+              <td>1 - 50 %</td>
+              <td>10</td>
+              <td>Pocket Clear</td>
+              <td>Stepover percentage for the finishing pass. Lower values give a better surface finish.</td>
+            </tr>
+          </tbody>
+        </table>
+        <h3>Holding Tabs</h3>
+        <table>
+          <thead>
+            <tr><th scope="col">Parameter</th><th scope="col">Values</th><th scope="col">Default</th><th scope="col">Applies to</th><th scope="col">What it does</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Number of Tabs</strong></td>
+              <td>0 - 20</td>
+              <td>4</td>
+              <td>Profile Cut</td>
+              <td>Number of small tabs to leave uncut, holding the board in place.</td>
+            </tr>
+            <tr>
+              <td><strong>Tab Width</strong></td>
+              <td>1 - 20 mm</td>
+              <td>6</td>
+              <td>Profile Cut</td>
+              <td>The length of each holding tab in mm.</td>
+            </tr>
+            <tr>
+              <td><strong>Tab Height</strong></td>
+              <td>0.5 - 10 mm</td>
+              <td>3</td>
+              <td>Profile Cut</td>
+              <td>The thickness of the tab. A value of -0.5mm on a -1.8mm cut will leave a 0.5mm thick tab.</td>
+            </tr>
+          </tbody>
+        </table>
+        <h3>Drill Strategy</h3>
+        <table>
+          <thead>
+            <tr><th scope="col">Parameter</th><th scope="col">Values</th><th scope="col">Default</th><th scope="col">Applies to</th><th scope="col">What it does</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Peck Depth</strong></td>
+              <td>0 - 50 mm</td>
+              <td>2</td>
+              <td>Drilling</td>
+              <td>Depth of each peck before the bit retracts to clear chips. With canned cycles it is the Q word of G83 and G73; on a post without them EasyCAM writes the peck loop itself. 0, or Canned Cycle None, drills in one plunge. A Drill Tooling row can set its own.</td>
+            </tr>
+            <tr>
+              <td><strong>Dwell Time</strong></td>
+              <td>0 - 10 s</td>
+              <td>0</td>
+              <td>Drilling</td>
+              <td>Pause duration at bottom of hole (seconds). Allows chips to clear and reduces burrs.</td>
+            </tr>
+            <tr>
+              <td><strong>Retract Height</strong></td>
+              <td>0.1 - 20 mm</td>
+              <td>2</td>
+              <td>Drilling</td>
+              <td>Height to retract to between holes. Should clear board but minimize travel time.</td>
+            </tr>
+            <tr>
+              <td><strong>Canned Cycle</strong></td>
+              <td>None (G0 + G1) / G81 - Simple Drill / G82 - Dwell / G83 - Peck (Full Retract) / G73 - Peck (Chip Break)</td>
+              <td>None (G0 + G1)</td>
+              <td>Drilling</td>
+              <td>Pre-programmed drill cycle. G83 (peck drilling) retracts periodically to clear chips.</td>
+            </tr>
+            <tr>
+              <td><strong>Spot Drill</strong></td>
+              <td>on / off</td>
+              <td>off</td>
+              <td>Drilling</td>
+              <td>Plunge a shallow pilot hole at each location before the main drilling pass. Improves accuracy on curved or uneven surfaces.</td>
+            </tr>
+            <tr>
+              <td><strong>Spot Depth</strong><br><span class="param-condition">Shown when Spot Drill is on</span></td>
+              <td>0.1 - 5 mm</td>
+              <td>1</td>
+              <td>Drilling</td>
+              <td>Depth of the spot drill pilot hole.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="stage-machine">
+        <h2>Feeds &amp; Toolpaths</h2>
+        <h3>Feeds &amp; Speeds</h3>
+        <table>
+          <thead>
+            <tr><th scope="col">Parameter</th><th scope="col">Values</th><th scope="col">Default</th><th scope="col">Applies to</th><th scope="col">What it does</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Feed Rate</strong></td>
+              <td>10 - 10000 mm/min</td>
+              <td>&mdash;</td>
+              <td>Profile Cut, Pocket Clear, Drilling, Engrave, V-Carve, Relief / 2.5D Carve, Rotary / 4th Axis</td>
+              <td>Speed at which the tool moves while cutting (mm/min or in/min).</td>
+            </tr>
+            <tr>
+              <td><strong>Plunge Rate</strong></td>
+              <td>10 - 5000 mm/min</td>
+              <td>&mdash;</td>
+              <td>Profile Cut, Pocket Clear, Drilling, Engrave, V-Carve, Relief / 2.5D Carve, Rotary / 4th Axis</td>
+              <td>Speed at which the tool descends into material (mm/min or in/min). Usually slower than feed rate.</td>
+            </tr>
+            <tr>
+              <td><strong>Spindle Speed</strong></td>
+              <td>1000 - 60000 RPM</td>
+              <td>10000</td>
+              <td>Profile Cut, Pocket Clear, Drilling, Engrave, V-Carve, Relief / 2.5D Carve, Rotary / 4th Axis</td>
+              <td>Rotation speed of the spindle (RPM). Higher speeds for smaller tools.</td>
+            </tr>
+            <tr>
+              <td><strong>Spindle Dwell</strong></td>
+              <td>0 - 30 s</td>
+              <td>1</td>
+              <td>Profile Cut, Pocket Clear, Drilling, Engrave, V-Carve, Relief / 2.5D Carve, Rotary / 4th Axis</td>
+              <td>Time in seconds to wait. Essential for high inertia spindles that need extra time to come up to speed.</td>
+            </tr>
+          </tbody>
+        </table>
+        <h3>Toolpath Options</h3>
+        <table>
+          <thead>
+            <tr><th scope="col">Parameter</th><th scope="col">Values</th><th scope="col">Default</th><th scope="col">Applies to</th><th scope="col">What it does</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Optimize Toolpaths</strong><br><span class="param-condition">Machine class: router</span></td>
+              <td>on / off</td>
+              <td>on</td>
+              <td>all operations</td>
+              <td>Reorder and simplify the finished toolpath to cut travel time. Turn it off to keep the paths in exactly the order they were generated.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
 
 <!-- PARAMS:END -->
 
-        </main>
-        <!-- Footer -->
-        <footer class="doc-footer" aria-label="Footer">
-            <p>
-                <a href="#doc-content" draggable="false">Back to Top</a> |
-                <a href="https://github.com/RicardoJCMarques/EasyCAM5000" target="_blank" draggable="false">GitHub</a> |
-                <a href="/#support" draggable="false">Support Development</a> |
-                <a href="../../LICENSE" target="_blank" draggable="false">AGPLv3 Licensed</a> |
-                <a href="https://www.eltryus.design/" draggable="false">by ELTRYUS</a>
-            </p>
-        </footer>
-    </div>
-</body>
+    </main>
+    <!-- Footer -->
+    <footer class="doc-footer" aria-label="Footer">
+      <p>
+        <a href="#doc-content" draggable="false">Back to Top</a> |
+        <a href="https://github.com/RicardoJCMarques/EasyCAM5000" target="_blank" draggable="false">GitHub</a> |
+        <a href="/#support" draggable="false">Support Development</a> |
+        <a href="../../LICENSE" target="_blank" draggable="false">AGPLv3 Licensed</a> |
+        <a href="https://www.eltryus.design/" draggable="false">by ELTRYUS</a>
+      </p>
+    </footer>
+  </div>
 
-<!-- Scripts -->
-<script defer src="../../themes/theme-loader.js"></script>
-<script defer src="../../images/figures.js"></script>
-<script>
-    document.addEventListener('DOMContentLoaded', () => {
+  <!-- Scripts -->
+  <script defer src="../../themes/theme-loader.js"></script>
+  <script defer src="../../images/figures.js"></script>
+  <script>
+      document.addEventListener('DOMContentLoaded', () => {
         // Load the SVG Sprite
         fetch('../../images/icons/sprite.svg')
-            .then(response => {
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                return response.text();
-            })
-            .then(svgText => {
-                const div = document.createElement('div');
-                div.innerHTML = svgText;
-                const svg = div.querySelector('svg');
-                if (svg) {
-                    svg.setAttribute('aria-hidden', 'true');
-                    svg.style.cssText = 'position: absolute; width: 0; height: 0; visibility: hidden;';
-                    document.body.insertBefore(svg, document.body.firstChild);
-                }
-            })
-            .catch(err => console.warn('Failed to load icon sprite:', err));
-
-        // Theme toggle
+          .then(response => {
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            return response.text();
+          })
+          .then(svgText => {
+            const div = document.createElement('div');
+            div.innerHTML = svgText;
+            const svg = div.querySelector('svg');
+            if (svg) {
+              svg.setAttribute('aria-hidden', 'true');
+              svg.style.cssText = 'position: absolute; width: 0; height: 0; visibility: hidden;';
+              document.body.insertBefore(svg, document.body.firstChild);
+            }
+          })
+          .catch(err => console.warn('Failed to load icon sprite:', err));
+        // Theme toggle. Every theme but the default is a file, slow to
+        // arrive off localhost: the button waits for it, and the icon
+        // follows each change, including a saved theme that lands after
+        // this runs.
         const themeBtn = document.getElementById('theme-toggle');
         if (themeBtn && window.ThemeLoader) {
-            const useEl = themeBtn.querySelector('use');
-            const initialTheme = document.documentElement.getAttribute('data-theme') || 'dark';
-
-            if (useEl) useEl.setAttribute('href', initialTheme === 'dark' ? '#icon-sun' : '#icon-moon');
-
-            themeBtn.addEventListener('click', async () => {
-                const theme = await window.ThemeLoader.toggleTheme();
-                if (useEl) useEl.setAttribute('href', theme === 'dark' ? '#icon-sun' : '#icon-moon');
-            });
+          const useEl = themeBtn.querySelector('use');
+          const syncIcon = () => useEl?.setAttribute('href', document.documentElement.getAttribute('data-theme-base') === 'light' ? '#icon-moon' : '#icon-sun');
+          window.addEventListener('themechange', syncIcon);
+          syncIcon();
+          themeBtn.addEventListener('click', async () => {
+            themeBtn.disabled = true;
+            try {
+              await window.ThemeLoader.toggleTheme();
+            } catch (error) {
+              console.error('Theme toggle failed:', error);
+            } finally {
+              themeBtn.disabled = false;
+            }
+          });
         }
-
         // Mobile menu toggle
         const menuBtn = document.querySelector('.doc-menu-toggle');
         const nav = document.querySelector('.doc-nav');
         if (menuBtn && nav) {
-            const useEl = menuBtn.querySelector('use');
-            menuBtn.addEventListener('click', () => {
-                const isExpanded = menuBtn.getAttribute('aria-expanded') === 'true';
-                menuBtn.setAttribute('aria-expanded', !isExpanded);
-                nav.classList.toggle('is-open');
-
-                if (useEl) useEl.setAttribute('href', !isExpanded ? '#icon-close' : '#icon-menu');
-            });
+          const useEl = menuBtn.querySelector('use');
+          menuBtn.addEventListener('click', () => {
+            const isExpanded = menuBtn.getAttribute('aria-expanded') === 'true';
+            menuBtn.setAttribute('aria-expanded', !isExpanded);
+            nav.classList.toggle('is-open');
+            if (useEl) useEl.setAttribute('href', !isExpanded ? '#icon-close' : '#icon-menu');
+          });
         }
-    });
-</script>
+      });
+  </script>
+</body>
 </html>

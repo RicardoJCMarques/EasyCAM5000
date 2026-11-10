@@ -1,0 +1,71 @@
+{
+  "_projectInfo": {
+    "file": "export/profiles/xtoolstudio.json",
+    "description": "xTool Studio laser profile",
+    "author": "Eltryus - Ricardo Marques",
+    "see": "https://github.com/RicardoJCMarques/EasyCAM5000",
+    "license": "AGPL-3.0-or-later",
+    "copyright": "Copyright (C) 2025-2026 Eltryus - Ricardo Marques"
+  },
+  "meta": {
+    "kind": "laserProfile",
+    "app": "EasyTrace5000"
+  },
+  "id": "xtoolstudio",
+  "label": "xTool Studio",
+  "maturity": "less-experimental",
+  "palette": [
+    "#EB3DBA", "#FE0002", "#FF7F56", "#E1C000", "#C29900", "#96D71D",
+    "#00C715", "#00897B", "#2366FF", "#00BEFE", "#8170EF", "#A958FF",
+    "#582FA8", "#D9D9D9", "#848B96", "#000000"
+  ],
+  "paletteLumping": true,
+  "parameters": [
+    {
+      "name": "svgGrouping",
+      "type": "select",
+      "category": "laser",
+      "default": "color",
+      "options": [
+        { "value": "none" },
+        { "value": "layer" },
+        { "value": "group" },
+        { "value": "color" }
+      ]
+    },
+    {
+      "name": "reverseCutOrder",
+      "type": "checkbox",
+      "category": "laser",
+      "default": true
+    },
+    {
+      "name": "heatManagement",
+      "type": "select",
+      "category": "laser",
+      "default": "standard",
+      "options": [
+        { "value": "off" },
+        { "value": "standard" }
+      ]
+    },
+    {
+      "name": "colorPerPass",
+      "type": "checkbox",
+      "category": "laser",
+      "default": true
+    },
+    {
+      "name": "layerColors",
+      "type": "colorgrid",
+      "category": "laser",
+      "default": {
+        "isolation": "#FE0002",
+        "drill": "#2366FF",
+        "clearing": "#FE0002",
+        "cutout": "#2366FF",
+        "stencil": "#582FA8"
+      }
+    }
+  ]
+}

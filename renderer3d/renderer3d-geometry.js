@@ -20,198 +20,188 @@ const SURFACE_Z_EPSILON = 0.001;
 // Tessellation
 
 function emitAnnulus(cx, cy, rInner, rOuter, z, out) {
-    if (!(rOuter > 0)) return;
-    const segs = Math.max(12, arcSegmentCount(rOuter, 2 * Math.PI));
-    for (let s = 0; s < segs; s++) {
-        const a0 = (s / segs) * Math.PI * 2;
-        const a1 = ((s + 1) / segs) * Math.PI * 2;
-        const c0 = Math.cos(a0), s0 = Math.sin(a0);
-        const c1 = Math.cos(a1), s1 = Math.sin(a1);
-        rInner <= 0
-            ? out.push(cx, cy, z, cx + rOuter * c0, cy + rOuter * s0, z, cx + rOuter * c1, cy + rOuter * s1, z)
-            : out.push(
-                  cx + rInner * c0, cy + rInner * s0, z,
-                  cx + rOuter * c0, cy + rOuter * s0, z,
-                  cx + rOuter * c1, cy + rOuter * s1, z,
-                  cx + rInner * c0, cy + rInner * s0, z,
-                  cx + rOuter * c1, cy + rOuter * s1, z,
-                  cx + rInner * c1, cy + rInner * s1, z
-              );
-    }
+  if (!(rOuter > 0)) return;
+  const segs = Math.max(12, arcSegmentCount(rOuter, 2 * Math.PI));
+  for (let s = 0; s < segs; s++) {
+    const a0 = (s / segs) * Math.PI * 2;
+    const a1 = ((s + 1) / segs) * Math.PI * 2;
+    const c0 = Math.cos(a0), s0 = Math.sin(a0);
+    const c1 = Math.cos(a1), s1 = Math.sin(a1);
+    rInner <= 0
+      ? out.push(cx, cy, z, cx + rOuter * c0, cy + rOuter * s0, z, cx + rOuter * c1, cy + rOuter * s1, z)
+      : out.push(
+          cx + rInner * c0, cy + rInner * s0, z,
+          cx + rOuter * c0, cy + rOuter * s0, z,
+          cx + rOuter * c1, cy + rOuter * s1, z,
+          cx + rInner * c0, cy + rInner * s0, z,
+          cx + rOuter * c1, cy + rOuter * s1, z,
+          cx + rInner * c1, cy + rInner * s1, z
+        );
+  }
 }
 
 function emitRibbon(pts, r, z, out, closed) {
-    if (r > 0 && !(pts.length < 2)) {
-        for (let i = 0; i < pts.length - 1; i++) {
-            const a = pts[i], b = pts[i + 1];
-            const dx = b.x - a.x, dy = b.y - a.y;
-            const len = Math.hypot(dx, dy);
-            if (len < 1e-9) continue;
-            const nx = (-dy / len) * r, ny = (dx / len) * r;
-            out.push(
-                a.x + nx, a.y + ny, z,
-                b.x + nx, b.y + ny, z,
-                b.x - nx, b.y - ny, z,
-                a.x + nx, a.y + ny, z,
-                b.x - nx, b.y - ny, z,
-                a.x - nx, a.y - ny, z
-            );
-        }
-        for (const p of pts) emitAnnulus(p.x, p.y, 0, r, z, out);
-        if (closed && pts.length > 2) {
-            const first = pts[0];
-            emitAnnulus(first.x, first.y, 0, r, z, out);
-        }
+  if (r > 0 && !(pts.length < 2)) {
+    for (let i = 0; i < pts.length - 1; i++) {
+      const a = pts[i], b = pts[i + 1];
+      const dx = b.x - a.x, dy = b.y - a.y;
+      const len = Math.hypot(dx, dy);
+      if (len < 1e-9) continue;
+      const nx = (-dy / len) * r, ny = (dx / len) * r;
+      out.push(
+        a.x + nx, a.y + ny, z,
+        b.x + nx, b.y + ny, z,
+        b.x - nx, b.y - ny, z,
+        a.x + nx, a.y + ny, z,
+        b.x - nx, b.y - ny, z,
+        a.x - nx, a.y - ny, z
+      );
     }
+    for (const p of pts) emitAnnulus(p.x, p.y, 0, r, z, out);
+    if (closed && pts.length > 2) {
+      const first = pts[0];
+      emitAnnulus(first.x, first.y, 0, r, z, out);
+    }
+  }
 }
 
 function emitCrosshair(cx, cy, markSize, z, out) {
-    out.push(
-        cx - markSize, cy, z,
-        cx + markSize, cy, z,
-        cx, cy - markSize, z,
-        cx, cy + markSize, z
-    );
+  out.push(
+    cx - markSize, cy, z,
+    cx + markSize, cy, z,
+    cx, cy - markSize, z,
+    cx, cy + markSize, z
+  );
 }
 
 function emitCircleLines(cx, cy, radius, z, out) {
-    if (!(radius > 0)) return;
-    const segs = Math.max(16, arcSegmentCount(radius, 2 * Math.PI));
-    for (let s = 0; s < segs; s++) {
-        const a0 = s / segs * Math.PI * 2;
-        const a1 = (s + 1) / segs * Math.PI * 2;
-        out.push(
-            cx + radius * Math.cos(a0), cy + radius * Math.sin(a0), z,
-            cx + radius * Math.cos(a1), cy + radius * Math.sin(a1), z
-        );
-    }
+  if (!(radius > 0)) return;
+  const segs = Math.max(16, arcSegmentCount(radius, 2 * Math.PI));
+  for (let s = 0; s < segs; s++) {
+    const a0 = s / segs * Math.PI * 2;
+    const a1 = (s + 1) / segs * Math.PI * 2;
+    out.push(
+      cx + radius * Math.cos(a0), cy + radius * Math.sin(a0), z,
+      cx + radius * Math.cos(a1), cy + radius * Math.sin(a1), z
+    );
+  }
 }
 
 function emitObroundOutline(p1, p2, radius, z, out) {
-    const dx = p2.x - p1.x;
-    const dy = p2.y - p1.y;
-    const angle = Math.atan2(dy, dx);
-    const segs = Math.max(8, arcSegmentCount(radius, Math.PI));
+  const dx = p2.x - p1.x;
+  const dy = p2.y - p1.y;
+  const angle = Math.atan2(dy, dx);
+  const segs = Math.max(8, arcSegmentCount(radius, Math.PI));
 
-    // Cap at p2 (angle - PI/2 to angle + PI/2)
-    for (let s = 0; s < segs; s++) {
-        const a0 = angle - Math.PI / 2 + s / segs * Math.PI;
-        const a1 = angle - Math.PI / 2 + (s + 1) / segs * Math.PI;
-        out.push(
-            p2.x + radius * Math.cos(a0), p2.y + radius * Math.sin(a0), z,
-            p2.x + radius * Math.cos(a1), p2.y + radius * Math.sin(a1), z
-        );
-    }
+  // Cap at p2 (angle - PI/2 to angle + PI/2)
+  for (let s = 0; s < segs; s++) {
+    const a0 = angle - Math.PI / 2 + s / segs * Math.PI;
+    const a1 = angle - Math.PI / 2 + (s + 1) / segs * Math.PI;
+    out.push(
+      p2.x + radius * Math.cos(a0), p2.y + radius * Math.sin(a0), z,
+      p2.x + radius * Math.cos(a1), p2.y + radius * Math.sin(a1), z
+    );
+  }
 
-    // Straight side 1
-    const p2Top = { x: p2.x + radius * Math.cos(angle + Math.PI / 2), y: p2.y + radius * Math.sin(angle + Math.PI / 2) };
-    const p1Top = { x: p1.x + radius * Math.cos(angle + Math.PI / 2), y: p1.y + radius * Math.sin(angle + Math.PI / 2) };
-    out.push(p2Top.x, p2Top.y, z, p1Top.x, p1Top.y, z);
+  // Straight side 1
+  const p2Top = { x: p2.x + radius * Math.cos(angle + Math.PI / 2), y: p2.y + radius * Math.sin(angle + Math.PI / 2) };
+  const p1Top = { x: p1.x + radius * Math.cos(angle + Math.PI / 2), y: p1.y + radius * Math.sin(angle + Math.PI / 2) };
+  out.push(p2Top.x, p2Top.y, z, p1Top.x, p1Top.y, z);
 
-    // Cap at p1 (angle + PI/2 to angle + 3*PI/2)
-    for (let s = 0; s < segs; s++) {
-        const a0 = angle + Math.PI / 2 + s / segs * Math.PI;
-        const a1 = angle + Math.PI / 2 + (s + 1) / segs * Math.PI;
-        out.push(
-            p1.x + radius * Math.cos(a0), p1.y + radius * Math.sin(a0), z,
-            p1.x + radius * Math.cos(a1), p1.y + radius * Math.sin(a1), z
-        );
-    }
+  // Cap at p1 (angle + PI/2 to angle + 3*PI/2)
+  for (let s = 0; s < segs; s++) {
+    const a0 = angle + Math.PI / 2 + s / segs * Math.PI;
+    const a1 = angle + Math.PI / 2 + (s + 1) / segs * Math.PI;
+    out.push(
+      p1.x + radius * Math.cos(a0), p1.y + radius * Math.sin(a0), z,
+      p1.x + radius * Math.cos(a1), p1.y + radius * Math.sin(a1), z
+    );
+  }
 
-    // Straight side 2
-    const p1Bot = { x: p1.x + radius * Math.cos(angle - Math.PI / 2), y: p1.y + radius * Math.sin(angle - Math.PI / 2) };
-    const p2Bot = { x: p2.x + radius * Math.cos(angle - Math.PI / 2), y: p2.y + radius * Math.sin(angle - Math.PI / 2) };
-    out.push(p1Bot.x, p1Bot.y, z, p2Bot.x, p2Bot.y, z);
+  // Straight side 2
+  const p1Bot = { x: p1.x + radius * Math.cos(angle - Math.PI / 2), y: p1.y + radius * Math.sin(angle - Math.PI / 2) };
+  const p2Bot = { x: p2.x + radius * Math.cos(angle - Math.PI / 2), y: p2.y + radius * Math.sin(angle - Math.PI / 2) };
+  out.push(p1Bot.x, p1Bot.y, z, p2Bot.x, p2Bot.y, z);
 }
 
 function isHoleInOuter(holePts, outerPts) {
-    // Fast AABB bounding box prefilter
-    let hMinX = Infinity, hMaxX = -Infinity, hMinY = Infinity, hMaxY = -Infinity;
-    for (let i = 0; i < holePts.length; i++) {
-        const p = holePts[i];
-        if (p.x < hMinX) hMinX = p.x;
-        if (p.x > hMaxX) hMaxX = p.x;
-        if (p.y < hMinY) hMinY = p.y;
-        if (p.y > hMaxY) hMaxY = p.y;
-    }
+  // Fast AABB bounding box prefilter
+  let hMinX = Infinity, hMaxX = -Infinity, hMinY = Infinity, hMaxY = -Infinity;
+  for (let i = 0; i < holePts.length; i++) {
+    const p = holePts[i];
+    if (p.x < hMinX) hMinX = p.x;
+    if (p.x > hMaxX) hMaxX = p.x;
+    if (p.y < hMinY) hMinY = p.y;
+    if (p.y > hMaxY) hMaxY = p.y;
+  }
 
-    let oMinX = Infinity, oMaxX = -Infinity, oMinY = Infinity, oMaxY = -Infinity;
-    for (let i = 0; i < outerPts.length; i++) {
-        const p = outerPts[i];
-        if (p.x < oMinX) oMinX = p.x;
-        if (p.x > oMaxX) oMaxX = p.x;
-        if (p.y < oMinY) oMinY = p.y;
-        if (p.y > oMaxY) oMaxY = p.y;
-    }
+  let oMinX = Infinity, oMaxX = -Infinity, oMinY = Infinity, oMaxY = -Infinity;
+  for (let i = 0; i < outerPts.length; i++) {
+    const p = outerPts[i];
+    if (p.x < oMinX) oMinX = p.x;
+    if (p.x > oMaxX) oMaxX = p.x;
+    if (p.y < oMinY) oMinY = p.y;
+    if (p.y > oMaxY) oMaxY = p.y;
+  }
 
-    if (hMinX < oMinX - 1e-4 || hMaxX > oMaxX + 1e-4 || hMinY < oMinY - 1e-4 || hMaxY > oMaxY + 1e-4) {
-        return false;
-    }
+  if (hMinX < oMinX - 1e-4 || hMaxX > oMaxX + 1e-4 || hMinY < oMinY - 1e-4 || hMaxY > oMaxY + 1e-4) return false;
 
-    // Multi-sample point testing ensures concave bends and aligned vertices resolve correctly
-    const testIndices = [0, Math.floor(holePts.length / 3), Math.floor((2 * holePts.length) / 3)];
-    for (const idx of testIndices) {
-        if (window.GeometryUtils.pointInPolygon(holePts[idx], outerPts)) return true;
-    }
-    return false;
+  // Multi-sample point testing ensures concave bends and aligned vertices resolve correctly
+  const testIndices = [0, Math.floor(holePts.length / 3), Math.floor((2 * holePts.length) / 3)];
+  for (const idx of testIndices) {
+    if (window.GeometryUtils.pointInPolygon(holePts[idx], outerPts)) return true;
+  }
+  return false;
 }
 
 function stripClosingDuplicate(pts) {
-    if (pts.length > 2) {
-        const first = pts[0];
-        const last = pts[pts.length - 1];
-        if (Math.hypot(first.x - last.x, first.y - last.y) < 1e-6) {
-            return pts.slice(0, -1);
-        }
-    }
-    return pts;
+  if (pts.length > 2) {
+    const first = pts[0];
+    const last = pts[pts.length - 1];
+    if (Math.hypot(first.x - last.x, first.y - last.y) < 1e-6) return pts.slice(0, -1);
+  }
+  return pts;
 }
 
 function emitFill(loops, z, out) {
-    if (0 === loops.length || loops[0].length < 3) return;
-    const toV = pts => stripClosingDuplicate(pts).map(p => new THREE.Vector2(p.x, p.y));
+  if (0 === loops.length || loops[0].length < 3) return;
+  const toV = pts => stripClosingDuplicate(pts).map(p => new THREE.Vector2(p.x, p.y));
 
-    let outer = toV(loops[0]);
-    if (outer.length < 3) return;
+  let outer = toV(loops[0]);
+  if (outer.length < 3) return;
 
-    let holes = loops.slice(1).map(toV).filter(l => l.length >= 3);
+  let holes = loops.slice(1).map(toV).filter(l => l.length >= 3);
 
-    // Earcut requires outer ring to be Counter-Clockwise, and holes to be Clockwise.
-    if (THREE.ShapeUtils.isClockWise(outer)) {
-        outer.reverse();
-    }
-    for (let i = 0; i < holes.length; i++) {
-        if (!THREE.ShapeUtils.isClockWise(holes[i])) {
-            holes[i].reverse();
-        }
-    }
+  // Earcut requires outer ring to be Counter-Clockwise, and holes to be Clockwise.
+  if (THREE.ShapeUtils.isClockWise(outer)) outer.reverse();
+  for (let i = 0; i < holes.length; i++) {
+    if (!THREE.ShapeUtils.isClockWise(holes[i])) holes[i].reverse();
+  }
 
-    let faces;
-    try {
-        faces = THREE.ShapeUtils.triangulateShape(outer, holes);
-    } catch {
-        return;
-    }
+  let faces;
+  try {
+    faces = THREE.ShapeUtils.triangulateShape(outer, holes);
+  } catch {
+    return;
+  }
 
-    const all = outer.concat(...holes);
-    // Non-finite input points would poison the batch's bounding volumes;
-    // drop those triangles.
-    for (const [i0, i1, i2] of faces) {
-        const v0 = all[i0], v1 = all[i1], v2 = all[i2];
-        if (Number.isFinite(v0.x + v0.y + v1.x + v1.y + v2.x + v2.y)) {
-            out.push(v0.x, v0.y, z, v1.x, v1.y, z, v2.x, v2.y, z);
-        }
-    }
+  const all = outer.concat(...holes);
+  // Non-finite input points would poison the batch's bounding volumes;
+  // drop those triangles.
+  for (const [i0, i1, i2] of faces) {
+    const v0 = all[i0], v1 = all[i1], v2 = all[i2];
+    if (Number.isFinite(v0.x + v0.y + v1.x + v1.y + v2.x + v2.y)) out.push(v0.x, v0.y, z, v1.x, v1.y, z, v2.x, v2.y, z);
+  }
 }
 
 function sampleArc(center, radius, a0, sweep, skipFirst) {
-    const segs = arcSegmentCount(radius, sweep);
-    const pts = [];
-    for (let s = skipFirst ? 1 : 0; s <= segs; s++) {
-        const a = a0 + (sweep * s) / segs;
-        pts.push({ x: center.x + radius * Math.cos(a), y: center.y + radius * Math.sin(a) });
-    }
-    return pts;
+  const segs = arcSegmentCount(radius, sweep);
+  const pts = [];
+  for (let s = skipFirst ? 1 : 0; s <= segs; s++) {
+    const a = a0 + (sweep * s) / segs;
+    pts.push({ x: center.x + radius * Math.cos(a), y: center.y + radius * Math.sin(a) });
+  }
+  return pts;
 }
 
 /** Y-up sweep normalization: clockwise = decreasing angle. Matches the
@@ -219,14 +209,14 @@ function sampleArc(center, radius, a0, sweep, skipFirst) {
  *  canvas transform. a0 === a1 resolves to a full circle.
  */
 function arcSweep(a0, a1, clockwise) {
-    let sweep = a1 - a0;
-    clockwise ? sweep >= 0 && (sweep -= 2 * Math.PI) : sweep <= 0 && (sweep += 2 * Math.PI);
-    return sweep;
+  let sweep = a1 - a0;
+  clockwise ? sweep >= 0 && (sweep -= 2 * Math.PI) : sweep <= 0 && (sweep += 2 * Math.PI);
+  return sweep;
 }
 
 function arcPoints(center, radius, a0, a1, clockwise, fullCircle) {
-    const sweep = fullCircle ? 2 * Math.PI : arcSweep(a0, a1, clockwise);
-    return sampleArc(center, radius, a0, sweep, false);
+  const sweep = fullCircle ? 2 * Math.PI : arcSweep(a0, a1, clockwise);
+  return sampleArc(center, radius, a0, sweep, false);
 }
 
 /**
@@ -237,471 +227,469 @@ function arcPoints(center, radius, a0, a1, clockwise, fullCircle) {
  * and the degenerate offset-circle contour (ONE point + one 2π arc).
  */
 function contourToPoints(contour) {
-    const pts = contour.points || [];
-    const arcs = contour.arcSegments;
-    if (!arcs || 0 === arcs.length || 0 === pts.length) return pts;
-    const sorted = arcs.slice().sort((a, b) => a.startIndex - b.startIndex);
-    const out = [pts[0]];
-    let cur = 0;
-    for (const arc of sorted) {
-        for (let i = cur + 1; i <= arc.startIndex && i < pts.length; i++) out.push(pts[i]);
-        const sweep = void 0 !== arc.sweepAngle ? arc.sweepAngle : arcSweep(arc.startAngle, arc.endAngle, arc.clockwise);
-        // skipFirst: out already ends at (≈) the arc's start point
-        out.push(...sampleArc(arc.center, arc.radius, arc.startAngle, sweep, true));
-        cur = arc.endIndex;
+  const pts = contour.points || [];
+  const arcs = contour.arcSegments;
+  if (!arcs || 0 === arcs.length || 0 === pts.length) return pts;
+  const sorted = arcs.slice().sort((a, b) => a.startIndex - b.startIndex);
+  const out = [pts[0]];
+  let cur = 0;
+  for (const arc of sorted) {
+    for (let i = cur + 1; i <= arc.startIndex && i < pts.length; i++) out.push(pts[i]);
+    const sweep = void 0 !== arc.sweepAngle ? arc.sweepAngle : arcSweep(arc.startAngle, arc.endAngle, arc.clockwise);
+    // skipFirst: out already ends at (≈) the arc's start point
+    out.push(...sampleArc(arc.center, arc.radius, arc.startAngle, sweep, true));
+    cur = arc.endIndex;
+  }
+  // Tail guard mirrors the 2D painter: a lone full-circle arc has
+  // endIndex 0 - re-walking the points would double the ring.
+  if (0 !== cur || 0 === sorted.length) {
+    for (let i = cur + 1; i < pts.length; i++) {
+      out.push(pts[i]);
     }
-    // Tail guard mirrors the 2D painter: a lone full-circle arc has
-    // endIndex 0 - re-walking the points would double the ring.
-    if (0 !== cur || 0 === sorted.length) {
-        for (let i = cur + 1; i < pts.length; i++) out.push(pts[i]);
-    }
-    return out;
+  }
+  return out;
 }
 
 function obroundPoints(prim) {
-    const { x: x, y: y } = prim.position;
-    const w = prim.width, h = prim.height;
-    const r = Math.min(w, h) / 2;
-    let pts;
-    if (w >= h) {
-        // Horizontal stadium: right cap CCW (-90°→+90°), left cap (+90°→+270°)
-        const cy = y + r;
-        pts = [
-            ...arcPoints({ x: x + w - r, y: cy }, r, -Math.PI / 2, Math.PI / 2, false, false),
-            ...arcPoints({ x: x + r, y: cy }, r, Math.PI / 2, (3 * Math.PI) / 2, false, false)
-        ];
-    } else {
-        // Vertical stadium: top cap (0°→180°), bottom cap (180°→360°)
-        const cx = x + r;
-        pts = [
-            ...arcPoints({ x: cx, y: y + h - r }, r, 0, Math.PI, false, false),
-            ...arcPoints({ x: cx, y: y + r }, r, Math.PI, 2 * Math.PI, false, false)
-        ];
-    }
-    return pts;
+  const { x: x, y: y } = prim.position;
+  const w = prim.width, h = prim.height;
+  const r = Math.min(w, h) / 2;
+  let pts;
+  if (w >= h) {
+    // Horizontal stadium: right cap CCW (-90°→+90°), left cap (+90°→+270°)
+    const cy = y + r;
+    pts = [
+      ...arcPoints({ x: x + w - r, y: cy }, r, -Math.PI / 2, Math.PI / 2, false, false),
+      ...arcPoints({ x: x + r, y: cy }, r, Math.PI / 2, (3 * Math.PI) / 2, false, false)
+    ];
+  } else {
+    // Vertical stadium: top cap (0°→180°), bottom cap (180°→360°)
+    const cx = x + r;
+    pts = [
+      ...arcPoints({ x: cx, y: y + h - r }, r, 0, Math.PI, false, false),
+      ...arcPoints({ x: cx, y: y + r }, r, Math.PI, 2 * Math.PI, false, false)
+    ];
+  }
+  return pts;
 }
 
 function primitiveToLoops(prim) {
-    const loops = [];
-    switch (prim.type) {
-        case "path": {
-            const closed = false !== prim.closed;
-            for (const c of prim.contours || []) {
-                const dense = contourToPoints(c);
-                dense.length >= 2 && loops.push({ points: dense, closed: closed, isHole: !!c.isHole });
-            }
-            break;
-        }
-        case "circle":
-            loops.push({ points: arcPoints(prim.center, prim.radius, 0, 2 * Math.PI, false, true), closed: true, isHole: false });
-            break;
-        case "rectangle": {
-            const { x: x, y: y } = prim.position;
-            loops.push({
-                points: [
-                    { x: x, y: y },
-                    { x: x + prim.width, y: y },
-                    { x: x + prim.width, y: y + prim.height },
-                    { x: x, y: y + prim.height }
-                ],
-                closed: true,
-                isHole: false
-            });
-            break;
-        }
-        case "arc":
-            loops.push({ points: arcPoints(prim.center, prim.radius, prim.startAngle, prim.endAngle, prim.clockwise, false), closed: false, isHole: false });
-            break;
-        case "obround":
-            loops.push({ points: obroundPoints(prim), closed: true, isHole: false });
-            break;
-        default: {
-            const path = "undefined" != typeof GeometryUtils ? GeometryUtils.primitiveToPath(prim) : null;
-            for (const c of path?.contours || []) {
-                const dense = contourToPoints(c);
-                dense.length >= 2 && loops.push({ points: dense, closed: false !== path.closed, isHole: !!c.isHole });
-            }
-        }
+  const loops = [];
+  switch (prim.type) {
+    case "path": {
+      const closed = false !== prim.closed;
+      for (const c of prim.contours || []) {
+        const dense = contourToPoints(c);
+        dense.length >= 2 && loops.push({ points: dense, closed: closed, isHole: !!c.isHole });
+      }
+      break;
     }
-    return loops;
+    case "circle":
+      loops.push({ points: arcPoints(prim.center, prim.radius, 0, 2 * Math.PI, false, true), closed: true, isHole: false });
+      break;
+    case "rectangle": {
+      const { x: x, y: y } = prim.position;
+      loops.push({
+        points: [
+          { x: x, y: y },
+          { x: x + prim.width, y: y },
+          { x: x + prim.width, y: y + prim.height },
+          { x: x, y: y + prim.height }
+        ],
+        closed: true,
+        isHole: false
+      });
+      break;
+    }
+    case "arc":
+        loops.push({ points: arcPoints(prim.center, prim.radius, prim.startAngle, prim.endAngle, prim.clockwise, false), closed: false, isHole: false });
+        break;
+    case "obround":
+        loops.push({ points: obroundPoints(prim), closed: true, isHole: false });
+        break;
+    default: {
+      const path = "undefined" != typeof GeometryUtils ? GeometryUtils.primitiveToPath(prim) : null;
+      for (const c of path?.contours || []) {
+        const dense = contourToPoints(c);
+        dense.length >= 2 && loops.push({ points: dense, closed: false !== path.closed, isHole: !!c.isHole });
+      }
+    }
+  }
+  return loops;
 }
 
 // Layer group
 
 export class GeometryLayer3D {
-    constructor(core) {
-        this.core = core;
-        this.group = new THREE.Group();
-        this.group.name = "geometry2d";
-        core.contentGroup.add(this.group);
-    }
+  constructor(core) {
+    this.core = core;
+    this.group = new THREE.Group();
+    this.group.name = "geometry2d";
+    core.contentGroup.add(this.group);
+  }
 
-    /**
-     * Rebuilds the mirrored 2D geometry from LayerRenderer snapshots.
-     */
-    setLayers(layerDefs, { baseZ, worldToMachine: w2m, palette: pal }) {
-        this.clear();
-        const z = baseZ + SURFACE_Z_EPSILON;
-        const resolveStatus = (toolRelation, fallback) => window.resolveToolRelationColor(toolRelation, pal, fallback);
-        for (const def of layerDefs) {
-            const t = def.transform;
-            // Local primitive coords → shape world matrix → machine coords
-            const mapXY = (x, y) => w2m(t ? { x: t.a * x + t.c * y + t.e, y: t.b * x + t.d * y + t.f } : { x, y });
-            const isVCarveLayer = def.operationType === 'vcarve' || def.name.includes('vcarve');
-            const isStencilLayer = def.operationType === 'stencil' || def.name.includes('stencil');
-            const isPreviewLayer = def.name.includes('preview') || def.type === 'preview' || def.isPreview === true;
-            const isOffsetLayer = def.name.includes('offset') || def.type === 'offset' || def.isOffset === true;
-            const isSourceLayer = def.role === 'source' || (!isOffsetLayer && !isPreviewLayer);
-            const isKnifeStencil = isStencilLayer && (def.machineClass === 'knife' || def.operationType === 'knife' || def.metadata?.isKnife || !def.metadata?.toolDiameter);
-            // PCB copper layers
-            const isCopperLayer = def.operationType === 'isolation' || def.operationType === 'clearing' || def.name.includes('isolation') || def.name.includes('clearing');
-            // CNC router source layers
-            const isRouterSource = isSourceLayer && (def.machineClass === 'router' || def.operationType === 'unassigned') && !isCopperLayer && !isStencilLayer;
-            const defaultLayerColor = def.color;
-            // Multi-color batching for 2D visual parity in 3D
-            const batches = new Map();
-            const getBatch = (colorHex, isFilled, opacity = 1, orderOffset = 0) => {
-                const key = `${colorHex}_${isFilled ? 'fill' : 'line'}_${opacity}_${orderOffset}`;
-                let b = batches.get(key);
-                if (!b) {
-                    b = { colorHex, isFilled, opacity, orderOffset, data: [] };
-                    batches.set(key, b);
-                }
-                return b.data;
-            };
-            for (const prim of def.primitives) {
-                const rp = prim.properties;
-                // Fast-path for laser hatch scanlines: directly transform 2 points and skip contour/fill overhead
-                if ((rp?.isHatch || def.isHatch) && prim.contours?.[0]?.points?.length >= 2) {
-                    const hPts = prim.contours[0].points;
-                    const p0 = mapXY(hPts[0].x, hPts[0].y);
-                    const p1 = mapXY(hPts[1].x, hPts[1].y);
-                    const linesOut = getBatch(defaultLayerColor, false, 1, 1);
-                    linesOut.push(p0.x, p0.y, z, p1.x, p1.y, z);
-                    continue;
-                }
-                // Rotary developed chains
-                if (prim.type === 'path3d' && rp?.developed && rp.refRadius > 0 && prim.positions && prim.positions.length >= 6) {
-                    const pos = prim.positions;
-                    const refR = rp.refRadius;
-                    const swapAxis = rp.axisKind === 'y';
-                    const wrap = (ax, arc, depth) => {
-                        const th = arc / refR;
-                        const R = refR + depth;
-                        const cross = R * Math.sin(th);
-                        const zz = R * Math.cos(th);
-                        return swapAxis ? { x: cross, y: ax, z: zz } : { x: ax, y: cross, z: zz };
-                    };
-                    const outLines = getBatch(defaultLayerColor, false, 1, 1);
-                    for (let i = 0; i + 5 < pos.length; i += 3) {
-                        const ax0 = pos[i], arc0 = pos[i + 1], d0 = pos[i + 2];
-                        const ax1 = pos[i + 3], arc1 = pos[i + 4], d1 = pos[i + 5];
-                        const subs = Math.min(1e5, Math.max(1, Math.ceil(Math.abs(arc1 - arc0) / ARC_SEGMENT_LENGTH)));
-                        let prev = wrap(ax0, arc0, d0);
-                        for (let s = 1; s <= subs; s++) {
-                            const ratio = s / subs;
-                            const cur = wrap(ax0 + (ax1 - ax0) * ratio, arc0 + (arc1 - arc0) * ratio, d0 + (d1 - d0) * ratio);
-                            outLines.push(prev.x, prev.y, prev.z, cur.x, cur.y, cur.z);
-                            prev = cur;
-                        }
-                    }
-                    continue;
-                }
-                // [INDEXED] 3+1 faces
-                const ip = prim.properties;
-                if (prim.type === 'path3d' && ip?.indexed && prim.positions && prim.positions.length >= 6) {
-                    const pos = prim.positions;
-                    const ap = ip.indexedApothem || 0;
-                    const th = -(ip.indexA || 0) * Math.PI / 180;
-                    const c = Math.cos(th), s = Math.sin(th);
-                    const rotY = ip.axisKind === 'y';
-                    const place = (px, py, pz) => {
-                        const dz = pz + ap;
-                        let X = px, Y = py, Z;
-                        if (rotY) {
-                            X = px * c + dz * s;
-                            Z = -px * s + dz * c;
-                        } else {
-                            Y = py * c - dz * s;
-                            Z = py * s + dz * c;
-                        }
-                        return { x: X, y: Y, z: Z };
-                    };
-                    const outLines = getBatch(defaultLayerColor, false, 1, 1);
-                    for (let i = 0; i + 5 < pos.length; i += 3) {
-                        const a = place(pos[i], pos[i + 1], pos[i + 2]);
-                        const b = place(pos[i + 3], pos[i + 4], pos[i + 5]);
-                        outLines.push(a.x, a.y, a.z, b.x, b.y, b.z);
-                    }
-                    continue;
-                }
-                // True-3D chains (V-Carve / Relief)
-                if (prim.type === 'path3d' && prim.positions && prim.positions.length >= 6) {
-                    const pos = prim.positions;
-                    const outLines = getBatch(defaultLayerColor, false, 1, 1);
-                    for (let i = 0; i + 5 < pos.length; i += 3) {
-                        const a = mapXY(pos[i], pos[i + 1]);
-                        const b = mapXY(pos[i + 3], pos[i + 4]);
-                        outLines.push(a.x, a.y, baseZ + pos[i + 2], b.x, b.y, baseZ + pos[i + 5]);
-                    }
-                    continue;
-                }
-                // An STL shape's primitive is its mesh's XY footprint. In 3D it
-                // becomes the mesh's bounding box, hanging from the stock top
-                // where refresh3DModel pins the mesh.
-                if (rp?.role === 'relief_mesh' && rp.meshHeight > 0) {
-                    const { x, y } = prim.position;
-                    const corners = [
-                        mapXY(x, y),
-                        mapXY(x + prim.width, y),
-                        mapXY(x + prim.width, y + prim.height),
-                        mapXY(x, y + prim.height)
-                    ];
-                    const zBottom = baseZ - rp.meshHeight * (t ? Math.hypot(t.a, t.b) : 1);
-                    const edges = getBatch(defaultLayerColor, false, 1, 1);
-                    for (let i = 0; i < 4; i++) {
-                        const a = corners[i];
-                        const b = corners[(i + 1) % 4];
-                        edges.push(
-                            a.x, a.y, z, b.x, b.y, z,
-                            a.x, a.y, zBottom, b.x, b.y, zBottom,
-                            a.x, a.y, zBottom, a.x, a.y, z
-                        );
-                    }
-                    continue;
-                }
-                const props = prim.properties || {};
-                const role = props.role;
-                const toolRelation = props.toolRelation || 'exact';
-                const isPeck = role === 'peck_mark';
-                const isCenterline = props.isCenterlinePath;
-                const isDrillMilling = role === 'drill_milling_path';
-                const isSourceHole = role === 'drill_hole';
-                const isSourceSlot = role === 'drill_slot';
-                // Drill Peck Marks
-                if (isPeck && prim.center && prim.radius > 0) {
-                    const c = mapXY(prim.center.x, prim.center.y);
-                    const statusColor = resolveStatus(toolRelation, pal.good);
-                    const markSize = Math.min(0.5, prim.radius * 0.4);
-                    if (isPreviewLayer) {
-                        // Solid circular disk in status color (exact/undersized/oversized)
-                        emitAnnulus(c.x, c.y, 0, prim.radius, z, getBatch(statusColor, true, 1, 0));
-                        // White center crosshair
-                        emitCrosshair(c.x, c.y, markSize, z, getBatch(pal.mark, false, 1, 1));
-                    } else {
-                        // Outline circle with 1px line segments
-                        emitCircleLines(c.x, c.y, prim.radius, z, getBatch(statusColor, false, 1, 0));
-                        // Status color crosshair
-                        emitCrosshair(c.x, c.y, markSize, z, getBatch(statusColor, false, 1, 1));
-                    }
-                    if (props.reducedPlunge) {
-                        emitCircleLines(c.x, c.y, prim.radius * 1.3, z, getBatch(pal.slow, false, 1, 1));
-                    }
-                    continue;
-                }
-                // Source Drill Holes & Slots
-                if (isSourceHole && prim.center && prim.radius > 0) {
-                    const c = mapXY(prim.center.x, prim.center.y);
-                    const markSize = Math.min(0.5, prim.radius * 0.6);
-                    emitCircleLines(c.x, c.y, prim.radius, z, getBatch(defaultLayerColor, false, 1, 0));
-                    emitCrosshair(c.x, c.y, markSize, z, getBatch(defaultLayerColor, false, 1, 1));
-                    continue;
-                }
-                if (isSourceSlot && props.originalSlot) {
-                    const slot = props.originalSlot;
-                    const r = (props.diameter || prim.radius * 2) / 2;
-                    const p1 = mapXY(slot.start.x, slot.start.y);
-                    const p2 = mapXY(slot.end.x, slot.end.y);
-                    const markSize = Math.min(0.5, r * 0.6);
-                    emitObroundOutline(p1, p2, r, z, getBatch(defaultLayerColor, false, 1, 0));
-                    emitCrosshair(p1.x, p1.y, markSize, z, getBatch(defaultLayerColor, false, 1, 1));
-                    emitCrosshair(p2.x, p2.y, markSize, z, getBatch(defaultLayerColor, false, 1, 1));
-                    continue;
-                }
-                // Centerline Slots
-                if (isCenterline && prim.contours?.[0]?.points?.length >= 2) {
-                    const pts = prim.contours[0].points;
-                    const p1 = mapXY(pts[0].x, pts[0].y);
-                    const p2 = mapXY(pts[pts.length - 1].x, pts[pts.length - 1].y);
-                    const r = (props.toolDiameter || def.solidWidth) / 2;
-                    const statusColor = resolveStatus(toolRelation, defaultLayerColor);
-                    const markSize = Math.min(0.5, r * 0.5);
-                    if (isPreviewLayer) {
-                        // Swath fill in preview blue
-                        emitRibbon([p1, p2], r, z, getBatch(defaultLayerColor, true, 1, 0), false);
-                        // Centerline in white
-                        const whiteLines = getBatch(pal.mark, false, 1, 1);
-                        whiteLines.push(p1.x, p1.y, z, p2.x, p2.y, z);
-                        const markColor = toolRelation === 'undersized' ? pal.warn : pal.mark;
-                        emitCrosshair(p1.x, p1.y, markSize, z, getBatch(markColor, false, 1, 1));
-                        emitCrosshair(p2.x, p2.y, markSize, z, getBatch(markColor, false, 1, 1));
-                    } else {
-                        // Offset mode: outer perimeter outline + centerline + crosshairs in status color
-                        const statusLines = getBatch(statusColor, false, 1, 1);
-                        emitObroundOutline(p1, p2, r, z, statusLines);
-                        statusLines.push(p1.x, p1.y, z, p2.x, p2.y, z);
-                        emitCrosshair(p1.x, p1.y, markSize, z, statusLines);
-                        emitCrosshair(p2.x, p2.y, markSize, z, statusLines);
-                    }
-                    continue;
-                }
-                // Standard Primitives & Previews
-                const isStroke = (props.stroke && !props.fill) || props.isTrace;
-                const bandW = isPreviewLayer && def.solidWidth > 0 ? def.solidWidth : (isStroke && props.strokeWidth) || 0;
-                const isSolidStencilOffset = isKnifeStencil && isOffsetLayer;
-                const isTranslucentStencil = isStencilLayer && (isSourceLayer || isKnifeStencil);
-                const isLaserFilled = def.metadata?.strategy === 'filled' || def.type === 'filled' || def.role === 'filled';
-                // Determine whether shape requires solid or translucent polygon fill
-                const filled = isLaserFilled || isSolidStencilOffset || isTranslucentStencil || !(isVCarveLayer || isRouterSource || bandW || (isStroke && !isTranslucentStencil) || def.isOffset || props.fill === false);
-                const drawColor = !isPreviewLayer && isDrillMilling ? resolveStatus(toolRelation, defaultLayerColor) : defaultLayerColor;
-                // Analytic Circle Fast Path
-                if (prim.type === 'circle' && prim.radius > 0 && (bandW > 0 || filled)) {
-                    const c = mapXY(prim.center.x, prim.center.y);
-                    const ex = mapXY(prim.center.x + prim.radius, prim.center.y);
-                    const ey = mapXY(prim.center.x, prim.center.y + prim.radius);
-                    const rx = Math.hypot(ex.x - c.x, ex.y - c.y);
-                    const ry = Math.hypot(ey.x - c.x, ey.y - c.y);
-                    if (Math.abs(rx - ry) < 1e-6 * Math.max(1, rx)) {
-                        const fillOpacity = isTranslucentStencil ? 0.45 : 1;
-                        emitAnnulus(c.x, c.y, bandW > 0 ? Math.max(0, rx - bandW / 2) : 0, bandW > 0 ? rx + bandW / 2 : rx, z, getBatch(drawColor, true, fillOpacity, 0));
-                        if (!isTranslucentStencil || isSolidStencilOffset) {
-                            emitCircleLines(c.x, c.y, rx, z, getBatch(drawColor, false, 1, 1));
-                        }
-                        if (isPreviewLayer && toolRelation === 'undersized') {
-                            emitCrosshair(c.x, c.y, Math.min(0.5, rx * 0.4), z, getBatch(pal.warn, false, 1, 1));
-                        }
-                        continue;
-                    }
-                }
-                const loops = primitiveToLoops(prim);
-                const mappedLoops = [];
-                for (const loop of loops) {
-                    const pts = loop.points;
-                    if (!pts || pts.length < 2) continue;
-                    const mapped = pts.map(p => mapXY(p.x, p.y));
-                    if (loop.closed && mapped.length > 2) {
-                        const a = mapped[mapped.length - 1], b = mapped[0];
-                        if (a.x !== b.x || a.y !== b.y) {
-                            mapped.push({ x: b.x, y: b.y });
-                        }
-                    }
-                    mappedLoops.push({ points: mapped, closed: loop.closed, isHole: loop.isHole });
-                }
-                if (filled && mappedLoops.length > 0) {
-                    const fillOpacity = isTranslucentStencil ? 0.45 : 1;
-                    const fillBatch = getBatch(drawColor, true, fillOpacity, 0);
-                    const outers = mappedLoops.filter(l => !l.isHole && l.closed && l.points.length >= 3);
-                    const holes = mappedLoops.filter(l => l.isHole && l.closed && l.points.length >= 3);
-                    if (outers.length <= 1) {
-                        const shapeLoops = outers.length === 1 ? [outers[0].points] : [mappedLoops[0].points];
-                        for (const h of holes) shapeLoops.push(h.points);
-                        emitFill(shapeLoops, z, fillBatch);
-                    } else {
-                        // Clearance polygons with multiple disjoint outers: sort outers by area so nested
-                        // islands take ownership of their own enclosed holes before parent boundaries do.
-                        const outerMeta = outers.map(o => ({
-                            points: o.points,
-                            area: Math.abs(THREE.ShapeUtils.area(stripClosingDuplicate(o.points).map(p => new THREE.Vector2(p.x, p.y)))),
-                            holes: []
-                        })).sort((a, b) => a.area - b.area); // Smallest/innermost first
-                        const unassignedHoles = [...holes];
-                        for (const outer of outerMeta) {
-                            for (let hi = unassignedHoles.length - 1; hi >= 0; hi--) {
-                                const h = unassignedHoles[hi];
-                                if (isHoleInOuter(h.points, outer.points)) {
-                                    outer.holes.push(h.points);
-                                    unassignedHoles.splice(hi, 1);
-                                }
-                            }
-                            emitFill([outer.points, ...outer.holes], z, fillBatch);
-                        }
-                    }
-                    // Stroke outline for generated cuts (knife aperture outlines)
-                    if (isSolidStencilOffset || (!isTranslucentStencil && isStencilLayer)) {
-                        for (const loop of mappedLoops) {
-                            const p = loop.points;
-                            const linesOut = getBatch(drawColor, false, 1, 1);
-                            for (let i = 0; i < p.length - 1; i++) {
-                                linesOut.push(p[i].x, p[i].y, z, p[i + 1].x, p[i + 1].y, z);
-                            }
-                        }
-                    }
-                } else {
-                    for (const loop of mappedLoops) {
-                        if (bandW > 0) {
-                            emitRibbon(loop.points, bandW / 2, z, getBatch(drawColor, true, 1, 0), loop.closed);
-                        } else {
-                            const p = loop.points;
-                            const linesOut = getBatch(drawColor, false, 1, 1);
-                            for (let i = 0; i < p.length - 1; i++) {
-                                linesOut.push(p[i].x, p[i].y, z, p[i + 1].x, p[i + 1].y, z);
-                            }
-                        }
-                    }
-                }
-                if (isPreviewLayer && isDrillMilling && toolRelation === 'undersized') {
-                    if (props.originalSlot) {
-                        const slot = props.originalSlot;
-                        const p1 = mapXY(slot.start.x, slot.start.y);
-                        const p2 = mapXY(slot.end.x, slot.end.y);
-                        emitCrosshair(p1.x, p1.y, 0.5, z, getBatch(pal.warn, false, 1, 1));
-                        emitCrosshair(p2.x, p2.y, 0.5, z, getBatch(pal.warn, false, 1, 1));
-                    } else if (prim.center) {
-                        const c = mapXY(prim.center.x, prim.center.y);
-                        emitCrosshair(c.x, c.y, 0.5, z, getBatch(pal.warn, false, 1, 1));
-                    }
-                }
-            }
-            // Materialize batches for this layer
-            const layerRenderOrder = 1000 + 2 * def.zIndex;
-            for (const b of batches.values()) {
-                const arr = b.data;
-                if (arr.length === 0) continue;
-                if (b.isFilled) {
-                    const sg = new THREE.BufferGeometry();
-                    sg.setAttribute('position', new THREE.Float32BufferAttribute(arr, 3));
-                    const sm = new THREE.MeshBasicMaterial({
-                        color: new THREE.Color(b.colorHex),
-                        side: THREE.DoubleSide,
-                        transparent: b.opacity < 1,
-                        opacity: b.opacity,
-                        depthWrite: false,
-                        depthTest: true,
-                        polygonOffset: true,
-                        polygonOffsetFactor: 1,
-                        polygonOffsetUnits: 1
-                    });
-                    const mesh = new THREE.Mesh(sg, sm);
-                    mesh.renderOrder = layerRenderOrder + b.orderOffset;
-                    mesh.name = def.name + '_solid';
-                    mesh.userData.layerName = def.name;
-                    this.group.add(mesh);
-                } else {
-                    const g = new THREE.BufferGeometry();
-                    g.setAttribute('position', new THREE.Float32BufferAttribute(arr, 3));
-                    const m = new THREE.LineBasicMaterial({
-                        color: new THREE.Color(b.colorHex),
-                        transparent: b.opacity < 1,
-                        opacity: b.opacity,
-                        depthWrite: false,
-                        depthTest: true
-                    });
-                    const lines = new THREE.LineSegments(g, m);
-                    lines.renderOrder = layerRenderOrder + b.orderOffset;
-                    lines.name = def.name;
-                    lines.userData.layerName = def.name;
-                    this.group.add(lines);
-                }
-            }
+  /** Rebuilds the mirrored 2D geometry from LayerRenderer snapshots. */
+  setLayers(layerDefs, { baseZ, worldToMachine: w2m, palette: pal }) {
+    this.clear();
+    const z = baseZ + SURFACE_Z_EPSILON;
+    const resolveStatus = (toolRelation, fallback) => window.resolveToolRelationColor(toolRelation, pal, fallback);
+    for (const def of layerDefs) {
+      const t = def.transform;
+      // Local primitive coords → shape world matrix → machine coords
+      const mapXY = (x, y) => w2m(t ? { x: t.a * x + t.c * y + t.e, y: t.b * x + t.d * y + t.f } : { x, y });
+      const isVCarveLayer = def.operationType === 'vcarve' || def.name.includes('vcarve');
+      const isStencilLayer = def.operationType === 'stencil' || def.name.includes('stencil');
+      const isPreviewLayer = def.name.includes('preview') || def.type === 'preview' || def.isPreview === true;
+      const isOffsetLayer = def.name.includes('offset') || def.type === 'offset' || def.isOffset === true;
+      const isSourceLayer = def.role === 'source' || (!isOffsetLayer && !isPreviewLayer);
+      const isKnifeStencil = isStencilLayer && (def.machineClass === 'knife' || def.operationType === 'knife' || def.metadata?.isKnife || !def.metadata?.toolDiameter);
+      // PCB copper layers
+      const isCopperLayer = def.operationType === 'isolation' || def.operationType === 'clearing' || def.name.includes('isolation') || def.name.includes('clearing');
+      // CNC router source layers
+      const isRouterSource = isSourceLayer && (def.machineClass === 'router' || def.operationType === 'unassigned') && !isCopperLayer && !isStencilLayer;
+      const defaultLayerColor = def.color;
+      // Multi-color batching for 2D visual parity in 3D
+      const batches = new Map();
+      const getBatch = (colorHex, isFilled, opacity = 1, orderOffset = 0) => {
+        const key = `${colorHex}_${isFilled ? 'fill' : 'line'}_${opacity}_${orderOffset}`;
+        let b = batches.get(key);
+        if (!b) {
+          b = { colorHex, isFilled, opacity, orderOffset, data: [] };
+          batches.set(key, b);
         }
-        this.core.requestRender();
+        return b.data;
+      };
+      for (const prim of def.primitives) {
+        const rp = prim.properties;
+        // Fast-path for laser hatch scanlines: directly transform 2 points and skip contour/fill overhead
+        if ((rp?.isHatch || def.isHatch) && prim.contours?.[0]?.points?.length >= 2) {
+          const hPts = prim.contours[0].points;
+          const p0 = mapXY(hPts[0].x, hPts[0].y);
+          const p1 = mapXY(hPts[1].x, hPts[1].y);
+          const linesOut = getBatch(defaultLayerColor, false, 1, 1);
+          linesOut.push(p0.x, p0.y, z, p1.x, p1.y, z);
+          continue;
+        }
+        // Rotary developed chains
+        if (prim.type === 'path3d' && rp?.developed && rp.refRadius > 0 && prim.positions && prim.positions.length >= 6) {
+          const pos = prim.positions;
+          const refR = rp.refRadius;
+          const swapAxis = rp.axisKind === 'y';
+          const wrap = (ax, arc, depth) => {
+            const th = arc / refR;
+            const R = refR + depth;
+            const cross = R * Math.sin(th);
+            const zz = R * Math.cos(th);
+            return swapAxis ? { x: cross, y: ax, z: zz } : { x: ax, y: cross, z: zz };
+          };
+          const outLines = getBatch(defaultLayerColor, false, 1, 1);
+          for (let i = 0; i + 5 < pos.length; i += 3) {
+            const ax0 = pos[i], arc0 = pos[i + 1], d0 = pos[i + 2];
+            const ax1 = pos[i + 3], arc1 = pos[i + 4], d1 = pos[i + 5];
+            const subs = Math.min(1e5, Math.max(1, Math.ceil(Math.abs(arc1 - arc0) / ARC_SEGMENT_LENGTH)));
+            let prev = wrap(ax0, arc0, d0);
+            for (let s = 1; s <= subs; s++) {
+              const ratio = s / subs;
+              const cur = wrap(ax0 + (ax1 - ax0) * ratio, arc0 + (arc1 - arc0) * ratio, d0 + (d1 - d0) * ratio);
+              outLines.push(prev.x, prev.y, prev.z, cur.x, cur.y, cur.z);
+              prev = cur;
+            }
+          }
+          continue;
+        }
+        // [INDEXED] 3+1 faces
+        const ip = prim.properties;
+        if (prim.type === 'path3d' && ip?.indexed && prim.positions && prim.positions.length >= 6) {
+          const pos = prim.positions;
+          const ap = ip.indexedApothem || 0;
+          const th = -(ip.indexA || 0) * Math.PI / 180;
+          const c = Math.cos(th), s = Math.sin(th);
+          const rotY = ip.axisKind === 'y';
+          const place = (px, py, pz) => {
+            const dz = pz + ap;
+            let X = px, Y = py, Z;
+            if (rotY) {
+              X = px * c + dz * s;
+              Z = -px * s + dz * c;
+            } else {
+              Y = py * c - dz * s;
+              Z = py * s + dz * c;
+            }
+            return { x: X, y: Y, z: Z };
+          };
+          const outLines = getBatch(defaultLayerColor, false, 1, 1);
+          for (let i = 0; i + 5 < pos.length; i += 3) {
+            const a = place(pos[i], pos[i + 1], pos[i + 2]);
+            const b = place(pos[i + 3], pos[i + 4], pos[i + 5]);
+            outLines.push(a.x, a.y, a.z, b.x, b.y, b.z);
+          }
+          continue;
+        }
+        // True-3D chains (V-Carve / Relief)
+        if (prim.type === 'path3d' && prim.positions && prim.positions.length >= 6) {
+          const pos = prim.positions;
+          const outLines = getBatch(defaultLayerColor, false, 1, 1);
+          for (let i = 0; i + 5 < pos.length; i += 3) {
+            const a = mapXY(pos[i], pos[i + 1]);
+            const b = mapXY(pos[i + 3], pos[i + 4]);
+            outLines.push(a.x, a.y, baseZ + pos[i + 2], b.x, b.y, baseZ + pos[i + 5]);
+          }
+          continue;
+        }
+        // An STL shape's primitive is its mesh's XY footprint. In 3D it
+        // becomes the mesh's bounding box, hanging from the stock top
+        // where refresh3DModel pins the mesh.
+        if (rp?.role === 'relief_mesh' && rp.meshHeight > 0) {
+          const { x, y } = prim.position;
+          const corners = [
+            mapXY(x, y),
+            mapXY(x + prim.width, y),
+            mapXY(x + prim.width, y + prim.height),
+            mapXY(x, y + prim.height)
+          ];
+          const zBottom = baseZ - rp.meshHeight * (t ? Math.hypot(t.a, t.b) : 1);
+          const edges = getBatch(defaultLayerColor, false, 1, 1);
+          for (let i = 0; i < 4; i++) {
+            const a = corners[i];
+            const b = corners[(i + 1) % 4];
+            edges.push(
+              a.x, a.y, z, b.x, b.y, z,
+              a.x, a.y, zBottom, b.x, b.y, zBottom,
+              a.x, a.y, zBottom, a.x, a.y, z
+            );
+          }
+          continue;
+        }
+        const props = prim.properties || {};
+        const role = props.role;
+        const toolRelation = props.toolRelation || 'exact';
+        const isPeck = role === 'peck_mark';
+        const isCenterline = props.isCenterlinePath;
+        const isDrillMilling = role === 'drill_milling_path';
+        const isSourceHole = role === 'drill_hole';
+        const isSourceSlot = role === 'drill_slot';
+        // Drill Peck Marks
+        if (isPeck && prim.center && prim.radius > 0) {
+          const c = mapXY(prim.center.x, prim.center.y);
+          const statusColor = resolveStatus(toolRelation, pal.good);
+          const markSize = Math.min(0.5, prim.radius * 0.4);
+          if (isPreviewLayer) {
+            // Solid circular disk in status color (exact/undersized/oversized)
+            emitAnnulus(c.x, c.y, 0, prim.radius, z, getBatch(statusColor, true, 1, 0));
+            // White center crosshair
+            emitCrosshair(c.x, c.y, markSize, z, getBatch(pal.mark, false, 1, 1));
+          } else {
+            // Outline circle with 1px line segments
+            emitCircleLines(c.x, c.y, prim.radius, z, getBatch(statusColor, false, 1, 0));
+            // Status color crosshair
+            emitCrosshair(c.x, c.y, markSize, z, getBatch(statusColor, false, 1, 1));
+          }
+          if (props.reducedPlunge) {
+            emitCircleLines(c.x, c.y, prim.radius * 1.3, z, getBatch(pal.slow, false, 1, 1));
+          }
+          continue;
+        }
+        // Source Drill Holes & Slots
+        if (isSourceHole && prim.center && prim.radius > 0) {
+          const c = mapXY(prim.center.x, prim.center.y);
+          const markSize = Math.min(0.5, prim.radius * 0.6);
+          emitCircleLines(c.x, c.y, prim.radius, z, getBatch(defaultLayerColor, false, 1, 0));
+          emitCrosshair(c.x, c.y, markSize, z, getBatch(defaultLayerColor, false, 1, 1));
+          continue;
+        }
+        if (isSourceSlot && props.originalSlot) {
+          const slot = props.originalSlot;
+          const r = (props.diameter || prim.radius * 2) / 2;
+          const p1 = mapXY(slot.start.x, slot.start.y);
+          const p2 = mapXY(slot.end.x, slot.end.y);
+          const markSize = Math.min(0.5, r * 0.6);
+          emitObroundOutline(p1, p2, r, z, getBatch(defaultLayerColor, false, 1, 0));
+          emitCrosshair(p1.x, p1.y, markSize, z, getBatch(defaultLayerColor, false, 1, 1));
+          emitCrosshair(p2.x, p2.y, markSize, z, getBatch(defaultLayerColor, false, 1, 1));
+          continue;
+        }
+        // Centerline Slots
+        if (isCenterline && prim.contours?.[0]?.points?.length >= 2) {
+          const pts = prim.contours[0].points;
+          const p1 = mapXY(pts[0].x, pts[0].y);
+          const p2 = mapXY(pts[pts.length - 1].x, pts[pts.length - 1].y);
+          const r = (props.toolDiameter || def.solidWidth) / 2;
+          const statusColor = resolveStatus(toolRelation, defaultLayerColor);
+          const markSize = Math.min(0.5, r * 0.5);
+          if (isPreviewLayer) {
+            // Swath fill in preview blue
+            emitRibbon([p1, p2], r, z, getBatch(defaultLayerColor, true, 1, 0), false);
+            // Centerline in white
+            const whiteLines = getBatch(pal.mark, false, 1, 1);
+            whiteLines.push(p1.x, p1.y, z, p2.x, p2.y, z);
+            const markColor = toolRelation === 'undersized' ? pal.warn : pal.mark;
+            emitCrosshair(p1.x, p1.y, markSize, z, getBatch(markColor, false, 1, 1));
+            emitCrosshair(p2.x, p2.y, markSize, z, getBatch(markColor, false, 1, 1));
+          } else {
+            // Offset mode: outer perimeter outline + centerline + crosshairs in status color
+            const statusLines = getBatch(statusColor, false, 1, 1);
+            emitObroundOutline(p1, p2, r, z, statusLines);
+            statusLines.push(p1.x, p1.y, z, p2.x, p2.y, z);
+            emitCrosshair(p1.x, p1.y, markSize, z, statusLines);
+            emitCrosshair(p2.x, p2.y, markSize, z, statusLines);
+          }
+          continue;
+        }
+        // Standard Primitives & Previews
+        const isStroke = (props.stroke && !props.fill) || props.isTrace;
+        const bandW = isPreviewLayer && def.solidWidth > 0 ? def.solidWidth : (isStroke && props.strokeWidth) || 0;
+        const isSolidStencilOffset = isKnifeStencil && isOffsetLayer;
+        const isTranslucentStencil = isStencilLayer && (isSourceLayer || isKnifeStencil);
+        const isLaserFilled = def.metadata?.strategy === 'filled' || def.type === 'filled' || def.role === 'filled';
+        // Determine whether shape requires solid or translucent polygon fill
+        const filled = isLaserFilled || isSolidStencilOffset || isTranslucentStencil || !(isVCarveLayer || isRouterSource || bandW || (isStroke && !isTranslucentStencil) || def.isOffset || props.fill === false);
+        const drawColor = !isPreviewLayer && isDrillMilling ? resolveStatus(toolRelation, defaultLayerColor) : defaultLayerColor;
+        // Analytic Circle Fast Path
+        if (prim.type === 'circle' && prim.radius > 0 && (bandW > 0 || filled)) {
+          const c = mapXY(prim.center.x, prim.center.y);
+          const ex = mapXY(prim.center.x + prim.radius, prim.center.y);
+          const ey = mapXY(prim.center.x, prim.center.y + prim.radius);
+          const rx = Math.hypot(ex.x - c.x, ex.y - c.y);
+          const ry = Math.hypot(ey.x - c.x, ey.y - c.y);
+          if (Math.abs(rx - ry) < 1e-6 * Math.max(1, rx)) {
+            const fillOpacity = isTranslucentStencil ? 0.45 : 1;
+            emitAnnulus(c.x, c.y, bandW > 0 ? Math.max(0, rx - bandW / 2) : 0, bandW > 0 ? rx + bandW / 2 : rx, z, getBatch(drawColor, true, fillOpacity, 0));
+            if (!isTranslucentStencil || isSolidStencilOffset) {
+              emitCircleLines(c.x, c.y, rx, z, getBatch(drawColor, false, 1, 1));
+            }
+            if (isPreviewLayer && toolRelation === 'undersized') {
+              emitCrosshair(c.x, c.y, Math.min(0.5, rx * 0.4), z, getBatch(pal.warn, false, 1, 1));
+            }
+            continue;
+          }
+        }
+        const loops = primitiveToLoops(prim);
+        const mappedLoops = [];
+        for (const loop of loops) {
+          const pts = loop.points;
+          if (!pts || pts.length < 2) continue;
+          const mapped = pts.map(p => mapXY(p.x, p.y));
+          if (loop.closed && mapped.length > 2) {
+            const a = mapped[mapped.length - 1], b = mapped[0];
+            if (a.x !== b.x || a.y !== b.y) mapped.push({ x: b.x, y: b.y });
+          }
+          mappedLoops.push({ points: mapped, closed: loop.closed, isHole: loop.isHole });
+        }
+        if (filled && mappedLoops.length > 0) {
+          const fillOpacity = isTranslucentStencil ? 0.45 : 1;
+          const fillBatch = getBatch(drawColor, true, fillOpacity, 0);
+          const outers = mappedLoops.filter(l => !l.isHole && l.closed && l.points.length >= 3);
+          const holes = mappedLoops.filter(l => l.isHole && l.closed && l.points.length >= 3);
+          if (outers.length <= 1) {
+            const shapeLoops = outers.length === 1 ? [outers[0].points] : [mappedLoops[0].points];
+            for (const h of holes) shapeLoops.push(h.points);
+            emitFill(shapeLoops, z, fillBatch);
+          } else {
+            // Clearance polygons with multiple disjoint outers: sort outers by area so nested
+            // islands take ownership of their own enclosed holes before parent boundaries do.
+            const outerMeta = outers.map(o => ({
+              points: o.points,
+              area: Math.abs(THREE.ShapeUtils.area(stripClosingDuplicate(o.points).map(p => new THREE.Vector2(p.x, p.y)))),
+              holes: []
+            })).sort((a, b) => a.area - b.area); // Smallest/innermost first
+            const unassignedHoles = [...holes];
+            for (const outer of outerMeta) {
+              for (let hi = unassignedHoles.length - 1; hi >= 0; hi--) {
+                const h = unassignedHoles[hi];
+                if (isHoleInOuter(h.points, outer.points)) {
+                  outer.holes.push(h.points);
+                  unassignedHoles.splice(hi, 1);
+                }
+              }
+              emitFill([outer.points, ...outer.holes], z, fillBatch);
+            }
+          }
+          // Stroke outline for generated cuts (knife aperture outlines)
+          if (isSolidStencilOffset || (!isTranslucentStencil && isStencilLayer)) {
+            for (const loop of mappedLoops) {
+              const p = loop.points;
+              const linesOut = getBatch(drawColor, false, 1, 1);
+              for (let i = 0; i < p.length - 1; i++) {
+                linesOut.push(p[i].x, p[i].y, z, p[i + 1].x, p[i + 1].y, z);
+              }
+            }
+          }
+        } else {
+          for (const loop of mappedLoops) {
+            if (bandW > 0) {
+              emitRibbon(loop.points, bandW / 2, z, getBatch(drawColor, true, 1, 0), loop.closed);
+            } else {
+              const p = loop.points;
+              const linesOut = getBatch(drawColor, false, 1, 1);
+              for (let i = 0; i < p.length - 1; i++) {
+                linesOut.push(p[i].x, p[i].y, z, p[i + 1].x, p[i + 1].y, z);
+              }
+            }
+          }
+        }
+        if (isPreviewLayer && isDrillMilling && toolRelation === 'undersized') {
+          if (props.originalSlot) {
+            const slot = props.originalSlot;
+            const p1 = mapXY(slot.start.x, slot.start.y);
+            const p2 = mapXY(slot.end.x, slot.end.y);
+            emitCrosshair(p1.x, p1.y, 0.5, z, getBatch(pal.warn, false, 1, 1));
+            emitCrosshair(p2.x, p2.y, 0.5, z, getBatch(pal.warn, false, 1, 1));
+          } else if (prim.center) {
+            const c = mapXY(prim.center.x, prim.center.y);
+            emitCrosshair(c.x, c.y, 0.5, z, getBatch(pal.warn, false, 1, 1));
+          }
+        }
+      }
+      // Materialize batches for this layer
+      const layerRenderOrder = 1000 + 2 * def.zIndex;
+      for (const b of batches.values()) {
+        const arr = b.data;
+        if (arr.length === 0) continue;
+        if (b.isFilled) {
+          const sg = new THREE.BufferGeometry();
+          sg.setAttribute('position', new THREE.Float32BufferAttribute(arr, 3));
+          const sm = new THREE.MeshBasicMaterial({
+            color: new THREE.Color(b.colorHex),
+            side: THREE.DoubleSide,
+            transparent: b.opacity < 1,
+            opacity: b.opacity,
+            depthWrite: false,
+            depthTest: true,
+            polygonOffset: true,
+            polygonOffsetFactor: 1,
+            polygonOffsetUnits: 1
+          });
+          const mesh = new THREE.Mesh(sg, sm);
+          mesh.renderOrder = layerRenderOrder + b.orderOffset;
+          mesh.name = def.name + '_solid';
+          mesh.userData.layerName = def.name;
+          this.group.add(mesh);
+        } else {
+          const g = new THREE.BufferGeometry();
+          g.setAttribute('position', new THREE.Float32BufferAttribute(arr, 3));
+          const m = new THREE.LineBasicMaterial({
+            color: new THREE.Color(b.colorHex),
+            transparent: b.opacity < 1,
+            opacity: b.opacity,
+            depthWrite: false,
+            depthTest: true
+          });
+          const lines = new THREE.LineSegments(g, m);
+          lines.renderOrder = layerRenderOrder + b.orderOffset;
+          lines.name = def.name;
+          lines.userData.layerName = def.name;
+          this.group.add(lines);
+        }
+      }
     }
+    this.core.requestRender();
+  }
 
-    clear() {
-        for (const child of [...this.group.children]) {
-            child.geometry?.dispose?.();
-            child.material?.dispose?.();
-            this.group.remove(child);
-        }
+  clear() {
+    for (const child of [...this.group.children]) {
+      child.geometry?.dispose?.();
+      child.material?.dispose?.();
+      this.group.remove(child);
     }
+  }
 }

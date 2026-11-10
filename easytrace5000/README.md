@@ -1,6 +1,6 @@
 # EasyTrace5000 - Browser-Based PCB CAM
 
-![Status: v1.6.2](https://img.shields.io/badge/status-v1.6.2-green.svg)
+![Status: v1.7.0](https://img.shields.io/badge/status-v1.7.0-green.svg)
 ![Part of: EasyCAM5000](https://img.shields.io/badge/suite-EasyCAM5000-blue.svg)
 ![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)
 
@@ -24,14 +24,16 @@ Part of the **[EasyCAM5000 suite](../README.md)** - the shared geometry engine, 
 
 A non-destructive, stage-based process. Each stage's output is its own renderer layer that you can toggle independently, and re-running a stage never destroys the one before it.
 
-1. **Source** - add Gerber, Excellon or SVG files to the desired operations.
+1. **Source** - add Gerber, Excellon or SVG files to the operations that expect them.
 2. **Board placement & machine settings** - origin, rotation, mirroring, and the machine parameters that affect every output file.
-3. **Offset (geometry)** - tool, passes, stepover → *Generate Offsets*.
-4. **Preview (strategy)** - depths, feeds → *Generate Preview*, a tool-reach simulation stroked at the real tool diameter. *The laser pipeline skips this stage.*
-5. **Export** - order operations in the Operations Manager → *Calculate Toolpaths* → export G-code, or SVG/PNG for laser.
+3. **XY Geometry** - tool, passes, stepover, cut side → *Generate Offsets*.
+4. **Z Strategy** - depths, entries, drill cycles, tabs → *Generate Preview*, a tool-reach simulation stroked at the real tool diameter.
+5. **Feeds & Toolpaths** - feeds and spindle speed → *Calculate Toolpaths*.
+6. **Output** - the *Export Manager* orders the operations, places tool changes and writes the G-code.
 
-Full walkthroughs are in the [CNC](https://cam.eltryus.design/easytrace5000/doc/cnc)
-and [Laser](https://cam.eltryus.design/easytrace5000/doc/laser) guides.
+Laser and drag-knife operations run two stages: XY Geometry, then Output, where the Export Manager writes SVG or PNG for the laser, or plain SVG for the knife.
+
+Full walkthroughs are in the [CNC](https://cam.eltryus.design/easytrace5000/doc/cnc) and [Laser](https://cam.eltryus.design/easytrace5000/doc/laser) guides.
 
 ## Operations
 
@@ -39,9 +41,9 @@ and [Laser](https://cam.eltryus.design/easytrace5000/doc/laser) guides.
 * **Copper Clearing** - internal pocketing for large copper areas.
 * **Drilling** - automatic peck-or-mill strategy selection per hole size, with slot support and a per-diameter tool table.
 * **Board Cutout** - cut-side control, optional holding tabs, and a closure prompt for outlines that don't quite close.
-* **Solderpaste Stencil** - apertures ready to laser or drag-knife cut, with drill-pad exclusion, registration holes and an optional corner radius for vinyl cutters.
+* **Solder Stencil** - apertures ready to laser or drag-knife cut, with drill-pad exclusion, registration holes and an optional corner radius for vinyl cutters.
 
-Every operation runs on the suite's almost lossless arc geometry engine: analytic parsing, Clipper2 (WebAssembly) booleans, and G2/G3 arc reconstruction from post-boolean data so exported arcs are real arcs, not tesselatled polylines.
+Every operation runs on the suite's almost lossless arc geometry engine: analytic parsing, Clipper2 (WebAssembly) booleans, and G2/G3 arc reconstruction from post-boolean data so exported arcs are real arcs, not tessellated polylines.
 
 ### Output targets
 
@@ -53,7 +55,7 @@ Every operation runs on the suite's almost lossless arc geometry engine: analyti
 | Drilling | ✓ | ✓ | |
 | Stencil | ✓ | ✓ | ✓ |
 
-Machine class is set per operation, not per session - a job can mill its drills and cutout while lasering its copper isolation/clearing.
+The machine is chosen on the welcome screen: **CNC** runs every operation on the router, **UV laser** every operation on the laser, and **Fiber laser + CNC** lasers the copper (isolation and clearing) while the router drills and cuts the board out. The stencil picks its own output: G-code for the router or a plain vector file for a drag knife or laser.
 
 ## The laser pipeline (beta)
 
@@ -65,8 +67,8 @@ Still in testing with good results but review exported files in your laser softw
 
 Developed and tested against **KiCad** and **EasyEDA** output.
 
-* **Gerber** - `.gbr` `.ger` `.gtl` `.gbl` `.gts` `.gbs` `.gko` `.gm1`
-* **Excellon** - `.drl` `.xln` `.txt` `.drill` `.exc`
+* **Gerber** - `.gbr` `.ger` `.gtl` `.gbl` `.gbx` `.gts` `.gbs` `.gtp` `.gbp` `.gko` `.gml` `.gm1`
+* **Excellon** - `.drl` `.xln` `.txt` `.tap` `.drill` `.exc`
 * **SVG** - full path spec; Béziers are parsed analytically but interpolated to line segments before offsetting.
 
 > Exporting Gerber with Protel file extensions lets drag-and-drop auto-assign
@@ -76,9 +78,13 @@ Developed and tested against **KiCad** and **EasyEDA** output.
 
 Full keyboard operability using a focus-zone strategy (`F6` cycles toolbar → tree → canvas → properties), a roving-tabindex operations tree, focus-trapped modals with keyboard-reorderable export lists, and `aria-live` status announcements. Targeting WCAG 2.1 Level AA; see the [accessibility guide](https://cam.eltryus.design/easytrace5000/doc/accessibility) for the complete shortcut list and current per-guideline status.
 
+## Custom files
+
+Drop a JSON file anywhere on the workspace (with no dialog open) to add a theme, a language pack, a post-processor setup, a laser profile or a whole tool library. Each file is checked and takes effect at once; one of each kind is kept, so a new one replaces the last, and a report says what it added and where to find it. A custom setup, laser profile or tool library in use can be removed from the welcome screen. How to write one: [core/CUSTOM.md](../core/CUSTOM.md).
+
 ## Debugging
 
-Verbose logging can also be toggled from the Visualization options panel.
+<kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>D</kbd>, or the Verbose Debug toggle in the Visualization panel's Log section, turns on verbose logging. In the browser console, `cam` is the app's controller.
 
 Most modules carry a `debug(message, data)` method gated on the same flag, so turning debug on gives you the whole pipeline rather than one layer of it.
 

@@ -1,0 +1,67 @@
+{
+  "_projectInfo": {
+    "file": "export/profiles/rdworks.json",
+    "description": "RDWorks / Ruida laser profile",
+    "author": "Eltryus - Ricardo Marques",
+    "see": "https://github.com/RicardoJCMarques/EasyCAM5000",
+    "license": "AGPL-3.0-or-later",
+    "copyright": "Copyright (C) 2025-2026 Eltryus - Ricardo Marques"
+  },
+  "meta": {
+    "kind": "laserProfile",
+    "app": "EasyTrace5000"
+  },
+  "id": "rdworks",
+  "label": "RDWorks / Ruida",
+  "maturity": "very-experimental",
+  "palette": null,
+  "paletteLumping": false,
+  "parameters": [
+    {
+      "name": "svgGrouping",
+      "type": "select",
+      "category": "laser",
+      "default": "layer",
+      "options": [
+        { "value": "none" },
+        { "value": "layer" },
+        { "value": "group" },
+        { "value": "color" }
+      ]
+    },
+    {
+      "name": "reverseCutOrder",
+      "type": "checkbox",
+      "category": "laser",
+      "default": false
+    },
+    {
+      "name": "heatManagement",
+      "type": "select",
+      "category": "laser",
+      "default": "off",
+      "options": [
+        { "value": "off" },
+        { "value": "standard" }
+      ]
+    },
+    {
+      "name": "colorPerPass",
+      "type": "checkbox",
+      "category": "laser",
+      "default": false
+    },
+    {
+      "name": "layerColors",
+      "type": "colorgrid",
+      "category": "laser",
+      "default": {
+        "isolation": "#ff0000",
+        "drill": "#00ff00",
+        "clearing": "#0000ff",
+        "cutout": "#000000",
+        "stencil": "#ff00ff"
+      }
+    }
+  ]
+}

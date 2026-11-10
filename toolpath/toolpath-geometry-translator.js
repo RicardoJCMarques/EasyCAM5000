@@ -10,1411 +10,1237 @@
  */
 
 (function() {
-    'use strict';
-    const ROOT = globalThis;
+  'use strict';
 
-    const C = ROOT.CAMConfig.constants;
-    const D = ROOT.CAMConfig.defaults;
-    const PRECISION = C.precision.coordinate;
-    const debugState = D.debug;
+  const ROOT = globalThis;
+  const C = ROOT.CAMConfig.constants;
+  const D = ROOT.CAMConfig.defaults;
+  const PRECISION = C.precision.coordinate;
+  const debugState = D.debug;
+
+  /**
+   * Primitive-driven translation router.
+   * No operation-type branching - all dispatch is based on primitive properties
+   * (role, tabConfig, type). Drill macro grouping runs as a pre-scan so the
+   * MachineProcessor receives one approach/retract cycle per hole regardless of
+   * how many concentric passes it contains.
+   *
+   * ── COORDINATE CONTRACT (shared by EasyTrace5000 & EasyShape5000) ──
+   * Input geometry (operation.offsets[].primitives) is ALWAYS in PIPELINE
+   * SPACE: file/workspace coordinates, pre-global-transform, pre-origin.
+   * Per-node scene-graph transforms have already been baked upstream
+   * (EasyShape: OperationBucket.syncPrimitives; EasyTrace: identity until
+   * per-object transforms land - same future code path).
+   *
+   * This translator is the ONE AND ONLY place geometry crosses into
+   * MACHINE SPACE. It applies a single combined matrix:
+   *  machineMatrix = T(-origin) ⊗ workspaceMatrix
+   * provided by PipelineContextBuilder.buildPipelineContext as ctx.transforms.
+   * Everything downstream (ToolpathOptimizer, MachineProcessor,
+   * GCodeGenerator) operates in machine coordinates and performs NO
+   * further coordinate math.
+   *
+   * transforms.machineIsIdentity short-circuits applyTransforms so
+   * untransformed jobs (typical EasyShape session with origin at 0,0)
+   * pay zero matrix cost and zero point allocations.
+   */
+  class GeometryTranslator {
+    constructor(core) {
+      this.core = core;
+      // Initialize the tab planning module
+      this.tabPlanner = new ToolpathTabPlanner(this);
+      // Built on first is3DContour primitive. EasyTrace emits none, so
+      // the 3D translator never has to be present for a PCB session.
+      this._t3d = null;
+    }
+
+    get t3d() {
+      if (!this._t3d) this._t3d = new Toolpath3DTranslator(this);
+      return this._t3d;
+    }
+
+    // ────────────────────────────────────────────────────────────
+    // Main Router - Primitive-Driven
+    // ────────────────────────────────────────────────────────────
 
     /**
-     * Primitive-driven translation router.
-     * No operation-type branching - all dispatch is based on primitive properties (role, tabConfig, type).  Drill macro grouping runs as a pre-scan so the MachineProcessor receives one approach/retract cycle per hole regardless of how many concentric passes it contains.
-     *
-     * ── COORDINATE CONTRACT (shared by EasyTrace5000 & EasyShape5000) ──
-     * Input geometry (operation.offsets[].primitives) is ALWAYS in PIPELINE
-     * SPACE: file/workspace coordinates, pre-global-transform, pre-origin.
-     * Per-node scene-graph transforms have already been baked upstream
-     * (EasyShape: OperationBucket.syncPrimitives; EasyTrace: identity until
-     * per-object transforms land - same future code path).
-     *
-     * This translator is the ONE AND ONLY place geometry crosses into
-     * MACHINE SPACE. It applies a single combined matrix:
-     *
-     *     machineMatrix = T(-origin) ⊗ workspaceMatrix
-     *
-     * provided by PipelineContextBuilder.buildPipelineContext as ctx.transforms.
-     * Everything downstream (ToolpathOptimizer, MachineProcessor,
-     * GCodeGenerator) operates in machine coordinates and performs NO
-     * further coordinate math.
-     *
-     * transforms.machineIsIdentity short-circuits applyTransforms so
-     * untransformed jobs (typical EasyShape session with origin at 0,0)
-     * pay zero matrix cost and zero point allocations.
+     * Translates a single operation's offset geometry into ToolpathPlans.
+     * - Pre-scan:  Groups concentric circle/obround drill milling paths by holeIndex and emits one macro plan per hole. All other primitives pass through.
+     * - Join internal offsets into stayDown like cluster objects
+     * - Per-primitive dispatch based on properties.role and properties.tabConfig. No operation-type checks.
      */
-    class GeometryTranslator {
-        constructor(core) {
-            this.core = core;
-            // Initialize the tab planning module
-            this.tabPlanner = new ToolpathTabPlanner(this);
-            // Built on first is3DContour primitive. EasyTrace emits none, so
-            // the 3D translator never has to be present for a PCB session.
-            this._t3d = null;
+    async translateOperation(operation, ctx) {
+      const plans = [];
+      let featureSeq = 0;
+      // Extract grouped drill milling macros
+      const { macroPlans, remainingPrimitives } = this.extractDrillMacros(operation, ctx);
+      plans.push(...macroPlans);
+      // Weld concentric internal-offset nests into one plan each
+      const { chainPlans, remainingPrimitives: afterChains } = this.extractOffsetChains(remainingPrimitives, ctx);
+      plans.push(...chainPlans);
+      // Role-based dispatch for everything else
+      for (const primitive of afterChains) {
+        const props = primitive.properties || {};
+        const role = props.role;
+        // 3D contours (V-Carve) - points carry their own Z.
+        // Bypasses depthLevels entirely (vcarve has no cutDepth).
+        if (props.is3DContour) {
+          plans.push(...this.t3d.translate(primitive, ctx));
+          continue;
         }
-
-        get t3d() {
-            if (!this._t3d) this._t3d = new Toolpath3DTranslator(this);
-            return this._t3d;
+        // Point-based macros (peck marks)
+        if (role === 'peck_mark') {
+          plans.push(this.translatePeckMark(primitive, ctx));
+          continue;
         }
-
-        // ────────────────────────────────────────────────────────────
-        // Main Router - Primitive-Driven
-        // ────────────────────────────────────────────────────────────
-
-        /**
-         * Translates a single operation's offset geometry into ToolpathPlans.
-         * Phase 1 - Pre-scan:  Groups concentric circle/obround drill milling paths by holeIndex and emits one macro plan per hole. All other primitives pass through.
-         * Phase 2 - Join internal offsets into stayDown like cluster objects
-         * Phase 3 - Per-primitive dispatch based on properties.role and properties.tabConfig. No operation-type checks.
-         */
-        async translateOperation(operation, ctx) {
-            const plans = [];
-            let featureSeq = 0;
-
-            // Phase 1 - Extract grouped drill milling macros
-            const { macroPlans, remainingPrimitives } =
-                this.extractDrillMacros(operation, ctx);
-            plans.push(...macroPlans);
-
-            // Phase 2 - Weld concentric internal-offset nests into one plan each
-            const { chainPlans, remainingPrimitives: afterChains } =
-                this.extractOffsetChains(remainingPrimitives, ctx);
-            plans.push(...chainPlans);
-
-            // Phase 3 - Role-based dispatch for everything else
-            for (const primitive of afterChains) {
-                const props = primitive.properties || {};
-                const role = props.role;
-
-                // 3D contours (V-Carve) - points carry their own Z.
-                // Bypasses depthLevels entirely (vcarve has no cutDepth).
-                if (props.is3DContour) {
-                    plans.push(...this.t3d.translate(primitive, ctx));
-                    continue;
-                }
-
-                // Point-based macros (peck marks)
-                if (role === 'peck_mark') {
-                    plans.push(this.translatePeckMark(primitive, ctx));
-                    continue;
-                }
-
-                // Remaining drill milling paths (centerlines, ungrouped fallbacks)
-                if (role === 'drill_milling_path') {
-                    if (props.isCenterlinePath) {
-                        plans.push(...this.translateCenterlinePath(primitive, ctx));
-                    } else {
-                        plans.push(...this.translateDrillMill(primitive, ctx));
-                    }
-                    continue;
-                }
-
-                // Standard contour routing (isolation, clearing, cutout, stencil)
-                const featureId = `${ctx.operationId}:sk${primitive.properties?.shapeKey ?? 'x'}:f${featureSeq++}`;
-                plans.push(...this.translateStandardPrimitive(primitive, ctx, featureId));
-            }
-
-            return plans;
+        // Remaining drill milling paths (centerlines, ungrouped fallbacks)
+        if (role === 'drill_milling_path') {
+          if (props.isCenterlinePath) {
+            plans.push(...this.translateCenterlinePath(primitive, ctx));
+          } else {
+            plans.push(...this.translateDrillMill(primitive, ctx));
+          }
+          continue;
         }
+        // Standard contour routing (isolation, clearing, cutout, stencil)
+        const featureId = `${ctx.operationId}:sk${primitive.properties?.shapeKey ?? 'x'}:f${featureSeq++}`;
+        plans.push(...this.translateStandardPrimitive(primitive, ctx, featureId));
+      }
+      return plans;
+    }
 
-        /**
-         * ONE dispatch from an offset primitive to its plan(s). Phase 3 and the
-         * chain pre-scan both go through it.
-         * translatePath reads contour.points, so a PathPrimitive handed straight to
-         * processStandardPrimitive produces a plan with correct entry/exit metadata
-         * and NO commands - which is how the first welded chains shipped as link
-         * moves between rings that were not there.
-         */
-        translateStandardPrimitive(primitive, ctx, featureId) {
-            let processable = primitive;
-            if (primitive.type !== 'path') {
-                const converted = GeometryUtils.primitiveToPath(primitive);
-                if (converted?.contours?.length > 0) processable = converted;
+    /**
+     * ONE dispatch from an offset primitive to its plan(s). Phase 3 and the
+     * chain pre-scan both go through it.
+     * translatePath reads contour.points, so a PathPrimitive handed straight to
+     * processStandardPrimitive produces a plan with correct entry/exit metadata
+     * and NO commands - which is how the first welded chains shipped as link
+     * moves between rings that were not there.
+     */
+    translateStandardPrimitive(primitive, ctx, featureId) {
+      let processable = primitive;
+      if (primitive.type !== 'path') {
+        const converted = GeometryUtils.primitiveToPath(primitive);
+        if (converted?.contours?.length > 0) processable = converted;
+      }
+
+      // Raw circles and rectangles that could not be converted keep the
+      // analytic path - translateCircle/translateObround read them directly.
+      if (!processable.contours?.length) return this.processStandardPrimitive(processable, ctx);
+
+      const parentShapeKey = primitive.properties?.shapeKey ?? null;
+      const parentPass = primitive.properties?.pass ?? null;
+      const tabCount = ctx.strategy?.cutout?.tabs || 0;
+      const isTabbedCutout = (ctx.operationType === 'cutout' || ctx.operationType === 'profile') && tabCount > 0;
+
+      const plans = [];
+      for (const contour of processable.contours) {
+        const isHole = contour.isHole || false;
+        plans.push(...(isTabbedCutout
+          ? this.processTabbedContour(contour, ctx, isHole, parentShapeKey, featureId, parentPass)
+          : this.processStandardContour(contour, processable, ctx, isHole, parentShapeKey, featureId, parentPass)));
+      }
+      return plans;
+    }
+
+    // Drill Macro Extraction (Pre-Scan)
+
+    /**
+     * Groups concentric circle and obround drill milling paths by holeIndex, then emits a single drillMillMacro plan per hole.
+     * Returns the macro plans and the list of primitives that were NOT consumed (pecks, centerlines, non-drill geometry).
+     */
+    extractDrillMacros(operation, ctx) {
+      const macroPlans = [];
+      const remainingPrimitives = [];
+      const { operationId, tool, cutting, strategy, transforms, computed } = ctx;
+      const circleMillByHole = new Map();
+      const obroundMillByHole = new Map();
+      // Scan all offset primitives
+      for (const offset of operation.offsets) {
+        for (const primitive of offset.primitives) {
+          const props = primitive.properties || {};
+          if (props.role === 'drill_milling_path' && !props.isCenterlinePath) {
+            if (primitive.type === 'circle') {
+              if (!circleMillByHole.has(holeIdxOf(props))) circleMillByHole.set(holeIdxOf(props), []);
+              circleMillByHole.get(holeIdxOf(props)).push(primitive);
+              continue;
+            } else if (primitive.type === 'obround') {
+              if (!obroundMillByHole.has(holeIdxOf(props))) obroundMillByHole.set(holeIdxOf(props), []);
+              obroundMillByHole.get(holeIdxOf(props)).push(primitive);
+              continue;
             }
-
-            // Raw circles and rectangles that could not be converted keep the
-            // analytic path - translateCircle/translateObround read them directly.
-            if (!processable.contours?.length) {
-                return this.processStandardPrimitive(processable, ctx);
-            }
-
-            const parentShapeKey = primitive.properties?.shapeKey ?? null;
-            const parentPass = primitive.properties?.pass ?? null;
-            const tabCount = ctx.strategy?.cutout?.tabs || 0;
-            const isTabbedCutout = (ctx.operationType === 'cutout' || ctx.operationType === 'profile') && tabCount > 0;
-
-            const plans = [];
-            for (const contour of processable.contours) {
-                const isHole = contour.isHole || false;
-                plans.push(...(isTabbedCutout
-                    ? this.processTabbedContour(contour, ctx, isHole, parentShapeKey, featureId, parentPass)
-                    : this.processStandardContour(contour, processable, ctx, isHole, parentShapeKey, featureId, parentPass)));
-            }
-            return plans;
+          }
+          remainingPrimitives.push(primitive);
         }
+      }
+      // Emit circle macro plans
+      for (const holePrimitives of circleMillByHole.values()) {
+        const rings = holePrimitives.map((prim, idx) => {
+          // Clone via transform (or explicit copy on identity) so ring
+          // centers never alias live source-primitive objects.
+          const tc = this.applyTransforms(prim.center, transforms);
+          return { center: tc === prim.center ? { x: tc.x, y: tc.y } : tc, radius: prim.radius, pass: idx + 1 };
+        });
+        const source = holePrimitives[0];
+        // The rings were offset with THIS row's cutter. The helix radius
+        // and the final cleanup pass are derived from toolDiameter, so
+        // taking it from ctx.tool cuts the wrong circle whenever the row
+        // uses an end mill other than the operation's.
+        const millDiameter = source.properties?.toolDiameter ?? tool.diameter;
+        const drill = this.resolveDrillRow(source, ctx);
+        const innerRing = rings[0];
+        const entryX = innerRing.center.x + innerRing.radius;
+        const entryY = innerRing.center.y;
+        const plan = new ToolpathPlan(operationId);
+        plan.metadata.transforms = ctx.transforms;
+        plan.metadata.operationId = operationId;
+        plan.metadata.operationType = 'drill';
+        plan.metadata.isDrillMilling = true;
+        plan.metadata.drillMillMacro = true;
+        plan.metadata.entryType = strategy.entryType || 'plunge';
+        plan.metadata.concentricRings = rings;
+        plan.metadata.depthLevels = computed.depthLevels;
+        plan.metadata.cutDepth = computed.depthLevels[computed.depthLevels.length - 1];
+        plan.metadata.depthPerPass = strategy.depthPerPass;
+        plan.metadata.feedRate = cutting.feedRate;
+        plan.metadata.plungeRate = cutting.plungeRate;
+        plan.metadata.spindleSpeed = cutting.spindleSpeed;
+        plan.metadata.spindleDwell = cutting.spindleDwell;
+        plan.metadata.toolDiameter = millDiameter;
+        plan.metadata.center = innerRing.center;
+        plan.metadata.radius = innerRing.radius;
+        plan.metadata.isSimpleCircle = true;
+        plan.metadata.isClosedLoop = true;
+        plan.metadata.primitiveType = 'circle';
+        plan.metadata.entryPoint = { x: entryX, y: entryY };
+        plan.metadata.exitPoint = { x: entryX, y: entryY };
+        plan.metadata.groupKey = this.stampToolMetadata(plan, ctx, source) + `_OP:${operationId}_TYPE:drill_mill`;
+        this.applyDrillRowMetadata(plan, drill);
+        plan.metadata.optimization = {
+          linkType: 'rapid',
+          optimizedEntryPoint: { ...plan.metadata.entryPoint },
+          entryCommandIndex: 0
+        };
+        macroPlans.push(plan);
+      }
+      // Emit obround macro plans
+      for (const holePrimitives of obroundMillByHole.values()) {
+        const rings = holePrimitives.map((prim, idx) => {
+          const oData = this.getObroundData(prim);
+          // getObroundData returns fresh objects, so identity
+          // passthrough from applyTransforms is alias-safe here.
+          oData.startCapCenter = this.applyTransforms(oData.startCapCenter, transforms);
+          oData.endCapCenter = this.applyTransforms(oData.endCapCenter, transforms);
+          oData.pA = this.applyTransforms(oData.pA, transforms);
+          oData.pB = this.applyTransforms(oData.pB, transforms);
+          oData.pC = this.applyTransforms(oData.pC, transforms);
+          oData.pD = this.applyTransforms(oData.pD, transforms);
+          // Normalize the sequence so the macro can remain transform agnostic.
+          // windingFlipped is det-based, so it always matches the matrix.
+          const isFlipped = transforms.windingFlipped;
+          if (isFlipped) {
+            const tempB = oData.pB; oData.pB = oData.pC; oData.pC = tempB;
+            const tempA = oData.pA; oData.pA = oData.pD; oData.pD = tempA;
+            const tempStart = oData.startCapCenter; oData.startCapCenter = oData.endCapCenter; oData.endCapCenter = tempStart;
+          }
+          return { ...oData, pass: idx + 1 };
+        });
+        const innerRing = rings[0];
+        const entryPoint = innerRing.pB; // Always use pB. It is guaranteed correct.
+        const source = holePrimitives[0];
+        const millDiameter = source.properties?.toolDiameter ?? tool.diameter;
+        const drill = this.resolveDrillRow(source, ctx);
+        const plan = new ToolpathPlan(operationId);
+        plan.metadata.transforms = ctx.transforms;
+        plan.metadata.operationId = operationId;
+        plan.metadata.operationType = 'drill';
+        plan.metadata.isDrillMilling = true;
+        plan.metadata.drillMillMacro = true;
+        plan.metadata.slotMacro = true;
+        plan.metadata.entryType = strategy.entryType || 'plunge';
+        plan.metadata.obroundRings = rings;
+        plan.metadata.depthLevels = computed.depthLevels;
+        plan.metadata.cutDepth = computed.depthLevels[computed.depthLevels.length - 1];
+        plan.metadata.depthPerPass = strategy.depthPerPass;
+        plan.metadata.feedRate = cutting.feedRate;
+        plan.metadata.plungeRate = cutting.plungeRate;
+        plan.metadata.spindleSpeed = cutting.spindleSpeed;
+        plan.metadata.spindleDwell = cutting.spindleDwell;
+        plan.metadata.toolDiameter = millDiameter;
+        plan.metadata.isClosedLoop = true;
+        plan.metadata.isSimpleCircle = false;
+        plan.metadata.primitiveType = 'obround';
+        plan.metadata.entryPoint = { x: entryPoint.x, y: entryPoint.y };
+        plan.metadata.exitPoint = { x: entryPoint.x, y: entryPoint.y };
+        plan.metadata.groupKey = this.stampToolMetadata(plan, ctx, source) + `_OP:${operationId}_TYPE:drill_mill`;
+        this.applyDrillRowMetadata(plan, drill);
+        plan.metadata.optimization = {
+          linkType: 'rapid',
+          optimizedEntryPoint: { ...plan.metadata.entryPoint },
+          entryCommandIndex: 0
+        };
+        macroPlans.push(plan);
+      }
+      return { macroPlans, remainingPrimitives };
+    }
 
-        // Drill Macro Extraction (Pre-Scan)
+    /**
+     * Offset Chain Extraction (Pre-Scan)
+     * Concentric internal offsets are one continuous cut: pass N+1 lies inside
+     * pass N's swath, so the tool can feed from ring to ring at depth. Welding
+     * them into ONE plan is what makes the depth ladder run across the whole
+     * nest - MachineProcessor replays plan.commands once per level, so a merged
+     * chain gives every ring at Z1, then every ring at Z2, instead of one ring
+     * to full depth at a time. That ordering is what makes the link safe, and
+     * it is also one approach and one retract per level instead of per ring.
+     * Welds a PREFIX: consumes passes 1..k while each contributes exactly one
+     * plan, and stops at the first that does not. Two plans in a pass means a
+     * shell and a hole separated by a wall, or a pour that broke into islands -
+     * neither is a nest, and a feed move between them crosses uncut stock. A
+     * dumbbell pocket still wins on its first passes instead of losing all of
+     * them.
+     */
+    extractOffsetChains(primitives, ctx) {
+      const chainPlans = [];
+      const remainingPrimitives = [];
+      const byKey = new Map();
 
-        /**
-         * Groups concentric circle and obround drill milling paths by holeIndex, then emits a single drillMillMacro plan per hole.
-         * Returns the macro plans and the list of primitives that were NOT consumed (pecks, centerlines, non-drill geometry).
-         */
-        extractDrillMacros(operation, ctx) {
-            const macroPlans = [];
-            const remainingPrimitives = [];
-            const { operationId, tool, cutting, strategy, transforms, computed } = ctx;
+      // Tabs slice plan.commands into tab-aware and continuous sets that
+      // MachineProcessor picks between per depth level; a welded chain has
+      // neither. Pocket and clearing never set them, so this is a guard,
+      // not a case.
+      const tabbed = (ctx.strategy?.cutout?.tabs || 0) > 0;
 
-            const circleMillByHole = new Map();
-            const obroundMillByHole = new Map();
-
-            // Scan all offset primitives
-            for (const offset of operation.offsets) {
-                for (const primitive of offset.primitives) {
-                    const props = primitive.properties || {};
-
-                    if (props.role === 'drill_milling_path' && !props.isCenterlinePath) {
-                        if (primitive.type === 'circle') {
-                            if (!circleMillByHole.has(holeIdxOf(props))) circleMillByHole.set(holeIdxOf(props), []);
-                            circleMillByHole.get(holeIdxOf(props)).push(primitive);
-                            continue;
-                        } else if (primitive.type === 'obround') {
-                            if (!obroundMillByHole.has(holeIdxOf(props))) obroundMillByHole.set(holeIdxOf(props), []);
-                            obroundMillByHole.get(holeIdxOf(props)).push(primitive);
-                            continue;
-                        }
-                    }
-                    remainingPrimitives.push(primitive);
-                }
-            }
-
-            // Emit circle macro plans
-            for (const holePrimitives of circleMillByHole.values()) {
-                const rings = holePrimitives.map((prim, idx) => {
-                    // Clone via transform (or explicit copy on identity) so ring
-                    // centers never alias live source-primitive objects.
-                    const tc = this.applyTransforms(prim.center, transforms);
-                    return { center: tc === prim.center ? { x: tc.x, y: tc.y } : tc, radius: prim.radius, pass: idx + 1 };
-                });
-                const source = holePrimitives[0];
-                // The rings were offset with THIS row's cutter. The helix radius
-                // and the final cleanup pass are derived from toolDiameter, so
-                // taking it from ctx.tool cuts the wrong circle whenever the row
-                // uses an end mill other than the operation's.
-                const millDiameter = source.properties?.toolDiameter ?? tool.diameter;
-                const drill = this.resolveDrillRow(source, ctx);
-                const innerRing = rings[0];
-                const entryX = innerRing.center.x + innerRing.radius;
-                const entryY = innerRing.center.y;
-
-                const plan = new ToolpathPlan(operationId);
-                plan.metadata.transforms = ctx.transforms;
-                plan.metadata.operationId = operationId;
-                plan.metadata.operationType = 'drill';
-                plan.metadata.isDrillMilling = true;
-                plan.metadata.drillMillMacro = true;
-                plan.metadata.entryType = strategy.entryType || 'plunge';
-                plan.metadata.concentricRings = rings;
-                plan.metadata.depthLevels = computed.depthLevels;
-                plan.metadata.cutDepth = computed.depthLevels[computed.depthLevels.length - 1];
-                plan.metadata.depthPerPass = strategy.depthPerPass;
-                plan.metadata.feedRate = cutting.feedRate;
-                plan.metadata.plungeRate = cutting.plungeRate;
-                plan.metadata.spindleSpeed = cutting.spindleSpeed;
-                plan.metadata.spindleDwell = cutting.spindleDwell;
-                plan.metadata.toolDiameter = millDiameter;
-                plan.metadata.center = innerRing.center;
-                plan.metadata.radius = innerRing.radius;
-                plan.metadata.isSimpleCircle = true;
-                plan.metadata.isClosedLoop = true;
-                plan.metadata.primitiveType = 'circle';
-                plan.metadata.entryPoint = { x: entryX, y: entryY };
-                plan.metadata.exitPoint = { x: entryX, y: entryY };
-                plan.metadata.groupKey = this.stampToolMetadata(plan, ctx, source) + `_OP:${operationId}_TYPE:drill_mill`;
-                this.applyDrillRowMetadata(plan, drill);
-                plan.metadata.optimization = {
-                    linkType: 'rapid',
-                    optimizedEntryPoint: { ...plan.metadata.entryPoint },
-                    entryCommandIndex: 0
-                };
-                macroPlans.push(plan);
-            }
-
-            // Emit obround macro plans
-            for (const holePrimitives of obroundMillByHole.values()) {
-                const rings = holePrimitives.map((prim, idx) => {
-                    const oData = this.getObroundData(prim);
-                    // getObroundData returns fresh objects, so identity
-                    // passthrough from applyTransforms is alias-safe here.
-                    oData.startCapCenter = this.applyTransforms(oData.startCapCenter, transforms);
-                    oData.endCapCenter = this.applyTransforms(oData.endCapCenter, transforms);
-                    oData.pA = this.applyTransforms(oData.pA, transforms);
-                    oData.pB = this.applyTransforms(oData.pB, transforms);
-                    oData.pC = this.applyTransforms(oData.pC, transforms);
-                    oData.pD = this.applyTransforms(oData.pD, transforms);
-
-                    // Normalize the sequence so the macro can remain transform agnostic.
-                    // windingFlipped is det-based, so it always matches the matrix.
-                    const isFlipped = transforms.windingFlipped;
-                    if (isFlipped) {
-                        const tempB = oData.pB; oData.pB = oData.pC; oData.pC = tempB;
-                        const tempA = oData.pA; oData.pA = oData.pD; oData.pD = tempA;
-                        const tempStart = oData.startCapCenter; oData.startCapCenter = oData.endCapCenter; oData.endCapCenter = tempStart;
-                    }
-                    return { ...oData, pass: idx + 1 };
-                });
-
-                const innerRing = rings[0];
-                const entryPoint = innerRing.pB; // Always use pB. It is guaranteed correct.
-                const source = holePrimitives[0];
-                const millDiameter = source.properties?.toolDiameter ?? tool.diameter;
-                const drill = this.resolveDrillRow(source, ctx);
-
-                const plan = new ToolpathPlan(operationId);
-                plan.metadata.transforms = ctx.transforms;
-                plan.metadata.operationId = operationId;
-                plan.metadata.operationType = 'drill';
-                plan.metadata.isDrillMilling = true;
-                plan.metadata.drillMillMacro = true;
-                plan.metadata.slotMacro = true;
-                plan.metadata.entryType = strategy.entryType || 'plunge';
-                plan.metadata.obroundRings = rings;
-                plan.metadata.depthLevels = computed.depthLevels;
-                plan.metadata.cutDepth = computed.depthLevels[computed.depthLevels.length - 1];
-                plan.metadata.depthPerPass = strategy.depthPerPass;
-                plan.metadata.feedRate = cutting.feedRate;
-                plan.metadata.plungeRate = cutting.plungeRate;
-                plan.metadata.spindleSpeed = cutting.spindleSpeed;
-                plan.metadata.spindleDwell = cutting.spindleDwell;
-                plan.metadata.toolDiameter = millDiameter;
-                plan.metadata.isClosedLoop = true;
-                plan.metadata.isSimpleCircle = false;
-                plan.metadata.primitiveType = 'obround';
-                plan.metadata.entryPoint = { x: entryPoint.x, y: entryPoint.y };
-                plan.metadata.exitPoint = { x: entryPoint.x, y: entryPoint.y };
-                plan.metadata.groupKey = this.stampToolMetadata(plan, ctx, source) + `_OP:${operationId}_TYPE:drill_mill`;
-                this.applyDrillRowMetadata(plan, drill);
-                plan.metadata.optimization = {
-                    linkType: 'rapid',
-                    optimizedEntryPoint: { ...plan.metadata.entryPoint },
-                    entryCommandIndex: 0
-                };
-                macroPlans.push(plan);
-            }
-            return { macroPlans, remainingPrimitives };
+      for (const primitive of primitives) {
+        const props = primitive.properties || {};
+        if (tabbed || !props.staydownChain || !(props.chainKey >= 0)) {
+          remainingPrimitives.push(primitive);
+          continue;
         }
+        if (!byKey.has(props.chainKey)) byKey.set(props.chainKey, []);
+        byKey.get(props.chainKey).push(primitive);
+      }
 
-        /**
-         * Offset Chain Extraction (Pre-Scan)
-         *
-         * Concentric internal offsets are one continuous cut: pass N+1 lies inside
-         * pass N's swath, so the tool can feed from ring to ring at depth. Welding
-         * them into ONE plan is what makes the depth ladder run across the whole
-         * nest - MachineProcessor replays plan.commands once per level, so a merged
-         * chain gives every ring at Z1, then every ring at Z2, instead of one ring
-         * to full depth at a time. That ordering is what makes the link safe, and
-         * it is also one approach and one retract per level instead of per ring.
-         *
-         * Welds a PREFIX: consumes passes 1..k while each contributes exactly one
-         * plan, and stops at the first that does not. Two plans in a pass means a
-         * shell and a hole separated by a wall, or a pour that broke into islands -
-         * neither is a nest, and a feed move between them crosses uncut stock. A
-         * dumbbell pocket still wins on its first passes instead of losing all of
-         * them.
-         */
-        extractOffsetChains(primitives, ctx) {
-            const chainPlans = [];
-            const remainingPrimitives = [];
-            const byKey = new Map();
+      for (const [chainKey, chainPrimitives] of byKey) {
+        chainPrimitives.sort((a, b) => (a.properties.chainPass || 0) - (b.properties.chainPass || 0));
 
-            // Tabs slice plan.commands into tab-aware and continuous sets that
-            // MachineProcessor picks between per depth level; a welded chain has
-            // neither. Pocket and clearing never set them, so this is a guard,
-            // not a case.
-            const tabbed = (ctx.strategy?.cutout?.tabs || 0) > 0;
+        // Longest run of contiguous passes that each produced one plan.
+        const welded = [];
+        let expectedPass = chainPrimitives[0].properties.chainPass;
+        let consumed = 0;
+        for (let i = 0; i < chainPrimitives.length; i++) {
+          const primitive = chainPrimitives[i];
+          const pass = primitive.properties.chainPass;
+          const nextSamePass = chainPrimitives[i + 1]?.properties.chainPass === pass;
+          if (pass !== expectedPass || nextSamePass) break;
 
-            for (const primitive of primitives) {
-                const props = primitive.properties || {};
-                if (tabbed || !props.staydownChain || !(props.chainKey >= 0)) {
-                    remainingPrimitives.push(primitive);
-                    continue;
-                }
-                if (!byKey.has(props.chainKey)) byKey.set(props.chainKey, []);
-                byKey.get(props.chainKey).push(primitive);
-            }
-
-            for (const [chainKey, chainPrimitives] of byKey) {
-                chainPrimitives.sort((a, b) => (a.properties.chainPass || 0) - (b.properties.chainPass || 0));
-
-                // Longest run of contiguous passes that each produced one plan.
-                const welded = [];
-                let expectedPass = chainPrimitives[0].properties.chainPass;
-                let consumed = 0;
-                for (let i = 0; i < chainPrimitives.length; i++) {
-                    const primitive = chainPrimitives[i];
-                    const pass = primitive.properties.chainPass;
-                    const nextSamePass = chainPrimitives[i + 1]?.properties.chainPass === pass;
-                    if (pass !== expectedPass || nextSamePass) break;
-
-                    const featureId = `${ctx.operationId}:sk${chainKey}:chain`;
-                    const ringPlans = this.translateStandardPrimitive(primitive, ctx, featureId);
-                    if (ringPlans.length !== 1) break;
-                    welded.push(ringPlans[0]);
-                    consumed++;
-                    expectedPass = pass + 1;
-                }
-
-                if (welded.length < 2) {
-                    remainingPrimitives.push(...chainPrimitives);
-                    continue;
-                }
-                remainingPrimitives.push(...chainPrimitives.slice(consumed));
-
-                const chain = welded[0];
-                for (let i = 1; i < welded.length; i++) {
-                    const next = welded[i];
-                    const entry = next.metadata.entryPoint;
-                    // One step long, inside the swath the previous ring cleared.
-                    chain.commands.push(new MotionCommand('LINEAR',
-                        { x: entry.x, y: entry.y },
-                        { feed: ctx.cutting.feedRate }));
-                    // push(...ring) spreads every command into the argument
-                    // list; a dense pour ring overflows it and throws.
-                    for (const cmd of next.commands) chain.commands.push(cmd);
-                    chain.metadata.exitPoint = { ...next.metadata.exitPoint };
-                }
-
-                // The chain is a spiral, not a ring. Its rings were already
-                // climb-oriented and ordered outermost-in, so nothing downstream
-                // may close it, rotate its entry or reverse it. perLevelReturn
-                // tells MachineProcessor to lift between levels rather than feed
-                // back across the pocket at the new depth.
-                chain.metadata.isClosedLoop = false;
-                chain.metadata.isClosed = false;
-                chain.metadata.isSimpleCircle = false;
-                chain.metadata.staydownChain = true;
-                chain.metadata.chainRings = welded.length;
-                chain.metadata.perLevelReturn = 'retract';
-                chain.metadata.optimization = {
-                    linkType: 'rapid',
-                    optimizedEntryPoint: { ...chain.metadata.entryPoint },
-                    entryCommandIndex: 0
-                };
-                chain.computeBounds();
-                chainPlans.push(chain);
-                this.debug(`Offset chain sk${chainKey}: welded ${welded.length} ring(s) into one plan`);
-            }
-
-            return { chainPlans, remainingPrimitives };
+          const featureId = `${ctx.operationId}:sk${chainKey}:chain`;
+          const ringPlans = this.translateStandardPrimitive(primitive, ctx, featureId);
+          if (ringPlans.length !== 1) break;
+          welded.push(ringPlans[0]);
+          consumed++;
+          expectedPass = pass + 1;
         }
-
-        /**
-         * Specific Translation Macros
-         */
-        translatePeckMark(primitive, ctx) {
-            const { operationId, cutting, strategy, transforms, computed } = ctx;
-            const plan = new ToolpathPlan(operationId);
-            plan.metadata.transforms = ctx.transforms;
-            plan.metadata.cutDepth = computed.depthLevels[computed.depthLevels.length - 1];
-            plan.metadata.feedRate = cutting.feedRate;
-            plan.metadata.plungeRate = cutting.plungeRate;
-            plan.metadata.spindleSpeed = cutting.spindleSpeed;
-            plan.metadata.spindleDwell = cutting.spindleDwell;
-            plan.metadata.isPeckMark = true;
-
-            const drill = this.resolveDrillRow(primitive, ctx);
-            plan.metadata.groupKey = this.stampToolMetadata(plan, ctx, primitive) + `_OP:${operationId}_TYPE:peck`;
-            this.applyDrillRowMetadata(plan, drill);
-
-            const transformedCenter = this.applyTransforms(primitive.center, transforms);
-            plan.metadata.entryPoint = { x: transformedCenter.x, y: transformedCenter.y };
-            plan.metadata.exitPoint = { x: transformedCenter.x, y: transformedCenter.y };
-
-            // Cycle parameters for the Machine Processor. The row wins where it
-            // sets one; the operation's drill strategy fills the rest.
-            plan.metadata.peckCycle = {
-                cannedCycle: drill?.peck?.cannedCycle ?? strategy.drill.cannedCycle ?? 'none',
-                peckDepth: drill?.peck?.peckDepth ?? strategy.drill.peckDepth ?? 0,
-                dwellTime: drill?.peck?.dwellTime ?? strategy.drill.dwellTime ?? 0,
-                retractHeight: drill?.peck?.retractHeight ?? strategy.drill.retractHeight ?? 0.5
-            };
-            plan.metadata.peckData = {
-                position: transformedCenter === primitive.center ? { x: transformedCenter.x, y: transformedCenter.y } : transformedCenter,
-                ...primitive.properties
-            };
-            plan.metadata.optimization = {
-                linkType: 'rapid',
-                optimizedEntryPoint: { ...plan.metadata.entryPoint },
-                entryCommandIndex: 0
-            };
-            return plan;
+        if (welded.length < 2) {
+          remainingPrimitives.push(...chainPrimitives);
+          continue;
         }
-
-        /**
-         * Drill milling paths that weren't captured by the macro grouping pre-scan (e.g. path-type geometry).
-         */
-        translateDrillMill(primitive, ctx) {
-            const plans = [];
-            const isClosed = primitive.type === 'circle' || primitive.type === 'obround' ||
-                             (primitive.contours?.[0]?.points?.length >= 3);
-
-            const drillMillCtx = { ...ctx, isDrillMilling: true };
-            const geometryEntity = (primitive.type === 'path' && primitive.contours?.length > 0)
-                ? primitive.contours[0]
-                : primitive;
-
-            const plan = this.createPurePlan(geometryEntity, drillMillCtx, isClosed, false, true);
-            if (plan) {
-                plan.metadata.isDrillMilling = true;
-                plan.computeBounds();
-                if (isClosed) this.enforceClimbMilling(plan, false);
-                plans.push(plan);
-            }
-
-            return plans;
+        remainingPrimitives.push(...chainPrimitives.slice(consumed));
+        const chain = welded[0];
+        for (let i = 1; i < welded.length; i++) {
+          const next = welded[i];
+          const entry = next.metadata.entryPoint;
+          // One step long, inside the swath the previous ring cleared.
+          chain.commands.push(new MotionCommand('LINEAR',
+            { x: entry.x, y: entry.y },
+            { feed: ctx.cutting.feedRate }));
+          // push(...ring) spreads every command into the argument
+          // list; a dense pour ring overflows it and throws.
+          for (const cmd of next.commands) chain.commands.push(cmd);
+          chain.metadata.exitPoint = { ...next.metadata.exitPoint };
         }
+        // The chain is a spiral, not a ring. Its rings were already
+        // climb-oriented and ordered outermost-in, so nothing downstream
+        // may close it, rotate its entry or reverse it. perLevelReturn
+        // tells MachineProcessor to lift between levels rather than feed
+        // back across the pocket at the new depth.
+        chain.metadata.isClosedLoop = false;
+        chain.metadata.isClosed = false;
+        chain.metadata.isSimpleCircle = false;
+        chain.metadata.staydownChain = true;
+        chain.metadata.chainRings = welded.length;
+        chain.metadata.perLevelReturn = 'retract';
+        chain.metadata.optimization = {
+          linkType: 'rapid',
+          optimizedEntryPoint: { ...chain.metadata.entryPoint },
+          entryCommandIndex: 0
+        };
+        chain.computeBounds();
+        chainPlans.push(chain);
+        this.debug(`Offset chain sk${chainKey}: welded ${welded.length} ring(s) into one plan`);
+      }
+      return { chainPlans, remainingPrimitives };
+    }
 
-        /**
-         * Centerline slot: the cutter is at or over the slot width, so there is no
-         * ring to mill and the feature is one pass down the middle. Emits one macro
-         * plan the MachineProcessor expands into a zig-zag step-down.
-         * isDrillMilling on the context is what makes createPurePlan resolve the
-         * drill row - this was the only drill translation that omitted it, so the
-         * row's feeds, stepOver, entryType and per-key depth ladder reached every
-         * drill plan except this one.
-         * createPurePlan is handed the CONTOUR, which has no properties, so the
-         * row and the cutter resolve from the primitive that owns it.
-         */
-        translateCenterlinePath(primitive, ctx) {
-            // Centerline slots are wrapped in a PathPrimitive, so the points are in the first contour.
-            const contour = primitive.contours[0];
-            const points = contour?.points;
-            if (!points || points.length < 2) {
-                this.warnOperation(ctx, 'Centerline slot skipped - the generated path has fewer than two points.');
-                return [];
-            }
+    /** Specific Translation Macros */
+    translatePeckMark(primitive, ctx) {
+      const { operationId, cutting, strategy, transforms, computed } = ctx;
+      const plan = new ToolpathPlan(operationId);
+      plan.metadata.transforms = ctx.transforms;
+      plan.metadata.cutDepth = computed.depthLevels[computed.depthLevels.length - 1];
+      plan.metadata.feedRate = cutting.feedRate;
+      plan.metadata.plungeRate = cutting.plungeRate;
+      plan.metadata.spindleSpeed = cutting.spindleSpeed;
+      plan.metadata.spindleDwell = cutting.spindleDwell;
+      plan.metadata.isPeckMark = true;
 
-            const startPoint = points[0];
-            const endPoint = points[points.length - 1];
-            const slotLength = Math.hypot(endPoint.x - startPoint.x, endPoint.y - startPoint.y);
+      const drill = this.resolveDrillRow(primitive, ctx);
+      plan.metadata.groupKey = this.stampToolMetadata(plan, ctx, primitive) + `_OP:${operationId}_TYPE:peck`;
+      this.applyDrillRowMetadata(plan, drill);
 
-            const drillMillCtx = { ...ctx, isDrillMilling: true };
-            const plan = this.createPurePlan(contour, drillMillCtx, false, false, false);
-            if (!plan || !plan.metadata.exitPoint) {
-                // An empty return here is indistinguishable from "the slot vanished". Log the reason.
-                this.warnOperation(ctx, 'Centerline slot skipped - no exit point resolved from its contour.');
-                return [];
-            }
+      const transformedCenter = this.applyTransforms(primitive.center, transforms);
+      plan.metadata.entryPoint = { x: transformedCenter.x, y: transformedCenter.y };
+      plan.metadata.exitPoint = { x: transformedCenter.x, y: transformedCenter.y };
 
-            plan.metadata.primitiveType = 'centerline_slot';
-            plan.metadata.isCenterlinePath = true;
-            plan.metadata.isDrillMilling = true;
-            plan.metadata.slotLength = slotLength;
+      // Cycle parameters for the Machine Processor. The row wins where it
+      // sets one; the operation's drill strategy fills the rest.
+      plan.metadata.peckCycle = {
+        cannedCycle: drill?.peck?.cannedCycle ?? strategy.drill.cannedCycle ?? 'none',
+        peckDepth: drill?.peck?.peckDepth ?? strategy.drill.peckDepth ?? 0,
+        dwellTime: drill?.peck?.dwellTime ?? strategy.drill.dwellTime ?? 0,
+        retractHeight: drill?.peck?.retractHeight ?? strategy.drill.retractHeight ?? 0.5
+      };
+      plan.metadata.peckData = {
+        position: transformedCenter === primitive.center ? { x: transformedCenter.x, y: transformedCenter.y } : transformedCenter,
+        ...primitive.properties
+      };
+      plan.metadata.optimization = {
+        linkType: 'rapid',
+        optimizedEntryPoint: { ...plan.metadata.entryPoint },
+        entryCommandIndex: 0
+      };
+      return plan;
+    }
 
-            // Same order every other drill path uses: the primitive's stamped
-            // diameter wins, the operation tool is the fallback.
-            if (primitive.properties?.toolDiameter > 0) {
-                plan.metadata.toolDiameter = primitive.properties.toolDiameter;
-            }
-            this.applyDrillRowMetadata(plan, this.resolveDrillRow(primitive, ctx));
+    /**
+     * Drill milling paths that weren't captured by the macro grouping
+     * pre-scan (e.g. path-type geometry).
+     */
+    translateDrillMill(primitive, ctx) {
+      const plans = [];
+      const isClosed = primitive.type === 'circle' || primitive.type === 'obround' || (primitive.contours?.[0]?.points?.length >= 3);
+      const drillMillCtx = { ...ctx, isDrillMilling: true };
+      const geometryEntity = (primitive.type === 'path' && primitive.contours?.length > 0) ? primitive.contours[0] : primitive;
+      const plan = this.createPurePlan(geometryEntity, drillMillCtx, isClosed, false, true);
+      if (plan) {
+        plan.metadata.isDrillMilling = true;
+        plan.computeBounds();
+        if (isClosed) this.enforceClimbMilling(plan, false);
+        plans.push(plan);
+      }
+      return plans;
+    }
 
-            // Built from the PLAN, not from ctx: applyDrillRowMetadata may have
-            // just replaced these with the row's numbers, and the zig-zag in
-            // MachineProcessor reads this block and nothing else.
-            plan.metadata.strategy = {
-                zigzag: true,
-                cutDepth: ctx.strategy.cutDepth,
-                depthPerPass: plan.metadata.depthPerPass,
-                feedRate: plan.metadata.feedRate,
-                plungeRate: plan.metadata.plungeRate
-            };
+    /**
+     * Centerline slot: the cutter is at or over the slot width, so there is no
+     * ring to mill and the feature is one pass down the middle. Emits one macro
+     * plan the MachineProcessor expands into a zig-zag step-down.
+     * isDrillMilling on the context is what makes createPurePlan resolve the
+     * drill row - this was the only drill translation that omitted it, so the
+     * row's feeds, stepOver, entryType and per-key depth ladder reached every
+     * drill plan except this one.
+     * createPurePlan is handed the CONTOUR, which has no properties, so the
+     * row and the cutter resolve from the primitive that owns it.
+     */
+    translateCenterlinePath(primitive, ctx) {
+      // Centerline slots are wrapped in a PathPrimitive, so the points are in the first contour.
+      const contour = primitive.contours[0];
+      const points = contour?.points;
+      if (!points || points.length < 2) {
+        this.warnOperation(ctx, {key: 'messages.toolpaths.slotTooShort'});
+        return [];
+      }
 
-            // Use the transformed exit point for the guide command so MachineProcessor knows where the slot ends in machine coordinates.
-            plan.commands.push(new MotionCommand('LINEAR',
-                { x: plan.metadata.exitPoint.x, y: plan.metadata.exitPoint.y },
-                { feed: plan.metadata.feedRate }));
-            plan.computeBounds();
-            return [plan];
+      const startPoint = points[0];
+      const endPoint = points[points.length - 1];
+      const slotLength = Math.hypot(endPoint.x - startPoint.x, endPoint.y - startPoint.y);
+
+      const drillMillCtx = { ...ctx, isDrillMilling: true };
+      const plan = this.createPurePlan(contour, drillMillCtx, false, false, false);
+      if (!plan || !plan.metadata.exitPoint) {
+        // An empty return here is indistinguishable from "the slot vanished". Log the reason.
+        this.warnOperation(ctx, {key: 'messages.toolpaths.slotNoExit'});
+        return [];
+      }
+
+      plan.metadata.primitiveType = 'centerline_slot';
+      plan.metadata.isCenterlinePath = true;
+      plan.metadata.isDrillMilling = true;
+      plan.metadata.slotLength = slotLength;
+
+      // Same order every other drill path uses: the primitive's stamped
+      // diameter wins, the operation tool is the fallback.
+      if (primitive.properties?.toolDiameter > 0) plan.metadata.toolDiameter = primitive.properties.toolDiameter;
+      this.applyDrillRowMetadata(plan, this.resolveDrillRow(primitive, ctx));
+
+      // Built from the PLAN, not from ctx: applyDrillRowMetadata may have
+      // just replaced these with the row's numbers, and the zig-zag in
+      // MachineProcessor reads this block and nothing else.
+      plan.metadata.strategy = {
+        zigzag: true,
+        cutDepth: ctx.strategy.cutDepth,
+        depthPerPass: plan.metadata.depthPerPass,
+        feedRate: plan.metadata.feedRate,
+        plungeRate: plan.metadata.plungeRate
+      };
+
+      // Use the transformed exit point for the guide command so MachineProcessor
+      // knows where the slot ends in machine coordinates.
+      plan.commands.push(new MotionCommand('LINEAR',
+        { x: plan.metadata.exitPoint.x, y: plan.metadata.exitPoint.y },
+        { feed: plan.metadata.feedRate }));
+      plan.computeBounds();
+      return [plan];
+    }
+
+    /**
+     * Translation-time warning that reaches the operator. The translator had
+     * no way to say anything: every failure here was a console line or a bare
+     * empty return, so a dropped plan looked identical to geometry that was
+     * never generated.
+     */
+    warnOperation(ctx,message){
+      console.warn('[GeometryTranslator]', message.key);
+      const op = this.core.store.getOperation(ctx.operationId);
+      if (!op) return;
+      op.warnings ||= [];
+      if (!op.warnings.some(w => w?.message?.key === message.key)) op.warnings.push({ message, severity: 'warning', source: 'translator' });
+    }
+
+    /**
+     * Standard Multi-Depth Routing & Tabbing
+     */
+
+    processStandardContour(contour, primitive, ctx, isHole, parentShapeKey, featureId, parentPass) {
+      const shapeKey = parentShapeKey ?? primitive.properties?.shapeKey ?? null;
+      const isClosed = primitive.closed ?? true;
+      const plan = this.createPurePlan(contour, ctx, isClosed, isHole, true);
+      if (plan) {
+        plan.metadata.shapeKey = shapeKey;
+        plan.metadata.featureId = featureId ?? null;
+        plan.metadata.pass = parentPass ?? plan.metadata.pass;
+        plan.computeBounds();
+        // Climb direction is a boundary-cutting rule. A centerline pass
+        // is fully engaged whichever way it runs, so forcing CW only
+        // scrambles the source artwork's own ordering.
+        if (isClosed && !primitive.properties?.preserveDirection)this.enforceClimbMilling(plan, isHole);
+        return [plan];
+      }
+      return [];
+    }
+
+    processStandardPrimitive(primitive, ctx) {
+      const isHole = primitive.properties?.isHole || primitive.properties?.polarity === 'clear';
+      const isClosed = primitive.type === 'circle' || primitive.type === 'obround' || primitive.type === 'rectangle' || (primitive.closed !== false);
+      const shapeKey = primitive.properties?.shapeKey ?? null;
+      const featureId = `${ctx.operationId}:sk${shapeKey ?? 'x'}:prim`;
+      const parentPass = primitive.properties?.pass ?? null;
+      const plan = this.createPurePlan(primitive, ctx, isClosed, isHole, true);
+      if (plan) {
+        plan.metadata.featureId = featureId;
+        plan.metadata.pass = parentPass ?? plan.metadata.pass;
+        plan.computeBounds();
+        if (isClosed && !primitive.properties?.preserveDirection) this.enforceClimbMilling(plan, isHole);
+        return [plan];
+      }
+      return [];
+    }
+
+    /** Processes a contour that has tabConfig attached. */
+    processTabbedContour(contour, ctx, isHole, parentShapeKey, featureId, parentPass) {
+      const tabConfig = ctx.strategy.cutout;
+      let commands = this.tabPlanner.calculateTabPositions(contour, ctx);
+      const tabbed = commands.length > 0;
+      if (!tabbed) {
+        // The planner returns nothing for a contour shorter than its
+        // tabs (each needs tabWidth + tool diameter): cut it untabbed.
+        this.warnOperation(ctx, { key: 'messages.toolpaths.tabsSkipped' });
+        const tempPlan = new ToolpathPlan(ctx.operationId);
+        tempPlan.metadata.transforms = ctx.transforms;
+        tempPlan.metadata.isClosed = true;
+        this.translatePrimitiveToCutting(tempPlan, contour, ctx.cutting.feedRate);
+        commands = tempPlan.commands;
+      }
+      const plan = this.createPurePlan(contour, ctx, true, isHole, false);
+      if (!plan) return [];
+      plan.metadata.shapeKey = parentShapeKey ?? plan.metadata.shapeKey;
+      plan.metadata.featureId = featureId ?? null;
+      plan.metadata.pass = parentPass ?? plan.metadata.pass;
+      // Assign the single source of truth for the optimizer
+      plan.commands = commands;
+      // Tab segments need Z-expansion; the optimizer also keeps a tabbed
+      // pass's entry point fixed.
+      plan.metadata.isTabbedPass = tabbed;
+      // Calculate tab top from the absolute bottom machine depth
+      const finalDepth = ctx.computed.depthLevels[ctx.computed.depthLevels.length - 1];
+      plan.metadata.tabTopZ = finalDepth + tabConfig.tabHeight;
+      plan.metadata.depthLevels = ctx.computed.depthLevels;
+      plan.computeBounds();
+      this.enforceClimbMilling(plan, isHole);
+      return [plan];
+    }
+
+    /**
+     * Core Translation Utilities
+     */
+
+    /**
+     * Writes the tool identity onto a plan and returns the group-key
+     * fragment that carries it: the one place tool metadata is stamped, so
+     * the descriptor and the key cannot disagree. Drill primitives resolve
+     * per table row, and the _D: fragment is emitted even for a row without
+     * a number of its own, so rows stay in separate optimizer groups.
+     * @param {ToolpathPlan} plan
+     * @param {Object} ctx
+     * @param {Object} [primitive] drill primitives pass theirs for the lookup
+     * @returns {string} key fragment, e.g. '_TN:3' or '_TN:3_D:0.800:slot'
+     */
+    stampToolMetadata(plan, ctx, primitive = null) {
+      const tool = ctx.tool;
+      const props = primitive?.properties;
+      const key = props?.drillKey;
+      if (key == null) {
+        plan.metadata.tool = tool;
+        return `_TN:${tool.number}`;
+      }
+      const number = tool.drillNumbers?.[key];
+      if (!(number > 0)) {
+        plan.metadata.tool = tool;
+        return `_TN:${tool.number}_D:${key}`;
+      }
+      const identity = props.drillTool || null;
+      plan.metadata.tool = {
+        number,
+        id: identity?.id ?? null,
+        // DrillHandler.drillIdentity names the cutter: a string or a descriptor.
+        name: identity?.name ?? null,
+        type: identity?.type || 'drill',
+        diameter: identity?.diameter ?? parseFloat(key),
+        spindleSpeed: props.drillCutting?.spindleSpeed ?? tool.spindleSpeed,
+        spindleDwell: tool.spindleDwell
+      };
+      return `_TN:${number}_D:${key}`;
+    }
+
+    /**
+     * Resolves the drill row behind a primitive. ctx.drillTable wins for
+     * everything not baked into geometry, so a feed or peck-depth edit
+     * takes effect without regenerating. The stamps generation left on the
+     * primitive are the fallback for a context built without a table.
+     */
+    resolveDrillRow(primitive, ctx) {
+      const props = primitive?.properties;
+      const key = props?.drillKey;
+      if (key == null) return null;
+      const row = ctx.drillTable?.rows?.[key] || null;
+      return {
+        key,
+        cutting: row?.cutting || props.drillCutting || null,
+        peck: row?.peck || props.drillPeck || null,
+        mill: row?.mill || props.drillMill || null,
+        depthLevels: ctx.computed?.drillDepthLevels?.[key] || null
+      };
+    }
+
+    /**
+     * Overlays a row's non-geometric settings onto a plan. A field the row
+     * leaves null keeps the operation's value.
+     */
+    applyDrillRowMetadata(plan, drill) {
+      if (!drill) return;
+      const md = plan.metadata;
+      if (drill.cutting) {
+        if (drill.cutting.feedRate != null) md.feedRate = drill.cutting.feedRate;
+        if (drill.cutting.plungeRate != null) md.plungeRate = drill.cutting.plungeRate;
+        if (drill.cutting.spindleSpeed != null) md.spindleSpeed = drill.cutting.spindleSpeed;
+      }
+      if (drill.mill) {
+        if (drill.mill.stepOver != null) md.stepOver = drill.mill.stepOver;
+        if (drill.mill.depthPerPass != null) md.depthPerPass = drill.mill.depthPerPass;
+        if (drill.mill.entryType != null) md.entryType = drill.mill.entryType;
+      }
+      if (drill.depthLevels) {
+        md.depthLevels = drill.depthLevels;
+        md.cutDepth = drill.depthLevels[drill.depthLevels.length - 1];
+      }
+    }
+
+    createPurePlan(primitive, ctx, isClosed, isHole, generateCommands = true) {
+      // Get all settings from the context
+      const { operationId, tool, cutting, strategy } = ctx;
+      const plan = new ToolpathPlan(operationId);
+      plan.metadata.transforms = ctx.transforms;
+      // Set metadata
+      plan.metadata.operationId = ctx.operationId;
+      plan.metadata.operationType = ctx.operationType;
+      plan.metadata.depthLevels = ctx.computed.depthLevels; // Pass depths for MachineProcessor
+      plan.metadata.finalDepth = strategy.cutDepth;
+      plan.metadata.feedRate = cutting.feedRate;
+      plan.metadata.plungeRate = cutting.plungeRate;
+      plan.metadata.entryType = strategy.entryType;
+      plan.metadata.depthPerPass = strategy.depthPerPass;
+      plan.metadata.spindleSpeed = cutting.spindleSpeed;
+      plan.metadata.spindleDwell = cutting.spindleDwell;
+      plan.metadata.toolDiameter = tool.diameter;
+      plan.metadata.stepOver = strategy.stepOver;
+      plan.metadata.toolpathPolicy = ctx.computed?.toolpathPolicy ?? null;
+      const isDrillMilling = ctx.isDrillMilling || false;
+      const typeKey = isDrillMilling ? 'drill_mill' : 'mill';
+      // Only drill primitives carry a row; passing a plain contour or a
+      // copper primitive here would look up a key that cannot exist.
+      const drill = isDrillMilling ? this.resolveDrillRow(primitive, ctx) : null;
+      plan.metadata.groupKey = this.stampToolMetadata(plan, ctx, isDrillMilling ? primitive : null) + `_T:${tool.diameter.toFixed(3)}_OP:${ctx.operationId}_TYPE:${typeKey}`;
+      if (drill) {
+        if (primitive.properties?.toolDiameter > 0) plan.metadata.toolDiameter = primitive.properties.toolDiameter;
+        this.applyDrillRowMetadata(plan, drill);
+      }
+      plan.metadata.primitiveType = primitive.type || 'path';
+      plan.metadata.isClosed = isClosed;
+      plan.metadata.isHole = isHole;
+      plan.metadata.shapeKey = primitive.properties?.shapeKey ?? null; 
+      const passNum = primitive.properties?.pass ?? null;
+      plan.metadata.pass = passNum;
+      // Analyze primitive sets entry/exit points and metadata
+      this.analyzePrimitive(plan, primitive);
+      // Apply the machine transform to entry/exit points. Gate on the
+      // MATRIX, not on rotation/mirror params: origin is folded into
+      // machineMatrix, so a moved origin alone makes it non-identity.
+      const transforms = ctx.transforms;
+      if (!transforms.machineIsIdentity) {
+        // Transform Entry and Exit
+        if (plan.metadata.entryPoint) {
+          const transformed = this.applyTransforms(plan.metadata.entryPoint, transforms);
+          plan.metadata.entryPoint.x = transformed.x;
+          plan.metadata.entryPoint.y = transformed.y;
         }
-
-        /**
-         * Translation-time warning that reaches the operator. The translator had
-         * no way to say anything: every failure here was a console line or a bare
-         * empty return, so a dropped plan looked identical to geometry that was
-         * never generated.
-         */
-        warnOperation(ctx, message) {
-            console.warn(`[GeometryTranslator] ${message}`);
-            const op = this.core.store.getOperation(ctx.operationId);
-            if (!op) return;
-            op.warnings ||= [];
-            if (!op.warnings.some(w => w?.message === message)) {
-                op.warnings.push({ message, severity: 'warning', source: 'translator' });
-            }
+        if (plan.metadata.exitPoint) {
+          const transformed = this.applyTransforms(plan.metadata.exitPoint, transforms);
+          plan.metadata.exitPoint.x = transformed.x;
+          plan.metadata.exitPoint.y = transformed.y;
         }
-
-        /**
-         * Standard Multi-Depth Routing & Tabbing
-         */
-
-        processStandardContour(contour, primitive, ctx, isHole, parentShapeKey, featureId, parentPass) {
-            const shapeKey = parentShapeKey ?? primitive.properties?.shapeKey ?? null;
-            const isClosed = primitive.closed ?? true;
-            const plan = this.createPurePlan(contour, ctx, isClosed, isHole, true);
-            if (plan) {
-                plan.metadata.shapeKey = shapeKey;
-                plan.metadata.featureId = featureId ?? null;
-                plan.metadata.pass = parentPass ?? plan.metadata.pass;
-                plan.computeBounds();
-                // Climb direction is a boundary-cutting rule. A centerline pass
-                // is fully engaged whichever way it runs, so forcing CW only
-                // scrambles the source artwork's own ordering.
-                if (isClosed && !primitive.properties?.preserveDirection) {
-                    this.enforceClimbMilling(plan, isHole);
-                }
-                return [plan];
-            }
-            return [];
+        // Transform Geometry Centers
+        if (plan.metadata.obroundData) {
+          const od = plan.metadata.obroundData;
+          // Transform centers
+          od.startCapCenter = this.applyTransforms(od.startCapCenter, transforms);
+          od.endCapCenter = this.applyTransforms(od.endCapCenter, transforms);
+          // Transform all corner points
+          if (od.pA) od.pA = this.applyTransforms(od.pA, transforms);
+          if (od.pB) od.pB = this.applyTransforms(od.pB, transforms);
+          if (od.pC) od.pC = this.applyTransforms(od.pC, transforms);
+          if (od.pD) od.pD = this.applyTransforms(od.pD, transforms);
+          // Re-link metadata.center
+          if (plan.metadata.center) plan.metadata.center = od.startCapCenter;
         }
-
-        processStandardPrimitive(primitive, ctx) {
-            const isHole = primitive.properties?.isHole || primitive.properties?.polarity === 'clear';
-            const isClosed = primitive.type === 'circle' ||
-                             primitive.type === 'obround' ||
-                             primitive.type === 'rectangle' ||
-                             (primitive.closed !== false);
-
-            const shapeKey = primitive.properties?.shapeKey ?? null;
-            const featureId = `${ctx.operationId}:sk${shapeKey ?? 'x'}:prim`;
-            const parentPass = primitive.properties?.pass ?? null;
-
-            const plan = this.createPurePlan(primitive, ctx, isClosed, isHole, true);
-            if (plan) {
-                plan.metadata.featureId = featureId;
-                plan.metadata.pass = parentPass ?? plan.metadata.pass;
-                plan.computeBounds();
-                if (isClosed && !primitive.properties?.preserveDirection) {
-                    this.enforceClimbMilling(plan, isHole);
-                }
-                return [plan];
-            }
-            return [];
+        else if (plan.metadata.center) {
+          plan.metadata.center = this.applyTransforms(plan.metadata.center, transforms);
         }
+      }
+      // Generate commands only if explicitly requested
+      if (generateCommands) this.translatePrimitiveToCutting(plan, primitive, cutting.feedRate);
+      plan.metadata.optimization = {
+        linkType: 'rapid',
+        // COPY, never an alias. rotateCircleEntry and rotatePlanCommands
+        // REPLACE metadata.entryPoint wholesale, and MachineProcessor's
+        // indexed +apothem bump walks entryPoint, exitPoint AND
+        // optimizedEntryPoint - a shared object gets shifted twice.
+        optimizedEntryPoint: { ...plan.metadata.entryPoint },
+        entryCommandIndex: 0
+      };
+      // Note: Bounds, winding and tab logic must be performed by the caller (translateOperation) after the final command set is chosen.
+      return plan;
+    }
 
-        /**
-         * Processes a contour that has tabConfig attached.
-         */
-        processTabbedContour(contour, ctx, isHole, parentShapeKey, featureId, parentPass) {
-            const tabConfig = ctx.strategy.cutout;
-            let commands = this.tabPlanner.calculateTabPositions(contour, ctx);
-            const tabbed = commands.length > 0;
-            if (!tabbed) {
-                // The planner returns nothing for a contour shorter than its
-                // tabs (each needs tabWidth + tool diameter): cut it untabbed.
-                this.warnOperation(ctx, 'Tabs skipped on contours too short to hold them.');
-                const tempPlan = new ToolpathPlan(ctx.operationId);
-                tempPlan.metadata.transforms = ctx.transforms;
-                tempPlan.metadata.isClosed = true;
-                this.translatePrimitiveToCutting(tempPlan, contour, ctx.cutting.feedRate);
-                commands = tempPlan.commands;
-            }
-            const plan = this.createPurePlan(contour, ctx, true, isHole, false);
-            if (!plan) return [];
-            plan.metadata.shapeKey = parentShapeKey ?? plan.metadata.shapeKey;
-            plan.metadata.featureId = featureId ?? null;
-            plan.metadata.pass = parentPass ?? plan.metadata.pass;
-            // Assign the single source of truth for the optimizer
-            plan.commands = commands;
-            // Tab segments need Z-expansion; the optimizer also keeps a tabbed
-            // pass's entry point fixed.
-            plan.metadata.isTabbedPass = tabbed;
-            // Calculate tab top from the absolute bottom machine depth
-            const finalDepth = ctx.computed.depthLevels[ctx.computed.depthLevels.length - 1];
-            plan.metadata.tabTopZ = finalDepth + tabConfig.tabHeight;
-            plan.metadata.depthLevels = ctx.computed.depthLevels;
-            plan.computeBounds();
-            this.enforceClimbMilling(plan, isHole);
-            return [plan];
+    /**
+     * Analyze geometry to extract entry/exit points and metadata.
+     * @param {Object} geometry - The raw geometry object (Contour or Analytic Primitive)
+     */
+    analyzePrimitive(plan, geometry) {
+      const metadata = plan.metadata;
+      // Determine type. Contours have no 'type' property, so they default to 'path'.
+      const type = geometry.type || 'path';
+      if (type === 'circle') {
+        metadata.entryPoint = {
+          x: geometry.center.x + geometry.radius,
+          y: geometry.center.y
+        };
+        metadata.exitPoint = { ...metadata.entryPoint };
+        metadata.isClosedLoop = true;
+        metadata.isSimpleCircle = true;
+        metadata.primitiveType = 'circle';
+        metadata.center = geometry.center;
+        metadata.radius = geometry.radius;
+      } else if (type === 'obround') {
+        const isHorizontal = geometry.width > geometry.height;
+        const startAngle = isHorizontal ? (Math.PI / 2) : Math.PI;
+        const obroundData = this.getObroundData(geometry);
+        metadata.obroundData = obroundData;
+        metadata.entryPoint = {
+          x: obroundData.startCapCenter.x + obroundData.slotRadius * Math.cos(startAngle),
+          y: obroundData.startCapCenter.y + obroundData.slotRadius * Math.sin(startAngle)
+        };
+        metadata.exitPoint = { ...metadata.entryPoint };
+        metadata.isClosedLoop = true;
+        metadata.isSimpleCircle = false;
+        metadata.primitiveType = 'obround';
+        metadata.obroundData = obroundData;
+        metadata.center = obroundData.startCapCenter;
+        metadata.radius = obroundData.slotRadius;
+      } else if (type === 'arc') {
+        metadata.entryPoint = { ...geometry.startPoint }; 
+        metadata.exitPoint = { ...geometry.endPoint }; 
+        metadata.isClosedLoop = false;
+        metadata.primitiveType = 'arc';
+      } else if (type === 'path') {
+        const points = geometry.points || (geometry.contours && geometry.contours[0]?.points);
+        if (points && points.length > 0) {
+          metadata.entryPoint = { ...points[0] };
+          metadata.isClosedLoop = plan.metadata.isClosed;
+          if (metadata.isClosedLoop) {
+            metadata.exitPoint = { ...metadata.entryPoint };
+          } else {
+            metadata.exitPoint = { ...points[points.length - 1] };
+          }
+          metadata.primitiveType = 'path';
+          // Check for arc segments
+          metadata.hasArcs = geometry.arcSegments && geometry.arcSegments.length > 0;
+          // Reconstructor isFullCircle metadata is authoritative;
+          // detectClosedArcCircle covers contours without that flag.
+          const arc0 = geometry.arcSegments?.[0];
+          const circle = (geometry.isFullCircle && arc0?.center && arc0.radius > 0)
+            ? { center: { x: arc0.center.x, y: arc0.center.y }, radius: arc0.radius }
+            : this.detectClosedArcCircle(points, geometry.arcSegments, metadata.isClosedLoop);
+          if (circle) {
+            metadata.isSimpleCircle = true;
+            metadata.center = circle.center;
+            metadata.radius = circle.radius;
+          }
         }
+      }
+    }
 
-        /**
-         * Core Translation Utilities
-         */
+    /**
+     * Fallback for untagged circular contours where isFullCircle is absent.
+     * Verifies all arcSegments share identical center and radius across all
+     * contour vertices.
+     */
+    detectClosedArcCircle(points, arcSegments, isClosedLoop) {
+      if (!isClosedLoop || !points || !arcSegments || arcSegments.length < 3) return null;
+      if (arcSegments.length !== points.length) return null;
+      const c0 = arcSegments[0];
+      if (!c0.center || !(c0.radius > 0)) return null;
+      const sameCircle = arcSegments.every(a =>
+        a.center &&
+        Math.abs(a.center.x - c0.center.x) < PRECISION &&
+        Math.abs(a.center.y - c0.center.y) < PRECISION &&
+        Math.abs(a.radius - c0.radius) < PRECISION
+      );
+      if (!sameCircle) return null;
+      return { center: { x: c0.center.x, y: c0.center.y }, radius: c0.radius };
+    }
 
-        /**
-         * Writes the tool identity onto a plan and returns the group-key
-         * fragment that carries it. THE one place tool metadata is stamped -
-         * five call sites (both drill macros, peck marks, createPurePlan and
-         * Toolpath3DTranslator) share it so the descriptor and the key can
-         * never disagree.
-         * Drill features resolve per ROW, not per cutter: a peck bit's
-         * diameter IS the hole, so one drill operation legitimately needs
-         * several tools. The _D: fragment is emitted even when the row has no
-         * number of its own, so diameters stay in separate optimizer groups
-         * instead of interleaving under one inherited number.
-         * @param {ToolpathPlan} plan
-         * @param {Object} ctx
-         * @param {Object} [primitive] drill primitives pass theirs for the lookup
-         * @returns {string} key fragment, e.g. '_TN:3' or '_TN:3_D:0.800'
-         */
-        stampToolMetadata(plan, ctx, primitive = null) {
-            const tool = ctx.tool;
-            const props = primitive?.properties;
-            const key = props?.drillKey
-                ?? (props?.originalDiameter != null ? DrillHandler.diameterKey(props.originalDiameter) : null);
+    /** Translate primitive to pure cutting commands */
+    translatePrimitiveToCutting(plan, geometry, feedRate) {
+      // Default to 'path' if no type (handles Contours)
+      const type = geometry.type || 'path'; 
+      if (type === 'circle') {
+        this.translateCircle(plan, geometry, feedRate);
+      } else if (type === 'obround') {
+        this.translateObround(plan, geometry, feedRate);
+      } else if (type === 'arc') {
+        this.translateArc(plan, geometry, feedRate);
+      } else if (type === 'path') {
+        this.translatePath(plan, geometry, feedRate);
+      }
+    }
 
-            if (key != null) {
-                const number = tool.drillNumbers?.[key];
-                if (number > 0) {
-                    const identity = props.drillTool || null;
-                    plan.metadata.tool = {
-                        number,
-                        id: identity?.id ?? null,
-                        name: identity?.name || `${identity?.type === 'end_mill' ? 'Mill' : 'Drill'} ${key}mm`,
-                        type: identity?.type || 'drill',
-                        diameter: identity?.diameter ?? Number(key),
-                        spindleSpeed: props.drillCutting?.spindleSpeed ?? tool.spindleSpeed,
-                        spindleDwell: tool.spindleDwell
-                    };
-                    return `_TN:${number}_D:${key}`;
-                }
-                plan.metadata.tool = tool;
-                return `_TN:${tool.number}_D:${key}`;
-            }
+    /** Translate circle to cutting commands */
+    translateCircle(plan, primitive, feedRate) {
+      const transforms = plan.metadata.transforms;
+      // Transform the Center
+      const center = this.applyTransforms(primitive.center, transforms);
+      // Determine the Transformed Start Point
+      // The primitive "starts" at 3 o'clock (0 radians) in local space.
+      // Transform this point so the arc starts exactly where the Entry Point is.
+      const rawStart = {
+        x: primitive.center.x + primitive.radius,
+        y: primitive.center.y
+      };
+      const transformedStart = this.applyTransforms(rawStart, transforms);
+      // Always CW for climb milling (coordinates already transformed)
+      const actualClockwise = true;
+      // Generate Arc
+      const i = center.x - transformedStart.x;
+      const j = center.y - transformedStart.y;
+      plan.addArc(
+        transformedStart.x, 
+        transformedStart.y, 
+        undefined,
+        i, j, 
+        actualClockwise, 
+        feedRate
+      );
+    }
 
-            plan.metadata.tool = tool;
-            return `_TN:${tool.number}`;
+    /** Translate obround to cutting commands (2 lines, 2 arcs) */
+    translateObround(plan, primitive, feedRate) {
+      const transforms = plan.metadata.transforms;
+      const slotRadius = Math.min(primitive.width, primitive.height) / 2;
+      const isHorizontal = primitive.width > primitive.height;
+      let startCapCenter, endCapCenter;
+      if (isHorizontal) {
+        const centerY = primitive.position.y + primitive.height / 2;
+        startCapCenter = { x: primitive.position.x + slotRadius, y: centerY };
+        endCapCenter = { x: primitive.position.x + primitive.width - slotRadius, y: centerY };
+      } else {
+        const centerX = primitive.position.x + primitive.width / 2;
+        startCapCenter = { x: centerX, y: primitive.position.y + slotRadius };
+        endCapCenter = { x: centerX, y: primitive.position.y + primitive.height - slotRadius };
+      }
+      // Transform centers
+      startCapCenter = this.applyTransforms(startCapCenter, transforms);
+      endCapCenter = this.applyTransforms(endCapCenter, transforms);
+      const startAngle1 = isHorizontal ? (Math.PI / 2) : Math.PI;
+      const endAngle1 = isHorizontal ? (3 * Math.PI / 2) : (2 * Math.PI);
+      const startAngle2 = isHorizontal ? (-Math.PI / 2) : 0;
+      const endAngle2 = isHorizontal ? (Math.PI / 2) : Math.PI;
+      const pA_x = startCapCenter.x + slotRadius * Math.cos(startAngle1);
+      const pA_y = startCapCenter.y + slotRadius * Math.sin(startAngle1);
+      const pB_x = startCapCenter.x + slotRadius * Math.cos(endAngle1);
+      const pB_y = startCapCenter.y + slotRadius * Math.sin(endAngle1);
+      const pC_x = endCapCenter.x + slotRadius * Math.cos(startAngle2);
+      const pC_y = endCapCenter.y + slotRadius * Math.sin(startAngle2);
+      const pD_x = endCapCenter.x + slotRadius * Math.cos(endAngle2);
+      const pD_y = endCapCenter.y + slotRadius * Math.sin(endAngle2);
+      const i1 = startCapCenter.x - pA_x;
+      const j1 = startCapCenter.y - pA_y;
+      const i2 = endCapCenter.x - pC_x;
+      const j2 = endCapCenter.y - pC_y;
+
+      // Always CW for climb milling
+      const actualClockwise = true;
+      if (actualClockwise) {
+        plan.addLinear(pD_x, pD_y, undefined, feedRate);
+        plan.addArc(pC_x, pC_y, undefined, i2, j2, true, feedRate);
+        plan.addLinear(pB_x, pB_y, undefined, feedRate);
+        plan.addArc(pA_x, pA_y, undefined, i1, j1, true, feedRate);
+      } else {
+        plan.addArc(pB_x, pB_y, undefined, i1, j1, false, feedRate);
+        plan.addLinear(pC_x, pC_y, undefined, feedRate);
+        plan.addArc(pD_x, pD_y, undefined, i2, j2, false, feedRate);
+        plan.addLinear(pA_x, pA_y, undefined, feedRate);
+      }
+    }
+
+    /** Translate arc to cutting commands */
+    translateArc(plan, primitive, feedRate) {
+      // Get Transform Context
+      const transforms = plan.metadata.transforms;
+      // Transform Absolute Points
+      const start = this.applyTransforms(primitive.startPoint, transforms);
+      const end = this.applyTransforms(primitive.endPoint, transforms);
+      const center = this.applyTransforms(primitive.center, transforms);
+      // Calculate Relative I/J for G-code
+      const i = center.x - start.x;
+      const j = center.y - start.y;
+      // Handle Winding Direction
+      let isClockwise = primitive.clockwise;
+      // If mirrored, it might be necessary to flip the arc direction
+      if (transforms && transforms.windingFlipped) isClockwise = !isClockwise;
+      // Add Linear move to Start
+      plan.addLinear(start.x, start.y, undefined, feedRate);
+      // Check for collapsed arc (Safety)
+      const minArcChordLength = 0.01;
+      const chordDistance = Math.hypot(end.x - start.x, end.y - start.y);
+      // Signed sweep via the shared normalizer.
+      const sweep = ToolpathPlan.normalizeArcSweep({
+        sweepAngle: primitive.sweepAngle,
+        startAngle: primitive.startAngle,
+        endAngle: primitive.endAngle,
+        clockwise: isClockwise,
+        chord: chordDistance,
+        radius: primitive.radius
+      });
+      // Only skip if the chord AND the sweep are both tiny
+      if (chordDistance < minArcChordLength && Math.abs(sweep) < Math.PI) {
+        plan.addLinear(end.x, end.y, undefined, feedRate);
+        return;
+      }
+      // Add Arc Command
+      plan.addArc(end.x, end.y, undefined, i, j, isClockwise, feedRate);
+    }
+
+    translatePath(plan, contour, feedRate) {
+      const points = contour.points;
+      if (!points || points.length < 2) return;
+      const transforms = plan.metadata.transforms;
+      const isClosed = plan.metadata.isClosed;
+      const arcSegments = contour.arcSegments || [];
+      const minArcChordLength = 0.01;
+      const minLinearLength = 0.001;
+      // Build arc map
+      const arcMap = new Map();
+      for (const arc of arcSegments) {
+        arcMap.set(arc.startIndex, arc);
+      }
+      if (plan.metadata.isSimpleCircle &&
+        plan.metadata.center && plan.metadata.radius > 0) {
+        const start = this.applyTransforms(points[0], transforms);
+        const c = plan.metadata.center;
+        plan.addArc(start.x, start.y, undefined, c.x - start.x, c.y - start.y, true, feedRate);
+        return;
+      }
+      // Standard segment-by-segment processing
+      const isPhysicallyClosed = ToolpathPlan.isClosedPoints(points);
+      const numPoints = points.length;
+      const segmentsToDraw = (isClosed && !isPhysicallyClosed) ? numPoints : numPoints - 1;
+      // Hoist winding flip out of the loop - constant for the whole path
+      const windingFlipped = !!(transforms && transforms.windingFlipped);
+      let i = 0;
+      let segmentsDrawn = 0;
+      // Transform the first point ONCE before the loop. Each iteration
+      // carries its endPoint into the next iteration's startPoint, so
+      // every point is transformed exactly once.
+      let startPoint = this.applyTransforms(points[0], transforms);
+      while (segmentsDrawn < segmentsToDraw) {
+        const arc = arcMap.get(i);
+        // An arcSegment spans startIndex..endIndex and REPLACES every
+        // point between them. Adjacent indices are the span === 1 case;
+        // tessellated spans (obround caps, primitiveToPath's arc) are
+        // the rest. Rejecting a span emits its tessellation as chords -
+        // correct geometry, silently faceted G-code.
+        let arcEnd = -1;
+        let arcSpan = 0;
+        if (arc && Number.isInteger(arc.endIndex)) {
+          arcEnd = ((arc.endIndex % numPoints) + numPoints) % numPoints;
+          arcSpan = (((arcEnd - i) % numPoints) + numPoints) % numPoints;
         }
-
-        /**
-         * Resolves the drill row behind a primitive. ctx.drillTable wins for
-         * everything not baked into geometry, so a feed or peck-depth edit
-         * takes effect without regenerating. The stamps generation left on the
-         * primitive are the fallback for a context built without a table.
-         */
-        resolveDrillRow(primitive, ctx) {
-            const props = primitive?.properties;
-            if (!props) return null;
-            const key = props.drillKey
-                ?? (props.originalDiameter != null ? DrillHandler.diameterKey(props.originalDiameter) : null);
-            if (key == null) return null;
-            const row = ctx.drillTable?.rows?.[key] || null;
-            return {
-                key,
-                cutting: row?.cutting || props.drillCutting || null,
-                peck: row?.peck || props.drillPeck || null,
-                mill: row?.mill || props.drillMill || null,
-                depthLevels: ctx.computed?.drillDepthLevels?.[key] || null
-            };
-        }
-
-        /**
-         * Overlays a row's non-geometric settings onto a plan. A field the row
-         * leaves null keeps the operation's value.
-         */
-        applyDrillRowMetadata(plan, drill) {
-            if (!drill) return;
-            const md = plan.metadata;
-            if (drill.cutting) {
-                if (drill.cutting.feedRate != null) md.feedRate = drill.cutting.feedRate;
-                if (drill.cutting.plungeRate != null) md.plungeRate = drill.cutting.plungeRate;
-                if (drill.cutting.spindleSpeed != null) md.spindleSpeed = drill.cutting.spindleSpeed;
-            }
-            if (drill.mill) {
-                if (drill.mill.stepOver != null) md.stepOver = drill.mill.stepOver;
-                if (drill.mill.depthPerPass != null) md.depthPerPass = drill.mill.depthPerPass;
-                if (drill.mill.entryType != null) md.entryType = drill.mill.entryType;
-            }
-            if (drill.depthLevels) {
-                md.depthLevels = drill.depthLevels;
-                md.cutDepth = drill.depthLevels[drill.depthLevels.length - 1];
-            }
-        }
-
-        createPurePlan(primitive, ctx, isClosed, isHole, generateCommands = true) {
-            // Get all settings from the context
-            const { operationId, tool, cutting, strategy } = ctx;
-
-            const plan = new ToolpathPlan(operationId);
-            plan.metadata.transforms = ctx.transforms;
-
-            // Set metadata
-            plan.metadata.operationId = ctx.operationId;
-            plan.metadata.operationType = ctx.operationType;
-            plan.metadata.depthLevels = ctx.computed.depthLevels; // Pass depths for MachineProcessor
-            plan.metadata.finalDepth = strategy.cutDepth;
-            plan.metadata.feedRate = cutting.feedRate;
-            plan.metadata.plungeRate = cutting.plungeRate;
-            plan.metadata.entryType = strategy.entryType;
-            plan.metadata.depthPerPass = strategy.depthPerPass;
-            plan.metadata.spindleSpeed = cutting.spindleSpeed;
-            plan.metadata.spindleDwell = cutting.spindleDwell;
-            plan.metadata.toolDiameter = tool.diameter;
-            plan.metadata.stepOver = strategy.stepOver;
-            plan.metadata.toolpathPolicy = ctx.computed?.toolpathPolicy ?? null;
-
-            const isDrillMilling = ctx.isDrillMilling || false;
-            const typeKey = isDrillMilling ? 'drill_mill' : 'mill';
-            // Only drill primitives carry a row; passing a plain contour or a
-            // copper primitive here would look up a key that cannot exist.
-            const drill = isDrillMilling ? this.resolveDrillRow(primitive, ctx) : null;
-            plan.metadata.groupKey = this.stampToolMetadata(plan, ctx, isDrillMilling ? primitive : null)
-                + `_T:${tool.diameter.toFixed(3)}_OP:${ctx.operationId}_TYPE:${typeKey}`;
-            if (drill) {
-                if (primitive.properties?.toolDiameter > 0) plan.metadata.toolDiameter = primitive.properties.toolDiameter;
-                this.applyDrillRowMetadata(plan, drill);
-            }
-
-            plan.metadata.primitiveType = primitive.type || 'path';
-            plan.metadata.isClosed = isClosed;
-            plan.metadata.isHole = isHole;
-            plan.metadata.shapeKey = primitive.properties?.shapeKey ?? null; 
-            const passNum = primitive.properties?.pass ?? null;
-            plan.metadata.pass = passNum;
-
-            // Analyze primitive sets entry/exit points and metadata
-            this.analyzePrimitive(plan, primitive);
-
-            // Apply the machine transform to entry/exit points. Gate on the
-            // MATRIX, not on rotation/mirror params: origin is folded into
-            // machineMatrix, so a moved origin alone makes it non-identity.
-            const transforms = ctx.transforms;
-            if (!transforms.machineIsIdentity) {
-                // Transform Entry and Exit
-                if (plan.metadata.entryPoint) {
-                    const transformed = this.applyTransforms(plan.metadata.entryPoint, transforms);
-                    plan.metadata.entryPoint.x = transformed.x;
-                    plan.metadata.entryPoint.y = transformed.y;
-                }
-                if (plan.metadata.exitPoint) {
-                    const transformed = this.applyTransforms(plan.metadata.exitPoint, transforms);
-                    plan.metadata.exitPoint.x = transformed.x;
-                    plan.metadata.exitPoint.y = transformed.y;
-                }
-
-                // Transform Geometry Centers
-                if (plan.metadata.obroundData) {
-                    const od = plan.metadata.obroundData;
-
-                    // Transform centers
-                    od.startCapCenter = this.applyTransforms(od.startCapCenter, transforms);
-                    od.endCapCenter = this.applyTransforms(od.endCapCenter, transforms);
-
-                    // Transform all corner points
-                    if (od.pA) od.pA = this.applyTransforms(od.pA, transforms);
-                    if (od.pB) od.pB = this.applyTransforms(od.pB, transforms);
-                    if (od.pC) od.pC = this.applyTransforms(od.pC, transforms);
-                    if (od.pD) od.pD = this.applyTransforms(od.pD, transforms);
-
-                    // Re-link metadata.center
-                    if (plan.metadata.center) {
-                        plan.metadata.center = od.startCapCenter;
-                    }
-                }
-                else if (plan.metadata.center) {
-                    plan.metadata.center = this.applyTransforms(plan.metadata.center, transforms);
-                }
-            }
-
-            // Generate commands only if explicitly requested
-            if (generateCommands) {
-                this.translatePrimitiveToCutting(plan, primitive, cutting.feedRate);
-            }
-
-
-            plan.metadata.optimization = {
-                linkType: 'rapid',
-                // COPY, never an alias. rotateCircleEntry and rotatePlanCommands
-                // REPLACE metadata.entryPoint wholesale, and MachineProcessor's
-                // indexed +apothem bump walks entryPoint, exitPoint AND
-                // optimizedEntryPoint - a shared object gets shifted twice.
-                optimizedEntryPoint: { ...plan.metadata.entryPoint },
-                entryCommandIndex: 0
-            };
-
-            // Note: Bounds, winding and tab logic must be performed by the caller (translateOperation) after the final command set is chosen.
-            return plan;
-        }
-
-        /**
-         * Analyze geometry to extract entry/exit points and metadata.
-         * @param {Object} geometry - The raw geometry object (Contour or Analytic Primitive)
-         */
-        analyzePrimitive(plan, geometry) {
-            const metadata = plan.metadata;
-
-            // Determine type. Contours have no 'type' property, so they default to 'path'.
-            const type = geometry.type || 'path';
-
-            if (type === 'circle') {
-                metadata.entryPoint = {
-                    x: geometry.center.x + geometry.radius,
-                    y: geometry.center.y
-                };
-                metadata.exitPoint = { ...metadata.entryPoint };
-                metadata.isClosedLoop = true;
-                metadata.isSimpleCircle = true;
-                metadata.primitiveType = 'circle';
-                metadata.center = geometry.center;
-                metadata.radius = geometry.radius;
-
-            } else if (type === 'obround') {
-                const isHorizontal = geometry.width > geometry.height;
-                const startAngle = isHorizontal ? (Math.PI / 2) : Math.PI;
-                const obroundData = this.getObroundData(geometry);
-
-                metadata.obroundData = obroundData;
-
-                metadata.entryPoint = {
-                    x: obroundData.startCapCenter.x + obroundData.slotRadius * Math.cos(startAngle),
-                    y: obroundData.startCapCenter.y + obroundData.slotRadius * Math.sin(startAngle)
-                };
-
-                metadata.exitPoint = { ...metadata.entryPoint };
-                metadata.isClosedLoop = true;
-                metadata.isSimpleCircle = false;
-                metadata.primitiveType = 'obround';
-                metadata.obroundData = obroundData;
-                metadata.center = obroundData.startCapCenter;
-                metadata.radius = obroundData.slotRadius;
-
-            } else if (type === 'arc') {
-                metadata.entryPoint = { ...geometry.startPoint }; 
-                metadata.exitPoint = { ...geometry.endPoint }; 
-                metadata.isClosedLoop = false;
-                metadata.primitiveType = 'arc';
-
-            } else if (type === 'path') {
-                const points = geometry.points || (geometry.contours && geometry.contours[0]?.points);
-
-                if (points && points.length > 0) {
-                    metadata.entryPoint = { ...points[0] };
-                    metadata.isClosedLoop = plan.metadata.isClosed;
-
-                    if (metadata.isClosedLoop) {
-                        metadata.exitPoint = { ...metadata.entryPoint };
-                    } else {
-                        metadata.exitPoint = { ...points[points.length - 1] };
-                    }
-
-                    metadata.primitiveType = 'path';
-                    // Check for arc segments
-                    metadata.hasArcs = geometry.arcSegments && geometry.arcSegments.length > 0;
-
-                    // Reconstructor isFullCircle metadata is authoritative;
-                    // detectClosedArcCircle covers contours without that flag.
-                    const arc0 = geometry.arcSegments?.[0];
-                    const circle = (geometry.isFullCircle && arc0?.center && arc0.radius > 0)
-                        ? { center: { x: arc0.center.x, y: arc0.center.y }, radius: arc0.radius }
-                        : this.detectClosedArcCircle(points, geometry.arcSegments, metadata.isClosedLoop);
-
-                    if (circle) {
-                        metadata.isSimpleCircle = true;
-                        metadata.center = circle.center;
-                        metadata.radius = circle.radius;
-                    }
-                }
-            }
-        }
-
-        /**
-         * Fallback for untagged circular contours where isFullCircle is absent.
-         * Verifies all arcSegments share identical center and radius across all
-         * contour vertices.
-         */
-        detectClosedArcCircle(points, arcSegments, isClosedLoop) {
-            if (!isClosedLoop || !points || !arcSegments || arcSegments.length < 3) return null;
-            if (arcSegments.length !== points.length) return null;
-
-            const c0 = arcSegments[0];
-            if (!c0.center || !(c0.radius > 0)) return null;
-
-            const sameCircle = arcSegments.every(a =>
-                a.center &&
-                Math.abs(a.center.x - c0.center.x) < PRECISION &&
-                Math.abs(a.center.y - c0.center.y) < PRECISION &&
-                Math.abs(a.radius - c0.radius) < PRECISION
-            );
-            if (!sameCircle) return null;
-
-            return { center: { x: c0.center.x, y: c0.center.y }, radius: c0.radius };
-        }
-
-        /**
-         * Translate primitive to pure cutting commands
-         */
-        translatePrimitiveToCutting(plan, geometry, feedRate) {
-            // Default to 'path' if no type (handles Contours)
-            const type = geometry.type || 'path'; 
-
-            if (type === 'circle') {
-                this.translateCircle(plan, geometry, feedRate);
-            } else if (type === 'obround') {
-                this.translateObround(plan, geometry, feedRate);
-            } else if (type === 'arc') {
-                this.translateArc(plan, geometry, feedRate);
-            } else if (type === 'path') {
-                this.translatePath(plan, geometry, feedRate);
-            }
-        }
-
-        /**
-         * Translate circle to cutting commands
-         */
-        translateCircle(plan, primitive, feedRate) {
-            const transforms = plan.metadata.transforms;
-
-            // Transform the Center
-            const center = this.applyTransforms(primitive.center, transforms);
-
-            // Determine the Transformed Start Point
-            // The primitive "starts" at 3 o'clock (0 radians) in local space.
-            // Transform this point so the arc starts exactly where the Entry Point is.
-            const rawStart = {
-                x: primitive.center.x + primitive.radius,
-                y: primitive.center.y
-            };
-            const transformedStart = this.applyTransforms(rawStart, transforms);
-
-            // Always CW for climb milling (coordinates already transformed)
-            const actualClockwise = true;
-
-            // Generate Arc
-            const i = center.x - transformedStart.x;
-            const j = center.y - transformedStart.y;
-
-            plan.addArc(
-                transformedStart.x, 
-                transformedStart.y, 
-                undefined,
-                i, j, 
-                actualClockwise, 
-                feedRate
-            );
-        }
-
-        /**
-         * Translate obround to cutting commands (2 lines, 2 arcs)
-         */
-        translateObround(plan, primitive, feedRate) {
-            const transforms = plan.metadata.transforms;
-            const slotRadius = Math.min(primitive.width, primitive.height) / 2;
-            const isHorizontal = primitive.width > primitive.height;
-
-            let startCapCenter, endCapCenter;
-            if (isHorizontal) {
-                const centerY = primitive.position.y + primitive.height / 2;
-                startCapCenter = { x: primitive.position.x + slotRadius, y: centerY };
-                endCapCenter = { x: primitive.position.x + primitive.width - slotRadius, y: centerY };
-            } else {
-                const centerX = primitive.position.x + primitive.width / 2;
-                startCapCenter = { x: centerX, y: primitive.position.y + slotRadius };
-                endCapCenter = { x: centerX, y: primitive.position.y + primitive.height - slotRadius };
-            }
-
-            // Transform centers
-            startCapCenter = this.applyTransforms(startCapCenter, transforms);
-            endCapCenter = this.applyTransforms(endCapCenter, transforms);
-
-            const startAngle1 = isHorizontal ? (Math.PI / 2) : Math.PI;
-            const endAngle1 = isHorizontal ? (3 * Math.PI / 2) : (2 * Math.PI);
-            const startAngle2 = isHorizontal ? (-Math.PI / 2) : 0;
-            const endAngle2 = isHorizontal ? (Math.PI / 2) : Math.PI;
-
-            const pA_x = startCapCenter.x + slotRadius * Math.cos(startAngle1);
-            const pA_y = startCapCenter.y + slotRadius * Math.sin(startAngle1);
-            const pB_x = startCapCenter.x + slotRadius * Math.cos(endAngle1);
-            const pB_y = startCapCenter.y + slotRadius * Math.sin(endAngle1);
-            const pC_x = endCapCenter.x + slotRadius * Math.cos(startAngle2);
-            const pC_y = endCapCenter.y + slotRadius * Math.sin(startAngle2);
-            const pD_x = endCapCenter.x + slotRadius * Math.cos(endAngle2);
-            const pD_y = endCapCenter.y + slotRadius * Math.sin(endAngle2);
-
-            const i1 = startCapCenter.x - pA_x;
-            const j1 = startCapCenter.y - pA_y;
-            const i2 = endCapCenter.x - pC_x;
-            const j2 = endCapCenter.y - pC_y;
-
-            // Always CW for climb milling
-            const actualClockwise = true;
-
-            if (actualClockwise) {
-                plan.addLinear(pD_x, pD_y, undefined, feedRate);
-                plan.addArc(pC_x, pC_y, undefined, i2, j2, true, feedRate);
-                plan.addLinear(pB_x, pB_y, undefined, feedRate);
-                plan.addArc(pA_x, pA_y, undefined, i1, j1, true, feedRate);
-            } else {
-                plan.addArc(pB_x, pB_y, undefined, i1, j1, false, feedRate);
-                plan.addLinear(pC_x, pC_y, undefined, feedRate);
-                plan.addArc(pD_x, pD_y, undefined, i2, j2, false, feedRate);
-                plan.addLinear(pA_x, pA_y, undefined, feedRate);
-            }
-        }
-
-        /**
-         * Translate arc to cutting commands
-         */
-        translateArc(plan, primitive, feedRate) {
-            // Get Transform Context
-            const transforms = plan.metadata.transforms;
-
-            // Transform Absolute Points
-            const start = this.applyTransforms(primitive.startPoint, transforms);
-            const end = this.applyTransforms(primitive.endPoint, transforms);
-            const center = this.applyTransforms(primitive.center, transforms);
-            
-            // Calculate Relative I/J for G-code
-            const i = center.x - start.x;
-            const j = center.y - start.y;
-
-            // Handle Winding Direction
-            let isClockwise = primitive.clockwise;
-            
+        const useArc = arcSpan > 0 && arcSpan <= (segmentsToDraw - segmentsDrawn) && arc.center && arc.radius > 0;
+        const nextIndex = useArc ? arcEnd : (i + 1) % numPoints;
+        const endPoint = this.applyTransforms(points[nextIndex], transforms);
+        if (useArc) {
+          const chordDistance = Math.hypot(endPoint.x - startPoint.x, endPoint.y - startPoint.y);
+          const sweep = ToolpathPlan.normalizeArcSweep({
+            sweepAngle: arc.sweepAngle,
+            startAngle: arc.startAngle,
+            endAngle: arc.endAngle,
+            clockwise: arc.clockwise,
+            chord: chordDistance,
+            radius: arc.radius
+          });
+          // Allow arcs with a tiny chord IF their sweep angle is massive (e.g., a full circle)
+          if (chordDistance >= minArcChordLength || Math.abs(sweep) >= Math.PI) {
+            const transformedCenter = this.applyTransforms(arc.center, transforms);
+            const i_val = transformedCenter.x - startPoint.x;
+            const j_val = transformedCenter.y - startPoint.y;
+            let clockwise = arc.clockwise;
             // If mirrored, it might be necessary to flip the arc direction
-            if (transforms && transforms.windingFlipped) {
-                isClockwise = !isClockwise;
-            }
-
-            // Add Linear move to Start
-            plan.addLinear(start.x, start.y, undefined, feedRate);
-
-            // Check for collapsed arc (Safety)
-            const minArcChordLength = 0.01;
-            const chordDistance = Math.hypot(end.x - start.x, end.y - start.y);
-
-            // Signed sweep via the shared normalizer.
-            const sweep = ToolpathPlan.normalizeArcSweep({
-                sweepAngle: primitive.sweepAngle,
-                startAngle: primitive.startAngle,
-                endAngle: primitive.endAngle,
-                clockwise: isClockwise,
-                chord: chordDistance,
-                radius: primitive.radius
-            });
-            
-            // Only skip if the chord AND the sweep are both tiny
-            if (chordDistance < minArcChordLength && Math.abs(sweep) < Math.PI) {
-                plan.addLinear(end.x, end.y, undefined, feedRate);
-                return;
-            }
-
-            // Add Arc Command
-            plan.addArc(end.x, end.y, undefined, i, j, isClockwise, feedRate);
+            if (windingFlipped) { clockwise = !clockwise; }
+            plan.addArc(endPoint.x, endPoint.y, undefined, i_val, j_val, clockwise, feedRate);
+          } else {
+            // Tiny arc, use line
+            plan.addLinear(endPoint.x, endPoint.y, undefined, feedRate);
+          }
+          segmentsDrawn += arcSpan;
+        } else {
+          // Linear segment
+          const dist = Math.hypot(endPoint.x - startPoint.x, endPoint.y - startPoint.y);
+          if (dist > minLinearLength) plan.addLinear(endPoint.x, endPoint.y, undefined, feedRate);
+          segmentsDrawn++;
         }
-
-        translatePath(plan, contour, feedRate) {
-            const points = contour.points;
-            if (!points || points.length < 2) return;
-
-            const transforms = plan.metadata.transforms;
-            const isClosed = plan.metadata.isClosed;
-            const arcSegments = contour.arcSegments || [];
-            const minArcChordLength = 0.01;
-            const minLinearLength = 0.001;
-
-            // Build arc map
-            const arcMap = new Map();
-            for (const arc of arcSegments) {
-                arcMap.set(arc.startIndex, arc);
-            }
-
-            if (plan.metadata.isSimpleCircle &&
-                plan.metadata.center && plan.metadata.radius > 0) {
-                const start = this.applyTransforms(points[0], transforms);
-                const c = plan.metadata.center;
-                plan.addArc(start.x, start.y, undefined,
-                    c.x - start.x, c.y - start.y, true, feedRate);
-                return;
-            }
-
-            // Standard segment-by-segment processing
-            const isPhysicallyClosed = ToolpathPlan.isClosedPoints(points);
-            const numPoints = points.length;
-            const segmentsToDraw = (isClosed && !isPhysicallyClosed) ? numPoints : numPoints - 1;
-
-            // Hoist winding flip out of the loop - constant for the whole path
-            const windingFlipped = !!(transforms && transforms.windingFlipped);
-
-            let i = 0;
-            let segmentsDrawn = 0;
-            // Transform the first point ONCE before the loop. Each iteration
-            // carries its endPoint into the next iteration's startPoint, so
-            // every point is transformed exactly once.
-            let startPoint = this.applyTransforms(points[0], transforms);
-
-            while (segmentsDrawn < segmentsToDraw) {
-                const arc = arcMap.get(i);
-
-                // An arcSegment spans startIndex..endIndex and REPLACES every
-                // point between them. Adjacent indices are the span === 1 case;
-                // tessellated spans (obround caps, primitiveToPath's arc) are
-                // the rest. Rejecting a span emits its tessellation as chords -
-                // correct geometry, silently faceted G-code.
-                let arcEnd = -1;
-                let arcSpan = 0;
-                if (arc && Number.isInteger(arc.endIndex)) {
-                    arcEnd = ((arc.endIndex % numPoints) + numPoints) % numPoints;
-                    arcSpan = (((arcEnd - i) % numPoints) + numPoints) % numPoints;
-                }
-
-                const useArc = arcSpan > 0 &&
-                               arcSpan <= (segmentsToDraw - segmentsDrawn) &&
-                               arc.center && arc.radius > 0;
-
-                const nextIndex = useArc ? arcEnd : (i + 1) % numPoints;
-                const endPoint = this.applyTransforms(points[nextIndex], transforms);
-
-                if (useArc) {
-                    const chordDistance = Math.hypot(endPoint.x - startPoint.x, endPoint.y - startPoint.y);
-
-                    // Shared normalizer
-                    const sweep = ToolpathPlan.normalizeArcSweep({
-                        sweepAngle: arc.sweepAngle,
-                        startAngle: arc.startAngle,
-                        endAngle: arc.endAngle,
-                        clockwise: arc.clockwise,
-                        chord: chordDistance,
-                        radius: arc.radius
-                    });
-
-                    // Allow arcs with a tiny chord IF their sweep angle is massive (e.g., a full circle)
-                    if (chordDistance >= minArcChordLength || Math.abs(sweep) >= Math.PI) {
-                        const transformedCenter = this.applyTransforms(arc.center, transforms);
-                        const i_val = transformedCenter.x - startPoint.x;
-                        const j_val = transformedCenter.y - startPoint.y;
-                        let clockwise = arc.clockwise;
-                        // If mirrored, it might be necessary to flip the arc direction
-                        if (windingFlipped) { clockwise = !clockwise; }
-                        plan.addArc(endPoint.x, endPoint.y, undefined, i_val, j_val, clockwise, feedRate);
-                    } else {
-                        // Tiny arc, use line
-                        plan.addLinear(endPoint.x, endPoint.y, undefined, feedRate);
-                    }
-                    segmentsDrawn += arcSpan;
-                } else {
-                    // Linear segment
-                    const dist = Math.hypot(endPoint.x - startPoint.x, endPoint.y - startPoint.y);
-                    if (dist > minLinearLength) {
-                        plan.addLinear(endPoint.x, endPoint.y, undefined, feedRate);
-                    }
-                    segmentsDrawn++;
-                }
-
-                i = nextIndex;
-                startPoint = endPoint;
-            }
-        }
-
-        /**
-         * Reverses a toolpath plan in-place.
-         * Rebuilds the path from absolute points, correctly flipping arcs.
-         */
-        reversePlan(plan) {
-            if (!plan || !plan.commands || plan.commands.length === 0) return;
-
-            const commands = plan.commands;
-            const newCommands = [];
-
-            // Build an absolute point list from the original path
-            const points = [{ ...plan.metadata.entryPoint }];
-            let currentPos = { ...plan.metadata.entryPoint };
-
-            for (const cmd of commands) {
-                const nextPos = {
-                    x: cmd.x !== null ? cmd.x : currentPos.x,
-                    y: cmd.y !== null ? cmd.y : currentPos.y,
-                    z: cmd.z, // Preserve original null state instead of currentPos.z
-                    feed: cmd.f,
-                    // Store the command info *on the point it leads to*
-                    cmdType: cmd.type,
-                    i: cmd.i,
-                    j: cmd.j,
-                    // Capture metadata to preserve 'isTab' flags
-                    metadata: cmd.metadata
-                };
-                points.push(nextPos);
-                currentPos = nextPos;
-            }
-
-            // Iterate the point list backwards to create new commands
-            // Start from the last point (new entry) and move to the first (new exit)
-            for (let i = points.length - 1; i > 0; i--) {
-                const startPos = points[i]; // The new start point
-                const endPos = points[i - 1]; // The new end point
-
-                // The command data is stored on the 'startPos' (original end point)
-                const cmdType = startPos.cmdType;
-                const feed = startPos.feed;
-                const meta = startPos.metadata;
-                const zVal = startPos.z; // Keeps null for 2D moves
-
-                let newCmd;
-
-                if (cmdType === 'ARC_CW' || cmdType === 'ARC_CCW') {
-                    // This command was an arc. Create its reverse.
-                    const newType = cmdType === 'ARC_CW' ? 'ARC_CCW' : 'ARC_CW';
-                    // The original 'i, j' was relative to the original start (endPos)
-                    // Set the center from that.
-                    const centerX = endPos.x + startPos.i;
-                    const centerY = endPos.y + startPos.j;
-
-                    // Calculate the new 'i, j' relative to the *new* start (startPos)
-                    const new_i = centerX - startPos.x;
-                    const new_j = centerY - startPos.y;
-
-                    newCmd = new MotionCommand(
-                        newType,
-                        { x: endPos.x, y: endPos.y, z: zVal },
-                        { i: new_i, j: new_j, feed: feed }
-                    );
-                } else {
-                    // Default to Linear
-                    newCmd = new MotionCommand(
-                        'LINEAR',
-                        { x: endPos.x, y: endPos.y, z: zVal },
-                        { feed: feed }
-                    );
-                }
-
-                // Restore metadata to the new command
-                if (meta) {
-                    newCmd.metadata = { ...meta };
-                }
-
-                newCommands.push(newCmd);
-            }
-
-            plan.commands = newCommands;
-
-            // Swap entry/exit points
-            const oldEntry = plan.metadata.entryPoint;
-            plan.metadata.entryPoint = plan.metadata.exitPoint;
-            plan.metadata.exitPoint = oldEntry;
-        }
-
-        /**
-         * Enforces climb milling direction on generated commands and must be called AFTER commands are generated (post-transform).
-         * Climb milling direction:
-         * - External contours: CW
-         * - Hole contours: CCW
-         */
-        enforceClimbMilling(plan, isHole = false) {
-            if (!plan.commands || plan.commands.length === 0) return false;
-            if (!plan.metadata.isClosed && !plan.metadata.isClosedLoop) return false;
-
-            const wantCW = !isHole; // External = CW (climb), Hole = CCW (climb)
-
-            // A circle is ONE arc command, so the winding scan below has nothing
-            // to measure: set the opcode directly. Flipping a full arc keeps the
-            // start point and I/J, and hole-ness survives a mirror.
-            if (plan.metadata.isSimpleCircle && plan.commands.length === 1) {
-                const cmd = plan.commands[0];
-                if (cmd.type !== 'ARC_CW' && cmd.type !== 'ARC_CCW') return false;
-                if ((cmd.type === 'ARC_CW') === wantCW) return false;
-                cmd.type = wantCW ? 'ARC_CW' : 'ARC_CCW';
-                return true;
-            }
-
-            // Skip open paths and empty plans
-            if (plan.commands.length < 2) return false;
-
-            // Build point list from generated commands
-            const commandPoints = [];
-            let pos = { ...plan.metadata.entryPoint };
-
-            for (const cmd of plan.commands) {
-                if (cmd.x !== null && cmd.x !== undefined) pos.x = cmd.x;
-                if (cmd.y !== null && cmd.y !== undefined) pos.y = cmd.y;
-                commandPoints.push({ x: pos.x, y: pos.y });
-            }
-
-            if (commandPoints.length < 3) return false;
-
-            const isCW = GeometryUtils.isClockwise(commandPoints);
-
-            if (isCW !== wantCW) {
-                this.reversePlan(plan);
-                return true;
-            }
-            return false;
-        }
-
-        /**
-         * Geometry Utilities
-         */
-
-        /**
-         * Extracts dimensional data from an obround primitive.
-         */
-        getObroundData(primitive) {
-            if (primitive.type !== 'obround') return null;
-
-            const slotRadius = Math.min(primitive.width, primitive.height) / 2;
-            const isHorizontal = primitive.width > primitive.height;
-            let startCapCenter, endCapCenter;
-
-            // Define points A, B, C, D locally to ensure consistency with entryPoint logic
-            let pA, pB, pC, pD;
-
-            if (isHorizontal) {
-                const centerY = primitive.position.y + primitive.height / 2;
-                startCapCenter = { x: primitive.position.x + slotRadius, y: centerY };
-                endCapCenter = { x: primitive.position.x + primitive.width - slotRadius, y: centerY };
-
-                // Horizontal: pA is Top-Left relative to start cap (90 deg)
-                pA = { x: startCapCenter.x, y: startCapCenter.y + slotRadius };
-                pB = { x: startCapCenter.x, y: startCapCenter.y - slotRadius };
-                pC = { x: endCapCenter.x, y: endCapCenter.y - slotRadius };
-                pD = { x: endCapCenter.x, y: endCapCenter.y + slotRadius };
-            } else {
-                const centerX = primitive.position.x + primitive.width / 2;
-                startCapCenter = { x: centerX, y: primitive.position.y + slotRadius };
-                endCapCenter = { x: centerX, y: primitive.position.y + primitive.height - slotRadius };
-
-                // Vertical: pA is Left-Middle relative to start cap (180 deg)
-                pA = { x: startCapCenter.x - slotRadius, y: startCapCenter.y };
-                pB = { x: startCapCenter.x + slotRadius, y: startCapCenter.y };
-                pC = { x: endCapCenter.x + slotRadius, y: endCapCenter.y };
-                pD = { x: endCapCenter.x - slotRadius, y: endCapCenter.y };
-            }
-
-            return {
-                position: primitive.position,
-                width: primitive.width,
-                height: primitive.height,
-                isHorizontal: isHorizontal,
-                slotRadius: slotRadius,
-                startCapCenter: startCapCenter,
-                endCapCenter: endCapCenter,
-                // Pass pre-calculated corners
-                pA, pB, pC, pD
-            };
-        }
-
-        /**
-         * THE single pipeline→machine coordinate mapping.
-         * Identity transforms return the input point UNCHANGED (no clone) -
-         * callers must treat the result as read-only, or clone explicitly
-         * when storing it into mutable metadata (see extractDrillMacros).
-         */
-         applyTransforms(point, transforms) {
-            if (transforms.machineIsIdentity) return point;
-            // machineMatrix = T(-origin) ⊗ workspaceMatrix.
-            return TransformMath.applyToPoint(transforms.machineMatrix, point);
-        }
-
-        debug(message, data = null) {
-            if (!debugState.enabled) return;
-            data ? console.log(`[GeometryTranslator] ${message}`, data)
-                 : console.log(`[GeometryTranslator] ${message}`);
-        }
+        i = nextIndex;
+        startPoint = endPoint;
+      }
     }
 
-    // Module-private helper - keeps extractDrillMacros readable without
-    // re-evaluating the nullish default inline three times.
-    function holeIdxOf(props) {
-        return props.holeIndex ?? -1;
+    /** Reverse toolpath plan in-place from absolute points and flip arcs. */
+    reversePlan(plan) {
+      if (!plan || !plan.commands || plan.commands.length === 0) return;
+      const commands = plan.commands;
+      const newCommands = [];
+      // Build an absolute point list from the original path
+      const points = [{ ...plan.metadata.entryPoint }];
+      let currentPos = { ...plan.metadata.entryPoint };
+      for (const cmd of commands) {
+        const nextPos = {
+          x: cmd.x !== null ? cmd.x : currentPos.x,
+          y: cmd.y !== null ? cmd.y : currentPos.y,
+          z: cmd.z, // Preserve original null state instead of currentPos.z
+          feed: cmd.f,
+          // Store the command info *on the point it leads to*
+          cmdType: cmd.type,
+          i: cmd.i,
+          j: cmd.j,
+          // Capture metadata to preserve 'isTab' flags
+          metadata: cmd.metadata
+        };
+        points.push(nextPos);
+        currentPos = nextPos;
+      }
+      // Iterate the point list backwards to create new commands
+      // Start from the last point (new entry) and move to the first (new exit)
+      for (let i = points.length - 1; i > 0; i--) {
+        const startPos = points[i]; // The new start point
+        const endPos = points[i - 1]; // The new end point
+        // The command data is stored on the 'startPos' (original end point)
+        const cmdType = startPos.cmdType;
+        const feed = startPos.feed;
+        const meta = startPos.metadata;
+        const zVal = startPos.z; // Keeps null for 2D moves
+        let newCmd;
+        if (cmdType === 'ARC_CW' || cmdType === 'ARC_CCW') {
+          // This command was an arc. Create its reverse.
+          const newType = cmdType === 'ARC_CW' ? 'ARC_CCW' : 'ARC_CW';
+          // The original 'i, j' was relative to the original start (endPos)
+          // Set the center from that.
+          const centerX = endPos.x + startPos.i;
+          const centerY = endPos.y + startPos.j;
+          // Calculate the new 'i, j' relative to the *new* start (startPos)
+          const new_i = centerX - startPos.x;
+          const new_j = centerY - startPos.y;
+          newCmd = new MotionCommand(
+            newType,
+            { x: endPos.x, y: endPos.y, z: zVal },
+            { i: new_i, j: new_j, feed: feed }
+          );
+        } else {
+          // Default to Linear
+          newCmd = new MotionCommand(
+            'LINEAR',
+            { x: endPos.x, y: endPos.y, z: zVal },
+            { feed: feed }
+          );
+        }
+
+        // Restore metadata to the new command
+        if (meta) newCmd.metadata = { ...meta };
+        newCommands.push(newCmd);
+      }
+      plan.commands = newCommands;
+
+      // Swap entry/exit points
+      const oldEntry = plan.metadata.entryPoint;
+      plan.metadata.entryPoint = plan.metadata.exitPoint;
+      plan.metadata.exitPoint = oldEntry;
     }
 
-    ROOT.GeometryTranslator = GeometryTranslator;
+    /**
+     * Enforces climb milling direction on generated commands and must be called AFTER commands are generated (post-transform).
+     * Climb milling direction:
+     * - External contours: CW
+     * - Hole contours: CCW
+     */
+    enforceClimbMilling(plan, isHole = false) {
+      if (!plan.commands || plan.commands.length === 0) return false;
+      if (!plan.metadata.isClosed && !plan.metadata.isClosedLoop) return false;
+      const wantCW = !isHole; // External = CW (climb), Hole = CCW (climb)
+      // A circle is ONE arc command, so the winding scan below has nothing
+      // to measure: set the opcode directly. Flipping a full arc keeps the
+      // start point and I/J, and hole-ness survives a mirror.
+      if (plan.metadata.isSimpleCircle && plan.commands.length === 1) {
+        const cmd = plan.commands[0];
+        if (cmd.type !== 'ARC_CW' && cmd.type !== 'ARC_CCW') return false;
+        if ((cmd.type === 'ARC_CW') === wantCW) return false;
+        cmd.type = wantCW ? 'ARC_CW' : 'ARC_CCW';
+        return true;
+      }
+      // Skip open paths and empty plans
+      if (plan.commands.length < 2) return false;
+      // Build point list from generated commands
+      const commandPoints = [];
+      let pos = { ...plan.metadata.entryPoint };
+      for (const cmd of plan.commands) {
+        if (cmd.x !== null && cmd.x !== undefined) pos.x = cmd.x;
+        if (cmd.y !== null && cmd.y !== undefined) pos.y = cmd.y;
+        commandPoints.push({ x: pos.x, y: pos.y });
+      }
+      if (commandPoints.length < 3) return false;
+      const isCW = GeometryUtils.isClockwise(commandPoints);
+      if (isCW !== wantCW) {
+        this.reversePlan(plan);
+        return true;
+      }
+      return false;
+    }
+
+    /**
+     * Geometry Utilities
+     */
+
+    /** Extracts dimensional data from an obround primitive. */
+    getObroundData(primitive) {
+      if (primitive.type !== 'obround') return null;
+      const slotRadius = Math.min(primitive.width, primitive.height) / 2;
+      const isHorizontal = primitive.width > primitive.height;
+      let startCapCenter, endCapCenter;
+      // Define points A, B, C, D locally to ensure consistency with entryPoint logic
+      let pA, pB, pC, pD;
+      if (isHorizontal) {
+        const centerY = primitive.position.y + primitive.height / 2;
+        startCapCenter = { x: primitive.position.x + slotRadius, y: centerY };
+        endCapCenter = { x: primitive.position.x + primitive.width - slotRadius, y: centerY };
+        // Horizontal: pA is Top-Left relative to start cap (90 deg)
+        pA = { x: startCapCenter.x, y: startCapCenter.y + slotRadius };
+        pB = { x: startCapCenter.x, y: startCapCenter.y - slotRadius };
+        pC = { x: endCapCenter.x, y: endCapCenter.y - slotRadius };
+        pD = { x: endCapCenter.x, y: endCapCenter.y + slotRadius };
+      } else {
+        const centerX = primitive.position.x + primitive.width / 2;
+        startCapCenter = { x: centerX, y: primitive.position.y + slotRadius };
+        endCapCenter = { x: centerX, y: primitive.position.y + primitive.height - slotRadius };
+        // Vertical: pA is Left-Middle relative to start cap (180 deg)
+        pA = { x: startCapCenter.x - slotRadius, y: startCapCenter.y };
+        pB = { x: startCapCenter.x + slotRadius, y: startCapCenter.y };
+        pC = { x: endCapCenter.x + slotRadius, y: endCapCenter.y };
+        pD = { x: endCapCenter.x - slotRadius, y: endCapCenter.y };
+      }
+      return {
+        position: primitive.position,
+        width: primitive.width,
+        height: primitive.height,
+        isHorizontal: isHorizontal,
+        slotRadius: slotRadius,
+        startCapCenter: startCapCenter,
+        endCapCenter: endCapCenter,
+        // Pass pre-calculated corners
+        pA, pB, pC, pD
+      };
+    }
+
+    /**
+     * THE single pipeline→machine coordinate mapping.
+     * Identity transforms return the input point UNCHANGED (no clone) -
+     * callers must treat the result as read-only, or clone explicitly
+     * when storing it into mutable metadata (see extractDrillMacros).
+     */
+    applyTransforms(point, transforms) {
+      if (transforms.machineIsIdentity) return point;
+      // machineMatrix = T(-origin) ⊗ workspaceMatrix.
+      return TransformMath.applyToPoint(transforms.machineMatrix, point);
+    }
+
+    debug(message, data = null) {
+      if (!debugState.enabled) return;
+      data ? console.log(`[GeometryTranslator] ${message}`, data)
+           : console.log(`[GeometryTranslator] ${message}`);
+    }
+  }
+
+  // Module-private helper - keeps extractDrillMacros readable without
+  // re-evaluating the nullish default inline three times.
+  function holeIdxOf(props) {
+    return props.holeIndex ?? -1;
+  }
+
+  ROOT.GeometryTranslator = GeometryTranslator;
 })();
